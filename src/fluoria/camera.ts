@@ -22,10 +22,13 @@ export function zoomAround(view: View, screenX: number, screenY: number, zoom: n
   return snap({ x: screenX - worldX * zoom, y: screenY - worldY * zoom, zoom });
 }
 
-/** Fit a world into the screen at the largest whole step that shows all of it */
+/** Fit a world into the screen: the largest whole step that shows all of it, or an exact fit when that is below 1× */
 export function fitView(worldWidth: number, worldHeight: number, screenWidth: number, screenHeight: number): View {
-  const fits = ZOOM_STEPS.filter(step => worldWidth * step <= screenWidth && worldHeight * step <= screenHeight);
-  const zoom = fits.length ? fits[fits.length - 1] : ZOOM_STEPS[0];
+  const fits = ZOOM_STEPS.filter(
+    step => step >= 1 && worldWidth * step <= screenWidth && worldHeight * step <= screenHeight
+  );
+  const exact = Math.min(screenWidth / worldWidth, screenHeight / worldHeight);
+  const zoom = fits.length ? fits[fits.length - 1] : exact;
   return snap({ x: (screenWidth - worldWidth * zoom) / 2, y: (screenHeight - worldHeight * zoom) / 2, zoom });
 }
 

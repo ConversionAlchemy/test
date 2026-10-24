@@ -8,6 +8,7 @@ export interface MapLabel {
   priority: number; // higher wins a collision
   size: number; // font size in screen pixels before the pixel doubling
   minZoom?: number; // hidden below this zoom
+  maxZoom?: number; // hidden above this zoom
 }
 
 interface Box {
@@ -33,6 +34,7 @@ export function placeLabels(
   const ordered = [...labels].sort((a, b) => b.priority - a.priority);
   for (const label of ordered) {
     if (label.minZoom !== undefined && view.zoom < label.minZoom) continue;
+    if (label.maxZoom !== undefined && view.zoom > label.maxZoom) continue;
     const { width, height } = measure(label);
     const cx = view.x + label.x * view.zoom;
     const cy = view.y + label.y * view.zoom;

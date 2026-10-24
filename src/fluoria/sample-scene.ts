@@ -18,6 +18,7 @@ export function buildSampleScene(seed: number, width = 640, height = 360): { ras
       const e = fbm(x, y, 110, 5, seed) * 0.75 + falloff * 0.55 - 0.08;
       elevation[y * width + x] = e;
       raster.terrain[y * width + x] = terrainFor(x, y, e, seed);
+      raster.elevation[y * width + x] = elevationFor(x, y, e, seed);
     }
 
   const random = seededRandom(seed);
@@ -62,6 +63,14 @@ export function buildSampleScene(seed: number, width = 640, height = 360): { ras
     size: i < 3 ? 18 : 14
   }));
   return { raster, labels };
+}
+
+/** Lowland rolls gently; uplands get sharp ridges so relief shading has something to catch */
+function elevationFor(x: number, y: number, e: number, seed: number): number {
+  const land = Math.max(0, (e - 0.47) / 0.45);
+  const ridge = 1 - Math.abs(2 * fbm(x, y, 18, 3, seed + 21) - 1);
+  const upland = Math.max(0, Math.min(1, (e - 0.66) / 0.14));
+  return Math.round(Math.min(255, land * 125 + ridge * upland * 100 + fbm(x, y, 9, 2, seed + 22) * 8));
 }
 
 function terrainFor(x: number, y: number, e: number, seed: number): TerrainId {
