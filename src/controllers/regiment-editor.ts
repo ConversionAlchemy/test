@@ -11,6 +11,7 @@ import { Layers } from "@/components/layers";
 import { clearMainTip, tip } from "@/components/tooltips";
 import { applyDefaultViewboxEvents } from "@/components/viewbox-events";
 import { Controllers } from "@/controllers";
+import { clearSelection, dragOver, dropAt, moved, selectRegiment } from "@/fluoria/units";
 import { Tags } from "@/generators/tags";
 import {
   drawRegiment,
@@ -39,6 +40,7 @@ function editRegiment(selector: string): void {
 
   renderDialog();
   updateRegimentData(regiment);
+  selectRegiment(regiment);
   drawBase();
   drawRotationControl();
 
@@ -568,13 +570,9 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
   const baseLine = select<SVGGElement, unknown>("#viewbox").select("g#regimentBase > line");
   const rotationControl = select<SVGGElement, unknown>("#debug").select("#rotationControl");
 
-  event.on("drag", function (this: SVGGElement, dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
-    const { x, y } = dragEvent;
-    if (!isInMap(x, y)) return;
-    Military.move(reg.state, reg.i, x, y);
+  const place = (x: number, y: number) => {
     const x1 = rn(x - w / 2, 2);
     const y1 = rn(y - size, 2);
-
     this.setAttribute("transform-origin", `${x}px ${y}px`);
     baseRect.setAttribute("x", String(x1));
     baseRect.setAttribute("y", String(y1));
@@ -596,6 +594,22 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
         .attr("cy", y)
         .attr("transform-origin", `${x}px ${y}px`);
     }
+  };
+
+  // Fluoria: the box follows the pointer, but the move only stands on a cell within reach
+  const from = [reg.x, reg.y] as const;
+  this.style.translate = "";
+  event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
+    const { x, y } = dragEvent;
+    if (!isInMap(x, y)) return;
+    place(x, y);
+    dragOver(reg, x, y);
+  });
+  event.on("end", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
+    const spot = dropAt(reg, dragEvent.x, dragEvent.y) ?? from;
+    Military.move(reg.state, reg.i, spot[0], spot[1]);
+    place(reg.x, reg.y);
+    moved(reg);
   });
 }
 
@@ -619,6 +633,7 @@ const isInMap = (x: number, y: number) =>
   x >= 0 && y >= 0 && x <= options.map.graph.width && y <= options.map.graph.height;
 
 function closeEditor(): void {
+  clearSelection();
   select<SVGGElement, unknown>("#debug").selectAll("*").remove();
   select<SVGGElement, unknown>("#viewbox").selectAll("g#regimentBase").remove();
   const armiesSel = select<SVGGElement, unknown>("#armies");

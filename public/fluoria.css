@@ -288,3 +288,25 @@ input[type="range"] {
   overflow-y: auto;
   scrollbar-color: var(--fl-line) transparent;
 }
+
+/* Regiment stacks and cargo */
+#armies .flStack,
+#armies .flCargo {
+  fill: #ffffff;
+  stroke: #1b1b1e;
+  stroke-width: 0.4;
+  paint-order: stroke;
+  font-family: "VT323", monospace;
+  pointer-events: none;
+}
+
+#armies g[data-stack] {
+  transition: translate 0.15s;
+}
+
+#contextMenu {
+  color: var(--fl-text) !important;
+  font-family: "VT323", monospace !important;
+  font-size: 1.3em !important;
+  border: 1px solid var(--fl-line);
+}

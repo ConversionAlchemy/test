@@ -6,8 +6,12 @@ const mocks = vi.hoisted(() => ({
   connected: vi.fn(() => false),
   isOn: vi.fn((_layer: string) => true),
   openEditor: vi.fn((_element: Element) => true),
-  reveal: vi.fn()
+  reveal: vi.fn(),
+  actions: vi.fn(
+    (): { label: string; run?: () => void; rename?: { value: string; apply: (name: string) => void } }[] => []
+  )
 }));
+vi.mock("@/fluoria/menu-actions", () => ({ actionsFor: mocks.actions }));
 vi.mock("@/components/layers", () => ({ Layers: { isOn: mocks.isOn } }));
 vi.mock("@/components/reveal", () => ({ revealEntity: mocks.reveal }));
 vi.mock("@/components/viewbox-events", () => ({ openEditor: mocks.openEditor }));
@@ -112,6 +116,29 @@ describe("context menu", () => {
     rightClick("burgIcon");
     rows().at(-1)!.click();
     expect(mocks.ask).toHaveBeenCalledWith("What's there? cell:1, x:30, y:40");
+  });
+
+  it("puts the actions for the thing under the cursor first, and renames in place", () => {
+    const run = vi.fn();
+    const apply = vi.fn();
+    mocks.actions.mockReturnValue([
+      { label: "Edit", run },
+      { label: "Rename", rename: { value: "Vaeltown", apply } }
+    ]);
+    rightClick("burgIcon");
+    expect(names().slice(0, 2)).toEqual(["Edit", "Rename"]);
+    expect(names()).not.toContain("Vaeltown"); // the burg itself is what the actions are for
+
+    rows()[0].click();
+    expect(run).toHaveBeenCalled();
+
+    rightClick("burgIcon");
+    rows()[1].click();
+    const input = document.querySelector<HTMLInputElement>("#contextMenu input")!;
+    input.value = "Vaelford";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(apply).toHaveBeenCalledWith("Vaelford");
+    expect(document.getElementById("contextMenu")).toBeNull();
   });
 
   it("closes on Escape and on a click outside, keeping its keys from the hotkeys", () => {

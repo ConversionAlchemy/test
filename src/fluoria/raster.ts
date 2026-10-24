@@ -13,7 +13,8 @@ export interface Stamp {
   y0: number;
   x1: number;
   y1: number;
-  paint: (put: (x: number, y: number, color: number) => void) => void;
+  /** `clip` is the area being rendered; a stamp may skip work outside it */
+  paint: (put: (x: number, y: number, color: number) => void, clip: Rect) => void;
 }
 
 export interface Rect {
@@ -42,15 +43,22 @@ export class PixelRaster {
   snowLine: Uint8Array | null = null;
   regionColors: number[] = [];
   borders = true;
+  /** State border width in game pixels */
+  borderPx = 1;
+  /** Optional second level of regions (provinces), outlined with a thin dashed line */
+  subregion: Uint16Array | null = null;
   stamps: Stamp[] = [];
   readonly cols: number;
   readonly rows: number;
   private dirty = new Map<number, Rect>(); // chunk id → the part of it that needs recolouring
 
+  /** `ox`, `oy`: where this raster sits among all game pixels at its scale, so tiles share one texture */
   constructor(
     readonly width: number,
     readonly height: number,
-    readonly seed = 1
+    readonly seed = 1,
+    readonly ox = 0,
+    readonly oy = 0
   ) {
     const size = width * height;
     this.terrain = new Uint8Array(size).fill(Terrain.Grass);
@@ -63,16 +71,23 @@ export class PixelRaster {
     this.markDirty(0, 0, width, height);
   }
 
-  terrainAt(x: number, y: number): number {
-    const cx = x < 0 ? 0 : x >= this.width ? this.width - 1 : x;
-    const cy = y < 0 ? 0 : y >= this.height ? this.height - 1 : y;
-    return this.terrain[cy * this.width + cx];
+  /** Index of a global pixel, clamped to this raster */
+  private at(x: number, y: number): number {
+    const lx = x - this.ox;
+    const ly = y - this.oy;
+    const cx = lx < 0 ? 0 : lx >= this.width ? this.width - 1 : lx;
+    const cy = ly < 0 ? 0 : ly >= this.height ? this.height - 1 : ly;
+    return cy * this.width + cx;
   }
 
+  /** Terrain at a global pixel */
+  terrainAt(x: number, y: number): number {
+    return this.terrain[this.at(x, y)];
+  }
+
+  /** Elevation at a global pixel */
   elevationAt(x: number, y: number): number {
-    const cx = x < 0 ? 0 : x >= this.width ? this.width - 1 : x;
-    const cy = y < 0 ? 0 : y >= this.height ? this.height - 1 : y;
-    return this.elevation[cy * this.width + cx];
+    return this.elevation[this.at(x, y)];
   }
 
   /** Light from the north-west: slopes facing it brighten, slopes away darken, in hard steps */
@@ -140,7 +155,7 @@ export class PixelRaster {
   render(x0: number, y0: number, w: number, h: number): void {
     for (let y = y0; y < y0 + h; y++) {
       const row = y * this.width;
-      for (let x = x0; x < x0 + w; x++) this.pixels[row + x] = this.colorAt(x, y);
+      for (let x = x0; x < x0 + w; x++) this.pixels[row + x] = this.colorAt(x + this.ox, y + this.oy);
     }
     const x1 = x0 + w;
     const y1 = y0 + h;
@@ -148,9 +163,11 @@ export class PixelRaster {
       if (x >= x0 && x < x1 && y >= y0 && y < y1) this.pixels[y * this.width + x] = color;
     };
     for (const stamp of this.stamps)
-      if (stamp.x1 >= x0 && stamp.x0 < x1 && stamp.y1 >= y0 && stamp.y0 < y1) stamp.paint(put);
+      if (stamp.x1 >= x0 && stamp.x0 < x1 && stamp.y1 >= y0 && stamp.y0 < y1)
+        stamp.paint(put, { x: x0, y: y0, x1, y1 });
   }
 
+  /** Colour of a global pixel */
   colorAt(x: number, y: number): number {
     const s = this.seed;
     const own = this.terrainAt(x, y);
@@ -161,7 +178,7 @@ export class PixelRaster {
     if (isWater(t) !== isWater(own) || isLine(t) || isLine(own)) t = own;
 
     let color = t === Terrain.River ? this.river(x, y) : isWater(t) ? this.water(x, y, t) : this.land(x, y, t);
-    const i = y * this.width + x;
+    const i = this.at(x, y);
     if (this.region && !isOpenWater(own)) color = this.political(x, y, color);
     if (this.overlay[i]) color = this.applyOverlay(x, y, color, this.overlay[i], this.amount[i]);
     return color;
@@ -170,13 +187,29 @@ export class PixelRaster {
   /** State tint, and a dashed border wherever the region changes */
   private political(x: number, y: number, color: number): number {
     const region = this.region as Uint16Array;
-    const i = y * this.width + x;
+    const i = this.at(x, y);
+    const lx = x - this.ox;
+    const ly = y - this.oy;
     const id = region[i];
-    const right = x + 1 < this.width && !isOpenWater(this.terrain[i + 1]) ? region[i + 1] : id;
-    const down = y + 1 < this.height && !isOpenWater(this.terrain[i + this.width]) ? region[i + this.width] : id;
-    if (this.borders && (right !== id || down !== id) && (x + y) % 4 < 2) return C.ink;
+    if (this.borders) {
+      const other = (dx: number, dy: number) => {
+        if (lx + dx >= this.width || ly + dy >= this.height) return false;
+        const j = i + dy * this.width + dx;
+        return !isOpenWater(this.terrain[j]) && region[j] !== id;
+      };
+      for (let d = 1; d <= this.borderPx; d++) if (other(d, 0) || other(0, d)) return mixP(color, C.ink, 0.75);
+      const sub = this.subregion;
+      if (sub && (x + y) % 4 < 2) {
+        const right = lx + 1 < this.width && !isOpenWater(this.terrain[i + 1]) && sub[i + 1] !== sub[i];
+        const down =
+          ly + 1 < this.height && !isOpenWater(this.terrain[i + this.width]) && sub[i + this.width] !== sub[i];
+        if (right || down) return mixP(color, C.ink, 0.55);
+      }
+    }
     const tint = this.regionColors[id];
-    return tint ? mixP(color, tint, 0.22) : color;
+    if (!tint) return color;
+    const high = Math.min(1, this.elevation[i] / 190); // lighter on high ground, so relief shows through
+    return mixP(color, tint, 0.22 * (1 - high * 0.65));
   }
 
   private river(x: number, y: number): number {
@@ -204,7 +237,7 @@ export class PixelRaster {
       return hash2(x, y, s + 2) < 0.6 ? C.sand : C.sand2;
     }
     const relief = this.relief(x, y);
-    const line = this.snowLine ? this.snowLine[y * this.width + x] : SNOW_LINE;
+    const line = this.snowLine ? this.snowLine[this.at(x, y)] : SNOW_LINE;
     if (this.elevationAt(x, y) > line + (valueNoise(x, y, 6, s + 4) - 0.5) * 40)
       return shadeP(hash2(x, y, s + 6) < 0.12 ? packRGB([210, 214, 222]) : C.snow, relief);
     let c: number;

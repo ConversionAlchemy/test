@@ -33,6 +33,7 @@ export interface Regiment {
   note?: string;
   hidden?: boolean;
   tags?: string[];
+  carrier?: [state: number, regiment: number]; // Fluoria: the fleet this regiment is aboard
 }
 
 interface Platoon {
