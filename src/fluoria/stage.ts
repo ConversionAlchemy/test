@@ -2,15 +2,18 @@ import { Application, CanvasSource, Container, Sprite, Texture } from "pixi.js";
 import type { View } from "./camera";
 import { type MapLabel, placeLabels } from "./labels";
 import { css, Palette, type RGB } from "./palette";
-import type { PixelRaster } from "./raster";
+import { CHUNK, type PixelRaster, type Rect } from "./raster";
 
 const LABEL_PIXEL = 2; // each font pixel becomes 2×2 screen pixels, matching the chunky world
+const FRAME_BUDGET_MS = 12;
 
 /** Draws a PixelRaster with PixiJS: one texture per chunk, nearest-neighbour above 1×, mipmaps below */
 export class PixelStage {
   readonly app = new Application();
   private world = new Container();
   private labelLayer = new Container();
+  private markerLayer = new Container();
+  private markers: { marker: Marker; sprite: Sprite }[] = [];
   private chunks: { source: CanvasSource; canvas: HTMLCanvasElement }[] = [];
   private labels: { label: MapLabel; sprite: Sprite }[] = [];
   private raster: PixelRaster | null = null;
@@ -24,8 +27,9 @@ export class PixelStage {
     this.app.canvas.style.imageRendering = "pixelated";
     this.app.canvas.style.display = "block";
     host.appendChild(this.app.canvas);
-    this.app.stage.addChild(this.world, this.labelLayer);
+    this.app.stage.addChild(this.world, this.markerLayer, this.labelLayer);
     this.app.renderer.on("resize", () => this.layoutLabels());
+    this.app.ticker.add(() => this.refresh());
   }
 
   get width(): number {
@@ -55,21 +59,45 @@ export class PixelStage {
     this.refresh();
   }
 
-  /** Recolour and re-upload whatever the raster marked dirty */
+  /** Recolour what the raster marked dirty: what's on screen first, within a frame budget, the rest in later frames */
   refresh(): void {
     const raster = this.raster;
-    if (!raster) return;
-    for (const id of raster.flush()) {
-      const { x, y, w, h } = raster.chunkRect(id);
-      const { canvas, source } = this.chunks[id];
-      const block = new Uint32Array(w * h);
-      for (let row = 0; row < h; row++)
-        block.set(raster.pixels.subarray((y + row) * raster.width + x, (y + row) * raster.width + x + w), row * w);
-      const ctx = canvas.getContext("2d");
-      ctx?.putImageData(new ImageData(new Uint8ClampedArray(block.buffer), w, h), 0, 0);
-      source.update();
-      source.updateMipmaps();
+    if (!raster?.pending) return;
+    const visible = this.visibleChunks(raster);
+    const start = performance.now();
+    while (raster.pending && performance.now() - start < FRAME_BUDGET_MS) {
+      let done = raster.flush(id => visible.has(id), 1);
+      if (!done.length) done = raster.flush(undefined, 1);
+      for (const { id, rect } of done) this.upload(raster, id, rect);
     }
+  }
+
+  private upload(raster: PixelRaster, id: number, rect: Rect): void {
+    const { x, y } = raster.chunkRect(id);
+    const w = rect.x1 - rect.x;
+    const h = rect.y1 - rect.y;
+    const block = new Uint32Array(w * h);
+    for (let row = 0; row < h; row++) {
+      const from = (rect.y + row) * raster.width + rect.x;
+      block.set(raster.pixels.subarray(from, from + w), row * w);
+    }
+    const { canvas, source } = this.chunks[id];
+    canvas
+      .getContext("2d")
+      ?.putImageData(new ImageData(new Uint8ClampedArray(block.buffer), w, h), rect.x - x, rect.y - y);
+    source.update();
+    if (this.view.zoom < 1) source.updateMipmaps();
+  }
+
+  private visibleChunks(raster: PixelRaster): Set<number> {
+    const { x, y, zoom } = this.view;
+    const c0 = Math.max(0, Math.floor(-x / zoom / CHUNK));
+    const r0 = Math.max(0, Math.floor(-y / zoom / CHUNK));
+    const c1 = Math.min(raster.cols - 1, Math.floor((this.width - x) / zoom / CHUNK));
+    const r1 = Math.min(raster.rows - 1, Math.floor((this.height - y) / zoom / CHUNK));
+    const ids = new Set<number>();
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) ids.add(r * raster.cols + c);
+    return ids;
   }
 
   setView(view: View): void {
@@ -77,7 +105,11 @@ export class PixelStage {
     this.world.position.set(view.x, view.y);
     this.world.scale.set(view.zoom);
     const mode = view.zoom < 1 ? "linear" : "nearest";
-    for (const { source } of this.chunks) if (source.scaleMode !== mode) source.scaleMode = mode;
+    for (const { source } of this.chunks)
+      if (source.scaleMode !== mode) {
+        source.scaleMode = mode;
+        if (mode === "linear") source.updateMipmaps();
+      }
     this.layoutLabels();
   }
 
@@ -94,7 +126,28 @@ export class PixelStage {
     this.layoutLabels();
   }
 
+  /** Settlements as Azgaar shows them: a square for capitals, circles by size for the rest, constant on screen */
+  setMarkers(markers: readonly Marker[]): void {
+    for (const child of this.markerLayer.removeChildren()) child.destroy();
+    this.markers = markers.map(marker => {
+      const sprite = new Sprite(markerTexture(marker.kind));
+      sprite.anchor.set(0.5);
+      sprite.scale.set(LABEL_PIXEL);
+      sprite.roundPixels = true;
+      this.markerLayer.addChild(sprite);
+      return { marker, sprite };
+    });
+    this.layoutLabels();
+  }
+
   private layoutLabels(): void {
+    for (const { marker, sprite } of this.markers) {
+      sprite.visible = this.view.zoom >= marker.minZoom;
+      sprite.position.set(
+        Math.round(this.view.x + marker.x * this.view.zoom),
+        Math.round(this.view.y + marker.y * this.view.zoom)
+      );
+    }
     const sizes = new Map(this.labels.map(({ label, sprite }) => [label.id, sprite]));
     const shown = placeLabels(
       this.labels.map(entry => entry.label),
@@ -117,6 +170,42 @@ export class PixelStage {
   destroy(): void {
     this.app.destroy(true, { children: true, texture: true, textureSource: true });
   }
+}
+
+export interface Marker {
+  x: number; // game pixels
+  y: number;
+  kind: "capital" | "city" | "town" | "village";
+  minZoom: number;
+}
+
+// tiny pixel shapes: # outline, o fill
+const MARKER_SHAPES: Record<Marker["kind"], string[]> = {
+  capital: ["#######", "#ooooo#", "#ooooo#", "#ooooo#", "#ooooo#", "#ooooo#", "#######"],
+  city: [".###.", "#ooo#", "#ooo#", "#ooo#", ".###."],
+  town: [".##.", "#oo#", "#oo#", ".##."],
+  village: [".#.", "#o#", ".#."]
+};
+const markerTextures = new Map<string, Texture>();
+
+function markerTexture(kind: Marker["kind"]): Texture {
+  const cached = markerTextures.get(kind);
+  if (cached) return cached;
+  const shape = MARKER_SHAPES[kind];
+  const canvas = document.createElement("canvas");
+  canvas.width = shape[0].length;
+  canvas.height = shape.length;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Texture.EMPTY;
+  for (let y = 0; y < shape.length; y++)
+    for (let x = 0; x < shape[y].length; x++) {
+      if (shape[y][x] === ".") continue;
+      ctx.fillStyle = css(shape[y][x] === "#" ? Palette.ink : Palette.paper);
+      ctx.fillRect(x, y, 1, 1);
+    }
+  const texture = new Texture({ source: new CanvasSource({ resource: canvas, scaleMode: "nearest" }) });
+  markerTextures.set(kind, texture);
+  return texture;
 }
 
 let fontLoading: Promise<void> | null = null;

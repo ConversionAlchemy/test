@@ -24,7 +24,7 @@ describe("camera", () => {
 
   test("fits a world at the largest step that shows all of it", () => {
     expect(fitView(640, 360, 1300, 800).zoom).toBe(2);
-    expect(fitView(640, 360, 600, 300).zoom).toBe(0.5);
+    expect(fitView(640, 360, 600, 300).zoom).toBeCloseTo(300 / 360); // below 1× it fits exactly
   });
 });
 
@@ -108,9 +108,11 @@ describe("raster", () => {
     const raster = new PixelRaster(CHUNK * 3, CHUNK * 2, 1);
     raster.flush();
     paintTerrain(raster, 10, 10, 4, Terrain.Forest);
-    expect(raster.flush()).toEqual([0]);
+    expect(raster.flush().map(done => done.id)).toEqual([0]);
     paintTerrain(raster, CHUNK * 2 + 50, CHUNK + 50, 4, Terrain.Forest);
-    expect(raster.flush()).toEqual([5]);
+    const [done] = raster.flush();
+    expect(done.id).toBe(5);
+    expect(done.rect.x1 - done.rect.x).toBeLessThan(20); // only the brushed patch, not the whole chunk
   });
 
   test("overlays change the look but never the ground underneath", () => {

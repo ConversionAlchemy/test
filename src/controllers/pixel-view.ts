@@ -1,12 +1,13 @@
-// Fluoria pixel engine test bench: paint terrain and battle damage on a sample coast at whole-number zooms.
-// Open with ?view=pixel or Controllers.PixelView.open(); Escape closes
+// Fluoria pixel view: the loaded map drawn by the pixel engine, paintable at whole-number zooms.
+// Opened by the Pixel button, ?view=pixel, or ?view=pixel-test for the sample coast; Escape closes
 import { clearOverlay, paintTerrain, stampOverlay } from "@/fluoria/brushes";
 import { fitView, screenToWorld, snap, stepZoom, zoomAround } from "@/fluoria/camera";
 import { css, Palette } from "@/fluoria/palette";
 import type { PixelRaster } from "@/fluoria/raster";
 import { buildSampleScene } from "@/fluoria/sample-scene";
 import { PixelStage } from "@/fluoria/stage";
-import { OVERLAYS, type OverlayId, TERRAINS, type TerrainId } from "@/fluoria/terrain";
+import { isLine, OVERLAYS, type OverlayId, TERRAINS, type TerrainId } from "@/fluoria/terrain";
+import { buildWorld } from "@/fluoria/world";
 
 type Tool = { kind: "terrain"; id: TerrainId } | { kind: "overlay"; id: OverlayId } | { kind: "clean" };
 
@@ -19,14 +20,16 @@ let tool: Tool = { kind: "terrain", id: TERRAINS[4].id };
 let brush = 3;
 let seed = 7;
 let spaceHeld = false;
+let source: "world" | "sample" = "world";
 
-async function open(): Promise<void> {
+async function open(from: "world" | "sample" = "world"): Promise<void> {
   if (root) return;
+  source = from === "world" && pack?.cells?.i?.length ? "world" : "sample";
   root = document.createElement("div");
   root.className = "fl-root";
   root.innerHTML = `<style>${STYLE}</style>
     <div class="fl-bar">
-      <strong class="fl-title">Pixel engine</strong>
+      <strong class="fl-title">Pixel view</strong>
       <div class="fl-group" data-group="terrain"></div>
       <div class="fl-group" data-group="overlay"></div>
       <div class="fl-group" data-group="size"><span class="fl-label">Brush</span></div>
@@ -39,9 +42,13 @@ async function open(): Promise<void> {
       <button type="button" class="fl-close" aria-label="Close">×</button>
     </div>
     <div class="fl-host"></div>
-    <div class="fl-status">Left drag paints · right drag or space+drag pans · wheel zooms · Escape closes</div>`;
+    <div class="fl-status">Left drag paints · right drag or space+drag pans · wheel zooms · Escape closes${
+      source === "world" ? " · Painting here is not saved to the map yet" : ""
+    }</div>`;
   document.body.appendChild(root);
   buildToolbar(root);
+  const fresh = root.querySelector<HTMLElement>(".fl-new");
+  if (fresh) fresh.style.display = source === "world" ? "none" : "";
 
   const host = root.querySelector<HTMLElement>(".fl-host");
   if (!host) return;
@@ -63,24 +70,29 @@ function close(): void {
 
 function newScene(): void {
   if (!stage) return;
-  const scene = buildSampleScene(seed);
+  const scene = source === "world" ? buildWorld() : { ...buildSampleScene(seed), markers: [], title: "Sample coast" };
   raster = scene.raster;
   stage.setRaster(raster);
   stage.setLabels(scene.labels);
+  stage.setMarkers(scene.markers);
   setView(fitView(raster.width, raster.height, stage.width, stage.height));
+  const title = root?.querySelector(".fl-title");
+  if (title) title.textContent = scene.title;
 }
 
 function setView(view: Parameters<PixelStage["setView"]>[0]): void {
   stage?.setView(view);
   const label = root?.querySelector(".fl-zoom");
-  if (label) label.textContent = `${view.zoom}×`;
+  if (label) label.textContent = view.zoom < 1 ? `${Math.round(view.zoom * 100)}%` : `${view.zoom}×`;
 }
 
 function buildToolbar(container: HTMLElement): void {
   const terrainGroup = container.querySelector('[data-group="terrain"]');
   const overlayGroup = container.querySelector('[data-group="overlay"]');
   const sizeGroup = container.querySelector('[data-group="size"]');
-  for (const t of TERRAINS) terrainGroup?.appendChild(toolButton(t.name, css(t.swatch), { kind: "terrain", id: t.id }));
+  // roads, rivers and paving are map data or city detail, not land you paint
+  for (const t of TERRAINS.filter(t => !isLine(t.id)))
+    terrainGroup?.appendChild(toolButton(t.name, css(t.swatch), { kind: "terrain", id: t.id }));
   for (const o of OVERLAYS) overlayGroup?.appendChild(toolButton(o.name, css(o.swatch), { kind: "overlay", id: o.id }));
   overlayGroup?.appendChild(toolButton("Clean", css(Palette.g2), { kind: "clean" }));
   for (const size of BRUSH_SIZES) {

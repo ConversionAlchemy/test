@@ -1,11 +1,27 @@
 import { fbm, hash2, valueNoise } from "./noise";
 import { Palette, packRGB, type Swatch } from "./palette";
-import { isWater, Overlay, Terrain } from "./terrain";
+import { isLine, isOpenWater, isWater, Overlay, Terrain } from "./terrain";
 
 /** Side of one texture chunk in game pixels; a power of two so mipmaps work below 1× */
 export const CHUNK = 256;
 
 const C = Object.fromEntries(Object.entries(Palette).map(([k, v]) => [k, packRGB(v)])) as Record<Swatch, number>;
+
+/** Something drawn on top of the ground after colouring, such as a town's roofs, clipped to whatever is rendering */
+export interface Stamp {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  paint: (put: (x: number, y: number, color: number) => void) => void;
+}
+
+export interface Rect {
+  x: number;
+  y: number;
+  x1: number;
+  y1: number;
+}
 
 /** Elevation (0–255) above which land is snow-covered; jittered so the line is ragged */
 const SNOW_LINE = 205;
@@ -20,9 +36,15 @@ export class PixelRaster {
   readonly overlay: Uint8Array;
   readonly amount: Uint8Array;
   readonly pixels: Uint32Array;
+  /** Optional political layer: region id per pixel, tinted by `regionColors` and outlined with dashed borders */
+  region: Uint16Array | null = null;
+  /** Optional per-pixel snow line (0–255), so cold places snow lower than warm ones */
+  snowLine: Uint8Array | null = null;
+  regionColors: number[] = [];
+  stamps: Stamp[] = [];
   readonly cols: number;
   readonly rows: number;
-  private dirty = new Set<number>();
+  private dirty = new Map<number, Rect>(); // chunk id → the part of it that needs recolouring
 
   constructor(
     readonly width: number,
@@ -60,25 +82,48 @@ export class PixelRaster {
     return 1 + Math.round((f - 1) / 0.08) * 0.08;
   }
 
-  /** Flag every chunk touching the rectangle, padded for edge effects that read neighbours */
+  /** Flag the rectangle (padded for edge effects that read neighbours) as needing recolour, chunk by chunk */
   markDirty(x0: number, y0: number, x1: number, y1: number): void {
     const pad = 4;
-    const c0 = Math.max(0, Math.floor((x0 - pad) / CHUNK));
-    const c1 = Math.min(this.cols - 1, Math.floor((x1 + pad) / CHUNK));
-    const r0 = Math.max(0, Math.floor((y0 - pad) / CHUNK));
-    const r1 = Math.min(this.rows - 1, Math.floor((y1 + pad) / CHUNK));
-    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) this.dirty.add(r * this.cols + c);
+    const ax = Math.max(0, Math.floor(x0 - pad));
+    const ay = Math.max(0, Math.floor(y0 - pad));
+    const bx = Math.min(this.width, Math.ceil(x1 + pad));
+    const by = Math.min(this.height, Math.ceil(y1 + pad));
+    for (let r = Math.floor(ay / CHUNK); r <= Math.floor((by - 1) / CHUNK); r++)
+      for (let c = Math.floor(ax / CHUNK); c <= Math.floor((bx - 1) / CHUNK); c++) {
+        const id = r * this.cols + c;
+        const area = {
+          x: Math.max(ax, c * CHUNK),
+          y: Math.max(ay, r * CHUNK),
+          x1: Math.min(bx, (c + 1) * CHUNK),
+          y1: Math.min(by, (r + 1) * CHUNK)
+        };
+        const old = this.dirty.get(id);
+        this.dirty.set(
+          id,
+          old
+            ? {
+                x: Math.min(old.x, area.x),
+                y: Math.min(old.y, area.y),
+                x1: Math.max(old.x1, area.x1),
+                y1: Math.max(old.y1, area.y1)
+              }
+            : area
+        );
+      }
   }
 
-  /** Recolour the dirty chunks and hand back their ids */
-  flush(): number[] {
-    const ids = [...this.dirty];
-    this.dirty.clear();
-    for (const id of ids) {
-      const { x, y, w, h } = this.chunkRect(id);
-      this.render(x, y, w, h);
+  /** Recolour dirty chunks (only those `wanted` picks, at most `limit`), handing back what changed */
+  flush(wanted?: (id: number) => boolean, limit = Infinity): { id: number; rect: Rect }[] {
+    const done: { id: number; rect: Rect }[] = [];
+    for (const [id, rect] of this.dirty) {
+      if (done.length >= limit) break;
+      if (wanted && !wanted(id)) continue;
+      this.dirty.delete(id);
+      this.render(rect.x, rect.y, rect.x1 - rect.x, rect.y1 - rect.y);
+      done.push({ id, rect });
     }
-    return ids;
+    return done;
   }
 
   chunkRect(id: number): { x: number; y: number; w: number; h: number } {
@@ -87,11 +132,22 @@ export class PixelRaster {
     return { x, y, w: Math.min(CHUNK, this.width - x), h: Math.min(CHUNK, this.height - y) };
   }
 
+  get pending(): number {
+    return this.dirty.size;
+  }
+
   render(x0: number, y0: number, w: number, h: number): void {
     for (let y = y0; y < y0 + h; y++) {
       const row = y * this.width;
       for (let x = x0; x < x0 + w; x++) this.pixels[row + x] = this.colorAt(x, y);
     }
+    const x1 = x0 + w;
+    const y1 = y0 + h;
+    const put = (x: number, y: number, color: number) => {
+      if (x >= x0 && x < x1 && y >= y0 && y < y1) this.pixels[y * this.width + x] = color;
+    };
+    for (const stamp of this.stamps)
+      if (stamp.x1 >= x0 && stamp.x0 < x1 && stamp.y1 >= y0 && stamp.y0 < y1) stamp.paint(put);
   }
 
   colorAt(x: number, y: number): number {
@@ -101,12 +157,29 @@ export class PixelRaster {
     const jx = Math.floor(valueNoise(x, y, 2.5, s + 11) * 5) - 2;
     const jy = Math.floor(valueNoise(x, y, 2.5, s + 12) * 5) - 2;
     let t = this.terrainAt(x + jx, y + jy);
-    if (isWater(t) !== isWater(own)) t = own;
+    if (isWater(t) !== isWater(own) || isLine(t) || isLine(own)) t = own;
 
-    let color = isWater(t) ? this.water(x, y, t) : this.land(x, y, t);
+    let color = t === Terrain.River ? this.river(x, y) : isWater(t) ? this.water(x, y, t) : this.land(x, y, t);
     const i = y * this.width + x;
+    if (this.region && !isOpenWater(own)) color = this.political(x, y, color);
     if (this.overlay[i]) color = this.applyOverlay(x, y, color, this.overlay[i], this.amount[i]);
     return color;
+  }
+
+  /** State tint, and a dashed border wherever the region changes */
+  private political(x: number, y: number, color: number): number {
+    const region = this.region as Uint16Array;
+    const i = y * this.width + x;
+    const id = region[i];
+    const right = x + 1 < this.width && !isOpenWater(this.terrain[i + 1]) ? region[i + 1] : id;
+    const down = y + 1 < this.height && !isOpenWater(this.terrain[i + this.width]) ? region[i + this.width] : id;
+    if ((right !== id || down !== id) && (x + y) % 4 < 2) return C.ink;
+    const tint = this.regionColors[id];
+    return tint ? mixP(color, tint, 0.22) : color;
+  }
+
+  private river(x: number, y: number): number {
+    return hash2(x, y, this.seed + 9) < 0.3 ? C.water2 : C.water;
   }
 
   private water(x: number, y: number, t: number): number {
@@ -125,12 +198,13 @@ export class PixelRaster {
   private land(x: number, y: number, t: number): number {
     const s = this.seed;
     const macro = 0.94 + (fbm(x, y, 48, 2, s + 5) - 0.5) * 0.24;
-    if (t !== Terrain.Sand && this.distanceTo(x, y, true, 1) === 1) {
+    if (t !== Terrain.Sand && t !== Terrain.Snow && this.distanceTo(x, y, true, 1) === 1) {
       if (t === Terrain.Mountains || t === Terrain.Cobbles) return shadeP(C.stone2, macro);
       return hash2(x, y, s + 2) < 0.6 ? C.sand : C.sand2;
     }
     const relief = this.relief(x, y);
-    if (this.elevationAt(x, y) > SNOW_LINE + (valueNoise(x, y, 6, s + 4) - 0.5) * 40)
+    const line = this.snowLine ? this.snowLine[y * this.width + x] : SNOW_LINE;
+    if (this.elevationAt(x, y) > line + (valueNoise(x, y, 6, s + 4) - 0.5) * 40)
       return shadeP(hash2(x, y, s + 6) < 0.12 ? packRGB([210, 214, 222]) : C.snow, relief);
     let c: number;
     switch (t) {
@@ -158,6 +232,24 @@ export class PixelRaster {
       case Terrain.Cobbles:
         c = this.cobbles(x, y);
         break;
+      case Terrain.DryGrass:
+        c = mixP(this.grass(x, y), C.field1, 0.45);
+        break;
+      case Terrain.Desert:
+        c = this.desert(x, y);
+        break;
+      case Terrain.Taiga:
+        c = this.forest(x, y, TAIGA);
+        break;
+      case Terrain.Jungle:
+        c = this.forest(x, y, JUNGLE);
+        break;
+      case Terrain.Tundra:
+        c = this.tundra(x, y);
+        break;
+      case Terrain.Snow:
+        c = hash2(x, y, s + 6) < 0.12 ? packRGB([210, 214, 222]) : C.snow;
+        break;
       default:
         c = this.grass(x, y);
     }
@@ -173,7 +265,22 @@ export class PixelRaster {
     return n > 0.56 ? C.g2 : n > 0.42 ? C.g1 : C.g3;
   }
 
-  private forest(x: number, y: number): number {
+  private desert(x: number, y: number): number {
+    const s = this.seed;
+    const ripple = (x + Math.floor(y * 0.5) + Math.floor(valueNoise(x, y, 7, s + 85) * 8)) % 5 === 0;
+    if (ripple) return C.sand2;
+    return hash2(x, y, s + 86) < 0.08 ? shadeP(C.sand, 1.06) : C.sand;
+  }
+
+  private tundra(x: number, y: number): number {
+    const s = this.seed;
+    const r = hash2(x, y, s + 87);
+    if (r < 0.06) return C.snow;
+    if (r < 0.12) return C.stone;
+    return mixP(this.grass(x, y), C.stone3, 0.42);
+  }
+
+  private forest(x: number, y: number, crown: readonly number[] = TREE): number {
     const s = this.seed;
     const cx = Math.floor(x / 3);
     const cy = Math.floor(y / 3);
@@ -186,10 +293,10 @@ export class PixelRaster {
         if (hash2(gx, gy, s + 30) < 0.12) continue;
         const tx = gx * 3 + Math.floor(hash2(gx, gy, s + 31) * 3);
         const ty = gy * 3 + Math.floor(hash2(gx, gy, s + 32) * 3);
-        if (this.terrainAt(tx, ty) !== Terrain.Forest) continue;
+        if (this.terrainAt(tx, ty) !== this.terrainAt(x, y)) continue;
         const dx = x - tx;
         const dy = y - ty;
-        const canopy = dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1 ? TREE[(dy + 1) * 3 + dx + 1] : 0;
+        const canopy = dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1 ? crown[(dy + 1) * 3 + dx + 1] : 0;
         if (canopy) hit = canopy;
         else if ((dx === 2 && dy === 1) || (dx === 1 && dy === 2) || (dx === 2 && dy === 2)) shadow = true;
       }
@@ -285,13 +392,14 @@ export class PixelRaster {
     }
   }
 
-  /** 1 or 2 if a pixel of the other kind (land/water) lies that close, else 0 */
+  /** Distance (1…max) to the nearest open water (`water`) or land (`!water`), else 0 */
   private distanceTo(x: number, y: number, water: boolean, max: number): number {
     for (let d = 1; d <= max; d++)
       for (let oy = -d; oy <= d; oy++)
         for (let ox = -d; ox <= d; ox++) {
           if (Math.max(Math.abs(ox), Math.abs(oy)) !== d) continue;
-          if (isWater(this.terrainAt(x + ox, y + oy)) === water) return d;
+          const other = this.terrainAt(x + ox, y + oy);
+          if (water ? isOpenWater(other) : !isWater(other)) return d;
         }
     return 0;
   }
@@ -299,6 +407,20 @@ export class PixelRaster {
 
 // a 2×2 crown lit from the top-left, with a dark lower-right pixel; 3×3 around the trunk, 0 = no canopy
 const TREE = [0, C.tree3, 0, C.tree3, C.tree, C.tree, 0, C.tree, C.tree2];
+// pointed conifers: dark, blue-green, lit tip only
+const TAIGA = [
+  0,
+  packRGB([70, 104, 80]),
+  0,
+  0,
+  packRGB([40, 70, 56]),
+  packRGB([34, 58, 48]),
+  0,
+  packRGB([34, 58, 48]),
+  C.ink
+];
+// broad wet canopy, brighter and denser
+const JUNGLE = [C.tree3, packRGB([96, 140, 58]), C.tree3, C.tree3, C.tree3, C.tree, C.tree, C.tree, C.tree2];
 
 function shadeP(p: number, f: number): number {
   const r = Math.min(255, Math.round((p & 255) * f));
