@@ -26,7 +26,8 @@ const load = (): Promise<PixelMapModule> => {
 Layers.onDraw(ids => {
   if (ids.includes("labels")) applyLabelZoom();
   if (ids.includes("military") && Layers.isOn("military")) {
-    if (snapAll()) queueMicrotask(() => Layers.draw("military")); // every regiment stands at its cell's centre
+    if (snapAll())
+      queueMicrotask(() => Layers.draw("military")); // every regiment stands at its cell's centre
     else stackAll();
   }
   void load().then(map => map.drawn(ids));
