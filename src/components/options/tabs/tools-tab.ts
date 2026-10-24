@@ -224,9 +224,9 @@ const TEMPLATE = /* html */ `
 
 ensureEl("toolsContent").innerHTML = TEMPLATE;
 
-// sections fold under their headings; Azgaar's own start folded except Edit
+// sections fold under their headings; Edit and Add start open
 for (const [index, heading] of ensureEl("toolsContent").querySelectorAll(".separator").entries())
-  heading.classList.toggle("folded", index > 0);
+  heading.classList.toggle("folded", index !== 0 && index !== 2);
 
 ensureEl("toolsContent").addEventListener("click", event => {
   const heading = (event.target as HTMLElement).closest?.(".separator");

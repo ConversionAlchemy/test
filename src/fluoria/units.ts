@@ -15,6 +15,45 @@ const regimentsAt = (cell: number) =>
     state.i && !state.removed ? (state.military ?? []).filter(r => !r.hidden && r.cell === cell) : []
   );
 
+// regiment boxes keep about this height on screen, whatever the zoom: small chips far out, a little bigger close in
+const BOX_PX = [
+  [0, 11],
+  [1.5, 16],
+  [4.5, 20],
+  [8, 24]
+] as const;
+let unitScale = 1;
+
+/** Scale every regiment box around its own point so its on-screen size follows BOX_PX, not the map zoom */
+export function applyUnitZoom(scale: number): void {
+  const armies = document.getElementById("armies");
+  if (!armies || !scale || !styles?.military) return;
+  let px: number = BOX_PX[0][1];
+  for (const [from, size] of BOX_PX) if (scale >= from) px = size;
+  const box = styles.military.options.boxSize * 2; // box height in map units
+  unitScale = Math.max(0.02, px / (box * scale));
+  armies.style.setProperty("--fl-unit", String(unitScale));
+  armies.dataset.flNames = scale >= 4.5 ? "1" : "0";
+  for (const stack of stacks) layStack(stack, false); // only the offsets of shared cells change with size
+}
+
+let stacks: Regiment[][] = [];
+
+/** Markers stand at their cell's centre, or on the settlement in it */
+export function snapMarkers(): boolean {
+  let moved = false;
+  for (const marker of pack.markers ?? []) {
+    if (marker.cell === undefined) continue;
+    const burg = pack.cells.burg[marker.cell];
+    const [x, y] = burg ? [pack.burgs[burg].x, pack.burgs[burg].y] : pack.cells.p[marker.cell];
+    if (marker.x === x && marker.y === y) continue;
+    marker.x = x;
+    marker.y = y;
+    moved = true;
+  }
+  return moved;
+}
+
 /** The cell a regiment stands in is the cell under its point; standing means its centre */
 export function snapAll(): boolean {
   let moved = false;
@@ -151,6 +190,7 @@ export function stackAll(): void {
       byCell.set(regiment.cell, list);
     }
   }
+  stacks = [...byCell.values()].filter(stack => stack.length > 1);
   for (const stack of byCell.values()) layStack(stack, false);
   for (const state of pack.states)
     for (const fleet of state.i && !state.removed ? (state.military ?? []) : []) if (fleet.n) cargoBadge(fleet);
@@ -178,9 +218,9 @@ const elementOf = (regiment: Regiment) =>
 
 /** Lay a stack down as a deck, or fanned out in a row around `anchor`, which stays where it is under the pointer */
 function layStack(stack: Regiment[], fanned: boolean, anchor?: Regiment): void {
-  const size = styles.military.options.boxSize * 2;
+  const size = styles.military.options.boxSize * 2 * unitScale;
   const deck = (k: number) => (stack.length > 1 ? [k * size * STEP, -k * size * STEP] : [0, 0]);
-  const widths = stack.map(regiment => getRegimentWidth(regiment) + size); // box plus its icon square
+  const widths = stack.map(regiment => getRegimentWidth(regiment) * unitScale + size); // box plus its icon square
   const gap = size * 0.3;
   const a = Math.max(0, anchor ? stack.indexOf(anchor) : 0);
   const centres: number[] = [];

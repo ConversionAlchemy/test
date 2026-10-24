@@ -59,6 +59,22 @@ function stepFactor(from: number, to: number, naval: boolean): number {
   return terrain * peaks + climb;
 }
 
+/** How moving through a cell compares with open level ground: its road if it has one, else its ground */
+export function cellPace(cell: number): { factor: number; road: string | null } {
+  const { cells, routes } = pack;
+  let best: { factor: number; road: string | null } | null = null;
+  for (const id of Object.values(cells.routes?.[cell] ?? {})) {
+    const route = routes.find(({ i }) => i === id);
+    if (!route) continue;
+    const factor = ROAD_FACTOR[route.group] ?? OTHER_ROUTE;
+    if (!best || factor < best.factor) best = { factor, road: route.group };
+  }
+  if (best) return best;
+  const biomeCost = pack.biomes[cells.biome[cell]]?.cost ?? 50;
+  const terrain = Math.min(6, Math.max(0.8, biomeCost / 50));
+  return { factor: terrain * (cells.h[cell] >= 70 ? 1.5 : 1), road: null };
+}
+
 /** Every cell the regiment can reach this move from where it stands, with what it costs to get there */
 export function reachable(regiment: Pick<Regiment, "n" | "u" | "cell">): Map<number, number> {
   const { cells } = pack;

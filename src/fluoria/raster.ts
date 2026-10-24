@@ -43,6 +43,18 @@ export class PixelRaster {
   snowLine: Uint8Array | null = null;
   regionColors: number[] = [];
   borders = true;
+  /** Texture detail: 0 a painted look for the whole map, 1 light texture, 2 everything */
+  detail = 2;
+  /** How strongly region colours fill the ground: light in the terrain view, strong in the political view */
+  tint = 0.22;
+  /** The political look: ground greyed toward flat so region colours read cleanly */
+  flatten = 0;
+  /** A band of the region's own colour inside its border, so each side is clear; 0 for none */
+  bandPx = 0;
+  /** Snow by elevation against `snowLine`; off when snow is decided per cell */
+  snowByHeight = true;
+  /** Colour of each region's inner border band */
+  bandColors: number[] = [];
   /** State border width in game pixels */
   borderPx = 1;
   /** Optional second level of regions (provinces), outlined with a thin dashed line */
@@ -172,10 +184,13 @@ export class PixelRaster {
     const s = this.seed;
     const own = this.terrainAt(x, y);
     // ragged, coherent edges: borrow the terrain a pixel or two away, but never across the shoreline
-    const jx = Math.floor(valueNoise(x, y, 2.5, s + 11) * 5) - 2;
-    const jy = Math.floor(valueNoise(x, y, 2.5, s + 12) * 5) - 2;
-    let t = this.terrainAt(x + jx, y + jy);
-    if (isWater(t) !== isWater(own) || isLine(t) || isLine(own)) t = own;
+    let t = own;
+    if (this.detail > 0) {
+      const jx = Math.floor(valueNoise(x, y, 2.5, s + 11) * 5) - 2;
+      const jy = Math.floor(valueNoise(x, y, 2.5, s + 12) * 5) - 2;
+      t = this.terrainAt(x + jx, y + jy);
+      if (isWater(t) !== isWater(own) || isLine(t) || isLine(own)) t = own;
+    }
 
     let color = t === Terrain.River ? this.river(x, y) : isWater(t) ? this.water(x, y, t) : this.land(x, y, t);
     const i = this.at(x, y);
@@ -197,7 +212,20 @@ export class PixelRaster {
         const j = i + dy * this.width + dx;
         return !isOpenWater(this.terrain[j]) && region[j] !== id;
       };
-      for (let d = 1; d <= this.borderPx; d++) if (other(d, 0) || other(0, d)) return mixP(color, C.ink, 0.75);
+      for (let d = 1; d <= this.borderPx; d++) if (other(d, 0) || other(0, d)) return mixP(color, C.ink, 0.8);
+      if (this.bandPx) {
+        const other4 = (dx: number, dy: number) => {
+          if (lx + dx < 0 || ly + dy < 0 || lx + dx >= this.width || ly + dy >= this.height) return false;
+          const j = i + dy * this.width + dx;
+          return !isOpenWater(this.terrain[j]) && region[j] !== id;
+        };
+        const band = this.bandColors[id];
+        const reach = this.borderPx + this.bandPx;
+        if (band)
+          for (let d = 1; d <= reach; d++)
+            if (other4(d, 0) || other4(-d, 0) || other4(0, d) || other4(0, -d))
+              return mixP(color, band, 0.62 - (d / reach) * 0.22);
+      }
       const sub = this.subregion;
       if (sub && (x + y) % 4 < 2) {
         const right = lx + 1 < this.width && !isOpenWater(this.terrain[i + 1]) && sub[i + 1] !== sub[i];
@@ -207,9 +235,10 @@ export class PixelRaster {
       }
     }
     const tint = this.regionColors[id];
-    if (!tint) return color;
-    const high = Math.min(1, this.elevation[i] / 190); // lighter on high ground, so relief shows through
-    return mixP(color, tint, 0.22 * (1 - high * 0.65));
+    if (!tint || !this.tint) return color;
+    if (this.flatten) color = mixP(color, greyP(color), this.flatten);
+    const high = this.flatten ? 0 : Math.min(1, this.elevation[i] / 190); // lighter on high ground, so relief shows
+    return mixP(color, tint, this.tint * (1 - high * 0.65));
   }
 
   private river(x: number, y: number): number {
@@ -218,6 +247,12 @@ export class PixelRaster {
 
   private water(x: number, y: number, t: number): number {
     const s = this.seed;
+    if (this.detail === 0) {
+      if (this.distanceTo(x, y, false, 1) === 1) return C.foam;
+      const n = valueNoise(x, y, 10, s + 1);
+      if (t === Terrain.DeepWater) return n > 0.7 ? C.water : C.deep;
+      return n > 0.66 ? C.water2 : C.water;
+    }
     const shore = this.distanceTo(x, y, false, 3);
     if (shore === 1) return (x + y) % 2 ? C.foam : C.water2;
     const n = fbm(x, y, 14, 2, s + 1);
@@ -238,8 +273,9 @@ export class PixelRaster {
     }
     const relief = this.relief(x, y);
     const line = this.snowLine ? this.snowLine[this.at(x, y)] : SNOW_LINE;
-    if (this.elevationAt(x, y) > line + (valueNoise(x, y, 6, s + 4) - 0.5) * 40)
+    if (this.snowByHeight && this.elevationAt(x, y) > line + (valueNoise(x, y, 6, s + 4) - 0.5) * 40)
       return shadeP(hash2(x, y, s + 6) < 0.12 ? packRGB([210, 214, 222]) : C.snow, relief);
+    if (this.detail === 0) return shadeP(this.painted(x, y, t), macro * relief);
     let c: number;
     switch (t) {
       case Terrain.Sand:
@@ -290,6 +326,39 @@ export class PixelRaster {
     return shadeP(c, macro * relief);
   }
 
+  /** The whole-map look: each ground as a flat colour with a little grain, no individual trees or stones */
+  private painted(x: number, y: number, t: number): number {
+    const s = this.seed;
+    const n = valueNoise(x, y, 4, s + 20);
+    const r = hash2(x, y, s + 21);
+    switch (t) {
+      case Terrain.Forest:
+      case Terrain.Jungle:
+        return r < 0.2 ? C.tree2 : n > 0.55 ? C.tree3 : C.tree;
+      case Terrain.Taiga:
+        return r < 0.25 ? packRGB([34, 58, 48]) : packRGB([52, 84, 66]);
+      case Terrain.Mountains:
+        return n > 0.6 ? C.stone3 : n > 0.3 ? C.stone : C.stone2;
+      case Terrain.Hills:
+        return r < 0.12 ? C.stone : n > 0.5 ? C.g2 : C.g1;
+      case Terrain.Snow:
+        return r < 0.1 ? packRGB([210, 214, 222]) : C.snow;
+      case Terrain.Sand:
+      case Terrain.Desert:
+        return r < 0.3 ? C.sand2 : C.sand;
+      case Terrain.Marsh:
+        return n > 0.66 ? C.water : n > 0.4 ? C.g3 : C.g1;
+      case Terrain.Tundra:
+        return r < 0.1 ? C.snow : mixP(C.g1, C.stone3, 0.42);
+      case Terrain.DryGrass:
+        return mixP(n > 0.5 ? C.g2 : C.g1, C.field1, 0.45);
+      case Terrain.Farmland:
+        return n > 0.5 ? C.field1 : C.field3;
+      default:
+        return r < 0.04 ? C.g4 : n > 0.55 ? C.g2 : n > 0.4 ? C.g1 : C.g3;
+    }
+  }
+
   private grass(x: number, y: number): number {
     const s = this.seed;
     const n = valueNoise(x, y, 6, s + 20);
@@ -316,6 +385,13 @@ export class PixelRaster {
 
   private forest(x: number, y: number, crown: readonly number[] = TREE): number {
     const s = this.seed;
+    if (this.detail === 1) {
+      // light texture: one crown per 2×2 block, no neighbour search
+      const h = hash2(x >> 1, y >> 1, s + 34);
+      if (h < 0.15) return shadeP(C.g3, 0.8);
+      const lit = (x & 1) === 0 && (y & 1) === 0;
+      return lit ? crown[1] || crown[4] : (x & 1) === 1 && (y & 1) === 1 ? crown[8] || crown[4] : crown[4];
+    }
     const cx = Math.floor(x / 3);
     const cy = Math.floor(y / 3);
     let hit = -1;
@@ -455,6 +531,12 @@ const TAIGA = [
 ];
 // broad wet canopy, brighter and denser
 const JUNGLE = [C.tree3, packRGB([96, 140, 58]), C.tree3, C.tree3, C.tree3, C.tree, C.tree, C.tree, C.tree2];
+
+function greyP(p: number): number {
+  const l = Math.round(((p & 255) * 0.3 + ((p >>> 8) & 255) * 0.55 + ((p >>> 16) & 255) * 0.15) * 1.05);
+  const v = Math.min(255, l);
+  return ((255 << 24) | (v << 16) | (v << 8) | v) >>> 0;
+}
 
 function shadeP(p: number, f: number): number {
   const r = Math.min(255, Math.round((p & 255) * f));

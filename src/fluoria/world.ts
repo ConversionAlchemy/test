@@ -1,12 +1,14 @@
 // Turns the loaded Azgaar map into pixel layers. Nothing here invents the world: terrain follows biomes and heights,
 // relief follows elevation, snow follows temperature, and rivers, roads, states and towns come from the map itself
-import { fbm, valueNoise } from "./noise";
+import { color } from "d3";
+import { valueNoise } from "./noise";
 import { Palette, packRGB } from "./palette";
-import { PixelRaster, type Stamp } from "./raster";
+import type { Stamp } from "./raster";
 import { Terrain, type TerrainId } from "./terrain";
+import type { WorldModel } from "./world-model";
 
 /** Game pixels per Azgaar map pixel */
-export const WORLD_SCALE = 2;
+export const WORLD_SCALE = 1;
 
 // Azgaar's default biome ids, in order
 const BIOME_TERRAIN: TerrainId[] = [
@@ -25,7 +27,6 @@ const BIOME_TERRAIN: TerrainId[] = [
   Terrain.Marsh // wetland
 ];
 
-const FORESTS: number[] = [Terrain.Forest, Terrain.Jungle, Terrain.Taiga];
 const OPEN_LAND: number[] = [Terrain.Grass, Terrain.DryGrass, Terrain.Tundra];
 
 /** A rectangle of the map in Azgaar map pixels */
@@ -36,23 +37,11 @@ export interface MapArea {
   height: number;
 }
 
-/** A raster of part (or all) of the map at `scale` game pixels per map pixel, with the cell under each pixel */
-export interface TerrainBuild {
-  raster: PixelRaster;
-  cellOf: Int32Array;
+/** Where stamps are drawn: a raster's place among all game pixels, at a scale, over an area of the map */
+export interface StampFrame {
   scale: number;
   area: MapArea;
-}
-
-/** The whole map's smooth fields, kept from the world build so close-up tiles sample them instead of blurring */
-export interface WorldFields {
-  width: number;
-  height: number;
-  scale: number;
-  landness: Float32Array;
-  depth: Float32Array;
-  elevation: Float32Array;
-  snowLine: Uint8Array;
+  raster: { ox: number; oy: number; width: number; height: number; seed: number };
 }
 
 export const wholeMap = (): MapArea => ({
@@ -65,156 +54,97 @@ export const wholeMap = (): MapArea => ({
 const mapSeed = () => Number.parseInt(String(options.map.seed), 10) % 100000 || 1;
 const isLand = (cell: number) => Boolean(pack.features[pack.cells.f[cell]]?.land);
 
-/** The whole map at world scale: everything that comes from heights, biomes and temperature */
-export function buildTerrain(scale = WORLD_SCALE, area: MapArea = wholeMap()): TerrainBuild & { fields: WorldFields } {
-  const { cells, vertices } = pack;
-  const width = Math.ceil(area.width * scale);
-  const height = Math.ceil(area.height * scale);
-  const seed = mapSeed();
-  const ox = Math.round(area.x * scale);
-  const oy = Math.round(area.y * scale);
-  const raster = new PixelRaster(width, height, seed, ox, oy);
+const GLACIER = 11;
 
-  const cellOf = rasterizeCells(cells.v, vertices.p, width, height, scale, area);
+/** A cell's one look, from its biome, height and temperature */
+function cellTerrain(cell: number): TerrainId {
+  const { cells } = pack;
+  const h = cells.h[cell];
+  const biome = cells.biome[cell];
+  const temp = grid.cells.temp[cells.g[cell]] ?? 10;
+  if (biome === GLACIER || (h >= 60 && temp <= 0)) return Terrain.Snow;
+  if (h >= 62) return Terrain.Mountains;
+  let t = BIOME_TERRAIN[biome] ?? Terrain.Grass;
+  if (t === Terrain.Water) t = Terrain.Grass;
+  if (h >= 46 && OPEN_LAND.includes(t)) return Terrain.Hills;
+  return t;
+}
+
+/** Gather what the painter needs from Azgaar's map: per-cell looks and regions, and the smooth height fields */
+export function collectWorld(): WorldModel {
+  const { cells, vertices, features } = pack;
+  const map = wholeMap();
+  const width = Math.ceil(map.width);
+  const height = Math.ceil(map.height);
+  const n = cells.i.length;
+
+  const sites = new Float32Array(n * 2);
+  for (let c = 0; c < n; c++) {
+    sites[c * 2] = cells.p[c][0];
+    sites[c * 2 + 1] = cells.p[c][1];
+  }
+  const adjStarts = new Int32Array(n + 1);
+  for (let c = 0; c < n; c++) adjStarts[c + 1] = adjStarts[c] + cells.c[c].length;
+  const adj = new Int32Array(adjStarts[n]);
+  for (let c = 0; c < n; c++) adj.set(cells.c[c], adjStarts[c]);
+
+  const terrain = new Uint8Array(n);
+  const land = new Uint8Array(n);
+  const lake = new Uint8Array(n);
+  for (let c = 0; c < n; c++) {
+    land[c] = isLand(c) ? 1 : 0;
+    lake[c] = features[cells.f[c]]?.type === "lake" ? 1 : 0;
+    terrain[c] = land[c] ? cellTerrain(c) : Terrain.Water;
+  }
+
+  const cellOf = rasterizeCells(cells.v, vertices.p, width, height, 1, map);
   const elevation = new Float32Array(width * height);
-  const snowLine = new Uint8Array(width * height);
-  const landness = new Float32Array(width * height);
   const depth = new Float32Array(width * height);
   for (let i = 0; i < cellOf.length; i++) {
-    const cell = cellOf[i];
-    landness[i] = isLand(cell) ? 1 : 0;
-    depth[i] = Math.min(20, cells.h[cell]);
-    if (isLand(cell)) elevation[i] = Math.max(0, (cells.h[cell] - 20) / 80);
-    const temp = grid.cells.temp[cells.g[cell]] ?? 10;
-    snowLine[i] = Math.max(30, Math.min(255, Math.round(175 + temp * 11)));
+    const c = cellOf[i];
+    if (land[c]) elevation[i] = Math.max(0, (cells.h[c] - 20) / 80);
+    depth[i] = Math.min(20, cells.h[c]);
   }
-  // Voronoi edges are straight: blur land and depth so coasts and deeps come out rounded, as Azgaar draws them
-  const cellPixels = Math.max(1, Math.round(grid.spacing * scale * 0.45));
-  smooth(landness, width, height, cellPixels);
-  smooth(depth, width, height, cellPixels * 2);
-  smooth(elevation, width, height, Math.max(2, Math.round(grid.spacing * scale * 0.6)));
-  smooth(snowLine, width, height, 3);
+  smooth(elevation, width, height, Math.max(2, Math.round(grid.spacing * 0.6)));
+  smooth(depth, width, height, Math.max(2, Math.round(grid.spacing * 0.9)));
 
-  const fields = { width, height, scale, landness, depth, elevation, snowLine };
-  const build = { raster, cellOf, scale, area };
-  fillTerrain(build, fields, 0, height);
-  raster.snowLine = snowLine;
-  return { ...build, fields };
-}
-
-/** Tile side in game pixels, and the apron around it that edge effects read but nothing shows */
-export const TILE = 512;
-export const APRON = 8;
-
-/** One square of the map at a close-up scale, built a few rows at a time: step it until it returns true */
-export function tileBuilder(
-  fields: WorldFields,
-  scale: number,
-  col: number,
-  row: number
-): { build: TerrainBuild; crop: { x: number; y: number; x1: number; y1: number }; step: (rows: number) => boolean } {
-  const map = wholeMap();
-  const ox = col * TILE - APRON;
-  const oy = row * TILE - APRON;
-  const core = {
-    x1: Math.min(TILE, Math.ceil(map.width * scale) - col * TILE),
-    y1: Math.min(TILE, Math.ceil(map.height * scale) - row * TILE)
-  };
-  const width = core.x1 + 2 * APRON;
-  const height = core.y1 + 2 * APRON;
-  const area = { x: ox / scale, y: oy / scale, width: width / scale, height: height / scale };
-  const raster = new PixelRaster(width, height, mapSeed(), ox, oy);
-  const cellOf = rasterizeCells(pack.cells.v, pack.vertices.p, width, height, scale, area);
-  const build = { raster, cellOf, scale, area };
-  const snowLine = new Uint8Array(width * height);
-  raster.snowLine = snowLine;
-  let done = 0;
+  const palette = (list: { color?: string; removed?: boolean }[] | undefined) =>
+    Uint32Array.from(list ?? [], (item, i) => (i && item && !item.removed ? cssColor(item.color) : 0));
   return {
-    build,
-    crop: { x: APRON, y: APRON, x1: APRON + core.x1, y1: APRON + core.y1 },
-    step: rows => {
-      const next = Math.min(height, done + rows);
-      fillTerrain(build, fields, done, next, snowLine);
-      done = next;
-      return done >= height;
-    }
+    seed: mapSeed(),
+    width,
+    height,
+    sites,
+    cellGrid: cellOf,
+    adjStarts,
+    adj,
+    terrain,
+    land,
+    lake,
+    state: Uint16Array.from(cells.state),
+    province: Uint16Array.from(cells.province ?? new Uint16Array(n)),
+    culture: Uint16Array.from(cells.culture),
+    religion: Uint16Array.from(cells.religion),
+    colors: {
+      state: palette(pack.states),
+      province: palette(pack.provinces as { color?: string; removed?: boolean }[]),
+      culture: palette(pack.cultures),
+      religion: palette(pack.religions)
+    },
+    elevation,
+    depth
   };
 }
 
-/** Terrain and elevation for rows y0…y1, from the world fields sampled at this build's scale */
-function fillTerrain(build: TerrainBuild, fields: WorldFields, y0: number, y1: number, snowOut?: Uint8Array): void {
-  const { raster, cellOf, scale } = build;
-  const { cells, features } = pack;
-  const seed = raster.seed;
-  const unit = scale / WORLD_SCALE;
-  const same = fields.scale === scale && fields.width === raster.width && raster.ox === 0 && raster.oy === 0;
-  const k = fields.scale / scale;
-  const sample = (field: Float32Array | Uint8Array, gx: number, gy: number, i: number) =>
-    same ? field[i] : bilinear(field, fields.width, fields.height, (gx + 0.5) * k - 0.5, (gy + 0.5) * k - 0.5);
-
-  for (let y = y0; y < y1; y++)
-    for (let x = 0; x < raster.width; x++) {
-      const i = y * raster.width + x;
-      const gx = x + raster.ox;
-      const gy = y + raster.oy;
-      let cell = cellOf[i];
-      if (snowOut) snowOut[i] = sample(fields.snowLine, gx, gy, i);
-      const fine = unit > 1 ? (valueNoise(gx, gy, 3, seed + 7) - 0.5) * 0.14 : 0; // close up, coasts get finer bays
-      const land =
-        sample(fields.landness, gx, gy, i) > 0.5 + (valueNoise(gx, gy, 5 * unit, seed + 3) - 0.5) * 0.3 + fine;
-      if (land && !isLand(cell)) cell = cells.c[cell].find(isLand) ?? cell; // coast pushed out: borrow the shore cell
-      cellOf[i] = cell;
-      if (!land || !isLand(cell)) {
-        const lake = features[cells.f[cell]]?.type === "lake";
-        const depth = sample(fields.depth, gx, gy, i);
-        raster.terrain[i] =
-          !lake && depth < 12 + (valueNoise(gx, gy, 9 * unit, seed + 2) - 0.5) * 3 ? Terrain.DeepWater : Terrain.Water;
-        raster.elevation[i] = 0;
-        continue;
-      }
-      raster.terrain[i] = landTerrain(gx, gy, cells.biome[cell], cells.h[cell], seed, scale);
-      const e = sample(fields.elevation, gx, gy, i);
-      const ridge = 1 - Math.abs(2 * fbm(gx, gy, 14 * unit, 3, seed + 21) - 1);
-      const upland = Math.max(0, Math.min(1, (e - 0.3) / 0.3));
-      raster.elevation[i] = Math.round(Math.min(255, e * 200 + ridge * upland * 70 + fbm(gx, gy, 8, 2, seed + 22) * 8));
-    }
-}
-
-function bilinear(field: Float32Array | Uint8Array, width: number, height: number, fx: number, fy: number): number {
-  const x = Math.max(0, Math.min(width - 1.001, fx));
-  const y = Math.max(0, Math.min(height - 1.001, fy));
-  const ix = Math.floor(x);
-  const iy = Math.floor(y);
-  const tx = x - ix;
-  const ty = y - iy;
-  const i = iy * width + ix;
-  const a = field[i];
-  const b = field[i + 1];
-  const c = field[i + width];
-  const d = field[i + width + 1];
-  return a + (b - a) * tx + (c - a) * ty + (a - b - c + d) * tx * ty;
-}
-
-/** State tint and solid state borders, with dashed province borders from region scale on; either can be off */
-export function applyPolitics(build: TerrainBuild, tint: boolean, borders: boolean): void {
-  const { raster, cellOf, scale } = build;
-  const region = raster.region ?? new Uint16Array(cellOf.length);
-  for (let i = 0; i < cellOf.length; i++) region[i] = pack.cells.state[cellOf[i]];
-  raster.region = tint || borders ? region : null;
-  raster.regionColors = tint ? pack.states.map((state, i) => (i && !state.removed ? stateColor(state.color) : 0)) : [];
-  raster.borders = borders;
-  raster.borderPx = scale >= 8 ? 2 : 3; // thick when zoomed out, never hairline
-  const provinces = borders && scale > WORLD_SCALE && pack.cells.province;
-  if (provinces) {
-    const sub = raster.subregion ?? new Uint16Array(cellOf.length);
-    for (let i = 0; i < cellOf.length; i++) sub[i] = provinces[cellOf[i]] ?? 0;
-    raster.subregion = sub;
-  } else raster.subregion = null;
-  raster.markDirty(0, 0, raster.width, raster.height);
+/** Any CSS colour as a packed pixel; grey when it can't be read */
+function cssColor(value: string | undefined): number {
+  const c = value ? color(value)?.rgb() : null;
+  if (!c) return packRGB([150, 150, 150]);
+  return packRGB([Math.round(c.r), Math.round(c.g), Math.round(c.b)]);
 }
 
 /** Rivers and routes as fixed-width lines over the ground; returns stamps tagged with what they draw */
-export function lineStamps(build: TerrainBuild, rivers: boolean, routes: boolean): Stamp[] {
+export function lineStamps(build: StampFrame, rivers: boolean, routes: boolean): Stamp[] {
   const stamps: Stamp[] = [];
   const { area } = build;
   const near = (points: number[][] | undefined) => {
@@ -240,19 +170,6 @@ export function lineStamps(build: TerrainBuild, rivers: boolean, routes: boolean
         stamps.push(...riverStamp(river, build));
   if (routes) for (const route of pack.routes) if (near(route.points)) stamps.push(...routeStamp(route, build));
   return stamps;
-}
-
-function landTerrain(x: number, y: number, biome: number, h: number, seed: number, scale: number): TerrainId {
-  let t = BIOME_TERRAIN[biome] ?? Terrain.Grass;
-  if (t === Terrain.Water) t = Terrain.Grass;
-  if (t === Terrain.Snow) return t;
-  if (h >= 62) return Terrain.Mountains;
-  const woods = fbm(x, y, 22 * (scale / WORLD_SCALE), 3, seed + 31);
-  if (FORESTS.includes(t) && woods < 0.36)
-    t = t === Terrain.Taiga ? Terrain.Tundra : Terrain.Grass; // clearings
-  else if (t === Terrain.Grass && woods > 0.68) t = Terrain.Forest; // copses
-  if (h >= 46 && OPEN_LAND.includes(t)) return Terrain.Hills;
-  return t;
 }
 
 /** Fill each Voronoi cell's polygon with its index, sampling pixel centres so neighbours share no pixels */
@@ -330,7 +247,7 @@ function smooth(values: Float32Array | Uint8Array, width: number, height: number
 }
 
 /** A river as a line of water pixels, widening downstream with its flow */
-function riverStamp(river: (typeof pack.rivers)[number], build: TerrainBuild): Stamp[] {
+function riverStamp(river: (typeof pack.rivers)[number], build: StampFrame): Stamp[] {
   if (!river.cells || river.cells.length < 2) return [];
   const points = Rivers.addMeandering(river.cells, (river.points as [number, number][] | undefined) ?? null);
   const { scale, area } = build;
@@ -363,7 +280,7 @@ const ROUTE_STYLE: Record<string, { width: number; dash: number; color: number }
 const PATH_STYLE = { width: 0.4, dash: 2, color: packRGB([120, 96, 64]) };
 
 /** One route as fixed-width pixels: chaikin-rounded, dashed for paths and sea lanes */
-export function routeStamp(route: (typeof pack.routes)[number], build: TerrainBuild): (Stamp & { route: number })[] {
+export function routeStamp(route: (typeof pack.routes)[number], build: StampFrame): (Stamp & { route: number })[] {
   if (!route.points || route.points.length < 2) return [];
   const { scale, area } = build;
   const style = ROUTE_STYLE[route.group] ?? PATH_STYLE;
@@ -423,16 +340,6 @@ function pixelStamp(pixels: [number, number][], color: number, alternate = color
   };
 }
 
-function stateColor(color: string | undefined): number {
-  const hex = color?.match(/#([0-9a-f]{6})/i)?.[1];
-  if (!hex) return packRGB([150, 150, 150]);
-  return packRGB([
-    Number.parseInt(hex.slice(0, 2), 16),
-    Number.parseInt(hex.slice(2, 4), 16),
-    Number.parseInt(hex.slice(4, 6), 16)
-  ]);
-}
-
 /** Corner-cutting to round off the zigzag between cell centres */
 function chaikin(points: [number, number][], passes = 2): [number, number][] {
   let pts = points;
@@ -452,7 +359,7 @@ function chaikin(points: [number, number][], passes = 2): [number, number][] {
 const ICE = [packRGB([232, 238, 242]), packRGB([214, 226, 236]), packRGB([196, 214, 228]), packRGB([168, 190, 210])];
 
 /** Azgaar's glaciers and icebergs as pixel ice with ragged edges; the SVG shapes stay only for clicking */
-export function iceStamps(build: TerrainBuild): Stamp[] {
+export function iceStamps(build: StampFrame): Stamp[] {
   const { scale, area, raster } = build;
   const seed = raster.seed;
   const stamps: Stamp[] = [];

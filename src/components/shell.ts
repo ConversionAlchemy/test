@@ -33,6 +33,7 @@ const SHELL_TEXT: [string, string | null, string | null][] = [
   ["#options .drag-trigger", null, t("Drag to move the Menu")],
   ["#optionsHide", null, t("Click to hide the Menu")],
   ["#layersTab", t("Map"), t("Click to choose what the map shows")],
+  ["#dataTab", t("Data"), t("Click to read the world's data")],
   ["#styleTab", t("Style"), t("Click to open style editor")],
   ["#optionsTab", t("Settings"), t("Click to change generation and UI options")],
   ["#toolsTab", t("Tools"), t("Click to open tools menu")],

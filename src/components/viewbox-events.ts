@@ -1,6 +1,7 @@
 // Default interaction on the map canvas: pan/zoom, click-to-edit, the context menu and hover tooltips
 import { drag, select } from "d3";
 import { Controllers } from "@/controllers";
+import { hoverAt, leave, openCellCard } from "@/fluoria/cell-card";
 import type { LabelType } from "@/generators/labels-generator";
 import { dragLegendBox } from "@/renderers/draw-legend";
 import { findEl } from "@/utils";
@@ -19,6 +20,15 @@ export function applyDefaultViewboxEvents(): void {
     .on("click", onClick)
     .on("contextmenu", onContextMenu)
     .on("touchmove mousemove", onMouseMove);
+
+  // Fluoria: the pixel map has no svg under bare ground, so the map itself hears hover and clicks there
+  select<SVGSVGElement, unknown>("#map")
+    .on("mousemove.fluoria", (event: MouseEvent) => hoverAt(event))
+    .on("mouseleave.fluoria", leave)
+    .on("click.fluoria", (event: MouseEvent) => {
+      if ((event.target as Element)?.id !== "map" || options.map.viewOnly || customization) return;
+      openCellCard(event);
+    });
 
   select<SVGGElement, unknown>("#legend").call(drag<SVGGElement, unknown>().on("start", dragLegendBox));
 }
@@ -82,7 +92,8 @@ export function openEditor(element: Element): boolean {
 }
 
 function onClick(event: MouseEvent): void {
-  if (event?.target && !options.map.viewOnly) openEditor(event.target as Element);
+  if (!event?.target || options.map.viewOnly) return;
+  if (!openEditor(event.target as Element) && !customization) openCellCard(event); // Fluoria: ground with no editor
 }
 
 /** Right-click on the map belongs to the context menu; Shift+right-click keeps the browser's own */
