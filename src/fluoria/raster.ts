@@ -55,6 +55,8 @@ export class PixelRaster {
   snowByHeight = true;
   /** Colour of each region's inner border band */
   bandColors: number[] = [];
+  /** A band of the owner's colour along coasts, this many pixels wide; 0 for none */
+  coastPx = 0;
   /** State border width in game pixels */
   borderPx = 1;
   /** Optional second level of regions (provinces), outlined with a thin dashed line */
@@ -195,6 +197,11 @@ export class PixelRaster {
     let color = t === Terrain.River ? this.river(x, y) : isWater(t) ? this.water(x, y, t) : this.land(x, y, t);
     const i = this.at(x, y);
     if (this.region && !isOpenWater(own)) color = this.political(x, y, color);
+    if (this.coastPx && this.region && !isWater(own)) {
+      const band = this.bandColors[this.region[i]];
+      const d = band ? this.distanceTo(x, y, true, this.coastPx) : 0;
+      if (d) color = mixP(color, band, 0.6 - (d - 1) * 0.15); // whose coast it is, even on a one-cell island
+    }
     if (this.overlay[i]) color = this.applyOverlay(x, y, color, this.overlay[i], this.amount[i]);
     return color;
   }

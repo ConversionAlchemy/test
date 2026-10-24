@@ -134,10 +134,13 @@ Each phase ends with something Osh can open and use.
   - Detail pyramid (`world.ts` gathers a `WorldModel` once per map; `world-model.ts` paints; `tile-worker.ts` and `tile-pool.ts` run it on background workers): a quick quarter-scale first look, the whole map at 1 game pixel per map pixel in a painted style, then 2, 4 and 8 for the tiles on screen, textures richer at each step. Tiles fade in; the region level fills in around the view while idle.
   - One look per cell: each pixel takes its cell's ground, snow and region from the nearest cell site to a slightly warped point, so cell edges are ragged and everything inside a cell matches. Snow is per cell (glacier biome, or high and freezing). Relief stays smooth across cells.
   - Borders: a dark line with a band of the state's colour inside. Political fills states strongly over greyed ground.
-  - Labels: solid dark grey, white outline at 0.2 em, shown by zoom tier and sized by rank.
-  - Units: regiments stay about 11–24 screen pixels tall at every zoom, names close in; markers stand at their cell's centre. Movement, stacks, ships and right-click actions as before.
+  - Labels (`label-zoom.ts`), atlas-style: state and province names white with a dark outline in capitals; settlement names dark with a white outline, sized by rank; rivers blue italic and roads brown, closest zoom only. Where labels overlap on screen the lower rank hides; port names sit on the land side.
+  - Settlement symbols: national capital a square with a dot, regional capital a hollow square, city a filled circle, town a smaller circle, village a dot; ports are the hollow form of their size.
+  - Owners (`owners.ts`): outlying islands carry their owner's short name from zoom 3; coastlines carry a band of the owner's colour; the hover line names a vassal's suzerain; Map › Fix colours separates neighbours (across straits too) that look alike.
+  - Units: regiments stay about 11–24 screen pixels tall at every zoom, names close in; markers stand at their cell's centre. Regiments sharing a cell stand in a vertical column on the cell's centre (three shown, then "+N"); nothing moves on hover. The regiment base and rotate handle are gone.
+  - Sea (`sea-grid.ts`): fleets stand on, move across and dim by Azgaar's original even grid, and the sea's cell lines are drawn from it, clipped to the water, so ocean cells are the same size up to the coast. A fleet still records the packed cell under it. A cell counts as reachable when its near edge is in range.
   - Cells: faint lines from zoom 1.5, clearer with a unit selected. Hover brightens a cell; a click on bare ground opens the cell card.
-  - Next: march orders, then a turn button; the Shape and Draw tools with the slope rule; halving the distance scale; the minimap.
+  - Next: occupation and annexing, adjacent-only attacks through Azgaar's battle screen, amphibious port cells and Tidy roads; then march orders and a turn button; the Shape and Draw tools with the slope rule; halving the distance scale; the minimap.
 
 ## Working rules for this fork
 

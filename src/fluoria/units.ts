@@ -2,18 +2,23 @@
 // selected one dims everything it can't reach in one move. A drag ends on a reachable cell or not at all
 import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
-import { getRegimentWidth } from "@/renderers/draw-military";
 import { cargo, carry, land, landingCells, load } from "./boarding";
-import { canStand, reachable } from "./movement";
+import { canStand, moveBudget, reachable } from "./movement";
 import { dimPixelMap } from "./pixel-map-sync";
+import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
 
-let range: Map<number, number> | null = null;
+let range: Map<number, number> | null = null; // packed cells for armies, sea grid cells for fleets
 let rangeOf: Regiment | null = null;
 
-const regimentsAt = (cell: number) =>
-  pack.states.flatMap(state =>
-    state.i && !state.removed ? (state.military ?? []).filter(r => !r.hidden && r.cell === cell) : []
-  );
+/** Where a regiment stands and the cell it is measured in: fleets on the even sea grid, armies on packed cells */
+const standAt = (regiment: Regiment, x: number, y: number): { cell: number; point: [number, number] } | null => {
+  if (regiment.n) {
+    const g = seaCellAt(x, y);
+    return g === undefined ? null : { cell: g, point: seaPoint(g) };
+  }
+  const cell = Pack.findCell(x, y);
+  return cell === undefined ? null : { cell, point: [pack.cells.p[cell][0], pack.cells.p[cell][1]] };
+};
 
 // regiment boxes keep about this height on screen, whatever the zoom: small chips far out, a little bigger close in
 const BOX_PX = [
@@ -34,7 +39,7 @@ export function applyUnitZoom(scale: number): void {
   unitScale = Math.max(0.02, px / (box * scale));
   armies.style.setProperty("--fl-unit", String(unitScale));
   armies.dataset.flNames = scale >= 4.5 ? "1" : "0";
-  for (const stack of stacks) layStack(stack, false); // only the offsets of shared cells change with size
+  for (const stack of stacks) layStack(stack); // only the offsets of shared cells change with size
 }
 
 let stacks: Regiment[][] = [];
@@ -54,14 +59,17 @@ export function snapMarkers(): boolean {
   return moved;
 }
 
-/** The cell a regiment stands in is the cell under its point; standing means its centre */
+/** Every regiment stands at the centre of its cell: armies on packed cells, fleets on the even sea grid */
 export function snapAll(): boolean {
   let moved = false;
   for (const state of pack.states) {
     if (!state.i || state.removed) continue;
     for (const regiment of state.military ?? []) {
-      const cell = Pack.findCell(regiment.x, regiment.y) ?? regiment.cell;
-      const [x, y] = pack.cells.p[cell];
+      if (regiment.carrier) continue;
+      const spot = standAt(regiment, regiment.x, regiment.y);
+      if (!spot) continue;
+      const [x, y] = spot.point;
+      const cell = Pack.findCell(x, y) ?? regiment.cell;
       if (regiment.cell === cell && regiment.x === x && regiment.y === y) continue;
       regiment.cell = cell;
       regiment.x = x;
@@ -74,9 +82,15 @@ export function snapAll(): boolean {
 
 /** Show what a regiment can reach this move */
 export function selectRegiment(regiment: Regiment): void {
-  range = reachable(regiment);
   rangeOf = regiment;
-  dimPixelMap(new Set(range.keys()));
+  if (regiment.n) {
+    const start = seaCellAt(regiment.x, regiment.y);
+    range = start === undefined ? new Map() : seaReach(start, moveBudget(regiment));
+    dimPixelMap(new Set(range.keys()), "sea");
+    return;
+  }
+  range = reachable(regiment);
+  dimPixelMap(new Set(range.keys()), "land");
 }
 
 export function clearSelection(): void {
@@ -89,18 +103,19 @@ export function clearSelection(): void {
 /** While dragging: outline the cell under the pointer if the regiment may end there */
 export function dragOver(regiment: Regiment, x: number, y: number): void {
   if (rangeOf !== regiment) selectRegiment(regiment);
-  const cell = Pack.findCell(x, y);
-  outline(cell !== undefined && range?.has(cell) ? cell : null);
+  const spot = standAt(regiment, x, y);
+  outline(spot && range?.has(spot.cell) ? spot.cell : null, Boolean(regiment.n));
 }
 
 /** Where a dragged regiment ends up: the centre of a reachable cell, or null to put it back */
 export function dropAt(regiment: Regiment, x: number, y: number): [number, number] | null {
   outline(null);
-  const cell = Pack.findCell(x, y);
-  if (cell === undefined || !range?.has(cell) || !canStand(regiment, cell)) return null;
+  const spot = standAt(regiment, x, y);
+  if (!spot || !range?.has(spot.cell)) return null;
+  const cell = Pack.findCell(spot.point[0], spot.point[1]);
+  if (cell === undefined || !canStand(regiment, cell)) return null;
   regiment.cell = cell;
-  const [cx, cy] = pack.cells.p[cell];
-  return [cx, cy];
+  return spot.point;
 }
 
 /** After a move the reach is measured again from the new cell, and anyone aboard comes along */
@@ -117,7 +132,7 @@ export const selected = (): Regiment | null => rangeOf;
 export function chooseLanding(fleet: Regiment, troops: Regiment[], done: () => void): void {
   const targets = new Set(landingCells(fleet));
   if (!targets.size || !troops.length) return;
-  dimPixelMap(targets);
+  dimPixelMap(targets, "land");
   const map = document.getElementById("map");
   const finish = () => {
     map?.removeEventListener("click", onClick, true);
@@ -157,11 +172,14 @@ export function chooseLanding(fleet: Regiment, troops: Regiment[], done: () => v
   window.addEventListener("keyup", onKey, true);
 }
 
-function outline(cell: number | null): void {
+function outline(cell: number | null, sea = false): void {
   const debug = select<SVGGElement, unknown>("#debug");
   debug.select("#flTargetCell").remove();
   if (cell === null) return;
-  const points = pack.cells.v[cell].map(v => pack.vertices.p[v].join(",")).join(" ");
+  const flat = sea ? seaPolygon(cell) : pack.cells.v[cell].flatMap(v => pack.vertices.p[v]);
+  const pairs: string[] = [];
+  for (let k = 0; k + 1 < flat.length; k += 2) pairs.push(`${flat[k]},${flat[k + 1]}`);
+  const points = pairs.join(" ");
   debug
     .append("polygon")
     .attr("id", "flTargetCell")
@@ -173,11 +191,12 @@ function outline(cell: number | null): void {
     .attr("pointer-events", "none");
 }
 
-// --- stacks: regiments sharing a cell sit like a little deck, fanned out while the pointer is over them
+// --- stacks: regiments sharing a cell stand in a neat column on the cell's centre; nothing moves on hover
 
-const STEP = 0.6; // of the box height, per regiment in the stack
+const GAP = 0.25; // between boxes, of the box height
+const SHOWN = 3; // a column this long, or one longer than this plus one, shows a "+N" tab for the rest
 
-/** Offset regiments that share a cell and badge the top one with the count */
+/** Lay out every shared cell as a column */
 export function stackAll(): void {
   if (!document.getElementById("armies")) return;
   const byCell = new Map<number, Regiment[]>();
@@ -191,7 +210,7 @@ export function stackAll(): void {
     }
   }
   stacks = [...byCell.values()].filter(stack => stack.length > 1);
-  for (const stack of byCell.values()) layStack(stack, false);
+  for (const stack of byCell.values()) layStack(stack);
   for (const state of pack.states)
     for (const fleet of state.i && !state.removed ? (state.military ?? []) : []) if (fleet.n) cargoBadge(fleet);
 }
@@ -216,63 +235,33 @@ function cargoBadge(fleet: Regiment): void {
 const elementOf = (regiment: Regiment) =>
   document.getElementById(`regiment${regiment.state}-${regiment.i}`) as SVGGElement | null;
 
-/** Lay a stack down as a deck, or fanned out in a row around `anchor`, which stays where it is under the pointer */
-function layStack(stack: Regiment[], fanned: boolean, anchor?: Regiment): void {
+/** A column centred on the cell: each box centred across, a small gap between them */
+function layStack(stack: Regiment[]): void {
   const size = styles.military.options.boxSize * 2 * unitScale;
-  const deck = (k: number) => (stack.length > 1 ? [k * size * STEP, -k * size * STEP] : [0, 0]);
-  const widths = stack.map(regiment => getRegimentWidth(regiment) * unitScale + size); // box plus its icon square
-  const gap = size * 0.3;
-  const a = Math.max(0, anchor ? stack.indexOf(anchor) : 0);
-  const centres: number[] = [];
-  let left = 0;
-  stack.forEach((_, k) => {
-    centres.push(left + widths[k] / 2);
-    left += widths[k] + gap;
-  });
+  const shown = stack.length > SHOWN + 1 ? SHOWN : stack.length;
+  const step = size * (1 + GAP);
   stack.forEach((regiment, k) => {
     const element = elementOf(regiment);
     if (!element) return;
-    element.querySelector(".flStack")?.remove();
-    const [dx, dy] = fanned ? [deck(a)[0] + centres[k] - centres[a], deck(a)[1]] : deck(k);
-    element.style.translate = dx || dy ? `${dx}px ${dy}px` : "";
-    element.dataset.stack = String(stack.length);
-    if (!element.dataset.flStackBound) {
-      element.dataset.flStackBound = "1";
-      element.addEventListener("mouseenter", () => fan(regiment, true));
-      element.addEventListener("mouseleave", () => fan(regiment, false));
-    }
+    element.querySelector(".flMore")?.remove();
+    element.style.display = k < shown ? "" : "none";
+    const dy = (k - (shown - 1) / 2) * step;
+    element.style.translate = dy ? `0px ${dy}px` : "";
   });
-  if (stack.length < 2) return;
-  const top = stack[stack.length - 1];
-  const element = elementOf(top);
-  const box = element?.querySelector("rect");
-  if (!element || !box || fanned) return;
-  const x = Number(box.getAttribute("x")) + Number(box.getAttribute("width"));
-  const y = Number(box.getAttribute("y"));
-  const badge = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  badge.setAttribute("class", "flStack");
-  badge.setAttribute("x", String(x));
-  badge.setAttribute("y", String(y));
-  badge.setAttribute("font-size", String(size * 0.9));
-  badge.textContent = `×${stack.length}`;
-  element.append(badge);
-}
-
-let fanTimer = 0;
-let fannedCell: number | null = null;
-function fan(regiment: Regiment, open: boolean): void {
-  clearTimeout(fanTimer);
-  const stack = regimentsAt(regiment.cell);
-  if (stack.length < 2) return;
-  if (open) {
-    if (fannedCell === regiment.cell) return; // already spread: moving between its boxes keeps the layout
-    fannedCell = regiment.cell;
-    layStack(stack, true, regiment);
-    return;
-  }
-  // a short grace, so moving between boxes doesn't fold them
-  fanTimer = window.setTimeout(() => {
-    fannedCell = null;
-    layStack(stack, false);
-  }, 300);
+  if (shown === stack.length) return;
+  const last = elementOf(stack[shown - 1]);
+  const box = last?.querySelector("rect");
+  if (!last || !box) return;
+  const tab = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  tab.setAttribute("class", "flMore");
+  tab.setAttribute("x", String(Number(box.getAttribute("x")) + Number(box.getAttribute("width")) / 2));
+  tab.setAttribute("y", String(Number(box.getAttribute("y")) + Number(box.getAttribute("height")) * 1.75));
+  tab.setAttribute("font-size", String(styles.military.options.boxSize * 1.6));
+  tab.setAttribute("text-anchor", "middle");
+  tab.textContent = `+${stack.length - shown}`;
+  tab.addEventListener("click", event => {
+    event.stopPropagation(); // the full list, not the editor of the box it sits under
+    Controllers.ContextMenu.open(event);
+  });
+  last.append(tab);
 }

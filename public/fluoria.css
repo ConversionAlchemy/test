@@ -301,8 +301,13 @@ input[type="range"] {
   pointer-events: none;
 }
 
-#armies g[data-stack] {
-  transition: translate 0.15s;
+#armies .flMore {
+  fill: #ffffff;
+  stroke: #1b1b1e;
+  stroke-width: 0.4;
+  paint-order: stroke;
+  font-family: "VT323", monospace;
+  cursor: pointer;
 }
 
 #contextMenu {
@@ -433,4 +438,47 @@ input[type="range"] {
 
 #cellCard a.unit {
   display: block;
+}
+
+#burgIcons > g > g[data-group="icons"] {
+  fill-opacity: 1;
+  stroke-opacity: 1;
+  opacity: 1;
+}
+
+#cellCard .close {
+  position: absolute;
+  top: 0.25em;
+  right: 0.3em;
+  padding: 0 0.3em;
+  border: 0;
+  background: none;
+  color: var(--fl-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+#cellCard .close:hover {
+  color: var(--fl-text);
+}
+
+#cellCard .title {
+  padding-right: 1.4em;
+}
+
+/* Outlying islands carry their owner's short name */
+#flIslands text {
+  fill: #ffffff;
+  stroke: #1b1b20;
+  stroke-width: 0.2em;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  font-family: "VT323", monospace;
+  text-transform: uppercase;
+}
+
+#layersContent .flWide {
+  width: 100%;
+  margin-top: 0.4em;
+  padding: 0.3em 0;
 }

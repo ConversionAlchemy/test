@@ -29,11 +29,17 @@ export function cargo(fleet: Regiment): Regiment[] {
 export const load = (fleet: Regiment) => cargo(fleet).reduce((sum, r) => sum + r.a, 0);
 export const space = (fleet: Regiment) => Math.max(0, capacity(fleet) - load(fleet));
 
-/** A fleet is within reach of troops on the shore next to its water cell, or in the port it lies off */
+// how far from a fleet's point a shore cell counts as next to it: a little over one even sea cell
+const reachOf = () => grid.spacing * 1.6;
+const near = (cell: number, fleet: Regiment) =>
+  Math.hypot(pack.cells.p[cell][0] - fleet.x, pack.cells.p[cell][1] - fleet.y) <= reachOf();
+
+/** A fleet is within reach of troops on the shore beside it, or in the port it lies off */
 export function canBoard(army: Regiment, fleet: Regiment): boolean {
   if (army.n || !fleet.n || army.carrier || army === fleet) return false;
   const { cells } = pack;
-  const next = cells.c[army.cell].includes(fleet.cell) || cells.haven?.[army.cell] === fleet.cell;
+  const next =
+    near(army.cell, fleet) || cells.c[army.cell].includes(fleet.cell) || cells.haven?.[army.cell] === fleet.cell;
   return next && isWater(fleet.cell) && space(fleet) > 0;
 }
 
@@ -67,7 +73,11 @@ export function board(army: Regiment, fleet: Regiment): Regiment {
 
 /** Land cells the fleet's troops may step onto */
 export function landingCells(fleet: Regiment): number[] {
-  return pack.cells.c[fleet.cell].filter(cell => !isWater(cell));
+  const { cells } = pack;
+  const out = new Set(cells.c[fleet.cell].filter(cell => !isWater(cell)));
+  for (const water of [fleet.cell, ...cells.c[fleet.cell]])
+    for (const cell of cells.c[water]) if (!isWater(cell) && near(cell, fleet)) out.add(cell);
+  return [...out];
 }
 
 export function land(regiment: Regiment, cell: number): void {

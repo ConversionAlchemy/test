@@ -3,8 +3,9 @@ import { Layers } from "@/components/layers";
 import { viewport } from "@/components/viewport";
 import { applyLabelZoom } from "./label-zoom";
 import { onMapView } from "./map-view";
+import { collectIslands, drawIslands } from "./owners";
 import { setPixelMapDimmer, setPixelMapHighlighter, setPixelMapSync } from "./pixel-map-sync";
-import { applyUnitZoom, snapAll, snapMarkers } from "./units";
+import { applyUnitZoom, snapAll, snapMarkers, stackAll } from "./units";
 
 type PixelMapModule = typeof import("./pixel-map")["PixelMapLayer"];
 
@@ -19,6 +20,7 @@ const load = (): Promise<PixelMapModule> => {
       map.sync();
       applyLabelZoom();
       applyUnitZoom(viewport.scale);
+      drawIslands();
     });
     setPixelMapDimmer(map.dim);
     setPixelMapHighlighter(map.highlight);
@@ -30,10 +32,14 @@ const load = (): Promise<PixelMapModule> => {
 
 Layers.onDraw(ids => {
   if (ids.includes("labels")) applyLabelZoom();
+  if (ids.some(id => id === "states" || id === "labels")) collectIslands();
   if (ids.includes("military") && Layers.isOn("military")) {
     if (snapAll())
       queueMicrotask(() => Layers.draw("military")); // every regiment stands at its cell's centre
-    else applyUnitZoom(viewport.scale);
+    else {
+      applyUnitZoom(viewport.scale);
+      stackAll();
+    }
   }
   if (ids.includes("markers") && Layers.isOn("markers") && snapMarkers()) queueMicrotask(() => Layers.draw("markers")); // markers stand at their cell's centre
   void load().then(map => map.drawn(ids));

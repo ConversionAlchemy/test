@@ -43,6 +43,7 @@ export interface TileJob {
   bandPx: number;
   provinces: boolean; // dashed province lines
   outline: boolean; // regions as borders only, no fill
+  coastPx: number; // owner's colour along coasts
 }
 
 // warp of the lookup point, in map pixels: big enough to break up straight edges, small beside a cell (about 11)
@@ -162,6 +163,7 @@ export function paintTile(model: WorldModel, job: TileJob): Uint32Array {
   raster.borders = job.borders;
   raster.borderPx = job.borderPx;
   raster.bandPx = job.bandPx;
+  raster.coastPx = job.coastPx;
   raster.bandColors = Array.from(model.colors.state);
   if (job.view !== "terrain") raster.bandColors = Array.from(colors);
   raster.regionColors = Array.from(colors);

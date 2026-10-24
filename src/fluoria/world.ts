@@ -108,8 +108,6 @@ export function collectWorld(): WorldModel {
   smooth(elevation, width, height, Math.max(2, Math.round(grid.spacing * 0.6)));
   smooth(depth, width, height, Math.max(2, Math.round(grid.spacing * 0.9)));
 
-  const palette = (list: { color?: string; removed?: boolean }[] | undefined) =>
-    Uint32Array.from(list ?? [], (item, i) => (i && item && !item.removed ? cssColor(item.color) : 0));
   return {
     seed: mapSeed(),
     width,
@@ -121,8 +119,21 @@ export function collectWorld(): WorldModel {
     terrain,
     land,
     lake,
+    ...regions(),
+    elevation,
+    depth
+  };
+}
+
+const palette = (list: { color?: string; removed?: boolean }[] | undefined) =>
+  Uint32Array.from(list ?? [], (item, i) => (i && item && !item.removed ? cssColor(item.color) : 0));
+
+/** Who owns each cell and the colours they're drawn in: cheap, so taken again after any political edit */
+export function regions(): Pick<WorldModel, "state" | "province" | "culture" | "religion" | "colors"> {
+  const { cells } = pack;
+  return {
     state: Uint16Array.from(cells.state),
-    province: Uint16Array.from(cells.province ?? new Uint16Array(n)),
+    province: Uint16Array.from(cells.province ?? new Uint16Array(cells.i.length)),
     culture: Uint16Array.from(cells.culture),
     religion: Uint16Array.from(cells.religion),
     colors: {
@@ -130,9 +141,7 @@ export function collectWorld(): WorldModel {
       province: palette(pack.provinces as { color?: string; removed?: boolean }[]),
       culture: palette(pack.cultures),
       religion: palette(pack.religions)
-    },
-    elevation,
-    depth
+    }
   };
 }
 
