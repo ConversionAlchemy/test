@@ -10,3 +10,14 @@ export function setPixelMapSync(next: () => void): void {
 export function syncPixelMap(): void {
   sync?.();
 }
+
+let dimmer: ((bright: ReadonlySet<number> | null) => void) | null = null;
+
+export function setPixelMapDimmer(next: (bright: ReadonlySet<number> | null) => void): void {
+  dimmer = next;
+}
+
+/** Dim every cell except `bright`; null lifts the dimming */
+export function dimPixelMap(bright: ReadonlySet<number> | null): void {
+  dimmer?.(bright);
+}

@@ -3,7 +3,7 @@
 import { fbm, valueNoise } from "./noise";
 import { Palette, packRGB } from "./palette";
 import { PixelRaster, type Stamp } from "./raster";
-import { isOpenWater, Terrain, type TerrainId } from "./terrain";
+import { Terrain, type TerrainId } from "./terrain";
 
 /** Game pixels per Azgaar map pixel */
 export const WORLD_SCALE = 2;
@@ -44,6 +44,17 @@ export interface TerrainBuild {
   area: MapArea;
 }
 
+/** The whole map's smooth fields, kept from the world build so close-up tiles sample them instead of blurring */
+export interface WorldFields {
+  width: number;
+  height: number;
+  scale: number;
+  landness: Float32Array;
+  depth: Float32Array;
+  elevation: Float32Array;
+  snowLine: Uint8Array;
+}
+
 export const wholeMap = (): MapArea => ({
   x: 0,
   y: 0,
@@ -51,81 +62,183 @@ export const wholeMap = (): MapArea => ({
   height: options.map.graph.height
 });
 
-/** Land, water, relief and snow for an area: everything that comes from heights, biomes and temperature */
-export function buildTerrain(scale = WORLD_SCALE, area: MapArea = wholeMap()): TerrainBuild {
-  const { cells, vertices, features } = pack;
+const mapSeed = () => Number.parseInt(String(options.map.seed), 10) % 100000 || 1;
+const isLand = (cell: number) => Boolean(pack.features[pack.cells.f[cell]]?.land);
+
+/** The whole map at world scale: everything that comes from heights, biomes and temperature */
+export function buildTerrain(scale = WORLD_SCALE, area: MapArea = wholeMap()): TerrainBuild & { fields: WorldFields } {
+  const { cells, vertices } = pack;
   const width = Math.ceil(area.width * scale);
   const height = Math.ceil(area.height * scale);
-  const seed = Number.parseInt(String(options.map.seed), 10) % 100000 || 1;
-  const raster = new PixelRaster(width, height, seed);
+  const seed = mapSeed();
+  const ox = Math.round(area.x * scale);
+  const oy = Math.round(area.y * scale);
+  const raster = new PixelRaster(width, height, seed, ox, oy);
 
   const cellOf = rasterizeCells(cells.v, vertices.p, width, height, scale, area);
   const elevation = new Float32Array(width * height);
   const snowLine = new Uint8Array(width * height);
   const landness = new Float32Array(width * height);
   const depth = new Float32Array(width * height);
-  const isLand = (cell: number) => Boolean(features[cells.f[cell]]?.land);
   for (let i = 0; i < cellOf.length; i++) {
-    landness[i] = isLand(cellOf[i]) ? 1 : 0;
-    depth[i] = Math.min(20, cells.h[cellOf[i]]);
+    const cell = cellOf[i];
+    landness[i] = isLand(cell) ? 1 : 0;
+    depth[i] = Math.min(20, cells.h[cell]);
+    if (isLand(cell)) elevation[i] = Math.max(0, (cells.h[cell] - 20) / 80);
+    const temp = grid.cells.temp[cells.g[cell]] ?? 10;
+    snowLine[i] = Math.max(30, Math.min(255, Math.round(175 + temp * 11)));
   }
   // Voronoi edges are straight: blur land and depth so coasts and deeps come out rounded, as Azgaar draws them
   const cellPixels = Math.max(1, Math.round(grid.spacing * scale * 0.45));
   smooth(landness, width, height, cellPixels);
   smooth(depth, width, height, cellPixels * 2);
-
-  for (let i = 0; i < cellOf.length; i++) {
-    let cell = cellOf[i];
-    const x = i % width;
-    const y = (i - x) / width;
-    const land = landness[i] > 0.5 + (valueNoise(x, y, 5 * (scale / WORLD_SCALE), seed + 3) - 0.5) * 0.3;
-    if (land && !isLand(cell)) cell = cells.c[cell].find(isLand) ?? cell; // coast pushed out: borrow the shore cell
-    cellOf[i] = cell;
-    if (!land || !isLand(cell)) {
-      const lake = features[cells.f[cell]]?.type === "lake";
-      raster.terrain[i] =
-        !lake && depth[i] < 12 + (valueNoise(x, y, 9, seed + 2) - 0.5) * 3 ? Terrain.DeepWater : Terrain.Water;
-      continue;
-    }
-    const h = cells.h[cell];
-    elevation[i] = Math.max(0, (h - 20) / 80);
-    raster.terrain[i] = landTerrain(x, y, cells.biome[cell], h, seed, scale);
-    const temp = grid.cells.temp[cells.g[cell]] ?? 10;
-    snowLine[i] = Math.max(30, Math.min(255, Math.round(175 + temp * 11)));
-  }
-
   smooth(elevation, width, height, Math.max(2, Math.round(grid.spacing * scale * 0.6)));
-  const ridgeScale = 14 * (scale / WORLD_SCALE);
-  for (let i = 0; i < elevation.length; i++) {
-    if (isOpenWater(raster.terrain[i])) continue;
-    const x = i % width;
-    const y = (i - x) / width;
-    const e = elevation[i];
-    const ridge = 1 - Math.abs(2 * fbm(x, y, ridgeScale, 3, seed + 21) - 1);
-    const upland = Math.max(0, Math.min(1, (e - 0.3) / 0.3));
-    raster.elevation[i] = Math.round(Math.min(255, e * 200 + ridge * upland * 70 + fbm(x, y, 8, 2, seed + 22) * 8));
-  }
   smooth(snowLine, width, height, 3);
+
+  const fields = { width, height, scale, landness, depth, elevation, snowLine };
+  const build = { raster, cellOf, scale, area };
+  fillTerrain(build, fields, 0, height);
   raster.snowLine = snowLine;
-  return { raster, cellOf, scale, area };
+  return { ...build, fields };
 }
 
-/** State tint and dashed borders from the cell under each pixel; either can be switched off */
+/** Tile side in game pixels, and the apron around it that edge effects read but nothing shows */
+export const TILE = 512;
+export const APRON = 8;
+
+/** One square of the map at a close-up scale, built a few rows at a time: step it until it returns true */
+export function tileBuilder(
+  fields: WorldFields,
+  scale: number,
+  col: number,
+  row: number
+): { build: TerrainBuild; crop: { x: number; y: number; x1: number; y1: number }; step: (rows: number) => boolean } {
+  const map = wholeMap();
+  const ox = col * TILE - APRON;
+  const oy = row * TILE - APRON;
+  const core = {
+    x1: Math.min(TILE, Math.ceil(map.width * scale) - col * TILE),
+    y1: Math.min(TILE, Math.ceil(map.height * scale) - row * TILE)
+  };
+  const width = core.x1 + 2 * APRON;
+  const height = core.y1 + 2 * APRON;
+  const area = { x: ox / scale, y: oy / scale, width: width / scale, height: height / scale };
+  const raster = new PixelRaster(width, height, mapSeed(), ox, oy);
+  const cellOf = rasterizeCells(pack.cells.v, pack.vertices.p, width, height, scale, area);
+  const build = { raster, cellOf, scale, area };
+  const snowLine = new Uint8Array(width * height);
+  raster.snowLine = snowLine;
+  let done = 0;
+  return {
+    build,
+    crop: { x: APRON, y: APRON, x1: APRON + core.x1, y1: APRON + core.y1 },
+    step: rows => {
+      const next = Math.min(height, done + rows);
+      fillTerrain(build, fields, done, next, snowLine);
+      done = next;
+      return done >= height;
+    }
+  };
+}
+
+/** Terrain and elevation for rows y0…y1, from the world fields sampled at this build's scale */
+function fillTerrain(build: TerrainBuild, fields: WorldFields, y0: number, y1: number, snowOut?: Uint8Array): void {
+  const { raster, cellOf, scale } = build;
+  const { cells, features } = pack;
+  const seed = raster.seed;
+  const unit = scale / WORLD_SCALE;
+  const same = fields.scale === scale && fields.width === raster.width && raster.ox === 0 && raster.oy === 0;
+  const k = fields.scale / scale;
+  const sample = (field: Float32Array | Uint8Array, gx: number, gy: number, i: number) =>
+    same ? field[i] : bilinear(field, fields.width, fields.height, (gx + 0.5) * k - 0.5, (gy + 0.5) * k - 0.5);
+
+  for (let y = y0; y < y1; y++)
+    for (let x = 0; x < raster.width; x++) {
+      const i = y * raster.width + x;
+      const gx = x + raster.ox;
+      const gy = y + raster.oy;
+      let cell = cellOf[i];
+      if (snowOut) snowOut[i] = sample(fields.snowLine, gx, gy, i);
+      const fine = unit > 1 ? (valueNoise(gx, gy, 3, seed + 7) - 0.5) * 0.14 : 0; // close up, coasts get finer bays
+      const land =
+        sample(fields.landness, gx, gy, i) > 0.5 + (valueNoise(gx, gy, 5 * unit, seed + 3) - 0.5) * 0.3 + fine;
+      if (land && !isLand(cell)) cell = cells.c[cell].find(isLand) ?? cell; // coast pushed out: borrow the shore cell
+      cellOf[i] = cell;
+      if (!land || !isLand(cell)) {
+        const lake = features[cells.f[cell]]?.type === "lake";
+        const depth = sample(fields.depth, gx, gy, i);
+        raster.terrain[i] =
+          !lake && depth < 12 + (valueNoise(gx, gy, 9 * unit, seed + 2) - 0.5) * 3 ? Terrain.DeepWater : Terrain.Water;
+        raster.elevation[i] = 0;
+        continue;
+      }
+      raster.terrain[i] = landTerrain(gx, gy, cells.biome[cell], cells.h[cell], seed, scale);
+      const e = sample(fields.elevation, gx, gy, i);
+      const ridge = 1 - Math.abs(2 * fbm(gx, gy, 14 * unit, 3, seed + 21) - 1);
+      const upland = Math.max(0, Math.min(1, (e - 0.3) / 0.3));
+      raster.elevation[i] = Math.round(Math.min(255, e * 200 + ridge * upland * 70 + fbm(gx, gy, 8, 2, seed + 22) * 8));
+    }
+}
+
+function bilinear(field: Float32Array | Uint8Array, width: number, height: number, fx: number, fy: number): number {
+  const x = Math.max(0, Math.min(width - 1.001, fx));
+  const y = Math.max(0, Math.min(height - 1.001, fy));
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const tx = x - ix;
+  const ty = y - iy;
+  const i = iy * width + ix;
+  const a = field[i];
+  const b = field[i + 1];
+  const c = field[i + width];
+  const d = field[i + width + 1];
+  return a + (b - a) * tx + (c - a) * ty + (a - b - c + d) * tx * ty;
+}
+
+/** State tint and solid state borders, with dashed province borders from region scale on; either can be off */
 export function applyPolitics(build: TerrainBuild, tint: boolean, borders: boolean): void {
-  const { raster, cellOf } = build;
+  const { raster, cellOf, scale } = build;
   const region = raster.region ?? new Uint16Array(cellOf.length);
   for (let i = 0; i < cellOf.length; i++) region[i] = pack.cells.state[cellOf[i]];
   raster.region = tint || borders ? region : null;
   raster.regionColors = tint ? pack.states.map((state, i) => (i && !state.removed ? stateColor(state.color) : 0)) : [];
   raster.borders = borders;
+  raster.borderPx = scale >= 8 ? 2 : 3; // thick when zoomed out, never hairline
+  const provinces = borders && scale > WORLD_SCALE && pack.cells.province;
+  if (provinces) {
+    const sub = raster.subregion ?? new Uint16Array(cellOf.length);
+    for (let i = 0; i < cellOf.length; i++) sub[i] = provinces[cellOf[i]] ?? 0;
+    raster.subregion = sub;
+  } else raster.subregion = null;
   raster.markDirty(0, 0, raster.width, raster.height);
 }
 
 /** Rivers and routes as fixed-width lines over the ground; returns stamps tagged with what they draw */
 export function lineStamps(build: TerrainBuild, rivers: boolean, routes: boolean): Stamp[] {
   const stamps: Stamp[] = [];
-  if (rivers) for (const river of pack.rivers) stamps.push(...riverStamp(river, build));
-  if (routes) for (const route of pack.routes) stamps.push(...routeStamp(route, build));
+  const { area } = build;
+  const near = (points: number[][] | undefined) => {
+    if (!points?.length) return false;
+    const pad = 4;
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const [x, y] of points) {
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x);
+      y1 = Math.max(y1, y);
+    }
+    return (
+      x1 >= area.x - pad && y1 >= area.y - pad && x0 <= area.x + area.width + pad && y0 <= area.y + area.height + pad
+    );
+  };
+  if (rivers)
+    for (const river of pack.rivers)
+      if (near(river.cells?.filter(cell => cell >= 0).map(cell => pack.cells.p[cell])))
+        stamps.push(...riverStamp(river, build));
+  if (routes) for (const route of pack.routes) if (near(route.points)) stamps.push(...routeStamp(route, build));
   return stamps;
 }
 
@@ -334,4 +447,91 @@ function chaikin(points: [number, number][], passes = 2): [number, number][] {
     pts = next;
   }
   return pts;
+}
+
+const ICE = [packRGB([232, 238, 242]), packRGB([214, 226, 236]), packRGB([196, 214, 228]), packRGB([168, 190, 210])];
+
+/** Azgaar's glaciers and icebergs as pixel ice with ragged edges; the SVG shapes stay only for clicking */
+export function iceStamps(build: TerrainBuild): Stamp[] {
+  const { scale, area, raster } = build;
+  const seed = raster.seed;
+  const stamps: Stamp[] = [];
+  for (const ice of pack.ice ?? []) {
+    const [dx, dy] = ice.offset ?? [0, 0];
+    const poly = ice.points.map(([x, y]) => [(x + dx - area.x) * scale, (y + dy - area.y) * scale] as [number, number]);
+    if (poly.length < 3) continue;
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const [x, y] of poly) {
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x);
+      y1 = Math.max(y1, y);
+    }
+    if (x1 < 0 || y1 < 0 || x0 > raster.width || y0 > raster.height) continue;
+    const pad = 3;
+    const box = {
+      x0: Math.floor(x0) - pad,
+      y0: Math.floor(y0) - pad,
+      x1: Math.ceil(x1) + pad,
+      y1: Math.ceil(y1) + pad
+    };
+    const berg = ice.type === "iceberg";
+    // ragged edge: test a point nudged by noise, so the outline wobbles instead of following straight polygon sides
+    const inside = (x: number, y: number) => {
+      const gx = x + raster.ox;
+      const gy = y + raster.oy;
+      const r = berg ? 0.8 : 2.2;
+      const jx = (valueNoise(gx, gy, 3, seed + 41) - 0.5) * 2 * r;
+      const jy = (valueNoise(gx, gy, 3, seed + 42) - 0.5) * 2 * r;
+      return pointInPolygon(x + 0.5 + jx, y + 0.5 + jy, poly);
+    };
+    // the mask is worked out once, the first time any part of the shape is drawn
+    const mx = Math.max(0, box.x0 - 1);
+    const my = Math.max(0, box.y0 - 1);
+    const mw = Math.min(raster.width, box.x1 + 1) - mx;
+    const mh = Math.min(raster.height, box.y1 + 1) - my;
+    let mask: Uint8Array | null = null;
+    const solid = (x: number, y: number) => {
+      if (!mask) {
+        mask = new Uint8Array(mw * mh);
+        for (let yy = 0; yy < mh; yy++)
+          for (let xx = 0; xx < mw; xx++) mask[yy * mw + xx] = inside(xx + mx, yy + my) ? 1 : 0;
+      }
+      const lx = x - mx;
+      const ly = y - my;
+      return lx >= 0 && ly >= 0 && lx < mw && ly < mh && mask[ly * mw + lx] === 1;
+    };
+    stamps.push({
+      ...box,
+      paint: (put, clip) => {
+        for (let y = Math.max(clip.y, box.y0); y < Math.min(clip.y1, box.y1); y++)
+          for (let x = Math.max(clip.x, box.x0); x < Math.min(clip.x1, box.x1); x++) {
+            if (!solid(x, y)) continue;
+            const gx = x + raster.ox;
+            const gy = y + raster.oy;
+            const edge = !solid(x + 1, y) || !solid(x, y + 1) || !solid(x - 1, y) || !solid(x, y - 1);
+            const lit = !solid(x - 1, y - 1); // light from the north-west
+            const n = valueNoise(gx, gy, berg ? 2 : 6, seed + 43);
+            let c = n > 0.62 ? ICE[0] : n > 0.38 ? ICE[1] : ICE[2];
+            if (!berg && valueNoise(gx, gy, 2, seed + 44) > 0.86) c = ICE[3]; // crevasses
+            if (edge) c = lit ? ICE[0] : ICE[3];
+            put(x, y, c);
+          }
+      }
+    });
+  }
+  return stamps;
+}
+
+function pointInPolygon(x: number, y: number, poly: [number, number][]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }

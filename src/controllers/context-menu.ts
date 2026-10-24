@@ -1,8 +1,10 @@
+import { confirmationDialog } from "@/components/dialog/dialog-helpers";
 import { Layers } from "@/components/layers";
 import { type EntityRef, MapEntities } from "@/components/map-entities";
 import { revealEntity } from "@/components/reveal";
 import { openEditor } from "@/components/viewbox-events";
 import { Controllers } from "@/controllers";
+import { actionsFor, type MenuAction } from "@/fluoria/menu-actions";
 import * as Connection from "@/services/assistant/provider/connection";
 import { escapeHtml, findEl, getPointer, rn } from "@/utils";
 import { t } from "@/utils/i18n";
@@ -19,6 +21,7 @@ class ContextMenuController {
   private root?: HTMLDivElement;
   private events?: AbortController;
   private rows: Row[] = [];
+  private actions: MenuAction[] = [];
   private cell = 0;
   private point: [number, number] = [0, 0]; // where the menu was opened, in map units
 
@@ -34,6 +37,10 @@ class ContextMenuController {
     this.cell = cell;
     this.point = [rn(x, 2), rn(y, 2)];
     this.rows = this.collect(event.clientX, event.clientY, cell);
+    // Fluoria: what the thing under the cursor can do comes first; the other things here follow
+    const top = this.rows[0]?.element ? this.rows[0] : undefined;
+    this.actions = actionsFor(top?.ref, cell, run => confirmationDialog({ onConfirm: run }));
+    if (top && this.actions.length) this.rows = this.rows.slice(1);
     this.render(event.clientX, event.clientY);
     this.listen();
   }
@@ -42,6 +49,7 @@ class ContextMenuController {
     this.root?.remove();
     this.root = undefined;
     this.rows = [];
+    this.actions = [];
     this.events?.abort();
     this.events = undefined;
   }
@@ -78,6 +86,13 @@ class ContextMenuController {
         <span class="${icon}"></span><span class="name">${escapeHtml(name || kind)}</span>${name ? `<span class="kind">${escapeHtml(kind)}</span>` : ""}
       </button>`;
     });
+    const actions = this.actions.map(
+      (action, index) => /* html */ `<button type="button" role="menuitem" data-action="fl" data-fl="${index}"
+        class="${[action.indent ? "indent" : "", action.danger ? "danger" : "", action.disabled ? "off" : ""].join(" ")}"
+        ${action.disabled ? "disabled" : ""}><span class="name">${escapeHtml(action.label)}</span></button>`
+    );
+    if (actions.length && rows.length) actions.push(`<hr />`);
+    rows.unshift(...actions);
     if (Connection.isConnected())
       rows.push(/* html */ `<button type="button" role="menuitem" data-action="ask">
         <span class="icon-help"></span><span class="name">${t("What's there?")}</span>
@@ -122,6 +137,31 @@ class ContextMenuController {
 
         #contextMenu button.dim {
           opacity: 0.55;
+        }
+
+        #contextMenu button.indent {
+          padding-left: 1.8em;
+        }
+
+        #contextMenu button.off {
+          opacity: 0.6;
+          cursor: default;
+        }
+
+        #contextMenu button.danger .name {
+          color: #e07a6a;
+        }
+
+        #contextMenu hr {
+          border: 0;
+          border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+          margin: 0.25em 0;
+        }
+
+        #contextMenu input {
+          width: 100%;
+          box-sizing: border-box;
+          font: inherit;
         }
 
         #contextMenu button[data-action="ask"] {
@@ -174,6 +214,10 @@ class ContextMenuController {
     window.addEventListener(
       "keydown",
       event => {
+        if ((event.target as Element)?.tagName === "INPUT") {
+          if (event.key === "Escape") this.close();
+          return; // typing a new name
+        }
         if (!own(event)) {
           this.close();
           return;
@@ -187,6 +231,7 @@ class ContextMenuController {
     window.addEventListener(
       "keyup",
       event => {
+        if ((event.target as Element)?.tagName === "INPUT") return void event.stopImmediatePropagation();
         if (!own(event)) return;
         event.stopImmediatePropagation();
         if (event.key === "Escape") this.close();
@@ -219,11 +264,44 @@ class ContextMenuController {
       this.ask();
       return;
     }
+    if (button.dataset.action === "fl") {
+      const action = this.actions[Number(button.dataset.fl)];
+      if (!action || action.disabled) return;
+      if (action.rename) {
+        this.rename(action.rename);
+        return;
+      }
+      this.close();
+      action.run?.();
+      return;
+    }
 
     const row = this.rowOf(button);
     this.close();
     if (!row || (row.element && openEditor(row.element))) return;
     if (!MapEntities.open(row.ref)) revealEntity(row.ref);
+  }
+
+  /** Rename in place: the menu turns into a text field; Enter keeps it, Escape or a click away drops it */
+  private rename({ value, apply }: NonNullable<MenuAction["rename"]>): void {
+    const root = this.root;
+    if (!root) return;
+    root.querySelectorAll("button, hr").forEach(node => {
+      node.remove();
+    });
+    const input = document.createElement("input");
+    input.value = value;
+    root.append(input);
+    input.focus();
+    input.select();
+    input.addEventListener("keydown", event => {
+      event.stopImmediatePropagation();
+      if (event.key === "Enter" && input.value.trim()) {
+        const name = input.value.trim();
+        this.close();
+        apply(name);
+      }
+    });
   }
 
   private ask(): void {

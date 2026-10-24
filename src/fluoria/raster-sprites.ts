@@ -1,4 +1,4 @@
-import { CanvasSource, Container, Sprite, Texture } from "pixi.js";
+import { CanvasSource, Container, Rectangle, Sprite, Texture } from "pixi.js";
 import { CHUNK, type PixelRaster, type Rect } from "./raster";
 
 const FRAME_BUDGET_MS = 12;
@@ -6,29 +6,49 @@ const FRAME_BUDGET_MS = 12;
 /** One PixelRaster as PixiJS sprites: a texture per chunk, recoloured lazily (on-screen chunks first) */
 export class RasterSprites {
   readonly container = new Container();
-  private chunks: { source: CanvasSource; canvas: HTMLCanvasElement }[] = [];
+  private chunks: ({ source: CanvasSource; canvas: HTMLCanvasElement } | null)[] = [];
   private smooth = false;
 
-  constructor(readonly raster: PixelRaster) {
+  /** `crop`: the part of the raster to show, in its own pixels; the rest is apron for edge effects */
+  constructor(
+    readonly raster: PixelRaster,
+    readonly crop: Rect = { x: 0, y: 0, x1: raster.width, y1: raster.height }
+  ) {
     for (let id = 0; id < raster.cols * raster.rows; id++) {
       const { x, y, w, h } = raster.chunkRect(id);
+      const fx = Math.max(x, crop.x);
+      const fy = Math.max(y, crop.y);
+      const fw = Math.min(x + w, crop.x1) - fx;
+      const fh = Math.min(y + h, crop.y1) - fy;
+      if (fw <= 0 || fh <= 0) {
+        this.chunks.push(null);
+        continue;
+      }
       const canvas = document.createElement("canvas");
       canvas.width = w;
       canvas.height = h;
       const source = new CanvasSource({ resource: canvas, scaleMode: "nearest", autoGenerateMipmaps: true });
-      const sprite = new Sprite(new Texture({ source }));
-      sprite.position.set(x, y);
+      const frame = new Rectangle(fx - x, fy - y, fw, fh);
+      const sprite = new Sprite(new Texture({ source, frame }));
+      sprite.position.set(fx, fy);
       sprite.roundPixels = true;
       this.container.addChild(sprite);
       this.chunks.push({ source, canvas });
     }
   }
 
+  /** Whether a chunk is shown at all */
+  shows(id: number): boolean {
+    return this.chunks[id] !== null;
+  }
+
   /** Below one screen pixel per game pixel, sample smoothly from mipmaps so the map doesn't shimmer */
   setSmooth(smooth: boolean): void {
     if (smooth === this.smooth) return;
     this.smooth = smooth;
-    for (const { source } of this.chunks) {
+    for (const chunk of this.chunks) {
+      if (!chunk) continue;
+      const { source } = chunk;
       source.scaleMode = smooth ? "linear" : "nearest";
       if (smooth) source.updateMipmaps();
     }
@@ -39,8 +59,9 @@ export class RasterSprites {
     const raster = this.raster;
     const start = performance.now();
     while (raster.pending && performance.now() - start < budget) {
-      let done = raster.flush(visible, 1);
-      if (!done.length) done = raster.flush(undefined, 1);
+      let done = raster.flush(id => this.shows(id) && visible(id), 1);
+      if (!done.length) done = raster.flush(id => this.shows(id), 1);
+      if (!done.length) break; // only hidden apron chunks left
       for (const { id, rect } of done) this.upload(id, rect);
     }
   }
@@ -71,7 +92,9 @@ export class RasterSprites {
       const from = (rect.y + row) * raster.width + rect.x;
       block.set(raster.pixels.subarray(from, from + w), row * w);
     }
-    const { canvas, source } = this.chunks[id];
+    const chunk = this.chunks[id];
+    if (!chunk) return;
+    const { canvas, source } = chunk;
     canvas
       .getContext("2d")
       ?.putImageData(new ImageData(new Uint8ClampedArray(block.buffer), w, h), rect.x - x, rect.y - y);

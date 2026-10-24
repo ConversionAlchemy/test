@@ -1,4 +1,5 @@
 import { Layers } from "@/components/layers";
+import { labelTier } from "@/fluoria/label-zoom";
 import type { LabelGroup, LabelType } from "@/generators/labels-generator";
 import type { LabelData } from "@/renderers/labels/labels";
 import { Scene, ViewportLayers, type ViewportRenderContext } from "@/renderers/viewport/viewport-renderer";
@@ -111,8 +112,9 @@ function reconcileGroup(labels: Element, textPaths: Element, groupName: string, 
 function isGroupVisible({ group, bounds }: { group: LabelGroup; bounds: ViewportRenderContext["bounds"] }): boolean {
   if (group.active === false) return false;
   if (!options.app.labels.showAll) {
-    if (group.zoom.min !== null && bounds.scale < group.zoom.min) return false;
-    if (group.zoom.max !== null && bounds.scale > group.zoom.max) return false;
+    const zoom = labelTier(group.name) ?? group.zoom; // Fluoria's tiers where it has one
+    if (zoom.min !== null && bounds.scale < zoom.min) return false;
+    if (zoom.max !== null && bounds.scale > zoom.max) return false;
   }
   const dependency = group.layerDependency;
   return !dependency || !Layers.has(dependency) || Layers.isOn(dependency);
