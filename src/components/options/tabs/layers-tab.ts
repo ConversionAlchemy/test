@@ -1,8 +1,10 @@
 // Layers tab: a projection of the Layers registry. Renders the layer buttons and wires them up.
 import type { LayerId } from "@/components/layers";
 import { Layers } from "@/components/layers";
+import { tip } from "@/components/tooltips";
 import { LAYER_TOGGLES, underlineHotkey } from "@/data/layer-labels";
 import { getMapView, onMapView, setMapView } from "@/fluoria/map-view";
+import { fixColours } from "@/fluoria/owners";
 import type { ViewName } from "@/fluoria/world-model";
 import { ViewportLayers } from "@/renderers/viewport/viewport-renderer";
 import { isCtrlClick } from "@/utils";
@@ -87,6 +89,7 @@ const TEMPLATE = /* html */ `
       ${MORE_VIEWS.map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}
     </select>
   </div>
+  <button id="fixColours" type="button" class="flWide" data-tip="${t("Give neighbouring states that look alike clearly different colours")}">${t("Fix colours")}</button>
   <p class="flHeading">${t("Show")}</p>
   <ul id="mapLayers" class="layerGroup" data-tip="${sentences(t("Click to toggle"), t("Ctrl + click to edit layer style"))}"></ul>
 `;
@@ -128,6 +131,17 @@ ensureEl("mapLayers").addEventListener("click", event => {
   Layers.toggle(id);
 });
 
+ensureEl("fixColours").addEventListener("click", () => {
+  const changed = fixColours();
+  if (changed) Layers.draw("states");
+  tip(
+    changed ? t("{{count}} states recoloured", { count: changed }) : t("Neighbouring states already look distinct"),
+    false,
+    "success",
+    3000
+  );
+});
+
 ensureEl("mapViews").addEventListener("click", event => {
   const view = (event.target as HTMLElement).closest("button")?.dataset.view as ViewName | undefined;
   if (view) setMapView(view);
@@ -135,6 +149,13 @@ ensureEl("mapViews").addEventListener("click", event => {
 ensureEl<HTMLSelectElement>("moreViews").addEventListener("change", event => {
   const view = (event.target as HTMLSelectElement).value as ViewName;
   setMapView(view || "terrain");
+});
+
+// data overlays belong to the Data tab: a map opens without them
+const OVERLAYS: LayerId[] = ["population", "heightmap", "temperature", "precipitation", "goods", "markets", "trade"];
+window.addEventListener("map:generated", () => {
+  const on = OVERLAYS.filter(id => Layers.has(id) && Layers.isOn(id));
+  if (on.length) Layers.hide(...on);
 });
 
 Layers.subscribe(render);

@@ -75,6 +75,10 @@ export function cellPace(cell: number): { factor: number; road: string | null } 
   return { factor: terrain * (cells.h[cell] >= 70 ? 1.5 : 1), road: null };
 }
 
+/** The map-pixel distance a regiment covers in one move */
+export const moveBudget = (regiment: Pick<Regiment, "n" | "u">) =>
+  moveDistance(regiment) / options.map.units.distance.scale;
+
 /** Every cell the regiment can reach this move from where it stands, with what it costs to get there */
 export function reachable(regiment: Pick<Regiment, "n" | "u" | "cell">): Map<number, number> {
   const { cells } = pack;
@@ -94,8 +98,13 @@ export function reachable(regiment: Pick<Regiment, "n" | "u" | "cell">): Map<num
     for (const next of cells.c[cell]) {
       if (!canStand(regiment, next)) continue;
       const [x1, y1] = cells.p[next];
-      const total = cost + Math.hypot(x1 - x0, y1 - y0) * stepFactor(cell, next, naval);
-      if (total > budget || total >= (best.get(next) ?? Infinity)) continue;
+      const step = Math.hypot(x1 - x0, y1 - y0) * stepFactor(cell, next, naval);
+      const total = cost + step;
+      if (total >= (best.get(next) ?? Infinity)) continue;
+      if (total > budget) {
+        if (cost + step / 2 <= budget) best.set(next, total); // its near edge is in reach: it may end there
+        continue;
+      }
       best.set(next, total);
       queue.push([total, next]);
     }

@@ -40,9 +40,7 @@ function editRegiment(selector: string): void {
 
   renderDialog();
   updateRegimentData(regiment);
-  selectRegiment(regiment);
-  drawBase();
-  drawRotationControl();
+  selectRegiment(regiment); // Fluoria: march orders will replace the base, and boxes don't rotate
 
   $("#regimentEditor").dialog({
     title: t("Edit Regiment"),
@@ -173,72 +171,6 @@ function toggleVisibility(): void {
   bindRegiments(); // the redraw replaced the regiment nodes
   selectedRegiment = findEl<SVGGElement>(selectedRegiment!.id) ?? selectedRegiment; // a hidden one is not drawn
   refreshEditors();
-}
-
-function drawBase(): void {
-  const reg = getRegiment();
-  if (!reg || !selectedRegiment) return;
-  const clr = pack.states[+selectedRegiment.dataset.state!].color;
-  const base = select<SVGGElement, unknown>("#viewbox")
-    .insert("g", "g#armies")
-    .attr("id", "regimentBase")
-    .attr("stroke-width", 0.3)
-    .attr("stroke", "#000")
-    .attr("cursor", "move")
-    .on("mouseenter", () => tip(t("Regiment base. Drag to re-base the regiment"), true))
-    .on("mouseleave", () => tip("", true));
-
-  base
-    .append("line")
-    .attr("x1", reg.bx)
-    .attr("y1", reg.by)
-    .attr("x2", reg.x)
-    .attr("y2", reg.y)
-    .attr("class", "regimentDragLine");
-  base
-    .append("circle")
-    .attr("cx", reg.bx)
-    .attr("cy", reg.by)
-    .attr("r", 2)
-    .attr("fill", clr ?? null)
-    .call(drag<SVGCircleElement, unknown>().on("drag", dragBase));
-}
-
-function drawRotationControl(): void {
-  const reg = getRegiment();
-  if (!reg || !selectedRegiment) return;
-  const w = getRegimentWidth(reg);
-  const x1 = rn(reg.x - w / 2, 2);
-
-  select<SVGGElement, unknown>("#debug")
-    .append("circle")
-    .attr("id", "rotationControl")
-    .attr("cx", x1 + w)
-    .attr("cy", reg.y)
-    .attr("r", 1)
-    .attr("opacity", 1)
-    .attr("fill", "yellow")
-    .attr("stroke-width", 0.3)
-    .attr("stroke", "black")
-    .attr("cursor", "alias")
-    .attr("transform", `rotate(${reg.angle || 0})`)
-    .attr("transform-origin", `${reg.x}px ${reg.y}px`)
-    .on("mouseenter", () => tip(t("Drag to rotate the regiment"), true))
-    .on("mouseleave", () => tip("", true))
-    .call(drag<SVGCircleElement, unknown>().on("start", rotateRegiment));
-}
-
-function rotateRegiment(this: SVGCircleElement, event: D3DragEvent<SVGCircleElement, unknown, unknown>): void {
-  const reg = getRegiment();
-  if (!reg || !selectedRegiment) return;
-
-  event.on("drag", function (this: SVGCircleElement, dragEvent: D3DragEvent<SVGCircleElement, unknown, unknown>) {
-    const { x, y } = dragEvent;
-    const angle = rn(Math.atan2(y - reg.y, x - reg.x) * (180 / Math.PI), 2);
-    selectedRegiment!.setAttribute("transform", `rotate(${angle})`);
-    this.setAttribute("transform", `rotate(${angle})`);
-    Military.rotate(reg.state, reg.i, angle);
-  });
 }
 
 function updateRegimentElement(reg: Regiment, el: SVGGElement): void {
@@ -610,22 +542,6 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
     Military.move(reg.state, reg.i, spot[0], spot[1]);
     place(reg.x, reg.y);
     moved(reg);
-  });
-}
-
-function dragBase(this: SVGCircleElement, event: D3DragEvent<SVGCircleElement, unknown, unknown>): void {
-  const baseLine = select<SVGGElement, unknown>("#viewbox").select("g#regimentBase > line");
-  const reg = getRegiment();
-  if (!reg) return;
-
-  event.on("drag", function (this: SVGCircleElement, dragEvent: D3DragEvent<SVGCircleElement, unknown, unknown>) {
-    this.setAttribute("cx", String(dragEvent.x));
-    this.setAttribute("cy", String(dragEvent.y));
-    baseLine.attr("x1", String(dragEvent.x)).attr("y1", String(dragEvent.y));
-  });
-
-  event.on("end", (dragEvent: D3DragEvent<SVGCircleElement, unknown, unknown>) => {
-    if (isInMap(dragEvent.x, dragEvent.y)) Military.setBase(reg.state, reg.i, dragEvent.x, dragEvent.y);
   });
 }
 

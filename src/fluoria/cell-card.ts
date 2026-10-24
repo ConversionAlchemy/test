@@ -5,6 +5,7 @@ import { t } from "@/utils/i18n";
 import { convertTemperature, getHeight, getPrecipitation } from "@/utils/unitUtils";
 import { cellPace } from "./movement";
 import { highlightCell } from "./pixel-map-sync";
+import { seaCellAt } from "./sea-grid";
 
 const OWN_CLICK = "#labels text, #burgIcons *, #anchors *, #armies *, #markers *, #routes *, #emblems *, #legend *";
 
@@ -18,19 +19,28 @@ const ROAD_NAMES: Record<string, string> = {
 let card: HTMLDivElement | null = null;
 let hovered: number | null = null;
 
-const pointCell = (event: MouseEvent): number | undefined => {
+const mapPoint = (event: MouseEvent): DOMPoint | null => {
   const viewbox = document.getElementById("viewbox") as SVGGraphicsElement | null;
   const matrix = viewbox?.getScreenCTM()?.inverse();
-  if (!matrix) return undefined;
-  const { x, y } = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix);
-  return Pack.findCell(x, y);
+  return matrix ? new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix) : null;
+};
+
+const pointCell = (event: MouseEvent): number | undefined => {
+  const point = mapPoint(event);
+  return point ? Pack.findCell(point.x, point.y) : undefined;
 };
 
 /** Hover: brighten the cell under the pointer when nothing clickable is there */
 export function hoverAt(event: MouseEvent): void {
   const own = (event.target as Element | null)?.closest?.(OWN_CLICK);
   const cell = own || window.customization ? undefined : pointCell(event);
-  const next = cell === undefined ? null : cell;
+  // at sea the even grid is what's drawn, so that's what lights up; sea cells are told apart by sign
+  let next = cell === undefined ? null : cell;
+  if (next !== null && pack.cells.h[next] < 20) {
+    const point = mapPoint(event);
+    const g = point && seaCellAt(point.x, point.y);
+    next = g === undefined || g === null ? null : -1 - g;
+  }
   if (next === hovered) return;
   hovered = next;
   highlightCell(next);
@@ -74,6 +84,10 @@ function onKey(event: KeyboardEvent): void {
 }
 
 function onCardClick(event: MouseEvent): void {
+  if ((event.target as HTMLElement).closest("[data-close]")) {
+    close();
+    return;
+  }
   const button = (event.target as HTMLElement).closest<HTMLElement>("[data-open]");
   if (!button) return;
   const [kind, a, b] = (button.dataset.open ?? "").split(":");
@@ -121,6 +135,7 @@ function cardHtml(cell: number): string {
   );
 
   return /* html */ `
+    <button type="button" class="close" data-close aria-label="${t("Close")}">✕</button>
     <div class="title">${title}</div>
     ${row(t("Height"), water ? "" : getHeight(cells.h[cell]))}
     ${row(t("Coast"), !water && cells.t[cell] === 1 ? t("yes") : "")}

@@ -2,6 +2,7 @@ import { select } from "d3";
 import { Layers } from "@/components/layers";
 import { MapEntities } from "@/components/map-entities";
 import { FEATURE_SUBTYPE_LABELS } from "@/data/id-labels";
+import { ownerText } from "@/fluoria/owners";
 import { Notes } from "@/generators/notes";
 import { highlightEmblemElement } from "@/renderers/overlays/highlight";
 import type { Point } from "@/types/global";
@@ -309,7 +310,7 @@ function showLayerTip(point: Point, cellId: number, gridCellId: number, isLand: 
     const stateId = cells.state[cellId];
     const provinceId = cells.province[cellId];
     const province = provinceId ? `${pack.provinces[provinceId].fullName}, ` : "";
-    return void tip(province + pack.states[stateId].fullName);
+    return void tip(province + escapeHtml(ownerText(cellId) || pack.states[stateId].fullName || "")); // Fluoria: names a vassal's suzerain
   }
   if (Layers.isOn("cultures") && cells.culture[cellId]) {
     const cultureId = cells.culture[cellId];

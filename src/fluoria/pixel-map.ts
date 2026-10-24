@@ -10,7 +10,7 @@ import { getMapView, isOutlineOnly } from "./map-view";
 import { css, Palette } from "./palette";
 import type { Stamp } from "./raster";
 import { TilePool } from "./tile-pool";
-import { collectWorld, iceStamps, lineStamps, type MapArea, wholeMap } from "./world";
+import { collectWorld, iceStamps, lineStamps, type MapArea, regions, wholeMap } from "./world";
 import type { TileJob, WorldModel } from "./world-model";
 
 const TILE = 512; // core side in game pixels
@@ -36,7 +36,7 @@ const FADE_MS = 220;
 const CELL_LINES_FROM = 1.5;
 
 const TERRAIN: LayerId[] = ["ocean", "landmass", "heightmap", "lakes", "biomes", "coastline", "relief"];
-const LOOK: LayerId[] = ["states", "borders", "provinces"];
+const LOOK: LayerId[] = ["states", "borders", "provinces", "cultures", "religions"];
 const LINES: LayerId[] = ["rivers", "routes", "ice"];
 
 const STYLE = `
@@ -70,9 +70,16 @@ class PixelMap {
   private model: WorldModel | null = null;
   private layers = LEVELS.map(() => new Container());
   private tiles = LEVELS.map(() => new Map<string, Tile>());
-  private shade = new Graphics();
-  private cellLines = new Graphics();
+  // everything drawn in map units follows the viewport through one container
+  private overlay = new Container();
+  private waterMask = new Graphics(); // the sea as drawn, so the even sea grid never crosses the coast
+  private landMask = new Graphics();
+  private cellLines = new Container();
+  private landLines = new Graphics();
+  private seaLines = new Graphics();
   private hover = new Graphics();
+  private shade = new Graphics();
+  private seaShade = new Graphics();
   private ready: Promise<void>;
   private rebuildTimer = 0;
   private frame = 0;
@@ -94,7 +101,12 @@ class PixelMap {
     await this.app.init({ width: 1, height: 1, background: css(Palette.deep), antialias: false, resolution: 1 });
     this.host.append(this.app.canvas);
     for (const layer of this.layers) this.app.stage.addChild(layer);
-    this.app.stage.addChild(this.cellLines, this.hover, this.shade);
+    this.landLines.mask = this.landMask;
+    this.seaLines.mask = this.waterMask;
+    this.seaShade.mask = this.waterMask;
+    this.cellLines.addChild(this.landLines, this.seaLines);
+    this.overlay.addChild(this.waterMask, this.landMask, this.cellLines, this.hover, this.shade, this.seaShade);
+    this.app.stage.addChild(this.overlay);
     document.body.classList.add("fluoria-pixel");
     this.pool = new TilePool();
     this.app.ticker.add(() => this.tick());
@@ -105,7 +117,11 @@ class PixelMap {
     await this.ready;
     if (!pack?.cells?.i?.length) return;
     if (!this.model || ids.some(id => TERRAIN.includes(id))) return this.scheduleRebuild();
-    if (ids.some(id => LOOK.includes(id))) this.restyle();
+    if (ids.some(id => LOOK.includes(id))) {
+      Object.assign(this.model, regions()); // states, provinces or colours may have been edited
+      this.pool?.setModel(this.model);
+      this.restyle();
+    }
     if (ids.some(id => LINES.includes(id))) this.lines++;
   }
 
@@ -139,34 +155,44 @@ class PixelMap {
       const smooth = viewport.scale / spec.scale < 1;
       for (const tile of this.tiles[index].values()) tile.source.scaleMode = smooth ? "linear" : "nearest";
     });
-    for (const graphic of [this.shade, this.cellLines, this.hover]) {
-      graphic.position.set(viewport.x, viewport.y);
-      graphic.scale.set(viewport.scale);
-    }
+    this.overlay.position.set(viewport.x, viewport.y);
+    this.overlay.scale.set(viewport.scale);
     this.cellLines.visible = viewport.scale >= CELL_LINES_FROM || this.emphasis;
   }
 
-  /** Darken every cell outside `bright`, drawn in map units so it follows zoom for free */
-  dim(bright: ReadonlySet<number> | null): void {
+  /** Darken everything outside `bright`: packed cells for armies, the even sea grid for fleets (land all dark) */
+  dim(bright: ReadonlySet<number> | null, kind: "land" | "sea" = "land"): void {
     this.shade.clear();
+    this.seaShade.clear();
     this.emphasis = Boolean(bright);
     this.cellLines.alpha = bright ? 0.4 : 0.16;
     this.sync();
     if (!bright) return;
     const { cells, vertices } = pack;
+    const sea = kind === "sea";
     for (let cell = 0; cell < cells.i.length; cell++) {
-      if (bright.has(cell)) continue;
+      if (sea ? cells.h[cell] < 20 : bright.has(cell)) continue;
       const points = cells.v[cell].flatMap(v => vertices.p[v]);
       if (points.length >= 6) this.shade.poly(points);
     }
     this.shade.fill({ color: 0x0c0c10, alpha: 0.42 });
+    if (!sea) return;
+    for (let g = 0; g < grid.cells.i.length; g++) {
+      if (bright.has(g)) continue; // the water mask keeps this off the land
+      const points = grid.cells.v[g].flatMap(v => grid.vertices.p[v]);
+      if (points.length >= 6) this.seaShade.poly(points);
+    }
+    this.seaShade.fill({ color: 0x0c0c10, alpha: 0.42 });
   }
 
-  /** Brighten one cell a little, or none */
+  /** Brighten one cell a little: a packed cell, or a sea grid cell as -1 - id; null for none */
   highlight(cell: number | null): void {
     this.hover.clear();
-    if (cell === null || !pack.cells.v[cell]) return;
-    const points = pack.cells.v[cell].flatMap(v => pack.vertices.p[v]);
+    if (cell === null) return;
+    const points =
+      cell < 0
+        ? (grid.cells.v[-1 - cell] ?? []).flatMap(v => grid.vertices.p[v])
+        : (pack.cells.v[cell] ?? []).flatMap(v => pack.vertices.p[v]);
     if (points.length >= 6) this.hover.poly(points).fill({ color: 0xffffff, alpha: 0.1 });
   }
 
@@ -211,16 +237,28 @@ class PixelMap {
     this.sync();
   }
 
+  /** Land cells as Azgaar packed them; the sea as the even grid, clipped to the water */
   private drawCellLines(): void {
     const { cells, vertices } = pack;
-    const g = this.cellLines;
-    g.clear();
+    const polygon = (cell: number) => cells.v[cell].flatMap(v => vertices.p[v]);
+    for (const g of [this.landLines, this.seaLines, this.waterMask, this.landMask]) g.clear();
     for (let cell = 0; cell < cells.i.length; cell++) {
-      const points = cells.v[cell].flatMap(v => vertices.p[v]);
-      if (points.length >= 6) g.poly(points);
+      const points = polygon(cell);
+      if (points.length < 6) continue;
+      const water = cells.h[cell] < 20;
+      (water ? this.waterMask : this.landMask).poly(points);
+      if (!water) this.landLines.poly(points);
     }
-    g.stroke({ color: 0xf2efe6, width: 1, pixelLine: true, alpha: 1 });
-    g.alpha = this.emphasis ? 0.4 : 0.16;
+    this.waterMask.fill({ color: 0xffffff });
+    this.landMask.fill({ color: 0xffffff });
+    for (let g = 0; g < grid.cells.i.length; g++) {
+      const points = grid.cells.v[g].flatMap(v => grid.vertices.p[v]);
+      if (points.length >= 6) this.seaLines.poly(points);
+    }
+    const stroke = { color: 0xf2efe6, width: 1, pixelLine: true, alpha: 1 };
+    this.landLines.stroke(stroke);
+    this.seaLines.stroke(stroke);
+    this.cellLines.alpha = this.emphasis ? 0.4 : 0.16;
   }
 
   /** The highest close-up level the zoom calls for */
@@ -321,7 +359,8 @@ class PixelMap {
       borderPx: spec.borderPx,
       bandPx: spec.bandPx,
       provinces: tile.level >= 3 && view === "terrain" && borders,
-      outline: isOutlineOnly()
+      outline: isOutlineOnly(),
+      coastPx: borders ? Math.max(1, Math.round(spec.scale / 3)) : 0
     };
   }
 
@@ -450,7 +489,7 @@ export const PixelMapLayer = {
   },
   toggled: () => void instance?.toggled(),
   restyle: () => instance?.restyle(),
-  dim: (bright: ReadonlySet<number> | null) => instance?.dim(bright),
+  dim: (bright: ReadonlySet<number> | null, kind?: "land" | "sea") => instance?.dim(bright, kind),
   highlight: (cell: number | null) => instance?.highlight(cell),
   sync: () => instance?.sync()
 };
