@@ -74,8 +74,7 @@ export async function generateMapOnLoad(config?: GenerationConfig): Promise<void
 export function focusOn(): void {
   const params = searchParams();
   applyURLLayers(params);
-  const view = params.get("view"); // Fluoria pixel view of this map, or the engine's sample coast
-  if (view === "pixel" || view === "pixel-test") Controllers.PixelView.open(view === "pixel" ? "world" : "sample");
+  if (params.get("view") === "pixel-test") Controllers.PixelView.open(); // Fluoria pixel engine test bench
 
   if (params.get("from") === "MFCG" && document.referrer) {
     const mfcgSeed = params.get("seed") ?? "";

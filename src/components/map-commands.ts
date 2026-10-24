@@ -412,20 +412,6 @@ export const MAP_COMMANDS: MapCommand[] = [
     run: () => Controllers.Minimap.open()
   },
   {
-    id: "viewMesh",
-    name: t("3D Preview"),
-    link: true,
-    aliases: "view mode mesh",
-    run: () => Controllers.View3d.open("viewMesh")
-  },
-  {
-    id: "viewGlobe",
-    name: t("Open Globe View"),
-    link: true,
-    aliases: "view mode planet",
-    run: () => Controllers.View3d.open("viewGlobe")
-  },
-  {
     id: "showStatesChart",
     name: t("States bubble chart"),
     link: true,
@@ -587,7 +573,7 @@ export const MAP_COMMANDS: MapCommand[] = [
   { id: "zoomIn", name: t("Zoom In"), aliases: "view closer", run: () => changeMapZoom(1.2) },
   { id: "zoomOut", name: t("Zoom Out"), aliases: "view farther", run: () => changeMapZoom(0.8) },
   { id: "toggleOptions", name: t("Toggle Menu"), aliases: "options panel show hide", run: () => toggleOptions() },
-  { id: "layersTab", name: t("Layers Tab"), link: true, aliases: "menu panel", run: () => openTab("layersTab") },
+  { id: "layersTab", name: t("Map Tab"), link: true, aliases: "menu panel layers", run: () => openTab("layersTab") },
   {
     id: "styleTab",
     name: t("Style Tab"),
@@ -597,7 +583,7 @@ export const MAP_COMMANDS: MapCommand[] = [
   },
   {
     id: "optionsTab",
-    name: t("Options Tab"),
+    name: t("Settings Tab"),
     link: true,
     aliases: "menu panel settings",
     run: () => openTab("optionsTab")
@@ -605,9 +591,9 @@ export const MAP_COMMANDS: MapCommand[] = [
   { id: "toolsTab", name: t("Tools Tab"), link: true, aliases: "menu panel", run: () => openTab("toolsTab") },
   {
     id: "aboutTab",
-    name: t("About Tab"),
+    name: t("Lore Tab"),
     link: true,
-    aliases: "menu panel info credits",
+    aliases: "menu panel world description about",
     run: () => openTab("aboutTab")
   },
   {

@@ -2,6 +2,7 @@ import { select } from "d3";
 import { Layers } from "@/components/layers";
 import { setViewportSize, viewport } from "@/components/viewport";
 import { constrainZoom, resetZoom, setTranslateExtent, setZoomExtent } from "@/components/zoom";
+import { syncPixelMap } from "@/fluoria/pixel-map-sync";
 import { fitLegendBox } from "@/renderers/draw-legend";
 import { findEl } from "@/utils/nodeUtils";
 
@@ -55,6 +56,7 @@ export function setViewport(width: number, height: number): void {
 
   Layers.draw("scaleBar");
   fitLegendBox();
+  syncPixelMap();
 }
 
 /**
@@ -63,8 +65,7 @@ export function setViewport(width: number, height: number): void {
  * than the window is scaled up to cover it, never letterboxed
  */
 export function fitMapToScreen(): void {
-  const kept = options.app.viewport;
-  const wanted = kept ?? { width: window.innerWidth, height: window.innerHeight };
+  const wanted = { width: window.innerWidth, height: window.innerHeight }; // Fluoria: always the window
 
   // a hidden or headless tab reports no size, which would collapse the viewport
   const width = wanted.width > 0 ? wanted.width : options.map.graph.width;

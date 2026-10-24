@@ -80,6 +80,7 @@ export class Layer<Id extends string = string> {
 export class LayersRegistry<Id extends string = string> {
   private active = new Set<Id>();
   private listeners = new Set<() => void>();
+  private drawListeners = new Set<(ids: readonly Id[]) => void>();
 
   constructor(private layers: Layer<Id>[]) {
     for (const layer of layers) if (layer.params.permanent) this.active.add(layer.id);
@@ -172,6 +173,13 @@ export class LayersRegistry<Id extends string = string> {
       layer.params.draw(layer);
       performance.measure(layer.id, { start, detail: "Layers" });
     }
+    for (const listener of this.drawListeners) listener(ids);
+  }
+
+  /** be told which layers were asked to redraw: their data may have changed */
+  onDraw(listener: (ids: readonly Id[]) => void): () => void {
+    this.drawListeners.add(listener);
+    return () => void this.drawListeners.delete(listener);
   }
 
   drawAll(): void {

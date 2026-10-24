@@ -1,6 +1,5 @@
 // Turns the loaded Azgaar map into pixel layers. Nothing here invents the world: terrain follows biomes and heights,
 // relief follows elevation, snow follows temperature, and rivers, roads, states and towns come from the map itself
-import type { MapLabel } from "./labels";
 import { fbm, valueNoise } from "./noise";
 import { Palette, packRGB } from "./palette";
 import { PixelRaster, type Stamp } from "./raster";
@@ -29,22 +28,40 @@ const BIOME_TERRAIN: TerrainId[] = [
 const FORESTS: number[] = [Terrain.Forest, Terrain.Jungle, Terrain.Taiga];
 const OPEN_LAND: number[] = [Terrain.Grass, Terrain.DryGrass, Terrain.Tundra];
 
-export function buildWorld(scale = WORLD_SCALE): {
+/** A rectangle of the map in Azgaar map pixels */
+export interface MapArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** A raster of part (or all) of the map at `scale` game pixels per map pixel, with the cell under each pixel */
+export interface TerrainBuild {
   raster: PixelRaster;
-  labels: MapLabel[];
-  markers: SettlementMarker[];
-  title: string;
-} {
+  cellOf: Int32Array;
+  scale: number;
+  area: MapArea;
+}
+
+export const wholeMap = (): MapArea => ({
+  x: 0,
+  y: 0,
+  width: options.map.graph.width,
+  height: options.map.graph.height
+});
+
+/** Land, water, relief and snow for an area: everything that comes from heights, biomes and temperature */
+export function buildTerrain(scale = WORLD_SCALE, area: MapArea = wholeMap()): TerrainBuild {
   const { cells, vertices, features } = pack;
-  const width = Math.ceil(options.map.graph.width * scale);
-  const height = Math.ceil(options.map.graph.height * scale);
+  const width = Math.ceil(area.width * scale);
+  const height = Math.ceil(area.height * scale);
   const seed = Number.parseInt(String(options.map.seed), 10) % 100000 || 1;
   const raster = new PixelRaster(width, height, seed);
 
-  const cellOf = rasterizeCells(cells.v, vertices.p, width, height, scale);
+  const cellOf = rasterizeCells(cells.v, vertices.p, width, height, scale, area);
   const elevation = new Float32Array(width * height);
   const snowLine = new Uint8Array(width * height);
-  const region = new Uint16Array(width * height);
   const landness = new Float32Array(width * height);
   const depth = new Float32Array(width * height);
   const isLand = (cell: number) => Boolean(features[cells.f[cell]]?.land);
@@ -61,94 +78,63 @@ export function buildWorld(scale = WORLD_SCALE): {
     let cell = cellOf[i];
     const x = i % width;
     const y = (i - x) / width;
-    const land = landness[i] > 0.5 + (valueNoise(x, y, 5, seed + 3) - 0.5) * 0.3;
+    const land = landness[i] > 0.5 + (valueNoise(x, y, 5 * (scale / WORLD_SCALE), seed + 3) - 0.5) * 0.3;
     if (land && !isLand(cell)) cell = cells.c[cell].find(isLand) ?? cell; // coast pushed out: borrow the shore cell
-    region[i] = cells.state[cell];
+    cellOf[i] = cell;
     if (!land || !isLand(cell)) {
-      const lake = features[cells.f[cellOf[i]]]?.type === "lake";
+      const lake = features[cells.f[cell]]?.type === "lake";
       raster.terrain[i] =
         !lake && depth[i] < 12 + (valueNoise(x, y, 9, seed + 2) - 0.5) * 3 ? Terrain.DeepWater : Terrain.Water;
       continue;
     }
     const h = cells.h[cell];
     elevation[i] = Math.max(0, (h - 20) / 80);
-    raster.terrain[i] = landTerrain(x, y, cells.biome[cell], h, seed);
+    raster.terrain[i] = landTerrain(x, y, cells.biome[cell], h, seed, scale);
     const temp = grid.cells.temp[cells.g[cell]] ?? 10;
     snowLine[i] = Math.max(30, Math.min(255, Math.round(175 + temp * 11)));
   }
 
   smooth(elevation, width, height, Math.max(2, Math.round(grid.spacing * scale * 0.6)));
+  const ridgeScale = 14 * (scale / WORLD_SCALE);
   for (let i = 0; i < elevation.length; i++) {
     if (isOpenWater(raster.terrain[i])) continue;
     const x = i % width;
     const y = (i - x) / width;
     const e = elevation[i];
-    const ridge = 1 - Math.abs(2 * fbm(x, y, 14, 3, seed + 21) - 1);
+    const ridge = 1 - Math.abs(2 * fbm(x, y, ridgeScale, 3, seed + 21) - 1);
     const upland = Math.max(0, Math.min(1, (e - 0.3) / 0.3));
     raster.elevation[i] = Math.round(Math.min(255, e * 200 + ridge * upland * 70 + fbm(x, y, 8, 2, seed + 22) * 8));
   }
   smooth(snowLine, width, height, 3);
-
-  drawRivers(raster, scale);
-  const towns = pack.burgs.filter(b => b?.i && !b.removed && b.name);
-
-  raster.region = region;
-  raster.regionColors = pack.states.map((state, i) => (i && !state.removed ? stateColor(state.color) : 0));
   raster.snowLine = snowLine;
-  raster.stamps = pack.routes.map(route => routeStamp(route, scale)).filter(stamp => stamp !== null);
-  const markers: SettlementMarker[] = towns.map(burg => ({
-    id: burg.i,
-    x: burg.x * scale,
-    y: burg.y * scale,
-    kind: burg.capital ? "capital" : settlementKind(burg.population ?? 0),
-    minZoom: burg.capital ? 0 : (burg.population ?? 0) > 5 ? 0.5 : (burg.population ?? 0) > 1 ? 1 : 2
-  }));
-
-  const labels: MapLabel[] = [
-    ...pack.states
-      .filter(state => state.i && !state.removed && state.pole)
-      .map(state => ({
-        id: `state-${state.i}`,
-        text: state.name,
-        x: (state.pole as number[])[0] * scale,
-        y: (state.pole as number[])[1] * scale,
-        priority: 100000 + (state.cells ?? 0),
-        size: 22,
-        maxZoom: 1
-      })),
-    ...towns.map(burg => {
-      const pop = burg.population ?? 0;
-      return {
-        id: `burg-${burg.i}`,
-        text: burg.label?.text || burg.name || "",
-        x: burg.x * scale,
-        y: burg.y * scale - 10 / 2,
-        priority: (burg.capital ? 50000 : 0) + pop,
-        size: burg.capital ? 16 : 13,
-        minZoom: burg.capital ? 1 : pop > 5 ? 2 : pop > 1 ? 3 : 4
-      };
-    })
-  ];
-  return { raster, labels, markers, title: options.map.lore?.name || "World" };
+  return { raster, cellOf, scale, area };
 }
 
-export interface SettlementMarker {
-  id: number;
-  x: number;
-  y: number;
-  kind: "capital" | "city" | "town" | "village";
-  minZoom: number;
+/** State tint and dashed borders from the cell under each pixel; either can be switched off */
+export function applyPolitics(build: TerrainBuild, tint: boolean, borders: boolean): void {
+  const { raster, cellOf } = build;
+  const region = raster.region ?? new Uint16Array(cellOf.length);
+  for (let i = 0; i < cellOf.length; i++) region[i] = pack.cells.state[cellOf[i]];
+  raster.region = tint || borders ? region : null;
+  raster.regionColors = tint ? pack.states.map((state, i) => (i && !state.removed ? stateColor(state.color) : 0)) : [];
+  raster.borders = borders;
+  raster.markDirty(0, 0, raster.width, raster.height);
 }
 
-const settlementKind = (population: number): SettlementMarker["kind"] =>
-  population > 5 ? "city" : population > 1 ? "town" : "village";
+/** Rivers and routes as fixed-width lines over the ground; returns stamps tagged with what they draw */
+export function lineStamps(build: TerrainBuild, rivers: boolean, routes: boolean): Stamp[] {
+  const stamps: Stamp[] = [];
+  if (rivers) for (const river of pack.rivers) stamps.push(...riverStamp(river, build));
+  if (routes) for (const route of pack.routes) stamps.push(...routeStamp(route, build));
+  return stamps;
+}
 
-function landTerrain(x: number, y: number, biome: number, h: number, seed: number): TerrainId {
+function landTerrain(x: number, y: number, biome: number, h: number, seed: number, scale: number): TerrainId {
   let t = BIOME_TERRAIN[biome] ?? Terrain.Grass;
   if (t === Terrain.Water) t = Terrain.Grass;
   if (t === Terrain.Snow) return t;
   if (h >= 62) return Terrain.Mountains;
-  const woods = fbm(x, y, 22, 3, seed + 31);
+  const woods = fbm(x, y, 22 * (scale / WORLD_SCALE), 3, seed + 31);
   if (FORESTS.includes(t) && woods < 0.36)
     t = t === Terrain.Taiga ? Terrain.Tundra : Terrain.Grass; // clearings
   else if (t === Terrain.Grass && woods > 0.68) t = Terrain.Forest; // copses
@@ -162,19 +148,25 @@ function rasterizeCells(
   points: [number, number][],
   width: number,
   height: number,
-  scale: number
+  scale: number,
+  area: MapArea
 ) {
   const cellOf = new Int32Array(width * height).fill(-1);
   const xs: number[] = [];
   for (let cell = 0; cell < polygons.length; cell++) {
-    const poly = polygons[cell].map(v => points[v]);
+    const poly = polygons[cell].map(v => [(points[v][0] - area.x) * scale, (points[v][1] - area.y) * scale]);
     if (poly.length < 3) continue;
     let minY = Infinity;
     let maxY = -Infinity;
-    for (const [, py] of poly) {
-      minY = Math.min(minY, py * scale);
-      maxY = Math.max(maxY, py * scale);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (const [px, py] of poly) {
+      minY = Math.min(minY, py);
+      maxY = Math.max(maxY, py);
+      minX = Math.min(minX, px);
+      maxX = Math.max(maxX, px);
     }
+    if (maxX < 0 || maxY < 0 || minX > width || minY > height) continue;
     const y0 = Math.max(0, Math.ceil(minY - 0.5));
     const y1 = Math.min(height - 1, Math.floor(maxY - 0.5));
     for (let y = y0; y <= y1; y++) {
@@ -183,10 +175,7 @@ function rasterizeCells(
       for (let k = 0; k < poly.length; k++) {
         const [ax, ay] = poly[k];
         const [bx, by] = poly[(k + 1) % poly.length];
-        const y1s = ay * scale;
-        const y2s = by * scale;
-        if ((y1s <= yc && y2s > yc) || (y2s <= yc && y1s > yc))
-          xs.push(ax * scale + ((yc - y1s) / (y2s - y1s)) * (bx - ax) * scale);
+        if ((ay <= yc && by > yc) || (by <= yc && ay > yc)) xs.push(ax + ((yc - ay) / (by - ay)) * (bx - ax));
       }
       xs.sort((a, b) => a - b);
       for (let k = 0; k + 1 < xs.length; k += 2) {
@@ -227,60 +216,96 @@ function smooth(values: Float32Array | Uint8Array, width: number, height: number
   }
 }
 
-function drawRivers(raster: PixelRaster, scale: number): void {
-  for (const river of pack.rivers) {
-    if (!river.cells || river.cells.length < 2) continue;
-    const points = Rivers.addMeandering(river.cells, (river.points as [number, number][] | undefined) ?? null);
-    for (let k = 1; k < points.length; k++) {
-      const [x0, y0, f0] = points[k - 1];
-      const [x1, y1] = points[k];
-      const width = f0 > 900 ? 3 : f0 > 250 ? 2 : 1;
-      line(raster, x0 * scale, y0 * scale, x1 * scale, y1 * scale, width, Terrain.River, t => !isOpenWater(t));
-    }
+/** A river as a line of water pixels, widening downstream with its flow */
+function riverStamp(river: (typeof pack.rivers)[number], build: TerrainBuild): Stamp[] {
+  if (!river.cells || river.cells.length < 2) return [];
+  const points = Rivers.addMeandering(river.cells, (river.points as [number, number][] | undefined) ?? null);
+  const { scale, area } = build;
+  const pixels: [number, number][] = [];
+  for (let k = 1; k < points.length; k++) {
+    const [x0, y0, flux] = points[k - 1];
+    const [x1, y1] = points[k];
+    const width = Math.max(1, Math.round((flux > 900 ? 1.2 : flux > 250 ? 0.8 : 0.4) * scale));
+    linePixels(
+      (x0 - area.x) * scale,
+      (y0 - area.y) * scale,
+      (x1 - area.x) * scale,
+      (y1 - area.y) * scale,
+      width,
+      0,
+      pixels
+    );
   }
+  return [pixelStamp(pixels, packRGB(Palette.water), packRGB(Palette.water2))];
 }
 
 // Azgaar's route groups, drawn as fixed-width lines: they are data, not paint
+// widths in map pixels, as Azgaar's strokes are; never thinner than one game pixel
 const ROUTE_STYLE: Record<string, { width: number; dash: number; color: number }> = {
-  roads: { width: 2, dash: 0, color: packRGB([168, 52, 36]) },
-  trails: { width: 1, dash: 0, color: packRGB([132, 92, 52]) },
-  searoutes: { width: 1, dash: 3, color: packRGB(Palette.foam) },
-  paths: { width: 1, dash: 2, color: packRGB([120, 92, 58]) }
+  roads: { width: 0.8, dash: 0, color: packRGB([168, 52, 36]) },
+  trails: { width: 0.4, dash: 0, color: packRGB([132, 92, 52]) },
+  searoutes: { width: 0.4, dash: 3, color: packRGB(Palette.foam) },
+  paths: { width: 0.4, dash: 2, color: packRGB([120, 92, 58]) }
 };
-const PATH_STYLE = { width: 1, dash: 2, color: packRGB([120, 96, 64]) };
+const PATH_STYLE = { width: 0.4, dash: 2, color: packRGB([120, 96, 64]) };
 
-/** One route as a stamp: a chaikin-rounded line of fixed width, dashed for paths and sea lanes */
-export function routeStamp(
-  route: (typeof pack.routes)[number],
-  scale = WORLD_SCALE
-): (Stamp & { route: number }) | null {
-  if (!route.points || route.points.length < 2) return null;
+/** One route as fixed-width pixels: chaikin-rounded, dashed for paths and sea lanes */
+export function routeStamp(route: (typeof pack.routes)[number], build: TerrainBuild): (Stamp & { route: number })[] {
+  if (!route.points || route.points.length < 2) return [];
+  const { scale, area } = build;
   const style = ROUTE_STYLE[route.group] ?? PATH_STYLE;
-  const pts = chaikin(route.points.map(([x, y]) => [x * scale, y * scale] as [number, number]));
+  const unit = scale / WORLD_SCALE;
+  const pts = chaikin(route.points.map(([x, y]) => [(x - area.x) * scale, (y - area.y) * scale] as [number, number]));
   const pixels: [number, number][] = [];
+  const width = Math.max(1, Math.round(style.width * scale));
+  const dash = Math.round(style.dash * unit);
   let step = 0;
-  for (let k = 1; k < pts.length; k++) {
-    const [x0, y0] = pts[k - 1];
-    const [x1, y1] = pts[k];
-    const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
-    for (let j = 0; j < n; j++, step++) {
-      if (style.dash && step % (style.dash * 2) >= style.dash) continue;
-      const px = Math.round(x0 + ((x1 - x0) * j) / n);
-      const py = Math.round(y0 + ((y1 - y0) * j) / n);
-      pixels.push([px, py]);
-      if (style.width === 2) pixels.push([px + 1, py], [px, py + 1]);
-    }
+  for (let k = 1; k < pts.length; k++)
+    step = linePixels(pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1], width, dash, pixels, step);
+  return [{ ...pixelStamp(pixels, style.color), route: route.i }];
+}
+
+/** Pixels along a segment, `width` thick, skipping alternate runs of `dash`; returns the running step count */
+function linePixels(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  width: number,
+  dash: number,
+  out: [number, number][],
+  step = 0
+): number {
+  const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+  const half = Math.floor((width - 1) / 2);
+  for (let j = 0; j < n; j++, step++) {
+    if (dash && step % (dash * 2) >= dash) continue;
+    const px = Math.round(x0 + ((x1 - x0) * j) / n);
+    const py = Math.round(y0 + ((y1 - y0) * j) / n);
+    for (let oy = -half; oy < width - half; oy++)
+      for (let ox = -half; ox < width - half; ox++) out.push([px + ox, py + oy]);
   }
-  const xs = pixels.map(p => p[0]);
-  const ys = pixels.map(p => p[1]);
+  return step;
+}
+
+function pixelStamp(pixels: [number, number][], color: number, alternate = color): Stamp {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const [x, y] of pixels) {
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x + 1);
+    y1 = Math.max(y1, y + 1);
+  }
   return {
-    route: route.i,
-    x0: Math.min(...xs),
-    y0: Math.min(...ys),
-    x1: Math.max(...xs) + 1,
-    y1: Math.max(...ys) + 1,
+    x0,
+    y0,
+    x1,
+    y1,
     paint: put => {
-      for (const [x, y] of pixels) put(x, y, style.color);
+      for (const [x, y] of pixels) put(x, y, (x * 7 + y * 13) % 5 ? color : alternate);
     }
   };
 }
@@ -293,32 +318,6 @@ function stateColor(color: string | undefined): number {
     Number.parseInt(hex.slice(2, 4), 16),
     Number.parseInt(hex.slice(4, 6), 16)
   ]);
-}
-
-function line(
-  raster: PixelRaster,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  width: number,
-  terrain: TerrainId,
-  allowed: (t: number) => boolean
-): void {
-  const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
-  const half = Math.floor((width - 1) / 2);
-  for (let k = 0; k <= steps; k++) {
-    const px = Math.round(x0 + ((x1 - x0) * k) / steps);
-    const py = Math.round(y0 + ((y1 - y0) * k) / steps);
-    for (let oy = -half; oy < width - half; oy++)
-      for (let ox = -half; ox < width - half; ox++) {
-        const x = px + ox;
-        const y = py + oy;
-        if (x < 0 || y < 0 || x >= raster.width || y >= raster.height) continue;
-        const i = y * raster.width + x;
-        if (allowed(raster.terrain[i])) raster.terrain[i] = terrain;
-      }
-  }
 }
 
 /** Corner-cutting to round off the zigzag between cell centres */

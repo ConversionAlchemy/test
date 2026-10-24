@@ -1,6 +1,7 @@
 import { type D3ZoomEvent, interpolateZoom, select, type ZoomView, zoom, zoomIdentity, zoomTransform } from "d3";
 import { Layers } from "@/components/layers";
 import { setViewportTransform, viewport, ZOOM_CURVES, type ZoomedLayer, zoomFontSize } from "@/components/viewport";
+import { syncPixelMap } from "@/fluoria/pixel-map-sync";
 import { ViewportLayers } from "@/renderers/viewport/viewport-renderer";
 import { ensureEl, findEl } from "@/utils/nodeUtils";
 import { rn } from "@/utils/numberUtils";
@@ -58,6 +59,7 @@ function handleZoomPerFrame(): void {
   if (didPositionChange) Layers.draw("coordinates");
 
   window.updateMinimap?.();
+  syncPixelMap();
   redrawTracedImage();
   if (options.app.performance.viewportRedraw === "continuous") ViewportLayers.schedule();
 }
