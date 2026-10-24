@@ -5,6 +5,7 @@ import { type MapLabel, placeLabels } from "./labels";
 import { hash2, valueNoise } from "./noise";
 import { Palette, packRGB } from "./palette";
 import { CHUNK, PixelRaster } from "./raster";
+import { crossedPlace, pickNode, pickRoute, snapToPlace } from "./routes";
 import { buildSampleScene } from "./sample-scene";
 import { Overlay, Terrain } from "./terrain";
 
@@ -124,5 +125,47 @@ describe("raster", () => {
     expect(raster.overlay[32 * 64 + 32]).toBe(Overlay.Crater);
     expect(raster.terrain.every(t => t === Terrain.Grass)).toBe(true);
     expect(raster.pixels).not.toEqual(before);
+  });
+});
+
+describe("road geometry", () => {
+  const places = [
+    { id: 1, x: 10, y: 10 },
+    { id: 2, x: 50, y: 10 },
+    { id: 3, x: 30, y: 10 }
+  ];
+
+  test("snaps a click to a nearby settlement only", () => {
+    expect(snapToPlace([11, 11], places, 3)?.id).toBe(1);
+    expect(snapToPlace([20, 20], places, 3)).toBeNull();
+  });
+
+  test("refuses a segment that runs through another settlement", () => {
+    expect(crossedPlace([10, 10], [50, 10], places, 2, [1, 2])?.id).toBe(3);
+    expect(crossedPlace([10, 10], [30, 10], places, 2, [1, 3])).toBeNull();
+  });
+
+  test("picks the nearest road within tolerance, and the segment hit", () => {
+    const roads = [
+      {
+        id: 7,
+        points: [
+          [0, 0],
+          [10, 0],
+          [10, 10]
+        ] as [number, number][]
+      },
+      {
+        id: 8,
+        points: [
+          [0, 5],
+          [10, 5]
+        ] as [number, number][]
+      }
+    ];
+    expect(pickRoute([9.5, 8], roads, 1)).toEqual({ id: 7, segment: 1 });
+    expect(pickRoute([5, 4.6], roads, 1)).toEqual({ id: 8, segment: 0 });
+    expect(pickRoute([30, 30], roads, 1)).toBeNull();
+    expect(pickNode([10.2, 0.1], roads[0].points, 1)).toBe(1);
   });
 });

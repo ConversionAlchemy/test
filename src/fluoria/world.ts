@@ -95,7 +95,7 @@ export function buildWorld(scale = WORLD_SCALE): {
   raster.region = region;
   raster.regionColors = pack.states.map((state, i) => (i && !state.removed ? stateColor(state.color) : 0));
   raster.snowLine = snowLine;
-  raster.stamps = pack.routes.flatMap(route => routeStamp(route, scale));
+  raster.stamps = pack.routes.map(route => routeStamp(route, scale)).filter(stamp => stamp !== null);
   const markers: SettlementMarker[] = towns.map(burg => ({
     id: burg.i,
     x: burg.x * scale,
@@ -244,13 +244,17 @@ function drawRivers(raster: PixelRaster, scale: number): void {
 const ROUTE_STYLE: Record<string, { width: number; dash: number; color: number }> = {
   roads: { width: 2, dash: 0, color: packRGB([168, 52, 36]) },
   trails: { width: 1, dash: 0, color: packRGB([132, 92, 52]) },
-  searoutes: { width: 1, dash: 3, color: packRGB(Palette.foam) }
+  searoutes: { width: 1, dash: 3, color: packRGB(Palette.foam) },
+  paths: { width: 1, dash: 2, color: packRGB([120, 92, 58]) }
 };
 const PATH_STYLE = { width: 1, dash: 2, color: packRGB([120, 96, 64]) };
 
 /** One route as a stamp: a chaikin-rounded line of fixed width, dashed for paths and sea lanes */
-function routeStamp(route: (typeof pack.routes)[number], scale: number): Stamp[] {
-  if (!route.points || route.points.length < 2) return [];
+export function routeStamp(
+  route: (typeof pack.routes)[number],
+  scale = WORLD_SCALE
+): (Stamp & { route: number }) | null {
+  if (!route.points || route.points.length < 2) return null;
   const style = ROUTE_STYLE[route.group] ?? PATH_STYLE;
   const pts = chaikin(route.points.map(([x, y]) => [x * scale, y * scale] as [number, number]));
   const pixels: [number, number][] = [];
@@ -269,17 +273,16 @@ function routeStamp(route: (typeof pack.routes)[number], scale: number): Stamp[]
   }
   const xs = pixels.map(p => p[0]);
   const ys = pixels.map(p => p[1]);
-  return [
-    {
-      x0: Math.min(...xs),
-      y0: Math.min(...ys),
-      x1: Math.max(...xs) + 1,
-      y1: Math.max(...ys) + 1,
-      paint: put => {
-        for (const [x, y] of pixels) put(x, y, style.color);
-      }
+  return {
+    route: route.i,
+    x0: Math.min(...xs),
+    y0: Math.min(...ys),
+    x1: Math.max(...xs) + 1,
+    y1: Math.max(...ys) + 1,
+    paint: put => {
+      for (const [x, y] of pixels) put(x, y, style.color);
     }
-  ];
+  };
 }
 
 function stateColor(color: string | undefined): number {

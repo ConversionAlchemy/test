@@ -1,4 +1,4 @@
-import { Application, CanvasSource, Container, Sprite, Texture } from "pixi.js";
+import { Application, CanvasSource, Container, Graphics, Sprite, Texture } from "pixi.js";
 import type { View } from "./camera";
 import { type MapLabel, placeLabels } from "./labels";
 import { css, Palette, type RGB } from "./palette";
@@ -14,6 +14,9 @@ export class PixelStage {
   private labelLayer = new Container();
   private markerLayer = new Container();
   private markers: { marker: Marker; sprite: Sprite }[] = [];
+  /** Screen-space drawing for tools (a road being drawn, a selected road's nodes), redrawn by `onView` */
+  readonly overlay = new Graphics();
+  onView: (() => void) | null = null;
   private chunks: { source: CanvasSource; canvas: HTMLCanvasElement }[] = [];
   private labels: { label: MapLabel; sprite: Sprite }[] = [];
   private raster: PixelRaster | null = null;
@@ -27,7 +30,7 @@ export class PixelStage {
     this.app.canvas.style.imageRendering = "pixelated";
     this.app.canvas.style.display = "block";
     host.appendChild(this.app.canvas);
-    this.app.stage.addChild(this.world, this.markerLayer, this.labelLayer);
+    this.app.stage.addChild(this.world, this.markerLayer, this.overlay, this.labelLayer);
     this.app.renderer.on("resize", () => this.layoutLabels());
     this.app.ticker.add(() => this.refresh());
   }
@@ -111,6 +114,7 @@ export class PixelStage {
         if (mode === "linear") source.updateMipmaps();
       }
     this.layoutLabels();
+    this.onView?.();
   }
 
   setLabels(labels: readonly MapLabel[]): void {
