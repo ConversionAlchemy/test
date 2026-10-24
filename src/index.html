@@ -158,6 +158,15 @@
         this.rel = 'stylesheet';
       "
     />
+    <link
+      rel="preload"
+      href="fluoria.css?v=5e5a992e"
+      as="style"
+      onload="
+        this.onload = null;
+        this.rel = 'stylesheet';
+      "
+    />
   </head>
   <body>
     <svg
@@ -385,11 +394,11 @@
           >
             ◄
           </button>
-          <button id="layersTab" data-tip="Click to change map layers" class="options active">Layers</button>
+          <button id="layersTab" data-tip="Click to choose what the map shows" class="options active">Map</button>
           <button id="styleTab" data-tip="Click to open style editor" class="options">Style</button>
-          <button id="optionsTab" data-tip="Click to change generation and UI options" class="options">Options</button>
+          <button id="optionsTab" data-tip="Click to change generation and UI options" class="options">Settings</button>
           <button id="toolsTab" data-tip="Click to open tools menu" class="options">Tools</button>
-          <button id="aboutTab" data-tip="Click to see Generator info" class="options">About</button>
+          <button id="aboutTab" data-tip="Click to describe the world" class="options">Lore</button>
         </div>
         <div id="layersContent" class="tabcontent" style="display: block"></div>
         <div id="styleContent" class="tabcontent"></div>

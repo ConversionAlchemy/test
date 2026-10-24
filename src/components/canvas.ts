@@ -65,8 +65,7 @@ export function setViewport(width: number, height: number): void {
  * than the window is scaled up to cover it, never letterboxed
  */
 export function fitMapToScreen(): void {
-  const kept = options.app.viewport;
-  const wanted = kept ?? { width: window.innerWidth, height: window.innerHeight };
+  const wanted = { width: window.innerWidth, height: window.innerHeight }; // Fluoria: always the window
 
   // a hidden or headless tab reports no size, which would collapse the viewport
   const width = wanted.width > 0 ? wanted.width : options.map.graph.width;

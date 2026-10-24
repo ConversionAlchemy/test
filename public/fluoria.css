@@ -1,0 +1,290 @@
+/* Fluoria theme: dark grey UI in VT323 over Azgaar's own markup. Overrides the theme variables options-tab sets inline */
+@font-face {
+  font-family: "VT323";
+  src: url("fonts/VT323.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  --fl-text: #d8d6cc;
+  --fl-dim: #8e8c86;
+  --fl-field: #1b1b1e;
+  --fl-line: #46464d;
+  --fl-accent: #d6ac3c;
+  --sans-serif: "VT323", monospace !important;
+  --serif: "VT323", monospace !important;
+  --monospace: "VT323", monospace !important;
+  --bg-opacity: 1 !important;
+  --bg-main: #26262a !important;
+  --bg-lighter: #2c2c31 !important;
+  --bg-light: #333339 !important;
+  --light-solid: #3a3a41 !important;
+  --dark-solid: #141416 !important;
+  --header: #3e3e46 !important;
+  --header-active: #50505a !important;
+  --bg-disabled: #2a2a2e !important;
+  --bg-dialogs: #232326 !important;
+  color-scheme: dark;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+.ui-widget,
+.ui-widget input,
+.ui-widget select,
+.ui-widget textarea,
+.ui-widget button {
+  font-family: "VT323", monospace;
+}
+
+#optionsContainer,
+.ui-dialog,
+#tooltip,
+#prompt,
+#alert {
+  font-size: 1.2em;
+}
+
+#optionsContainer,
+#options,
+#dialogs,
+.ui-dialog,
+.ui-dialog .ui-dialog-content,
+#tooltip,
+#prompt {
+  color: var(--fl-text);
+}
+
+.ui-dialog,
+.ui-dialog .ui-dialog-content,
+.ui-widget-content {
+  background: var(--bg-dialogs);
+  border-color: var(--fl-line);
+}
+
+.ui-widget-header,
+.ui-dialog .ui-dialog-titlebar {
+  background: var(--header);
+  border: 0;
+  border-bottom: 1px solid var(--dark-solid);
+  color: var(--fl-text);
+  font-weight: normal;
+  letter-spacing: 0.04em;
+}
+
+#options button,
+#options li,
+.ui-dialog button,
+#prompt button {
+  color: var(--fl-text);
+}
+
+button.options.active,
+button.active,
+.tabcontent button.pressed {
+  background-color: var(--header-active);
+  color: #fff;
+  box-shadow: inset 0 -2px 0 var(--fl-accent);
+}
+
+#options input:not([type="color"], [type="range"], [type="checkbox"], [type="radio"]),
+#options select,
+#options textarea,
+.ui-dialog input:not([type="color"], [type="range"], [type="checkbox"], [type="radio"]),
+.ui-dialog select,
+.ui-dialog textarea,
+#prompt input {
+  background: var(--fl-field);
+  color: var(--fl-text);
+  border: 1px solid var(--fl-line);
+  border-radius: 0;
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--fl-accent);
+}
+
+#options a,
+.ui-dialog a {
+  color: var(--fl-accent);
+}
+
+.ui-dialog table,
+.ui-dialog th,
+.ui-dialog td {
+  border-color: var(--fl-line);
+}
+
+.ui-dialog .table > div:nth-child(even),
+.ui-dialog .states:hover,
+.ui-dialog .states.selected {
+  background-color: var(--bg-light);
+}
+
+/* Settings: theme colour and transparency are fixed by this theme */
+#optionsContent tr:has(#themeColorInput),
+#optionsContent tr:has(#transparencyInput) {
+  display: none;
+}
+
+/* Style tab: no filters, halos or masks over a pixel map */
+#styleForm :is([data-field="filter"], [data-field$=".filter"], [data-field$=".halo"], [data-field$=".mask"]) {
+  display: none;
+}
+
+#stylePreset,
+#styleForm .pick {
+  background: var(--fl-field);
+  color: var(--fl-text);
+  border-color: var(--fl-line);
+}
+
+/* Map tab groups */
+#mapLayers > p {
+  margin: 0.5em 0 0.1em;
+  color: var(--fl-dim);
+  font-style: normal;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#mapLayers ul.layerGroup {
+  display: flow-root;
+  margin: 0;
+  padding: 0;
+}
+
+#layersContent .buttonoff {
+  color: var(--fl-dim);
+}
+
+#showData {
+  width: 100%;
+}
+
+/* Tools tab: folding sections */
+#toolsContent .separator {
+  cursor: pointer;
+  user-select: none;
+}
+
+#toolsContent .separator::before {
+  content: "▾ ";
+}
+
+#toolsContent .separator.folded::before {
+  content: "▸ ";
+}
+
+#toolsContent .separator.folded + div {
+  display: none;
+}
+
+/* Lore tab */
+#aboutContent .loreTab {
+  display: grid;
+  grid-template-columns: 4em minmax(0, 1fr);
+  gap: 0.35em;
+  align-items: center;
+  padding: 0.3em 0;
+}
+
+#aboutContent .loreTab > label[for="loreTabDescription"] {
+  align-self: start;
+  padding-top: 0.2em;
+}
+
+#aboutContent .loreRow {
+  display: flex;
+  gap: 0.35em;
+  align-items: center;
+}
+
+#aboutContent .loreRow > input:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+#aboutContent #loreTabEraShort {
+  flex: 0 0 3.5em;
+}
+
+#aboutContent textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-size: 1.05em;
+  line-height: 1.2;
+}
+
+#aboutContent i {
+  cursor: pointer;
+}
+
+#aboutContent .loreCredit {
+  color: var(--fl-dim);
+  font-style: normal;
+  font-weight: normal;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+/* Azgaar's labels, in the pixel font */
+#labels text,
+#labels textPath,
+#labels tspan {
+  font-family: "VT323", monospace !important;
+}
+
+/* Settings: the viewport follows the window and zoom uses its defaults */
+#optionsContent tr:has(#viewportWidth),
+#optionsContent tr:has(#zoomExtentMin) {
+  display: none;
+}
+
+#styleForm details[data-section="statesHalo"],
+#styleForm details[data-section$=".statesHalo"] {
+  display: none;
+}
+
+#styleContent #stylePreset {
+  background: var(--fl-field);
+  color: var(--fl-text);
+  border-color: var(--fl-line);
+}
+
+#options i,
+.ui-dialog i:not(.ui-icon) {
+  color: var(--fl-dim);
+}
+
+#options i:hover,
+.ui-dialog i:not(.ui-icon):hover {
+  color: var(--fl-text);
+}
+
+#toolsContent .separator,
+#options .separator {
+  color: var(--fl-dim);
+  font-style: normal;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* The menu stays within the window, its tabs scroll */
+#options {
+  border-color: var(--fl-line);
+}
+
+#options .tabcontent {
+  max-height: calc(100vh - 8em);
+  overflow-y: auto;
+  scrollbar-color: var(--fl-line) transparent;
+}

@@ -26,10 +26,10 @@ const POLITICS: LayerId[] = ["states", "borders"];
 const LINES: LayerId[] = ["rivers", "routes"];
 
 const STYLE = `
-body.fluoria-pixel #map { background-color: transparent; position: relative; z-index: 1; }
-body.fluoria-pixel :is(#ocean, #landmass, #texture, #terrs, #biomes, #terrain, #coastline) { display: none; }
+body.fluoria-pixel #map { background-color: transparent; }
+body.fluoria-pixel :is(#ocean, #landmass, #texture, #biomes, #terrain, #coastline) { display: none; }
 body.fluoria-pixel :is(#lakes, #rivers, #routes, #regions, #borders) { opacity: 0; }
-#pixelMap { position: absolute; z-index: 0; pointer-events: none; image-rendering: pixelated; }
+#pixelMap { position: absolute; z-index: -1; pointer-events: none; image-rendering: pixelated; }
 #pixelMap canvas { display: block; image-rendering: pixelated; }
 `;
 

@@ -224,7 +224,13 @@ const TEMPLATE = /* html */ `
 
 ensureEl("toolsContent").innerHTML = TEMPLATE;
 
+// sections fold under their headings; Azgaar's own start folded except Edit
+for (const [index, heading] of ensureEl("toolsContent").querySelectorAll(".separator").entries())
+  heading.classList.toggle("folded", index > 0);
+
 ensureEl("toolsContent").addEventListener("click", event => {
+  const heading = (event.target as HTMLElement).closest?.(".separator");
+  if (heading) return void heading.classList.toggle("folded");
   if (customization) return tip(t("Exit customization mode first"), false, "error");
   if (!(event instanceof MouseEvent) || !(event.target instanceof HTMLElement)) return;
   if (event.target.tagName !== "BUTTON") return;

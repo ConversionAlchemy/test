@@ -6,8 +6,12 @@ import { getLabelsData } from "@/renderers/labels/label-data";
 import type { StyleElement } from "@/types/styles";
 import { t } from "@/utils/i18n";
 
+// drawn by the pixel map, so their SVG style no longer shows
+const PIXEL_DRAWN = new Set<string>(["texture", "heightmap", "biomes", "relief", "ocean", "landmass", "coastline"]);
+
 export function listElements(): { id: StyleElement; label: string }[] {
   return (Object.keys(stylesSchema.shape) as StyleElement[])
+    .filter(id => !PIXEL_DRAWN.has(id))
     .map(id => ({ id, label: layerLabel(id) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }

@@ -1,6 +1,5 @@
 // The collapsible panel on the right and the sticked menu below it
 import { showExportPane, showLoadPane, showSavePane } from "@/components/options/io-panes";
-import { changeViewMode } from "@/components/options/view-mode";
 import { clearMainTip } from "@/components/tooltips";
 import { resetZoom } from "@/components/zoom";
 import { Controllers } from "@/controllers";
@@ -116,8 +115,6 @@ function initialize(): void {
     else if (id === "zoomReset") resetZoom(1000);
     else if (id === "searchButton") Controllers.Omnibar.open();
   });
-
-  ensureEl("viewMode").addEventListener("click", changeViewMode);
 }
 
 initialize();
