@@ -8,6 +8,7 @@ import { ensureEl, findEl } from "@/utils/nodeUtils";
 
 const TAB_CONTENT: Record<string, string> = {
   layersTab: "layersContent",
+  dataTab: "dataContent",
   styleTab: "styleContent",
   optionsTab: "optionsContent",
   toolsTab: "toolsContent",

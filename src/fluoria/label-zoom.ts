@@ -6,13 +6,12 @@ interface Tier {
   min: number; // Azgaar zoom from which the group shows
   max: number;
   px?: number; // on-screen font size when it first shows; none keeps Azgaar's, which path labels are fitted to
-  outline?: number; // on-screen outline width, thinner for small or path-fitted text
 }
 
 // political view shows states alone; regions add provinces and big towns; close in, everything
 const TIERS: Record<string, Tier> = {
-  state: { min: 0, max: 6, outline: 4 },
-  province: { min: 1.6, max: 12, outline: 3.5 },
+  state: { min: 0, max: 6 },
+  province: { min: 1.6, max: 12 },
   capital: { min: 1.6, max: Infinity, px: 20 },
   city: { min: 1.6, max: Infinity, px: 17 },
   town: { min: 4.5, max: Infinity, px: 16 },
@@ -22,13 +21,12 @@ const TIERS: Record<string, Tier> = {
   monastery: { min: 6, max: Infinity, px: 14 },
   trading_post: { min: 6, max: Infinity, px: 14 },
   caravanserai: { min: 6, max: Infinity, px: 14 },
-  river: { min: 8, max: Infinity, px: 13, outline: 4 },
-  route: { min: 8, max: Infinity, px: 13, outline: 4 }
+  river: { min: 8, max: Infinity, px: 13 },
+  route: { min: 8, max: Infinity, px: 13 }
 };
 
 const GROWTH = 0.3; // labels grow with zoom, much slower than the map
 const MAX_GROWTH = 2;
-const OUTLINE_PX = 5; // stroke width on screen; half of it shows outside the letters
 
 /** Fluoria's zoom range for a label group, or undefined to keep Azgaar's */
 export function labelTier(group: string): { min: number; max: number } | undefined {
@@ -36,10 +34,13 @@ export function labelTier(group: string): { min: number; max: number } | undefin
 }
 
 const STYLE = `
-#labels text {
+#labels > g { opacity: 1 !important; }
+#labels text, #labels textPath, #labels tspan {
   fill: #2a2a30 !important;
+  fill-opacity: 1 !important;
   stroke: #ffffff !important;
-  stroke-width: var(--fl-outline) !important;
+  stroke-opacity: 1 !important;
+  stroke-width: 0.2em !important; /* in step with each label's own size */
   stroke-linejoin: round !important;
   paint-order: stroke !important;
   text-shadow: none !important;
@@ -49,10 +50,6 @@ body[data-fl-tier="region"] #burgIcons > g:not([data-group="capital"], [data-gro
 ${Object.entries(TIERS)
   .filter(([, tier]) => tier.px)
   .map(([group]) => `#labels > g[data-group="${group}"] { font-size: var(--fl-${group}) !important; }`)
-  .join("\n")}
-${Object.entries(TIERS)
-  .filter(([, tier]) => tier.outline)
-  .map(([group]) => `#labels > g[data-group="${group}"] text { stroke-width: var(--fl-o-${group}) !important; }`)
   .join("\n")}
 `;
 
@@ -68,13 +65,11 @@ export function applyLabelZoom(scale = viewport.scale): void {
     document.head.append(style);
     styled = true;
   }
-  for (const [group, { min, px, outline }] of Object.entries(TIERS)) {
-    if (outline) labels.style.setProperty(`--fl-o-${group}`, `${outline / scale}px`);
+  for (const [group, { min, px }] of Object.entries(TIERS)) {
     if (!px) continue;
     const growth = Math.min(MAX_GROWTH, (scale / Math.max(1, min)) ** GROWTH);
     const screen = Math.round(px * Math.max(1, growth));
     labels.style.setProperty(`--fl-${group}`, `${screen / scale}px`);
   }
-  labels.style.setProperty("--fl-outline", `${OUTLINE_PX / scale}px`);
   document.body.dataset.flTier = scale < 1.6 ? "political" : scale < 4.5 ? "region" : "close";
 }

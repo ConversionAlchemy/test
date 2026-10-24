@@ -2,6 +2,8 @@
 import type { LayerId } from "@/components/layers";
 import { Layers } from "@/components/layers";
 import { LAYER_TOGGLES, underlineHotkey } from "@/data/layer-labels";
+import { getMapView, onMapView, setMapView } from "@/fluoria/map-view";
+import type { ViewName } from "@/fluoria/world-model";
 import { ViewportLayers } from "@/renderers/viewport/viewport-renderer";
 import { isCtrlClick } from "@/utils";
 import { sentences, t } from "@/utils/i18n";
@@ -29,81 +31,93 @@ export { LAYER_TOGGLES } from "@/data/layer-labels";
 export const getLayerByShortcut = (code: string): LayerId | undefined =>
   [...LAYER_TOGGLES].find(([, button]) => button.shortcut === code)?.[0];
 
-// Fluoria's Map tab: layers grouped by what they show, data overlays as one choice
-const GROUPS: [title: string, ids: LayerId[]][] = [
-  [t("Borders"), ["states", "provinces", "cultures", "religions", "zones", "borders"]],
-  [t("Geography"), ["rivers", "lakes", "routes", "ice"]],
-  [t("Places"), ["labels", "burgIcons", "markers", "emblems", "military", "journeys"]],
-  [t("Frame"), ["scaleBar", "vignette", "grid", "coordinates", "compass", "rulers", "cells"]]
+// Fluoria's Map tab: a view (what the ground shows) and three toggles. Everything else is decided for you:
+// labels and settlements show by zoom, the landscape layers are always on, and decorative layers are off
+const VIEW_BUTTONS: [ViewName, string][] = [
+  ["terrain", t("Terrain")],
+  ["political", t("Political")]
+];
+const MORE_VIEWS: [ViewName, string][] = [
+  ["provinces", t("Provinces")],
+  ["cultures", t("Cultures")],
+  ["religions", t("Religions")]
+];
+const TOGGLES: [LayerId, string][] = [
+  ["routes", t("Roads")],
+  ["military", t("Military")],
+  ["markers", t("Markers")]
 ];
 
-const DATA_LAYERS: [id: LayerId, label: string][] = [
-  ["temperature", t("Temperature")],
-  ["precipitation", t("Moisture")],
-  ["population", t("Population")],
-  ["heightmap", t("Elevation")],
-  ["goods", t("Goods")],
-  ["markets", t("Markets")],
-  ["trade", t("Trade")]
+// on in every view, and off for good; the pixel map draws states, borders and provinces itself
+const ALWAYS_ON: LayerId[] = ["labels", "burgIcons", "rivers", "lakes", "ice", "scaleBar", "states", "borders"];
+const ALWAYS_OFF: LayerId[] = [
+  "emblems",
+  "journeys",
+  "zones",
+  "coordinates",
+  "compass",
+  "grid",
+  "vignette",
+  "cells",
+  "rulers",
+  "texture",
+  "relief",
+  "biomes",
+  "provinces",
+  "cultures",
+  "religions"
 ];
-
-const LABEL_OVERRIDES: Partial<Record<LayerId, string>> = { burgIcons: t("Settlements") };
 
 const TEMPLATE = /* html */ `
-  <p data-tip="${t("Select a map layers preset")}" style="display: inline-block">${t("Preset")}:</p>
-  <select data-tip="${t("Select a map layers preset")}" id="layersPreset" style="width: 45%">
-    ${Object.entries(LAYER_PRESETS)
-      .map(([id, label]) => `<option value="${id}">${label}</option>`)
-      .join("")}
-    <option hidden value="custom">${t("Custom (not saved)")}</option>
-  </select>
-  <button
-    id="savePresetButton"
-    data-tip="${t("Click to save displayed layers as a new preset")}"
-    class="icon-plus sideButton"
-    style="display: none"
-  ></button>
-  <button
-    id="removePresetButton"
-    data-tip="${t("Remove")}"
-    class="icon-minus sideButton"
-    style="display: none"
-  ></button>
-  <div id="mapLayers" data-tip="${sentences(t("Click to toggle"), t("Ctrl + click to edit layer style"))}">
-    ${GROUPS.map(([title], index) => `<p>${title}</p><ul class="layerGroup" data-group="${index}"></ul>`).join("")}
+  <div hidden>
+    <select id="layersPreset">
+      ${Object.entries(LAYER_PRESETS)
+        .map(([id, label]) => `<option value="${id}">${label}</option>`)
+        .join("")}
+      <option value="custom">${t("Custom (not saved)")}</option>
+    </select>
+    <button id="savePresetButton"></button>
+    <button id="removePresetButton"></button>
   </div>
-  <p>${t("Show data")}</p>
-  <select id="showData" data-tip="${t("Show one kind of data over the map")}">
-    <option value="">${t("None")}</option>
-    ${DATA_LAYERS.map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}
-  </select>
+  <p class="flHeading">${t("View")}</p>
+  <div id="mapViews" class="flRow">
+    ${VIEW_BUTTONS.map(([id, label]) => `<button type="button" data-view="${id}">${label}</button>`).join("")}
+    <select id="moreViews" data-tip="${t("More views")}">
+      <option value="">${t("More views")}…</option>
+      ${MORE_VIEWS.map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}
+    </select>
+  </div>
+  <p class="flHeading">${t("Show")}</p>
+  <ul id="mapLayers" class="layerGroup" data-tip="${sentences(t("Click to toggle"), t("Ctrl + click to edit layer style"))}"></ul>
 `;
 
 ensureEl("layersContent").innerHTML = TEMPLATE;
 
-function layerButton(id: LayerId): HTMLLIElement | null {
-  const button = LAYER_TOGGLES.get(id);
-  if (!button) return null;
-  const label = LABEL_OVERRIDES[id] ?? button.label;
-  const item = document.createElement("li");
-  item.dataset.layer = id;
-  item.dataset.tip = sentences(
-    t("{{layer}}: click to toggle", { layer: label }),
-    t("Ctrl + click to edit layer style")
+function render(): void {
+  ensureEl("mapLayers").replaceChildren(
+    ...TOGGLES.map(([id, label]) => {
+      const button = LAYER_TOGGLES.get(id);
+      const item = document.createElement("li");
+      item.dataset.layer = id;
+      if (button?.shortcut) item.dataset.shortcut = button.hint ?? button.shortcut.replace("Key", "");
+      item.innerHTML = underlineHotkey({ ...(button ?? { label }), label });
+      item.classList.toggle("buttonoff", !Layers.isOn(id));
+      return item;
+    })
   );
-  if (button.shortcut) item.dataset.shortcut = button.hint ?? button.shortcut.replace("Key", "");
-  item.innerHTML = underlineHotkey({ ...button, label });
-  item.classList.toggle("buttonoff", !Layers.isOn(id));
-  return item;
+  const view = getMapView();
+  for (const button of ensureEl("mapViews").querySelectorAll<HTMLButtonElement>("button"))
+    button.classList.toggle("pressed", button.dataset.view === view);
+  ensureEl<HTMLSelectElement>("moreViews").value = MORE_VIEWS.some(([id]) => id === view) ? view : "";
 }
 
-function render(): void {
-  for (const [index, [, ids]] of GROUPS.entries()) {
-    const list = ensureEl("mapLayers").querySelector(`[data-group="${index}"]`);
-    list?.replaceChildren(...ids.flatMap(id => layerButton(id) ?? []));
-  }
-  const shown = DATA_LAYERS.find(([id]) => Layers.isOn(id));
-  ensureEl<HTMLSelectElement>("showData").value = shown?.[0] ?? "";
+/** Keep the decided layers where they belong; quiet while Azgaar's heightmap editor has the map */
+function settleLayers(): void {
+  if (window.customization) return;
+  const on = ALWAYS_ON.filter(id => Layers.has(id) && !Layers.isOn(id));
+  const off = ALWAYS_OFF.filter(id => Layers.has(id) && Layers.isOn(id));
+  if (on.length) Layers.show(...on);
+  if (off.length) Layers.hide(...off);
 }
 
 ensureEl("mapLayers").addEventListener("click", event => {
@@ -114,14 +128,18 @@ ensureEl("mapLayers").addEventListener("click", event => {
   Layers.toggle(id);
 });
 
-ensureEl<HTMLSelectElement>("showData").addEventListener("change", event => {
-  const chosen = (event.target as HTMLSelectElement).value;
-  const others = DATA_LAYERS.map(([id]) => id).filter(id => id !== chosen && Layers.isOn(id));
-  if (others.length) Layers.hide(...others);
-  if (Layers.has(chosen) && !Layers.isOn(chosen)) Layers.show(chosen);
+ensureEl("mapViews").addEventListener("click", event => {
+  const view = (event.target as HTMLElement).closest("button")?.dataset.view as ViewName | undefined;
+  if (view) setMapView(view);
+});
+ensureEl<HTMLSelectElement>("moreViews").addEventListener("change", event => {
+  const view = (event.target as HTMLSelectElement).value as ViewName;
+  setMapView(view || "terrain");
 });
 
 Layers.subscribe(render);
+Layers.subscribe(settleLayers);
 Layers.subscribe(() => ViewportLayers.renderNow());
+onMapView(render);
 
 render();

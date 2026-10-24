@@ -21,3 +21,14 @@ export function setPixelMapDimmer(next: (bright: ReadonlySet<number> | null) => 
 export function dimPixelMap(bright: ReadonlySet<number> | null): void {
   dimmer?.(bright);
 }
+
+let highlighter: ((cell: number | null) => void) | null = null;
+
+export function setPixelMapHighlighter(next: (cell: number | null) => void): void {
+  highlighter = next;
+}
+
+/** Brighten the cell under the pointer a little; null for none */
+export function highlightCell(cell: number | null): void {
+  highlighter?.(cell);
+}

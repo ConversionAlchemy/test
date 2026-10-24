@@ -359,8 +359,26 @@ const plotTypeMap: Record<
 
 let charts: ChartOptions[] = [];
 let chartedMap: number | undefined; // the map the charts were built for, by its creation stamp
-function open() {
+
+/** What a chart shows: open with one plotted straight away */
+export interface ChartPreset {
+  entity: string;
+  plotBy: string;
+  groupBy?: string;
+}
+
+// Fluoria: the map follows the latest chart, and is put back when the window closes
+const plotListeners = new Set<(chart: { entity: string; plotBy: string }) => void>();
+const closeListeners = new Set<() => void>();
+
+function open(preset?: ChartPreset) {
   renderDialog();
+  if (preset) {
+    ensureEl<HTMLSelectElement>("chartsOverview__entitiesSelect").value = preset.entity;
+    ensureEl<HTMLSelectElement>("chartsOverview__plotBySelect").value = preset.plotBy;
+    ensureEl<HTMLSelectElement>("chartsOverview__groupBySelect").value = preset.groupBy ?? preset.entity;
+    charts = [];
+  }
   changeViewColumns();
   updateMetricInfo();
 
@@ -584,6 +602,7 @@ function addChart(event?: Event) {
   charts.push(chartOptions);
   renderChart(chartOptions);
   updateDialogPosition();
+  for (const listener of plotListeners) listener({ entity, plotBy });
 }
 
 function renderChart({ id, entity, plotBy, groupBy, sorting, type, excludeNeutral }: ChartOptions) {
@@ -910,6 +929,7 @@ function updateDialogPosition() {
 }
 
 function handleClose() {
+  for (const listener of closeListeners) listener();
   $("#chartsOverview").dialog("destroy");
   ensureEl("chartsOverview").remove();
   findEl("chartsOverviewStyle")?.remove();
@@ -1020,4 +1040,8 @@ function sortData(data: ChartDatum[], sorting: string): ChartDatum[] {
   return data;
 }
 
-export const ChartsOverview = { open };
+export const ChartsOverview = {
+  open,
+  onPlot: (listener: (chart: { entity: string; plotBy: string }) => void) => plotListeners.add(listener),
+  onClose: (listener: () => void) => closeListeners.add(listener)
+};
