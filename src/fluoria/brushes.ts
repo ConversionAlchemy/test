@@ -1,12 +1,21 @@
 import { seededRandom, valueNoise } from "./noise";
 import type { PixelRaster } from "./raster";
-import { Overlay, type OverlayId, type TerrainId } from "./terrain";
+import { isWater, Overlay, type OverlayId, Terrain, type TerrainId } from "./terrain";
 
-/** Paint a round patch of terrain, with a slightly ragged rim so strokes don't look stamped */
+/**
+ * Paint a round patch of terrain, with a slightly ragged rim so strokes don't look stamped.
+ * Mountains and hills raise the ground (a dome, highest in the middle) so relief and snow follow; lowland flattens it
+ */
 export function paintTerrain(raster: PixelRaster, cx: number, cy: number, radius: number, terrain: TerrainId): void {
+  const peak = terrain === Terrain.Mountains ? 240 : terrain === Terrain.Hills ? 120 : 0;
   forDisc(raster, cx, cy, radius + 1, (i, x, y, d) => {
     const rim = radius + (valueNoise(x, y, 2, raster.seed + 7) - 0.5) * Math.min(2, radius * 0.5);
-    if (d <= rim) raster.terrain[i] = terrain;
+    if (d > rim) return;
+    raster.terrain[i] = terrain;
+    if (peak) {
+      const dome = peak * (0.45 + 0.55 * (1 - d / (radius + 1))) * (0.8 + valueNoise(x, y, 3, raster.seed + 8) * 0.4);
+      raster.elevation[i] = Math.max(raster.elevation[i], Math.min(255, Math.round(dome)));
+    } else raster.elevation[i] = isWater(terrain) ? 0 : Math.min(raster.elevation[i], 40);
   });
 }
 

@@ -89,6 +89,21 @@ describe("raster", () => {
     expect(surf).toContain(raster.pixels[10 * 40 + 20]);
   });
 
+  test("lights slopes facing north-west and shades slopes facing away", () => {
+    const raster = new PixelRaster(30, 30, 1);
+    paintTerrain(raster, 15, 15, 8, Terrain.Mountains);
+    expect(raster.relief(11, 11)).toBeGreaterThan(1);
+    expect(raster.relief(19, 19)).toBeLessThan(1);
+    expect(raster.relief(2, 2)).toBe(1);
+  });
+
+  test("covers high ground in snow", () => {
+    const raster = new PixelRaster(30, 30, 1);
+    raster.elevation.fill(255);
+    raster.flush();
+    expect(raster.pixels[15 * 30 + 15]).not.toBe(new PixelRaster(30, 30, 1).colorAt(15, 15));
+  });
+
   test("only re-renders the chunks a brush touched", () => {
     const raster = new PixelRaster(CHUNK * 3, CHUNK * 2, 1);
     raster.flush();

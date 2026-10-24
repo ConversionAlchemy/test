@@ -7,12 +7,16 @@ export const CHUNK = 256;
 
 const C = Object.fromEntries(Object.entries(Palette).map(([k, v]) => [k, packRGB(v)])) as Record<Swatch, number>;
 
+/** Elevation (0–255) above which land is snow-covered; jittered so the line is ragged */
+const SNOW_LINE = 205;
+
 /**
- * A grid of game pixels: what terrain and overlay each pixel holds, and the colour it renders to.
- * Colours are derived, never stored by hand, so painting only ever changes `terrain` and `overlay`.
+ * A grid of game pixels seen from straight above: terrain, elevation and overlay per pixel, and the colour each
+ * renders to. Colours are derived, never stored by hand, so painting only changes the data layers.
  */
 export class PixelRaster {
   readonly terrain: Uint8Array;
+  readonly elevation: Uint8Array; // 0 lowland … 255 highest peak; drives relief shading and snow
   readonly overlay: Uint8Array;
   readonly amount: Uint8Array;
   readonly pixels: Uint32Array;
@@ -27,6 +31,7 @@ export class PixelRaster {
   ) {
     const size = width * height;
     this.terrain = new Uint8Array(size).fill(Terrain.Grass);
+    this.elevation = new Uint8Array(size);
     this.overlay = new Uint8Array(size);
     this.amount = new Uint8Array(size);
     this.pixels = new Uint32Array(size);
@@ -39,6 +44,20 @@ export class PixelRaster {
     const cx = x < 0 ? 0 : x >= this.width ? this.width - 1 : x;
     const cy = y < 0 ? 0 : y >= this.height ? this.height - 1 : y;
     return this.terrain[cy * this.width + cx];
+  }
+
+  elevationAt(x: number, y: number): number {
+    const cx = x < 0 ? 0 : x >= this.width ? this.width - 1 : x;
+    const cy = y < 0 ? 0 : y >= this.height ? this.height - 1 : y;
+    return this.elevation[cy * this.width + cx];
+  }
+
+  /** Light from the north-west: slopes facing it brighten, slopes away darken, in hard steps */
+  relief(x: number, y: number): number {
+    const e = (dx: number, dy: number) => this.elevationAt(x + dx, y + dy);
+    const slope = (e(-2, -2) + e(-2, 0) + e(0, -2) - e(2, 2) - e(2, 0) - e(0, 2)) / 3;
+    const f = Math.max(0.6, Math.min(1.32, 1 - slope * 0.022));
+    return 1 + Math.round((f - 1) / 0.08) * 0.08;
   }
 
   /** Flag every chunk touching the rectangle, padded for edge effects that read neighbours */
@@ -110,6 +129,9 @@ export class PixelRaster {
       if (t === Terrain.Mountains || t === Terrain.Cobbles) return shadeP(C.stone2, macro);
       return hash2(x, y, s + 2) < 0.6 ? C.sand : C.sand2;
     }
+    const relief = this.relief(x, y);
+    if (this.elevationAt(x, y) > SNOW_LINE + (valueNoise(x, y, 6, s + 4) - 0.5) * 40)
+      return shadeP(hash2(x, y, s + 6) < 0.12 ? packRGB([210, 214, 222]) : C.snow, relief);
     let c: number;
     switch (t) {
       case Terrain.Sand:
@@ -139,7 +161,7 @@ export class PixelRaster {
       default:
         c = this.grass(x, y);
     }
-    return shadeP(c, macro);
+    return shadeP(c, macro * relief);
   }
 
   private grass(x: number, y: number): number {
@@ -176,52 +198,24 @@ export class PixelRaster {
     return shadow ? shadeP(ground, 0.62) : shadeP(ground, 0.86);
   }
 
+  /** Rough upland grass: the shape comes from elevation shading, the texture from scattered rock and bare earth */
   private hills(x: number, y: number): number {
-    const s = this.seed;
-    const base = this.grass(x, y);
-    const cy = Math.floor(y / 4);
-    for (const gy of [cy, cy - 1, cy - 2]) {
-      const offset = (((gy % 2) + 2) % 2) * 3;
-      const cx = Math.floor((x - offset) / 6);
-      for (const gx of [cx, cx + 1, cx - 1]) {
-        if (hash2(gx, gy, s + 40) < 0.25) continue;
-        const ox = gx * 6 + offset + Math.floor(hash2(gx, gy, s + 41) * 2);
-        const oy = gy * 4;
-        if (this.terrainAt(ox, oy) !== Terrain.Hills) continue;
-        const dx = x - ox;
-        const dy = y - oy;
-        const f = dx >= -2 && dx <= 2 && dy >= 0 && dy <= 2 ? MOUND[dy * 5 + dx + 2] : 0;
-        if (f) return shadeP(base, f);
-      }
-    }
-    return base;
+    const r = hash2(x, y, this.seed + 40);
+    if (r < 0.04) return C.stone;
+    if (r < 0.08) return C.dirt2;
+    return this.grass(x, y);
   }
 
+  /** Bare rock from above: mottled stone, scree, dark cracks, and moss creeping in lower down */
   private mountains(x: number, y: number): number {
     const s = this.seed;
-    const n = valueNoise(x, y, 5, s + 50);
+    const n = valueNoise(x, y, 4, s + 50);
     const r = hash2(x, y, s + 51);
-    let base = n > 0.62 ? C.stone2 : mixP(C.stone2, C.g3, 0.45);
-    if (r < 0.06) base = C.stone;
-    const cy = Math.floor(y / 7);
-    for (const gy of [cy - 1, cy]) {
-      const offset = (((gy % 2) + 2) % 2) * 5;
-      const cx = Math.floor((x - offset) / 10);
-      for (const gx of [cx - 1, cx, cx + 1]) {
-        if (hash2(gx, gy, s + 56) < 0.3) continue;
-        const px = gx * 10 + offset + Math.floor(hash2(gx, gy, s + 52) * 4);
-        const py = gy * 7 + Math.floor(hash2(gx, gy, s + 53) * 3);
-        const tall = 5 + Math.floor(hash2(gx, gy, s + 54) * 5);
-        if (this.terrainAt(px, py + tall) !== Terrain.Mountains) continue;
-        const dx = x - px;
-        const dy = y - py;
-        if (dy < 0 || dy > tall || Math.abs(dx) > dy * 0.9 + 0.5) continue;
-        const snowy = hash2(gx, gy, s + 55) > 0.4 && dy < tall * 0.4;
-        if (dx <= 0) return snowy ? C.snow : dx === 0 ? C.stone3 : r < 0.15 ? C.stone : C.stone3;
-        return snowy ? packRGB([186, 190, 198]) : shadeP(C.stone2, dy === tall ? 0.78 : 1);
-      }
-    }
-    return base;
+    const moss = Math.max(0, 1 - this.elevationAt(x, y) / 170);
+    if (r < 0.05) return C.stone3;
+    if (valueNoise(x, y, 2, s + 52) > 0.82) return shadeP(C.stone2, 0.78);
+    const rock = n > 0.55 ? C.stone : n > 0.35 ? C.stone2 : mixP(C.stone2, C.dirt2, 0.4);
+    return moss > 0 && hash2(x, y, s + 53) < moss * 0.8 ? mixP(rock, C.g3, 0.55) : rock;
   }
 
   private fieldCell(x: number, y: number): number {
@@ -305,9 +299,6 @@ export class PixelRaster {
 
 // a 2×2 crown lit from the top-left, with a dark lower-right pixel; 3×3 around the trunk, 0 = no canopy
 const TREE = [0, C.tree3, 0, C.tree3, C.tree, C.tree, 0, C.tree, C.tree2];
-
-// light and shade factors for a small mound, 5 wide × 3 tall from its peak, 0 = outside
-const MOUND = [0, 0, 1.18, 0, 0, 0, 1.12, 1.05, 0.72, 0, 1.1, 1.05, 0.95, 0.8, 0.72];
 
 function shadeP(p: number, f: number): number {
   const r = Math.min(255, Math.round((p & 255) * f));

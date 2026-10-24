@@ -28,6 +28,7 @@ Reference images are in `design/previews/`. The region preview (`2-region.png`) 
 
 - **Pixel art, chunky.** Every view is drawn at a low internal resolution and scaled up with nearest-neighbour (no smoothing). Zoom goes in whole-number steps (1×, 2×, 3×, 4×); below 1× a pre-shrunk image is used, so pixels never blur or shimmer.
 - **One palette for everything** (see below). Light comes from the top-left in every view.
+- **Everything is seen from straight above**, mountains included. Relief comes from elevation: slopes facing the light brighten, slopes facing away darken, in hard steps. Mountains are a rock texture (mottled stone, scree, cracks, moss lower down), hills are rough grass, and snow covers whatever is high enough. No side-view peaks or icons.
 - **Font: VT323** (Google Fonts, OFL licence), for everything: place names, room names, numbers, buttons. Rendered without smoothing.
 - **No grid look.** Buildings keep their real angles and irregular shapes from Watabou. Roofs are shaded along their own ridge line, with tile rows. Ground textures vary (several versions per tile, chosen by position, plus a gentle large-scale colour shift) so repetition never shows.
 - **Layers, not combinations.** Ground (grass, dirt, cobbles, flagstones, mud, sand, water) + overlays (blood, scorch, craters, rubble, puddles, snow) + objects (buildings, walls, trees, carts). Battle damage is an overlay on any ground.
@@ -60,6 +61,7 @@ The exact values live in `design/prototype/common.py` until the real renderer ha
 
 - Built on Azgaar's own data and generators; nothing about states, cultures, burgs or population is reinvented.
 - **Half the size.** Fluoria is 1440 × 872 map pixels at 3 miles per pixel. Set the distance scale to 1.5 miles per pixel. No data changes; the world simply measures half as large, and the extra zoom is spent on detail.
+- **Elevation and snow come from Azgaar**, not from us: each cell's height (`pack.cells.h`, sea level at 20) becomes the pixel elevation that drives relief shading, and snow follows Azgaar's own cold and glacier cells. We turn its data into texture; we don't invent terrain.
 - **Region detail when zoomed in:** forests, hills, farmland near towns, beaches, rugged coastlines, towns drawn as roof clusters, state colour as a light tint with dashed borders.
 - **One simple paint toolbar** replacing Azgaar's scattered editors, calling Azgaar's existing functions underneath:
   - Terrain brushes: water, deep water, land, mountains, hills, forest, farmland, marsh.
