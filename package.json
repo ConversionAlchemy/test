@@ -64,6 +64,7 @@
     "delaunator": "^5.1.0",
     "driver.js": "^1.10.2",
     "lineclip": "^2.0.0",
+    "pixi.js": "8.21.0",
     "polylabel": "^2.1.0",
     "quill": "^2.0.3",
     "three": "^0.186.1",

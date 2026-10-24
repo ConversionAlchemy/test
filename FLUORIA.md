@@ -116,6 +116,11 @@ Each phase ends with something Osh can open and use.
 6. **Extras.** Pixel emblem editor (grid, X/Y mirror, shape stamps), UX polish, battles inside the city view.
 7. **Coins and armies.**
 
+## Status
+
+- Phase 1, groundwork: done.
+- Phase 2, pixel engine: first version in `src/fluoria/` (palette, noise, terrain and overlay types, the pixel raster, brushes, camera, labels, and the PixiJS stage). Try it on the test bench: open the app with `?view=pixel` added to the address, or run `Controllers.PixelView.open()` in the console.
+
 ## Working rules for this fork
 
 - Follow Azgaar's own rules in `CONTEXT.md` (TypeScript, Biome, layering, no new production dependencies without permission).

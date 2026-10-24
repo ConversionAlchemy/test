@@ -45,9 +45,8 @@ beforeEach(() => {
     }
   );
   vi.stubGlobal("URL", { createObjectURL: () => `blob:cache-${++urlIndex}`, revokeObjectURL: revoke });
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
-    drawImage: vi.fn()
-  } as unknown as CanvasRenderingContext2D);
+  // `as never`: PixiJS brings WebGPU's getContext overload, which would otherwise win the mock's type
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage: vi.fn() } as never);
   vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(callback => callback(new Blob()));
 });
 
