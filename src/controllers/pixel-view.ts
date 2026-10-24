@@ -1,22 +1,14 @@
-// Fluoria pixel view: the loaded map drawn by the pixel engine, paintable at whole-number zooms.
-// Opened by the Pixel button, ?view=pixel, or ?view=pixel-test for the sample coast; Escape closes
+// Pixel engine test bench: paint terrain and battle damage on a sample coast at whole-number zooms.
+// Opened with ?view=pixel-test; Escape closes. The map itself is drawn in pixels by fluoria/pixel-map
 import { clearOverlay, paintTerrain, stampOverlay } from "@/fluoria/brushes";
 import { fitView, screenToWorld, snap, stepZoom, zoomAround } from "@/fluoria/camera";
 import { css, Palette } from "@/fluoria/palette";
 import type { PixelRaster } from "@/fluoria/raster";
-import { ROUTE_LEVELS, type RouteGroup } from "@/fluoria/routes";
 import { buildSampleScene } from "@/fluoria/sample-scene";
 import { PixelStage } from "@/fluoria/stage";
 import { isLine, OVERLAYS, type OverlayId, TERRAINS, type TerrainId } from "@/fluoria/terrain";
-import { buildWorld, WORLD_SCALE } from "@/fluoria/world";
-import { RoadTool } from "./pixel-view-roads";
 
-type Tool =
-  | { kind: "terrain"; id: TerrainId }
-  | { kind: "overlay"; id: OverlayId }
-  | { kind: "clean" }
-  | { kind: "road"; group: RouteGroup }
-  | { kind: "select" };
+type Tool = { kind: "terrain"; id: TerrainId } | { kind: "overlay"; id: OverlayId } | { kind: "clean" };
 
 const BRUSH_SIZES = [1, 3, 6, 12];
 
@@ -27,12 +19,9 @@ let tool: Tool = { kind: "terrain", id: TERRAINS[4].id };
 let brush = 3;
 let seed = 7;
 let spaceHeld = false;
-let source: "world" | "sample" = "world";
-let roads: RoadTool | null = null;
 
-async function open(from: "world" | "sample" = "world"): Promise<void> {
+async function open(): Promise<void> {
   if (root) return;
-  source = from === "world" && pack?.cells?.i?.length ? "world" : "sample";
   root = document.createElement("div");
   root.className = "fl-root";
   root.innerHTML = `<style>${STYLE}</style>
@@ -40,7 +29,6 @@ async function open(from: "world" | "sample" = "world"): Promise<void> {
       <strong class="fl-title">Pixel view</strong>
       <div class="fl-group" data-group="terrain"></div>
       <div class="fl-group" data-group="overlay"></div>
-      <div class="fl-group" data-group="roads"></div>
       <div class="fl-group" data-group="size"><span class="fl-label">Brush</span></div>
       <div class="fl-group">
         <button type="button" data-zoom="-1" aria-label="Zoom out">−</button>
@@ -50,12 +38,10 @@ async function open(from: "world" | "sample" = "world"): Promise<void> {
       <button type="button" class="fl-new">New coast</button>
       <button type="button" class="fl-close" aria-label="Close">×</button>
     </div>
-    <div class="fl-host"><div class="fl-panel" hidden></div></div>
+    <div class="fl-host"></div>
     <div class="fl-status"></div>`;
   document.body.appendChild(root);
   buildToolbar(root);
-  const fresh = root.querySelector<HTMLElement>(".fl-new");
-  if (fresh) fresh.style.display = source === "world" ? "none" : "";
 
   const host = root.querySelector<HTMLElement>(".fl-host");
   if (!host) return;
@@ -73,7 +59,7 @@ function close(): void {
   document.removeEventListener("keyup", onKeyUp);
   stage?.destroy();
   root?.remove();
-  stage = raster = root = roads = null;
+  stage = raster = root = null;
 }
 
 const HINT = "Left drag paints · right drag or space+drag pans · wheel zooms · Escape closes";
@@ -82,35 +68,18 @@ const HINT = "Left drag paints · right drag or space+drag pans · wheel zooms �
 function say(message: string): void {
   const status = root?.querySelector(".fl-status");
   if (!status) return;
-  const note = source === "world" ? " · Land painting is not saved to the map yet; roads are" : "";
-  status.textContent = message || HINT + note;
+  status.textContent = message || HINT;
 }
 
 function newScene(): void {
   if (!stage) return;
-  const scene = source === "world" ? buildWorld() : { ...buildSampleScene(seed), markers: [], title: "Sample coast" };
+  const scene = buildSampleScene(seed);
   raster = scene.raster;
   stage.setRaster(raster);
   stage.setLabels(scene.labels);
-  stage.setMarkers(scene.markers);
-  const panel = root?.querySelector<HTMLElement>(".fl-panel");
-  roads =
-    source === "world" && panel
-      ? new RoadTool(
-          stage,
-          raster,
-          scene.markers.map(m => ({ id: m.id, x: m.x / WORLD_SCALE, y: m.y / WORLD_SCALE })),
-          panel,
-          say
-        )
-      : null;
-  panel?.addEventListener("modechange", () => {
-    tool = { kind: "select" };
-    if (root) markActive(root);
-  });
   setView(fitView(raster.width, raster.height, stage.width, stage.height));
   const title = root?.querySelector(".fl-title");
-  if (title) title.textContent = scene.title;
+  if (title) title.textContent = "Sample coast";
 }
 
 function setView(view: Parameters<PixelStage["setView"]>[0]): void {
@@ -128,18 +97,6 @@ function buildToolbar(container: HTMLElement): void {
     terrainGroup?.appendChild(toolButton(t.name, css(t.swatch), { kind: "terrain", id: t.id }));
   for (const o of OVERLAYS) overlayGroup?.appendChild(toolButton(o.name, css(o.swatch), { kind: "overlay", id: o.id }));
   overlayGroup?.appendChild(toolButton("Clean", css(Palette.g2), { kind: "clean" }));
-  const roadGroup = container.querySelector<HTMLElement>('[data-group="roads"]');
-  if (roadGroup && source === "world") {
-    roadGroup.innerHTML = '<span class="fl-label">Roads</span>';
-    const colors: Record<RouteGroup, string> = {
-      roads: "rgb(168,52,36)",
-      trails: "rgb(132,92,52)",
-      paths: "rgb(120,92,58)"
-    };
-    for (const level of ROUTE_LEVELS)
-      roadGroup.appendChild(toolButton(level.name, colors[level.group], { kind: "road", group: level.group }));
-    roadGroup.appendChild(toolButton("Select", css(Palette.gold), { kind: "select" }));
-  }
   for (const size of BRUSH_SIZES) {
     const button = document.createElement("button");
     button.type = "button";
@@ -175,27 +132,12 @@ function toolButton(name: string, color: string, value: Tool): HTMLButtonElement
   button.innerHTML = `<i style="background:${color}"></i>${name}`;
   button.onclick = () => {
     tool = value;
-    if (value.kind === "road") roads?.setMode("draw", value.group);
-    else if (value.kind === "select") roads?.setMode("select");
-    else roads?.reset();
-    say(
-      value.kind === "road"
-        ? "Click a settlement or anywhere to start a road"
-        : value.kind === "select"
-          ? "Click a road to edit it"
-          : ""
-    );
     if (root) markActive(root);
   };
   return button;
 }
 
-const toolKey = (value: Tool): string =>
-  value.kind === "clean" || value.kind === "select"
-    ? value.kind
-    : value.kind === "road"
-      ? `road:${value.group}`
-      : `${value.kind}:${value.id}`;
+const toolKey = (value: Tool): string => (value.kind === "clean" ? "clean" : `${value.kind}:${value.id}`);
 
 function markActive(container: HTMLElement): void {
   for (const b of container.querySelectorAll<HTMLElement>("[data-tool]"))
@@ -219,30 +161,22 @@ function bindPointer(target: PixelStage): void {
   const canvas = target.app.canvas;
   let drag: { mode: "paint" | "pan"; x: number; y: number } | null = null;
   canvas.addEventListener("contextmenu", event => event.preventDefault());
-  const roadMode = () => tool.kind === "road" || tool.kind === "select";
   canvas.addEventListener("pointerdown", event => {
     canvas.setPointerCapture(event.pointerId);
     const pan = event.button !== 0 || spaceHeld;
     drag = { mode: pan ? "pan" : "paint", x: event.offsetX, y: event.offsetY };
-    if (pan) return;
-    if (roadMode()) roads?.press(event.offsetX, event.offsetY);
-    else paintAt(event.offsetX, event.offsetY);
-  });
-  canvas.addEventListener("dblclick", event => {
-    if (roadMode()) roads?.doubleClick(event.offsetX, event.offsetY);
+    if (!pan) paintAt(event.offsetX, event.offsetY);
   });
   canvas.addEventListener("pointermove", event => {
-    if (roadMode() && drag?.mode !== "pan") roads?.move(event.offsetX, event.offsetY);
     if (!drag) return;
     if (drag.mode === "pan") {
       const v = target.view;
       setView(snap({ x: v.x + event.offsetX - drag.x, y: v.y + event.offsetY - drag.y, zoom: v.zoom }));
-    } else if (!roadMode() && tool.kind !== "overlay") strokeBetween(drag.x, drag.y, event.offsetX, event.offsetY);
+    } else if (tool.kind !== "overlay") strokeBetween(drag.x, drag.y, event.offsetX, event.offsetY);
     drag.x = event.offsetX;
     drag.y = event.offsetY;
   });
   canvas.addEventListener("pointerup", () => {
-    if (roadMode() && drag?.mode === "paint") roads?.release();
     drag = null;
   });
   canvas.addEventListener(
@@ -272,10 +206,6 @@ function bindPointer(target: PixelStage): void {
 
 function onKey(event: KeyboardEvent): void {
   if ((event.target as HTMLElement | null)?.tagName === "INPUT") return;
-  if ((tool.kind === "road" || tool.kind === "select") && roads?.key(event)) {
-    event.preventDefault();
-    return;
-  }
   if (event.code === "Space") spaceHeld = true;
   else if (event.key === "Escape") close();
   else if (event.key === "+" || event.key === "=") zoomBy(1);
@@ -315,13 +245,4 @@ const STYLE = `
 .fl-panel .fl-hint { margin: 0; opacity: 0.7; font-size: 16px; line-height: 1.1; }
 `;
 
-/** Centre the view on a settlement at a whole-number zoom (default 3×) */
-function focusBurg(burgId: number, zoom = 3): void {
-  const burg = pack.burgs[burgId];
-  if (!stage || !burg) return;
-  const x = burg.x * WORLD_SCALE;
-  const y = burg.y * WORLD_SCALE;
-  setView(snap({ x: stage.width / 2 - x * zoom, y: stage.height / 2 - y * zoom, zoom }));
-}
-
-export const PixelView = { open, close, focusBurg };
+export const PixelView = { open, close };

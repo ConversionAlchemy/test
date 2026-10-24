@@ -18,3 +18,4 @@ import "./dialog/dialog-helpers";
 import "./dialog/sorting";
 import "./shared/fill-box";
 import "./shared/slider-input";
+import "@/fluoria/pixel-map-hook";

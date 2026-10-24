@@ -41,6 +41,7 @@ export class PixelRaster {
   /** Optional per-pixel snow line (0–255), so cold places snow lower than warm ones */
   snowLine: Uint8Array | null = null;
   regionColors: number[] = [];
+  borders = true;
   stamps: Stamp[] = [];
   readonly cols: number;
   readonly rows: number;
@@ -173,7 +174,7 @@ export class PixelRaster {
     const id = region[i];
     const right = x + 1 < this.width && !isOpenWater(this.terrain[i + 1]) ? region[i + 1] : id;
     const down = y + 1 < this.height && !isOpenWater(this.terrain[i + this.width]) ? region[i + this.width] : id;
-    if ((right !== id || down !== id) && (x + y) % 4 < 2) return C.ink;
+    if (this.borders && (right !== id || down !== id) && (x + y) % 4 < 2) return C.ink;
     const tint = this.regionColors[id];
     return tint ? mixP(color, tint, 0.22) : color;
   }

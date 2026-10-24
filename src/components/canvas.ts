@@ -2,6 +2,7 @@ import { select } from "d3";
 import { Layers } from "@/components/layers";
 import { setViewportSize, viewport } from "@/components/viewport";
 import { constrainZoom, resetZoom, setTranslateExtent, setZoomExtent } from "@/components/zoom";
+import { syncPixelMap } from "@/fluoria/pixel-map-sync";
 import { fitLegendBox } from "@/renderers/draw-legend";
 import { findEl } from "@/utils/nodeUtils";
 
@@ -55,6 +56,7 @@ export function setViewport(width: number, height: number): void {
 
   Layers.draw("scaleBar");
   fitLegendBox();
+  syncPixelMap();
 }
 
 /**

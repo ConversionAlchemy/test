@@ -2,10 +2,10 @@ import { Application, CanvasSource, Container, Graphics, Sprite, Texture } from 
 import type { View } from "./camera";
 import { type MapLabel, placeLabels } from "./labels";
 import { css, Palette, type RGB } from "./palette";
-import { CHUNK, type PixelRaster, type Rect } from "./raster";
+import type { PixelRaster } from "./raster";
+import { RasterSprites } from "./raster-sprites";
 
 const LABEL_PIXEL = 2; // each font pixel becomes 2×2 screen pixels, matching the chunky world
-const FRAME_BUDGET_MS = 12;
 
 /** Draws a PixelRaster with PixiJS: one texture per chunk, nearest-neighbour above 1×, mipmaps below */
 export class PixelStage {
@@ -17,9 +17,8 @@ export class PixelStage {
   /** Screen-space drawing for tools (a road being drawn, a selected road's nodes), redrawn by `onView` */
   readonly overlay = new Graphics();
   onView: (() => void) | null = null;
-  private chunks: { source: CanvasSource; canvas: HTMLCanvasElement }[] = [];
+  private sprites: RasterSprites | null = null;
   private labels: { label: MapLabel; sprite: Sprite }[] = [];
-  private raster: PixelRaster | null = null;
   view: View = { x: 0, y: 0, zoom: 1 };
 
   async init(host: HTMLElement): Promise<void> {
@@ -44,75 +43,25 @@ export class PixelStage {
   }
 
   setRaster(raster: PixelRaster): void {
-    this.raster = raster;
-    for (const child of this.world.removeChildren()) child.destroy({ texture: true, textureSource: true });
-    this.chunks = [];
-    for (let id = 0; id < raster.cols * raster.rows; id++) {
-      const { x, y, w, h } = raster.chunkRect(id);
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const source = new CanvasSource({ resource: canvas, scaleMode: "nearest", autoGenerateMipmaps: true });
-      const sprite = new Sprite(new Texture({ source }));
-      sprite.position.set(x, y);
-      sprite.roundPixels = true;
-      this.world.addChild(sprite);
-      this.chunks.push({ source, canvas });
-    }
+    this.sprites?.destroy();
+    this.sprites = new RasterSprites(raster);
+    this.world.addChild(this.sprites.container);
     this.refresh();
   }
 
   /** Recolour what the raster marked dirty: what's on screen first, within a frame budget, the rest in later frames */
   refresh(): void {
-    const raster = this.raster;
-    if (!raster?.pending) return;
-    const visible = this.visibleChunks(raster);
-    const start = performance.now();
-    while (raster.pending && performance.now() - start < FRAME_BUDGET_MS) {
-      let done = raster.flush(id => visible.has(id), 1);
-      if (!done.length) done = raster.flush(undefined, 1);
-      for (const { id, rect } of done) this.upload(raster, id, rect);
-    }
-  }
-
-  private upload(raster: PixelRaster, id: number, rect: Rect): void {
-    const { x, y } = raster.chunkRect(id);
-    const w = rect.x1 - rect.x;
-    const h = rect.y1 - rect.y;
-    const block = new Uint32Array(w * h);
-    for (let row = 0; row < h; row++) {
-      const from = (rect.y + row) * raster.width + rect.x;
-      block.set(raster.pixels.subarray(from, from + w), row * w);
-    }
-    const { canvas, source } = this.chunks[id];
-    canvas
-      .getContext("2d")
-      ?.putImageData(new ImageData(new Uint8ClampedArray(block.buffer), w, h), rect.x - x, rect.y - y);
-    source.update();
-    if (this.view.zoom < 1) source.updateMipmaps();
-  }
-
-  private visibleChunks(raster: PixelRaster): Set<number> {
+    if (!this.sprites?.raster.pending) return;
     const { x, y, zoom } = this.view;
-    const c0 = Math.max(0, Math.floor(-x / zoom / CHUNK));
-    const r0 = Math.max(0, Math.floor(-y / zoom / CHUNK));
-    const c1 = Math.min(raster.cols - 1, Math.floor((this.width - x) / zoom / CHUNK));
-    const r1 = Math.min(raster.rows - 1, Math.floor((this.height - y) / zoom / CHUNK));
-    const ids = new Set<number>();
-    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) ids.add(r * raster.cols + c);
-    return ids;
+    const visible = this.sprites.chunksIn(-x / zoom, -y / zoom, (this.width - x) / zoom, (this.height - y) / zoom);
+    this.sprites.refresh(id => visible.has(id));
   }
 
   setView(view: View): void {
     this.view = view;
     this.world.position.set(view.x, view.y);
     this.world.scale.set(view.zoom);
-    const mode = view.zoom < 1 ? "linear" : "nearest";
-    for (const { source } of this.chunks)
-      if (source.scaleMode !== mode) {
-        source.scaleMode = mode;
-        if (mode === "linear") source.updateMipmaps();
-      }
+    this.sprites?.setSmooth(view.zoom < 1);
     this.layoutLabels();
     this.onView?.();
   }
