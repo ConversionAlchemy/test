@@ -7,7 +7,7 @@ import type { Regiment } from "@/generators/military-generator";
 import { domainOf, kitOf } from "./forces/forces";
 import { AIR_RANGE, movePerTurn } from "./forces/kit";
 import { standing } from "./nation";
-import { foldCells, isPort, mainCell, neighbours } from "./one-grid";
+import { cellOfGrid, foldCells, isPort, mainCell, neighbours } from "./one-grid";
 import { routeCells } from "./road-geometry";
 
 export const CELLS_PER_MOVE: Record<string, number> = { roads: 4, trails: 3, paths: 2 };
@@ -107,14 +107,49 @@ function roadCap(regiment: Mover): number {
 }
 const ARMOUR_ROAD = 2;
 
+/** Grid cells an airship can reach this move: on the even grid, over sea and land alike (older maps pack open
+ * ocean into a few huge cells, which held airships back), ending within range of a friendly settlement */
+export function airReach(regiment: Mover & { x?: number; y?: number }): Map<number, number> {
+  const steps = stepsOf(regiment);
+  const start = Grid.findCell(regiment.x ?? 0, regiment.y ?? 0);
+  const friendly = (owner: number) =>
+    ["self", "ally", "vassal", "overlord"].includes(standing(regiment.state ?? 0, owner));
+  const bases = (pack.burgs ?? [])
+    .filter(b => b?.i && !b.removed && b.state && friendly(b.state))
+    .map(b => Grid.findCell(b.x, b.y));
+  const cover = gridSpread(bases, airRange());
+  const reach = new Map<number, number>();
+  for (const [g, d] of gridSpread([start], steps)) if (cover.has(g)) reach.set(g, d / steps);
+  return reach;
+}
+
+function gridSpread(from: number[], limit: number): Map<number, number> {
+  const seen = new Map<number, number>(from.map(g => [g, 0]));
+  let frontier = [...from];
+  for (let d = 1; d <= limit && frontier.length; d++) {
+    const next: number[] = [];
+    for (const g of frontier)
+      for (const n of grid.cells.c[g]) {
+        if (seen.has(n)) continue;
+        seen.set(n, d);
+        next.push(n);
+      }
+    frontier = next;
+  }
+  return seen;
+}
+
 /** Every cell the regiment can reach this move, with the share of the move it costs */
 export function reachable(regiment: Mover): Map<number, number> {
   const start = startCell(regiment);
   const steps = stepsOf(regiment);
   if (isAir(regiment)) {
-    const cover = airCover(regiment.state ?? 0);
     const reach = new Map<number, number>();
-    for (const [cell, d] of spread([start], steps, () => true)) if (cover.has(cell)) reach.set(cell, d / steps);
+    for (const [g, d] of airReach(regiment)) {
+      const own = cellOfGrid(g);
+      const cell = own >= 0 ? own : Pack.findCell(grid.points[g][0], grid.points[g][1]);
+      if (cell !== undefined && !(reach.get(cell)! <= d)) reach.set(mainCell(cell), d);
+    }
     return reach;
   }
   const edges = roadEdges();

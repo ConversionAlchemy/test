@@ -213,17 +213,68 @@ export function ensureGarrison(burg: Burg): Regiment | null {
   return made;
 }
 
-/** Units a settlement may raise: its buildings decide the kinds, its size the highest tier */
+const builds = (burg: Burg, k: KitUnit) => {
+  if (k.domain === "land") return k.role === "armour" ? hasBuilding(burg, "depot") : hasBuilding(burg, "barracks");
+  if (k.domain === "naval") return hasBuilding(burg, "harbour");
+  return hasBuilding(burg, "airbase");
+};
+
+/** Units a settlement may raise: always tier 1, of the kinds its buildings allow; higher tiers come by upgrading */
 export function recruitable(burg: Burg): KitUnit[] {
+  if (!sizeOf(burg)) return [];
+  return KIT.filter(k => k.tier === 1 && builds(burg, k));
+}
+
+/** The category a unit is listed under */
+export function categoryOf(k: KitUnit): string {
+  if (k.domain === "naval") return "Ships";
+  if (k.domain === "air") return "Airships";
+  const land: Record<string, string> = {
+    infantry: "Infantry",
+    assault: "Assault",
+    cavalry: "Cavalry",
+    armour: "Armour"
+  };
+  return land[k.role] ?? "Land";
+}
+
+/** The same unit one tier up, if there is one */
+export const nextTier = (k: KitUnit) =>
+  KIT.find(x => x.domain === k.domain && x.role === k.role && x.tier === k.tier + 1);
+
+export function upgradeCost(k: KitUnit, count: number): number {
+  const next = nextTier(k);
+  return next ? Math.max(0, priceOf(next, count) - priceOf(k, count)) : 0;
+}
+
+/** Why `count` of a unit can't be upgraded at a settlement, or "" */
+export function upgradeRefusal(burg: Burg, k: KitUnit, count: number): string {
+  const next = nextTier(k);
   const size = sizeOf(burg);
-  if (!size) return [];
-  const tier = MAX_TIER[size];
-  return KIT.filter(k => {
-    if (k.tier > tier) return false;
-    if (k.domain === "land") return k.role === "armour" ? hasBuilding(burg, "depot") : hasBuilding(burg, "barracks");
-    if (k.domain === "naval") return hasBuilding(burg, "harbour");
-    return hasBuilding(burg, "airbase");
-  });
+  if (!next) return "Already the highest tier";
+  if (!size) return "Upgrade in a town, city or capital";
+  if (next.tier > MAX_TIER[size]) return next.tier === 3 ? "Tier 3 needs the capital" : "Tier 2 needs a city";
+  if (!builds(burg, next)) return "Needs its building here";
+  if (funds(burg) < upgradeCost(k, count)) return `Needs §${upgradeCost(k, count)}`;
+  return "";
+}
+
+/** Upgrade one row of a regiment by a tier, paid for by the settlement it stands in */
+export function upgrade(burg: Burg, r: Regiment, unit: string, count: number): string {
+  const k = KIT.find(x => unitName(x) === unit);
+  if (!k) return "Unknown unit";
+  const why = upgradeRefusal(burg, k, count);
+  if (why) return why;
+  const next = nextTier(k)!;
+  spend(burg, upgradeCost(k, count));
+  const name = unitName(next);
+  const n = Math.min(count, r.u[unit] ?? 0);
+  r.u[unit] -= n;
+  if (r.u[unit] <= 0) delete r.u[unit];
+  r.u[name] = (r.u[name] ?? 0) + n;
+  r.a = troopsOf(r);
+  r.full = undefined;
+  return "";
 }
 
 export function priceOf(kit: KitUnit, count: number): number {

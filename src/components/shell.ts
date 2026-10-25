@@ -123,8 +123,11 @@ function onChunkLoadError(): void {
 /** Dropping a .map or .gz anywhere on the window opens it. Pull request from @evyatron */
 function addDragToUpload(): void {
   const overlay = () => ensureEl("mapOverlay");
+  // Fluoria: only a file from outside the page; units and rows dragged inside it are not uploads
+  const isFile = (event: DragEvent) => Boolean(event.dataTransfer?.types.includes("Files"));
 
   document.addEventListener("dragover", event => {
+    if (!isFile(event)) return;
     event.stopPropagation();
     event.preventDefault();
     overlay().style.display = null as unknown as string;
@@ -135,6 +138,7 @@ function addDragToUpload(): void {
   });
 
   document.addEventListener("drop", event => {
+    if (!isFile(event)) return;
     event.stopPropagation();
     event.preventDefault();
 

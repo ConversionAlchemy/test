@@ -11,7 +11,7 @@ export function syncPixelMap(): void {
   sync?.();
 }
 
-type Dimmer = (bright: ReadonlySet<number> | null, kind?: "land" | "sea") => void;
+type Dimmer = (bright: ReadonlySet<number> | null, kind?: "land" | "sea" | "grid") => void;
 let dimmer: Dimmer | null = null;
 
 export function setPixelMapDimmer(next: Dimmer): void {
@@ -19,7 +19,7 @@ export function setPixelMapDimmer(next: Dimmer): void {
 }
 
 /** Dim every cell except `bright`: packed cells for land units, even sea cells for fleets; null lifts it */
-export function dimPixelMap(bright: ReadonlySet<number> | null, kind: "land" | "sea" = "land"): void {
+export function dimPixelMap(bright: ReadonlySet<number> | null, kind: "land" | "sea" | "grid" = "land"): void {
   dimmer?.(bright, kind);
 }
 

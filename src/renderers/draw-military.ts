@@ -35,7 +35,8 @@ export function faceOf(regiment: Regiment, behind: string[] = []): CardFace {
   const carrier = isTransport(regiment);
   return {
     unit: (lead && kitOf(lead)) || KIT[0],
-    colour: colourOf(regiment.state),
+    colour: colourOf(regiment.origin ?? regiment.state), // an assigned army keeps the colour it came from
+    band: regiment.origin ? colourOf(regiment.state) : undefined,
     single: !isGroup(regiment),
     power: cardPower(regiment),
     troops: carrier ? troopsOf({ u: regiment.cargo ?? {} }) : troopsOf(regiment),

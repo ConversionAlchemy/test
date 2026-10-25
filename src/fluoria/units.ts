@@ -5,8 +5,8 @@ import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
 import { paintRegiment, stripColour } from "@/renderers/draw-military";
 import { landingCells, unload } from "./boarding";
-import { cardPower, rows, slotsOf, troopsOf } from "./forces/forces";
-import { canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
+import { cardPower, domainOf, rows, slotsOf, troopsOf } from "./forces/forces";
+import { airReach, canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
 import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./one-grid";
 import { dimPixelMap } from "./pixel-map-sync";
 import { laneSteps } from "./road-geometry";
@@ -20,11 +20,20 @@ let rangeOf: Regiment | null = null;
  * Where a regiment stands: the cell it is measured in (sea grid cells for fleets), the packed cell it records, and
  * the cell's centre
  */
+const isAirborne = (r: Regiment) => Boolean(troopsOf(r)) && domainOf(r) === "air";
+
 const standAt = (
   regiment: Regiment,
   x: number,
   y: number
 ): { cell: number; packCell: number; point: [number, number] } | null => {
+  if (isAirborne(regiment)) {
+    // airships stand anywhere on the even grid, open sea included
+    const g = Grid.findCell(x, y);
+    const point = seaPoint(g);
+    const own = cellOfGrid(g);
+    return { cell: g, packCell: own >= 0 ? own : (Pack.findCell(point[0], point[1]) ?? regiment.cell), point };
+  }
   if (regiment.n) {
     const g = seaCellAt(x, y);
     if (g === undefined) return null;
@@ -102,6 +111,11 @@ export function snapAll(): boolean {
 /** Show what a regiment can reach this move */
 export function selectRegiment(regiment: Regiment): void {
   rangeOf = regiment;
+  if (isAirborne(regiment)) {
+    range = airReach(regiment);
+    dimPixelMap(new Set(range.keys()), "grid");
+    return;
+  }
   if (regiment.n) {
     const start = seaCellAt(regiment.x, regiment.y);
     range = start === undefined ? new Map() : seaReach(start, laneSteps(), SEA_CELLS, LANE_CELLS);
@@ -129,7 +143,7 @@ export function clearSelection(): void {
 export function dragOver(regiment: Regiment, x: number, y: number): void {
   if (rangeOf !== regiment) selectRegiment(regiment);
   const spot = standAt(regiment, x, y);
-  outline(spot && range?.has(spot.cell) ? spot.cell : null, Boolean(regiment.n));
+  outline(spot && range?.has(spot.cell) ? spot.cell : null, Boolean(regiment.n) || isAirborne(regiment));
 }
 
 /** Where a dragged regiment ends up: the centre of a reachable cell, or null to put it back */
@@ -138,7 +152,7 @@ export function dropAt(regiment: Regiment, x: number, y: number): [number, numbe
   const spot = standAt(regiment, x, y);
   if (!spot || !range?.has(spot.cell)) return null;
   const cell = spot.packCell;
-  if (!canStand(regiment, cell) && !regiment.n) return null;
+  if (!canStand(regiment, cell) && !regiment.n && !isAirborne(regiment)) return null;
   regiment.cell = cell;
   return spot.point;
 }
