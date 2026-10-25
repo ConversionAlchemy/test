@@ -1,6 +1,6 @@
 // How far a regiment can go in one move, counted in cells so every map plays the same whatever its scale.
 // Off road: its slowest unit's steps (cavalry 2, the rest 1). Along roads: up to 4 (main road), 3 (road) or 2 (path)
-// cells, mixed routes costing each step by the road it's on; never both in one move.
+// cells, armour at most 2, mixed routes costing each step by the road it's on; never both in one move.
 // At sea, on the even grid: 3 cells, or 12 along the cells of a sea lane.
 // In the air: 6–8 cells over anything, ending within range of a settlement of its own nation or an ally
 import type { Regiment } from "@/generators/military-generator";
@@ -99,6 +99,14 @@ export function cellPace(cell: number): { cells: number; road: string | null } {
   return best;
 }
 
+/** Cells along any road a regiment's slowest unit allows in one move: armour 2, the rest no limit */
+function roadCap(regiment: Mover): number {
+  return Object.entries(regiment.u ?? {}).some(([name, n]) => n && kitOf(name)?.role === "armour")
+    ? ARMOUR_ROAD
+    : Infinity;
+}
+const ARMOUR_ROAD = 2;
+
 /** Every cell the regiment can reach this move, with the share of the move it costs */
 export function reachable(regiment: Mover): Map<number, number> {
   const start = startCell(regiment);
@@ -110,6 +118,7 @@ export function reachable(regiment: Mover): Map<number, number> {
     return reach;
   }
   const edges = roadEdges();
+  const cap = roadCap(regiment);
   const onRoad = new Map<number, number>([[start, 0]]);
   const queue: [number, number][] = [[0, start]];
   while (queue.length) {
@@ -123,7 +132,7 @@ export function reachable(regiment: Mover): Map<number, number> {
       if (!canStand(regiment, next)) continue;
       const road = edges.get(`${cell}-${next}`);
       if (!road) continue;
-      const total = cost + 1 / (CELLS_PER_MOVE[road] ?? OTHER_ROUTE);
+      const total = cost + 1 / Math.min(CELLS_PER_MOVE[road] ?? OTHER_ROUTE, cap);
       if (total > 1 + 1e-9 || total >= (onRoad.get(next) ?? Infinity)) continue;
       onRoad.set(next, total);
       queue.push([total, next]);

@@ -30,9 +30,20 @@ import {
 } from "@/fluoria/forces/forces";
 import { KIT } from "@/fluoria/forces/kit";
 import { cardUrl, iconUrl, short } from "@/fluoria/forces/pixels";
-import { reachable } from "@/fluoria/movement";
+import { canStand, reachable } from "@/fluoria/movement";
 import { cellAtPoint, mainCell, neighbours } from "@/fluoria/one-grid";
-import { chooseLanding, clearSelection, dragOver, dropAt, moved, selectRegiment, stackAll } from "@/fluoria/units";
+import { dimPixelMap } from "@/fluoria/pixel-map-sync";
+import {
+  chooseLanding,
+  clearSelection,
+  dragOver,
+  dropAt,
+  moved,
+  selectRegiment,
+  stackAll,
+  stackOf
+} from "@/fluoria/units";
+import { hasRoom } from "@/fluoria/war";
 import { placeRegiment } from "@/renderers/draw-military";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
@@ -67,9 +78,85 @@ function editRegiment(selector: string): void {
   const regiment = regimentFrom(document.querySelector(selector));
   if (!regiment) return;
   bindRegiments();
+  if (stackOf(regiment).length > 1) openCell(regiment);
   openFolder(regiment);
   pick(regiment);
 }
+
+// --- a cell's folder: every unit standing there, one row each
+
+let cellFolder: { el: HTMLElement; cell: number } | null = null;
+
+function openCell(regiment: Regiment): void {
+  const cell = mainCell(regiment.cell);
+  if (!cellFolder) {
+    const el = document.createElement("div");
+    el.id = "flCellFolder";
+    el.className = "dialog flFolder";
+    ensureEl("dialogs").append(el);
+    cellFolder = { el, cell };
+    $(el).dialog({
+      title: t("Units in this cell"),
+      resizable: false,
+      width: "20em",
+      position: { my: "left top", at: "left+10 top+10", of: "#map" },
+      close: () => {
+        if (!cellFolder) return;
+        $(cellFolder.el).dialog("destroy");
+        cellFolder.el.remove();
+        cellFolder = null;
+      }
+    });
+  }
+  cellFolder.cell = cell;
+  renderCell();
+}
+
+function renderCell(): void {
+  if (!cellFolder) return;
+  const { el, cell } = cellFolder;
+  const here = pack.states
+    .flatMap(s => (s.i && !s.removed ? (s.military ?? []) : []))
+    .filter(r => !r.hidden && mainCell(r.cell) === cell)
+    .sort((a, b) => cardPower(b) - cardPower(a));
+  if (here.length < 2) {
+    $(el).dialog("close");
+    return;
+  }
+  el.innerHTML = `<div class="flSlots">${here
+    .map(r => {
+      const lead = kitOf(rows(isTransport(r) ? r.u : r.u)[0]?.unit ?? "") ?? KIT[0];
+      return `<div class="flSlot flUnit" draggable="true" data-state="${r.state}" data-id="${r.i}">
+        <img src="${iconUrl(lead, colourOf(r.state))}" alt="" /><span class="flSlotName">${escapeHtml(r.name)}</span>
+        <span class="flSlotCount">${short(troopsOf(r))} · ${Math.round(strength(r) * 100)}%</span></div>`;
+    })
+    .join("")}</div>`;
+  for (const row of el.querySelectorAll<HTMLElement>(".flUnit")) {
+    const r = regimentOf(+row.dataset.state!, +row.dataset.id!);
+    if (!r) continue;
+    row.addEventListener("click", () => {
+      openFolder(r);
+      pick(r);
+    });
+    row.addEventListener("dragstart", event => {
+      unitCarried = r;
+      event.dataTransfer?.setData("text/plain", r.name);
+    });
+    row.addEventListener("dragend", () => {
+      unitCarried = null;
+    });
+    row.addEventListener("dragover", event => {
+      if (unitCarried && unitCarried !== r) event.preventDefault();
+    });
+    row.addEventListener("drop", event => {
+      event.preventDefault();
+      if (unitCarried && unitCarried !== r) joinOnMap(unitCarried, r);
+      unitCarried = null;
+    });
+  }
+}
+
+let unitCarried: Regiment | null = null;
 
 /** The regiment whose reach the map shows; the rest of the units step back */
 function pick(regiment: Regiment | null): void {
@@ -107,7 +194,7 @@ function openFolder(regiment: Regiment): void {
   ensureEl("dialogs").append(el);
   folders.set(key, el);
   render(el, regiment);
-  const previous = [...folders.values()].at(-2);
+  const previous = [...folders.values()].at(-2) ?? cellFolder?.el;
   $(el).dialog({
     title: regiment.name,
     resizable: false,
@@ -152,8 +239,7 @@ const slotRow = (list: List, unit: string, count: number, state: number) => {
     <img src="${iconUrl(kit, colourOf(state))}" alt="" /><span class="flSlotName">${escapeHtml(unit)}</span>
     <span class="flSlotCount" data-tip="${t("Double-click to change")}">${count.toLocaleString()}</span></div>`;
 };
-const emptyRow = (list: List) =>
-  `<div class="flSlot flEmpty" data-list="${list}" data-tip="${t("Click to add a unit, or drop one here")}"></div>`;
+const emptyRow = (list: List) => `<div class="flSlot flEmpty" data-list="${list}"></div>`;
 
 function render(el: HTMLElement, regiment: Regiment): void {
   const transport = isTransport(regiment);
@@ -241,9 +327,11 @@ function wireSlots(el: HTMLElement, regiment: Regiment): void {
       };
       event.dataTransfer?.setData("text/plain", row.dataset.unit!);
       if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+      dimPixelMap(new Set(dropCells(regiment, carried.list, carried.unit, carried.count)), "land");
     });
     row.addEventListener("dragend", () => {
       carried = null;
+      pick(picked); // the reach again
     });
     row.querySelector(".flSlotCount")?.addEventListener("dblclick", () => editCount(row, regiment));
   }
@@ -307,12 +395,8 @@ function dropOnMap(event: DragEvent): void {
   const point = mapPoint(event.clientX, event.clientY);
   const cell = point && cellAtPoint(point[0], point[1]);
   if (cell === undefined || cell === null) return;
-  const fits =
-    row.list === "cargo"
-      ? landingCells(from).includes(cell)
-      : mainCell(cell) === mainCell(from.cell) || (from.n ? false : reachable(from).has(cell));
-  if (!fits) {
-    report(row.list === "cargo" ? t("Unload onto the coast beside the transport") : t("Out of reach this move"));
+  if (!dropCells(from, row.list, row.unit, row.count).includes(mainCell(cell))) {
+    pick(picked);
     return;
   }
   const made = splitOff(from, row.list, row.unit, row.count, cell);
@@ -325,6 +409,14 @@ function dropOnMap(event: DragEvent): void {
     made.y = from.y;
   }
   changed();
+}
+
+/** Where a row may be dropped: its own cell or a neighbour with room; cargo onto the shore beside the transport */
+function dropCells(from: Regiment, list: List, unit: string, count: number): number[] {
+  const slots = slotsOf({ [unit]: count });
+  const at = mainCell(from.cell);
+  const cells = list === "cargo" ? landingCells(from) : [at, ...neighbours(at)].filter(cell => canStand(from, cell));
+  return cells.filter(cell => (list === "u" && cell === at) || hasRoom(from.state, cell, slots));
 }
 
 function mapPoint(x: number, y: number): [number, number] | null {
@@ -517,6 +609,10 @@ function joinOnMap(self: Regiment, target: Regiment): void {
     report(t("Out of reach this move"));
     return;
   }
+  if (!same && !hasRoom(self.state, target.cell, slotsOf(self.u), self)) {
+    report(t("That cell is full: 12 slots"));
+    return;
+  }
   report(merge(self, target));
   changed();
   openFolder(target);
@@ -608,6 +704,7 @@ function changed(): void {
     if (!r) closeFolder(key);
     else render(el, r);
   }
+  renderCell();
   if (picked && !regimentOf(picked.state, picked.i)) pick(null);
   else pick(picked);
   refreshEditors();

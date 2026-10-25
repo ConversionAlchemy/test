@@ -64,4 +64,11 @@ describe("movement", () => {
     expect([...reachable({ n: 0, cell: 5, u: { "Mounted rifles": 250 } }).keys()].sort()).toEqual([3, 4, 5, 6, 7]);
     expect(reachable({ n: 0, cell: 5, u: { "Mounted rifles": 250, Riflemen: 500 } }).has(7)).toBe(false);
   });
+
+  it("keeps armour to two cells even on a main road", () => {
+    globalThis.options = { map: { military: { units: kitUnits(e => e) } } } as unknown as typeof options;
+    const reach = reachable({ n: 0, cell: 0, u: { Riflemen: 500, "Gun wagon": 10 } });
+    expect(reach.has(2)).toBe(true);
+    expect(reach.has(3)).toBe(false);
+  });
 });

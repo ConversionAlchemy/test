@@ -1,7 +1,7 @@
 // War on the map: occupation of enemy cells, pushing back the loser of a battle, surrender, and annexing.
 // A cell keeps its rightful owner (`pack.cells.state`); an occupier lists it in its `occupied`
 import type { Regiment } from "@/generators/military-generator";
-import { domainOf, isTransport, kitOf, troopsOf } from "./forces/forces";
+import { domainOf, isTransport, kitOf, slotsOf, troopsOf } from "./forces/forces";
 import { canStand } from "./movement";
 import { standing } from "./nation";
 import { cellCentre, mainCell, neighbours } from "./one-grid";
@@ -76,7 +76,10 @@ export function fallBack(loser: Regiment, from: [number, number]): number | null
   const at = mainCell(loser.cell);
   const friendly = (cell: number) =>
     ["self", "ally", "vassal", "overlord"].includes(standing(loser.state, holderOf(cell)));
-  const options = neighbours(at).filter(cell => canStand(loser, cell) && !enemiesIn(loser.state, cell).length);
+  const options = neighbours(at).filter(
+    cell =>
+      canStand(loser, cell) && !enemiesIn(loser.state, cell).length && hasRoom(loser.state, cell, slotsOf(loser.u))
+  );
   if (!options.length) return null;
   const away = (cell: number) => {
     const [x, y] = cellCentre(cell);
@@ -130,7 +133,13 @@ function nearestHome(regiment: Regiment): number | null {
       for (const n of neighbours(cell)) {
         if (seen.has(n)) continue;
         seen.add(n);
-        if (canStand(regiment, n) && holderOf(n) === regiment.state && !enemiesIn(regiment.state, n).length) return n;
+        if (
+          canStand(regiment, n) &&
+          holderOf(n) === regiment.state &&
+          !enemiesIn(regiment.state, n).length &&
+          hasRoom(regiment.state, n, slotsOf(regiment.u))
+        )
+          return n;
         next.push(n);
       }
     frontier = next;
@@ -167,3 +176,22 @@ export function tidyOccupations(): void {
   for (const s of living())
     if (s.occupied) s.occupied = s.occupied.filter(cell => pack.cells.state[cell] !== s.i && pack.cells.h[cell] >= 20);
 }
+
+/** Slots a cell holds at most, counting a nation's units with its allies', vassals' and overlord's */
+export const CELL_SLOTS = 12;
+
+const friendly = (a: number, b: number) => ["self", "ally", "vassal", "overlord"].includes(standing(a, b));
+
+/** Slots friendly to `state` already standing in a cell; a transport is 1, its cargo nothing */
+export function cellLoad(state: number, cell: number, leaving?: Regiment): number {
+  const at = mainCell(cell);
+  let load = 0;
+  for (const s of living())
+    if (friendly(state, s.i))
+      for (const r of s.military ?? []) if (r !== leaving && !r.hidden && mainCell(r.cell) === at) load += slotsOf(r.u);
+  return load;
+}
+
+/** Whether `slots` more fit in a cell for `state` */
+export const hasRoom = (state: number, cell: number, slots: number, leaving?: Regiment) =>
+  cellLoad(state, cell, leaving) + slots <= CELL_SLOTS;

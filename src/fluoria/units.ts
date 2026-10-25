@@ -3,12 +3,13 @@
 import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
 import { landingCells, unload } from "./boarding";
+import { cardPower, slotsOf } from "./forces/forces";
 import { canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
 import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./one-grid";
 import { dimPixelMap } from "./pixel-map-sync";
 import { laneSteps } from "./road-geometry";
 import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
-import { afterMove, blocked } from "./war";
+import { afterMove, blocked, hasRoom } from "./war";
 
 let range: Map<number, number> | null = null; // packed cells for armies, sea grid cells for fleets
 let rangeOf: Regiment | null = null;
@@ -41,6 +42,8 @@ const STAGES = [
   [8, 72, "close"]
 ] as const;
 let unitScale = 1;
+let zoom = 1;
+let stageNow = "far";
 
 /** Scale every regiment around its own point so its on-screen size follows the zoom stage, not the map zoom */
 export function applyUnitZoom(scale: number): void {
@@ -50,6 +53,8 @@ export function applyUnitZoom(scale: number): void {
   for (const [from, size, name] of STAGES) if (scale >= from) [px, stage] = [size, name];
   const box = styles.military.options.boxSize * 2; // art size in map units
   unitScale = Math.max(0.02, px / (box * scale));
+  zoom = scale;
+  stageNow = stage;
   armies.style.setProperty("--fl-unit", String(unitScale));
   armies.dataset.flStage = stage;
   armies.dataset.flNames = stage === "close" ? "1" : "0";
@@ -101,11 +106,18 @@ export function selectRegiment(regiment: Regiment): void {
   if (regiment.n) {
     const start = seaCellAt(regiment.x, regiment.y);
     range = start === undefined ? new Map() : seaReach(start, laneSteps(), SEA_CELLS, LANE_CELLS);
+    for (const g of [...range.keys()]) {
+      const cell = cellOfGrid(g);
+      if (cell >= 0 && g !== start && !hasRoom(regiment.state, cell, slotsOf(regiment.u), regiment)) range.delete(g);
+    }
     dimPixelMap(new Set(range.keys()), "sea");
     return;
   }
   range = reachable(regiment);
   for (const cell of blocked(regiment)) range.delete(cell); // an enemy army is attacked, not walked into
+  for (const cell of [...range.keys()])
+    if (cell !== mainCell(regiment.cell) && !hasRoom(regiment.state, cell, slotsOf(regiment.u), regiment))
+      range.delete(cell);
   dimPixelMap(new Set(range.keys()), "land");
 }
 
@@ -146,7 +158,8 @@ export const selected = (): Regiment | null => rangeOf;
 
 /** Pick a land cell beside a transport for its cargo: the cells light up, a click lands them, Escape cancels */
 export function chooseLanding(transport: Regiment, done: () => void): void {
-  const targets = new Set(landingCells(transport));
+  const aboard = slotsOf(transport.cargo);
+  const targets = new Set(landingCells(transport).filter(cell => hasRoom(transport.state, cell, aboard)));
   if (!targets.size) return;
   if (targets.size === 1) {
     unload(transport, [...targets][0]);
@@ -212,12 +225,12 @@ function outline(cell: number | null, sea = false): void {
     .attr("pointer-events", "none");
 }
 
-// --- stacks: regiments sharing a cell stand in a neat column on the cell's centre; nothing moves on hover
+// --- stacks: units sharing a cell sit as a deck, the strongest in front; close in they fan out sideways
 
-const GAP = 0.25; // between boxes, of the box height
-const SHOWN = 3; // a column this long, or one longer than this plus one, shows a "+N" tab for the rest
+const STRIP = 4; // screen pixels of each card behind that show above the one in front
+const FAN = 0.5; // close in: each card's step across, of its width
 
-/** Lay out every shared cell as a column */
+/** Lay out every shared cell as a deck */
 export function stackAll(): void {
   const armies = document.getElementById("armies");
   if (!armies) return;
@@ -226,46 +239,35 @@ export function stackAll(): void {
     if (!state.i || state.removed) continue;
     for (const regiment of state.military ?? []) {
       if (regiment.hidden) continue;
-      const list = byCell.get(regiment.cell) ?? [];
+      const cell = mainCell(regiment.cell);
+      const list = byCell.get(cell) ?? [];
       list.push(regiment);
-      byCell.set(regiment.cell, list);
+      byCell.set(cell, list);
     }
   }
   stacks = [...byCell.values()].filter(stack => stack.length > 1);
+  for (const stack of stacks) stack.sort((a, b) => cardPower(b) - cardPower(a));
   for (const stack of byCell.values()) layStack(stack);
 }
+
+/** Regiments sharing a regiment's cell, itself included, strongest first */
+export const stackOf = (regiment: Regiment): Regiment[] => stacks.find(stack => stack.includes(regiment)) ?? [regiment];
 
 const elementOf = (regiment: Regiment) =>
   document.getElementById(`regiment${regiment.state}-${regiment.i}`) as SVGGElement | null;
 
-/** A column centred on the cell, a small gap between cards */
 function layStack(stack: Regiment[]): void {
   const size = styles.military.options.boxSize * 2 * unitScale;
-  const shown = stack.length > SHOWN + 1 ? SHOWN : stack.length;
-  const step = size * (1 + GAP);
-  stack.forEach((regiment, k) => {
-    const element = elementOf(regiment);
-    if (!element) return;
-    element.querySelector(".flMore")?.remove();
-    element.style.display = k < shown ? "" : "none";
-    const dy = (k - (shown - 1) / 2) * step;
-    element.style.translate = dy ? `0px ${dy}px` : "";
-  });
-  if (shown === stack.length) return;
-  const last = stack[shown - 1];
-  const element = elementOf(last);
-  if (!element) return;
-  const box = styles.military.options.boxSize * 2;
-  const tab = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  tab.setAttribute("class", "flMore");
-  tab.setAttribute("x", String(last.x));
-  tab.setAttribute("y", String(last.y + box * 0.85));
-  tab.setAttribute("font-size", String(box * 0.6));
-  tab.setAttribute("text-anchor", "middle");
-  tab.textContent = `+${stack.length - shown}`;
-  tab.addEventListener("click", event => {
-    event.stopPropagation(); // the full list, not the editor of the card it sits under
-    Controllers.ContextMenu.open(event);
-  });
-  element.append(tab);
+  const n = stack.length;
+  // drawn back to front, so the strongest ends up in front
+  for (let k = n - 1; k >= 0; k--) {
+    const element = elementOf(stack[k]);
+    if (!element) continue;
+    if (n > 1) element.parentNode?.append(element);
+    let dx = 0;
+    let dy = 0;
+    if (stageNow === "close") dx = (k - (n - 1) / 2) * size * FAN;
+    else if (stageNow === "mid") dy = (-k * STRIP) / zoom;
+    element.style.translate = dx || dy ? `${dx}px ${dy}px` : "";
+  }
 }
