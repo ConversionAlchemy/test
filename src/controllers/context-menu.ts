@@ -6,6 +6,7 @@ import { openEditor } from "@/components/viewbox-events";
 import { Controllers } from "@/controllers";
 import { actionsFor, type MenuAction } from "@/fluoria/menu-actions";
 import { showRoadEdit } from "@/fluoria/pixel-map-sync";
+import { roadUnder } from "@/fluoria/road-geometry";
 import { roadModeOn } from "@/fluoria/road-mode";
 import * as Connection from "@/services/assistant/provider/connection";
 import { escapeHtml, findEl, getPointer, rn } from "@/utils";
@@ -39,6 +40,15 @@ class ContextMenuController {
     this.cell = cell;
     this.point = [rn(x, 2), rn(y, 2)];
     this.rows = this.collect(event.clientX, event.clientY, cell);
+    // Fluoria: a road is right-clicked where it's drawn
+    const road = this.rows[0]?.element ? null : roadUnder(event);
+    if (road) {
+      const ref: EntityRef = { type: "route", id: road.id };
+      this.rows = [
+        { ref, element: findEl(`route${road.id}`) ?? undefined },
+        ...this.rows.filter(row => !(row.ref.type === "route" && row.ref.id === road.id))
+      ];
+    }
     // Fluoria: what the thing under the cursor can do comes first; the other things here follow
     const top = this.rows[0]?.element ? this.rows[0] : undefined;
     this.actions = actionsFor(top?.ref, cell, run => confirmationDialog({ onConfirm: run }), this.point);

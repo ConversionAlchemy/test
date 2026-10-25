@@ -39,6 +39,7 @@ export function setRoadMode(on: boolean, next: RouteGroup = level): void {
   }
   active = on;
   document.body.classList.toggle("fluoria-roads", on);
+  nodesStale = true;
   const map = document.getElementById("map");
   if (on) {
     map?.addEventListener("pointerdown", onDown, true);
@@ -71,14 +72,27 @@ function nodes(): [number, number][] {
   return [...seen].map(nodePoint);
 }
 
-function render(): void {
+let frame = 0;
+let nodesStale = true;
+
+/** Redraw at most once a frame; the node dots only when roads changed */
+function render(refreshNodes = false): void {
+  nodesStale ||= refreshNodes;
+  cancelAnimationFrame(frame);
+  frame = requestAnimationFrame(paint);
+}
+
+function paint(): void {
   if (!active) {
+    nodesStale = true;
     showRoadEdit(null);
     return;
   }
   const segment = hovered ? [nodePoint(hovered.a), nodePoint(hovered.b)] : undefined;
+  const fresh = nodesStale;
+  nodesStale = false;
   showRoadEdit({
-    nodes: nodes(),
+    nodes: fresh ? nodes() : undefined,
     segment: drawing ? undefined : segment,
     drawing: drawing?.map(nodePoint),
     cells: drawing ?? undefined
@@ -130,7 +144,7 @@ function onUp(): void {
   const cells = drawing;
   drawing = null;
   if (cells.length >= 2) createRoadThrough(cells, level);
-  render();
+  render(true);
 }
 
 function onKey(event: KeyboardEvent): void {
@@ -177,7 +191,7 @@ function onContext(event: MouseEvent): void {
     closeMenu();
     changeSegment(id, k, group);
     hovered = null;
-    render();
+    render(true);
   });
 }
 

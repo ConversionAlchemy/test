@@ -36,7 +36,7 @@ export function highlightCell(cell: number | null): void {
 
 /** What road mode shows over the map: road nodes, a highlighted segment, a road being drawn and its cells */
 export interface RoadEdit {
-  nodes?: [number, number][];
+  nodes?: [number, number][] | null; // given only when they change; null clears them
   segment?: [number, number][];
   drawing?: [number, number][];
   cells?: number[];
