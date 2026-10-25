@@ -1,5 +1,6 @@
 import { hideOptions } from "@/components/options/options-panel";
 import { Controllers } from "@/controllers";
+import { roadModeOn, setRoadMode } from "@/fluoria/road-mode";
 import { Services } from "@/services";
 import { toggleSaveReminder } from "@/services/autosave";
 import { findEl, minmax } from "@/utils";
@@ -7,6 +8,9 @@ import { t } from "@/utils/i18n";
 import { showInfo } from "./app-info";
 import { closeDialogs } from "./dialog/dialog-helpers";
 import { getLayerByShortcut } from "./options/tabs/layers-tab";
+
+const toggleRoadMode = () => setRoadMode(!roadModeOn());
+
 import { changeMapZoom, panMap, setMapZoom } from "./zoom";
 
 // Hotkeys, see github.com/Azgaar/Fantasy-Map-Generator/wiki/Hotkeys
@@ -36,6 +40,7 @@ function handleKeyup(event: KeyboardEvent): void {
   const { code, key, ctrlKey, metaKey, shiftKey, altKey } = event;
   const ctrl = ctrlKey || metaKey || key === "Control";
   if (ctrl && code === "KeyS") return; // handled on keydown; don't toggle the states layer on release
+  if (code === "KeyR" && !ctrl && !shiftKey && !altKey && !customization) return void toggleRoadMode(); // Fluoria
   const shift = (shiftKey || key === "Shift") && !altKey;
   const altShift = altKey && (shiftKey || key === "Shift") && !ctrl;
   const layer = getLayerByShortcut(code);

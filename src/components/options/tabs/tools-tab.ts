@@ -1,10 +1,19 @@
 // Tools tab: buttons dispatch the same commands as global search.
 import { MAP_COMMANDS } from "@/components/map-commands";
 import { tip } from "@/components/tooltips";
+import { onRoadMode, roadLevel, roadModeOn, setRoadMode } from "@/fluoria/road-mode";
+import type { RouteGroup } from "@/fluoria/routes";
 import { ensureEl } from "@/utils";
 import { sentences, t } from "@/utils/i18n";
 
 const TEMPLATE = /* html */ `
+  <div class="separator">${t("Draw")}</div>
+  <div class="grid" id="drawTools">
+    <button data-road="roads" data-shortcut="R">${t("Main road")}</button>
+    <button data-road="trails" data-shortcut="R">${t("Road")}</button>
+    <button data-road="paths" data-shortcut="R">${t("Path")}</button>
+  </div>
+  <div id="toolHint" class="flHint" hidden></div>
   <div class="separator">${t("Edit")}</div>
   <div class="grid">
     <button id="editBiomesButton" data-tip="${t("Biomes Editor")}" data-shortcut="Shift + B">
@@ -224,9 +233,29 @@ const TEMPLATE = /* html */ `
 
 ensureEl("toolsContent").innerHTML = TEMPLATE;
 
-// sections fold under their headings; Edit and Add start open
-for (const [index, heading] of ensureEl("toolsContent").querySelectorAll(".separator").entries())
-  heading.classList.toggle("folded", index !== 0 && index !== 2);
+// sections fold under their headings; Draw, Edit and Add start open
+for (const heading of ensureEl("toolsContent").querySelectorAll<HTMLElement>(".separator"))
+  heading.classList.toggle("folded", ![t("Draw"), t("Edit"), t("Add")].includes(heading.textContent?.trim() ?? ""));
+
+const ROAD_HINT = t(
+  "Drag across cells to build a road. Right-click a segment to change or delete it. R or Esc to stop"
+);
+onRoadMode((on, level) => {
+  for (const button of ensureEl("drawTools").querySelectorAll<HTMLElement>("button"))
+    button.classList.toggle("pressed", on && button.dataset.road === level);
+  const hint = ensureEl("toolHint");
+  hint.hidden = !on;
+  hint.textContent = on ? ROAD_HINT : "";
+});
+
+ensureEl("drawTools").addEventListener("click", event => {
+  const road = (event.target as HTMLElement).closest<HTMLElement>("[data-road]")?.dataset.road as
+    | RouteGroup
+    | undefined;
+  if (!road) return;
+  event.stopPropagation();
+  setRoadMode(!(roadModeOn() && roadLevel() === road), road);
+});
 
 ensureEl("toolsContent").addEventListener("click", event => {
   const heading = (event.target as HTMLElement).closest?.(".separator");

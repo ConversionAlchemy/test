@@ -33,3 +33,27 @@ export function setPixelMapHighlighter(next: (cell: number | null) => void): voi
 export function highlightCell(cell: number | null): void {
   highlighter?.(cell);
 }
+
+/** What road mode shows over the map: road nodes, a highlighted segment, a road being drawn and its cells */
+export interface RoadEdit {
+  nodes?: [number, number][];
+  segment?: [number, number][];
+  drawing?: [number, number][];
+  cells?: number[];
+  invalid?: boolean;
+}
+
+let roads: { draw: () => void; edit: (edit: RoadEdit | null) => void } | null = null;
+
+export function setPixelMapRoads(next: { draw: () => void; edit: (edit: RoadEdit | null) => void }): void {
+  roads = next;
+}
+
+/** Redraw the road layer from the routes as they are now */
+export function redrawRoads(): void {
+  roads?.draw();
+}
+
+export function showRoadEdit(edit: RoadEdit | null): void {
+  roads?.edit(edit);
+}

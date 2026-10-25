@@ -30,8 +30,77 @@ const pointCell = (event: MouseEvent): number | undefined => {
   return point ? Pack.findCell(point.x, point.y) : undefined;
 };
 
+/** A transparent sheet under everything in the viewbox, so clicks on bare ground reach Azgaar's tools */
+export function ensureHitLayer(): void {
+  const viewbox = document.getElementById("viewbox");
+  if (!viewbox || document.getElementById("flHit")) return;
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.id = "flHit";
+  rect.setAttribute("x", "0");
+  rect.setAttribute("y", "0");
+  rect.setAttribute("width", String(options.map.graph.width));
+  rect.setAttribute("height", String(options.map.graph.height));
+  rect.setAttribute("fill", "transparent");
+  rect.setAttribute("pointer-events", "all");
+  viewbox.prepend(rect);
+}
+
+// --- placement preview: while an add tool is on, a ghost of what it places sits on the cell under the pointer
+
+const TOOLS: [id: string, kind: "burg" | "marker" | "regiment"][] = [
+  ["addBurgTool", "burg"],
+  ["addNewBurg", "burg"],
+  ["addMarker", "marker"],
+  ["markerAdd", "marker"],
+  ["regimentAdd", "regiment"]
+];
+
+function activeTool(): "burg" | "marker" | "regiment" | null {
+  for (const [id, kind] of TOOLS) if (document.getElementById(id)?.classList.contains("pressed")) return kind;
+  return null;
+}
+
+/** Why a cell can't take what the tool places, or null when it can */
+function refusal(kind: "burg" | "marker" | "regiment", cell: number): string | null {
+  const water = pack.cells.h[cell] < 20;
+  if (kind === "burg" && water) return t("Water");
+  if (kind === "burg" && pack.cells.burg[cell]) return t("Already has a settlement");
+  return null;
+}
+
+function preview(event: MouseEvent): void {
+  const debug = document.getElementById("debug");
+  debug?.querySelector("#flPlace")?.remove();
+  const kind = window.customization ? null : activeTool();
+  const point = kind && mapPoint(event);
+  const cell = point ? Pack.findCell(point.x, point.y) : undefined;
+  if (!kind || cell === undefined || !debug) return;
+  const [x, y] = pack.cells.p[cell];
+  const scale = (document.getElementById("viewbox") as SVGGraphicsElement | null)?.getScreenCTM()?.a || 1;
+  const why = refusal(kind, cell);
+  const size = 12 / scale;
+  const colour = why ? "#e05a4a" : "#ffffff";
+  const shape =
+    kind === "burg"
+      ? `<circle r="${size / 2.4}" fill="none" stroke="${colour}" stroke-width="${2 / scale}"/>`
+      : `<rect x="${-size / 2}" y="${-size / 2}" width="${size}" height="${size}" fill="none" stroke="${colour}" stroke-width="${2 / scale}"/>`;
+  const cellShape = pack.cells.v[cell].map(v => pack.vertices.p[v].join(",")).join(" ");
+  debug.insertAdjacentHTML(
+    "beforeend",
+    `<g id="flPlace" pointer-events="none">
+      <polygon points="${cellShape}" fill="${colour}" fill-opacity="0.12" stroke="${colour}" stroke-width="${1 / scale}"/>
+      <g transform="translate(${x} ${y})">${shape}${
+        why
+          ? `<text y="${-size}" text-anchor="middle" font-size="${12 / scale}" fill="#fff" stroke="#1b1b20" stroke-width="${3 / scale}" paint-order="stroke" font-family="VT323">${why}</text>`
+          : ""
+      }</g>
+    </g>`
+  );
+}
+
 /** Hover: brighten the cell under the pointer when nothing clickable is there */
 export function hoverAt(event: MouseEvent): void {
+  preview(event);
   const own = (event.target as Element | null)?.closest?.(OWN_CLICK);
   const cell = own || window.customization ? undefined : pointCell(event);
   // at sea the even grid is what's drawn, so that's what lights up; sea cells are told apart by sign
@@ -112,11 +181,11 @@ function cardHtml(cell: number): string {
   const prec = grid.cells.prec[gridCell];
 
   const pace = cellPace(cell);
-  const paceText = pace.road
-    ? `${ROAD_NAMES[pace.road] ?? t("Road")}: ${t("fast")}`
-    : water
-      ? ""
-      : `${pace.factor > 1.2 ? t("slow") : pace.factor < 0.95 ? t("quick") : t("normal")} (×${pace.factor.toFixed(1)})`;
+  const paceText = water
+    ? ""
+    : pace.road
+      ? `${ROAD_NAMES[pace.road] ?? t("Road")}: ${t("{{count}} cells a move", { count: pace.cells })}`
+      : t("1 cell a move");
 
   const name = (list: { name?: string }[] | undefined, id: number) => (id && list?.[id]?.name) || "";
   const state = cells.state[cell];
