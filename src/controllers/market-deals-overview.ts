@@ -101,7 +101,7 @@ function renderDialog(): void {
 
         <div id="marketDealsFooter" class="totalLine">
           <div style="margin-left: 5px" data-tip="${t("Deals count")}">${t("Deals")}: <span id="marketDealsFooterDeals">0</span></div>
-          <div data-col="income" style="margin-left: 12px" data-tip="${t("Net flow for this market")}">${t("Net Flow")}: <span id="marketDealsFooterNet">🟡 0</span></div>
+          <div data-col="income" style="margin-left: 12px" data-tip="${t("Net flow for this market")}">${t("Net Flow")}: <span id="marketDealsFooterNet">§0</span></div>
         </div>
 
         <div id="marketDealsBottom">

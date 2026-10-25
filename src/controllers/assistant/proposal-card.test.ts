@@ -80,7 +80,7 @@ it("shows values as the app does: people, money, names and the chronicle", () =>
   ]);
   expect(text.split("\n")).toEqual([
     "Burg: Sarester · Population: 50K → 100",
-    "Burg: Sarester · Treasury: 🟡 10 → 🟡 12.5",
+    "Burg: Sarester · Treasury: §10 → §12.5",
     "State: Kahor · Relation to Orwin: Unknown → Ally",
     "State: Kahor · Capital: Vel → 9",
     "Chronicle · Entries: 3 → 4",

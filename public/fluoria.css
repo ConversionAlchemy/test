@@ -1294,3 +1294,63 @@ details.flPart .flSlots { padding: 0 4px 4px 22px; box-sizing: border-box; }
 /* the money line keeps to one row */
 .flMoneyLine { flex-wrap: nowrap; white-space: nowrap; }
 .flMoneyLine .flInline { width: 3.6em; }
+
+/* Azgaar's lists and editors in the dark grey of Fluoria's own folders: flat rows, a dark header, no light gradients */
+.ui-dialog div.states {
+  background: #262626 !important;
+  background-image: none !important;
+  border: 1px solid #333 !important;
+  color: var(--fl-text);
+}
+.ui-dialog div.states:nth-child(even) { background: #2b2b2b !important; }
+.ui-dialog div.states:hover,
+.ui-dialog div.states.hovered,
+.ui-dialog div.states.selected { background: #343434 !important; border-color: #555 !important; }
+.ui-dialog .table > div:nth-child(even) { background-color: transparent; }
+.editorDialog .header,
+.ui-dialog div.header {
+  background: #1a1a1a !important;
+  color: var(--fl-dim) !important;
+  border: 1px solid #000 !important;
+}
+.ui-dialog div.header > div,
+.ui-dialog div.header .sortable { color: var(--fl-dim); }
+.ui-dialog .totalLine { color: var(--fl-dim); }
+.ui-dialog .table::-webkit-scrollbar-thumb,
+.ui-dialog .dialog::-webkit-scrollbar-thumb,
+.dialog::-webkit-scrollbar-thumb { background-color: #555; }
+.ui-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+.ui-dialog select,
+.ui-dialog textarea {
+  background: var(--fl-field);
+  color: var(--fl-text);
+  border: 1px solid var(--fl-line);
+  border-radius: 0;
+}
+.ui-dialog button:not(.flPx):not(.flBuilding):not(.flGear):not(.ui-dialog-titlebar-close):not(.ui-dialog-titlebar-minimize) {
+  border-radius: 0;
+}
+.ui-dialog fieldset,
+.ui-dialog .ge-card,
+.ui-dialog .ge-recipe { border-color: var(--fl-line) !important; background: #262626; }
+.ui-dialog .ui-dialog-buttonpane button { background: #4a4a4a; color: #e8e5d9; border: 1px solid #2a2a2a; }
+.ui-dialog .ui-dialog-buttonpane button:hover { background: #5c5c5c; }
+
+/* Send Funds, laid out like Azgaar's dialogs */
+#flSendFunds { font-size: 1em; }
+#flSendFunds .flSendGrid { display: grid; grid-template-columns: 5em 1fr 2em 5em; gap: 6px; align-items: center; padding: 0.5em 0.2em 0.2em; }
+#flSendFunds .flSendLabel { color: var(--fl-dim); }
+#flSendFunds select, #flSendFunds input { width: 100%; box-sizing: border-box; }
+#flSendFunds .flSendPick { padding: 0; height: 1.6em; cursor: pointer; }
+#flSendFunds .flSendPick.pressed { background: #e8e5d9; color: #111; }
+#flSendFunds .flCoin { color: #e3c66b; white-space: nowrap; }
+#flSendFunds .flSendError { color: #e86a5c; min-height: 1.1em; padding: 0 0.2em; }
+#flSendFunds .flSendButtons { display: flex; gap: 4px; padding: 0.2em 0.2em 0.5em; }
+#flSendFunds .flSendButtons button { padding: 2px 14px; cursor: pointer; }
+#flSendFunds .flSendLog { border-top: 1px solid #000; padding-top: 0.3em; }
+#flSendFunds .flSendRow { display: flex; align-items: center; gap: 6px; color: var(--fl-dim); padding: 2px 0.2em; }
+#flSendFunds .flSendRow > :last-child { margin-left: auto; }
+#flSendFunds .flSendRow button { cursor: pointer; padding: 0 6px; }
+.ui-dialog.flFaded { opacity: 0.4; pointer-events: none; } /* clicks go through to the map while picking */
+body.flPicking #map, body.flPicking #map * { cursor: crosshair !important; }
+#flNation .np-send { margin-left: 4px; padding: 0 5px; font-size: 0.9em; cursor: pointer; }

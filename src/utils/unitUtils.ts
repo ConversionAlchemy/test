@@ -123,7 +123,7 @@ export function getCellPopulation(cellId: number, pack: PackedGraph): [number, n
  * @returns {string} - The formatted price string with money symbol
  */
 export function formatPrice(value: number): string {
-  return `🟡 ${rn(value, 2)}`;
+  return `§${rn(value, 2)}`; // Fluoria: the § currency
 }
 
 // in °C, array from -1 °C; source: https://en.wikipedia.org/wiki/List_of_city_by_average_temperature

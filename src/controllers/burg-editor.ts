@@ -186,7 +186,7 @@ function renderDialog(): void {
             </div>
             <div data-tip="${t("Set treasury balance. Production won't be changed automatically")}">
               <div class="label"><label for="burgTreasury">${t("Treasury")}:</label></div>
-              <input id="burgTreasury" type="number" step="0.01" style="width: 9em" /> 🟡
+              <input id="burgTreasury" type="number" step="0.01" style="width: 9em" /> §
             </div>
             <div data-tip="${t("Burg tags (comma-separated)")}">
               <div class="label"><label for="burgTags">${t("Tags")}:</label></div>
@@ -319,7 +319,7 @@ function updateBurgValues(): void {
   ensureEl<HTMLInputElement>("burgPopulation").value = String(
     rn(b.population! * options.map.units.population.scale * options.map.units.population.urbanization.rate)
   );
-  ensureEl("burgWealth").innerHTML = `🟡 ${rn(b.population! > 0 ? (b.product || 0) / b.population! : 0, 2)}`;
+  ensureEl("burgWealth").innerHTML = `§${rn(b.population! > 0 ? (b.product || 0) / b.population! : 0, 2)}`;
   ensureEl<HTMLInputElement>("burgTreasury").value = String(rn(b.treasury || 0, 2));
   ensureEl<HTMLInputElement>("burgTags").value = Tags.format(b.tags);
 

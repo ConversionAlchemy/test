@@ -211,13 +211,13 @@ function renderDialog(): void {
           ${t("Avg population")}:&nbsp;<span id="burgsFooterPopulation">0</span>
         </div>
         <div data-tip="${t("Average gross product")}" style="margin-left: 12px" data-col="grossproduct">
-          ${t("Avg product")}:&nbsp;<span id="burgsFooterGrossProduct">0</span> 🟡
+          ${t("Avg product")}:&nbsp;<span id="burgsFooterGrossProduct">0</span> §
         </div>
         <div data-tip="${t("Average wealth (product per capita)")}" style="margin-left: 12px" data-col="productpercapita">
-          ${t("Avg wealth")}:&nbsp;<span id="burgsFooterProductPerCapita">0</span> 🟡
+          ${t("Avg wealth")}:&nbsp;<span id="burgsFooterProductPerCapita">0</span> §
         </div>
         <div data-tip="${t("Average treasury")}" style="margin-left: 12px" data-col="treasury">
-          ${t("Avg treasury")}:&nbsp;<span id="burgsFooterTreasury">0</span> 🟡
+          ${t("Avg treasury")}:&nbsp;<span id="burgsFooterTreasury">0</span> §
         </div>
       </div>
       <div id="burgsBottom" class="editorToolbar">
@@ -401,15 +401,15 @@ function renderBurgsPage(view: TableView<Burg>): void {
           <input data-tip="${t("Burg population")}" value=${si(population)} disabled />
         </div>
         <div data-col="grossproduct">
-          <span data-tip="${t("Gross Product: local sale revenue minus purchased ingredient costs during the production.")}">🟡</span>
+          <span data-tip="${t("Gross Product: local sale revenue minus purchased ingredient costs during the production.")}">§</span>
           <input data-tip="${t("Gross Product: local sale revenue minus purchased ingredient costs during the production.")}" value=${grossProduct} disabled />
         </div>
         <div data-col="productpercapita">
-          <span data-tip="${t("Wealth: gross product divided by population")}">🟡</span>
+          <span data-tip="${t("Wealth: gross product divided by population")}">§</span>
           <input data-tip="${t("Wealth: gross product divided by population")}" value=${productPerCapita} disabled />
         </div>
         <div data-col="treasury">
-          <span data-tip="${t("Treasury: accumulated cash balance")}">🟡</span>
+          <span data-tip="${t("Treasury: accumulated cash balance")}">§</span>
           <input data-tip="${t("Treasury: accumulated cash balance")}" value=${treasury} disabled />
         </div>
         <div data-col="features">

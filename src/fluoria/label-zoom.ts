@@ -3,6 +3,8 @@
 import { viewport } from "@/components/viewport";
 import { cellsOfState, stateInk, TINY_FROM, TINY_STATE } from "./owners";
 
+const SMALL_STATE = 8; // cells under which a nation is named by its city once zoomed in
+
 interface Tier {
   min: number; // Azgaar zoom from which the group shows
   max: number;
@@ -187,7 +189,7 @@ function symbolFor(burg: (typeof pack.burgs)[number], regional: Set<number>): st
 
 let declutterTimer = 0;
 
-/** Where labels overlap on screen, the lower rank gives way; port names move to the land side first */
+/** Where labels overlap on screen, the lower rank gives way; settlement names sit under their symbols */
 function declutter(): void {
   const labels = document.querySelectorAll<SVGTextElement>("#labels > g > text");
   const placed: DOMRect[] = [];
@@ -202,8 +204,10 @@ function declutter(): void {
       const ink = stateInk(state);
       for (const part of [text, ...text.querySelectorAll<SVGElement>("textPath, tspan")])
         part.style.setProperty("fill", ink, "important");
-      if (!close && cellsOfState(state) < TINY_STATE) {
-        text.classList.add("flHidden"); // a tiny state's name waits for the zoom
+      // a small nation is mostly its city: its name gives way to the city's once the cities are named
+      const cells = cellsOfState(state);
+      if (cells < SMALL_STATE && (close || cells < TINY_STATE)) {
+        text.classList.add("flHidden");
         continue;
       }
     }
@@ -226,13 +230,8 @@ function declutter(): void {
   }
 }
 
-/** A port's name goes under its symbol when the sea lies above it, so it sits on land */
+/** A settlement's name always sits under its symbol, so a garrison's count can sit above */
 function landSide(text: SVGTextElement): void {
   if (text.dataset.flUnder) return; // a unit card stands on it: the name already sits below the card
-  const burg = pack.burgs[Number(text.dataset.id)];
-  if (!burg?.port) return;
-  const haven = pack.cells.haven?.[burg.cell];
-  if (!haven) return;
-  const seaAbove = pack.cells.p[haven][1] < burg.y;
-  text.style.translate = seaAbove ? "0 1.5em" : "";
+  text.style.translate = "0 1.5em";
 }
