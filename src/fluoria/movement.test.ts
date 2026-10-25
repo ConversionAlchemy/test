@@ -6,6 +6,7 @@ function world(): void {
   const n = 12;
   globalThis.pack = {
     cells: {
+      i: Array.from({ length: n }, (_, i) => i),
       p: Array.from({ length: n }, (_, i) => [i * 30, 0]),
       c: Array.from({ length: n }, (_, i) => [i - 1, i + 1].filter(j => j >= 0 && j < n)),
       h: Array.from({ length: n }, (_, i) => (i < 10 ? 30 : 10)),
