@@ -118,7 +118,7 @@ it("formats a money chart as prices", () => {
       at()
     )
   );
-  expect(chart.textContent).toContain("🟡 12.35");
+  expect(chart.textContent).toContain("§12.35");
 });
 
 it("links a named entity only under a label matching its name", () => {

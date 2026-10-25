@@ -244,7 +244,7 @@ function open(editedGood?: Good, onUpdate?: () => void): void {
           <input id="newGoodTags" class="ge-field" value="${Tags.format(editedGood?.tags)}" placeholder="${t("comma separated")}" />
 
           <label for="newGoodValue">${t("Base Price")}*</label>
-          <span class="ge-inline"><input id="newGoodValue" class="ge-num" type="number" min="0" step="1" value="${editedGood?.value ?? 1}" /> 🟡</span>
+          <span class="ge-inline"><input id="newGoodValue" class="ge-num" type="number" min="0" step="1" value="${editedGood?.value ?? 1}" /> §</span>
 
           <label for="newGoodChance">${t("Chance")}</label>
           <input id="newGoodChance" class="ge-num" type="number" min="0" max="100" step="0.1" value="${editedGood?.chance ?? 1}" />

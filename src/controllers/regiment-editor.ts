@@ -36,6 +36,7 @@ import { canStand, reachable } from "@/fluoria/movement";
 import { openNation } from "@/fluoria/nation-panel";
 import { cellAtPoint, mainCell, neighbours } from "@/fluoria/one-grid";
 import { dimPixelMap } from "@/fluoria/pixel-map-sync";
+import { openSendFunds } from "@/fluoria/send-funds";
 import { GARRISON_SLOTS, garrisonSlots, sizeOf } from "@/fluoria/settlement-size";
 import {
   BUILDING_ORDER,
@@ -49,6 +50,8 @@ import {
   formArmy,
   garrisonOf,
   hasBuilding,
+  isCapital,
+  nationMoney,
   peopleFor,
   peopleOf,
   perSlot,
@@ -56,8 +59,8 @@ import {
   recruit,
   recruitable,
   recruitLimit,
-  sendFunds,
   sendHome,
+  setNationMoney,
   station,
   unitName
 } from "@/fluoria/settlements";
@@ -479,14 +482,10 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
             return `<option value="${g}" ${on ? "selected" : ""}>${label}</option>`;
           })
           .join("")}</select>`;
-  const money = /* html */ `<span class="flGold">§</span><input class="flInline flGold" data-money="own" type="number" value="${Math.floor(burg.treasury ?? 0)}" data-tip="${t("This settlement's treasury")}" />
-    ${
-      capitalOfNation
-        ? `<span class="flFolderSub">${t("Nation")}</span><span class="flGold">§</span><input class="flInline flGold" data-money="nation" type="number" value="${Math.floor(pack.states[state].treasury ?? 0)}" data-tip="${t("The nation's treasury, held here")}" />`
-        : size
-          ? px("funds", "send", t("Send Funds from the nation"))
-          : ""
-    }`;
+  // the capital's money is the nation's treasury: one figure
+  const moneyValue = capitalOfNation ? nationMoney(state) : (burg.treasury ?? 0);
+  const money = /* html */ `<span class="flGold">§</span><input class="flInline flGold" data-money="${capitalOfNation ? "nation" : "own"}" type="number" value="${Math.floor(moneyValue)}" data-tip="${capitalOfNation ? t("The nation's treasury") : t("This settlement's treasury")}" />
+    ${size ? px("funds", "send", t("Send Funds")) : ""}`;
   const buildings = size
     ? BUILDING_ORDER.map(b => {
         const on = hasBuilding(burg, b);
@@ -543,7 +542,7 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
   for (const input of el.querySelectorAll<HTMLInputElement>("[data-money]"))
     input.addEventListener("change", () => {
       const amount = Math.max(0, Math.round(+input.value || 0));
-      if (input.dataset.money === "nation") States.setTreasury(state, amount);
+      if (input.dataset.money === "nation") setNationMoney(state, amount);
       else Burgs.setTreasury(burgId, amount);
       changed();
     });
@@ -733,19 +732,7 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
     return;
   }
   if (act === "funds") {
-    const nation = Math.floor(pack.states[burg.state ?? 0]?.treasury ?? 0);
-    const sum = Number(
-      prompt(
-        t("Send funds to {{name}} (the nation holds §{{amount}})", {
-          name: burg.name,
-          amount: nation.toLocaleString()
-        }),
-        "100"
-      )
-    );
-    if (!sum) return;
-    report(sendFunds(burg, sum));
-    changed();
+    openSendFunds(burg.state ?? 0, isCapital(burg) ? undefined : burg.i, changed);
     return;
   }
   if (act === "locate") {

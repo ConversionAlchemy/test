@@ -21,7 +21,8 @@ import { focusedNation, type Standing, setFocus, standing } from "./nation";
 import { cellCentre } from "./one-grid";
 import { cellsOfState } from "./owners";
 import { NATION_COLOURS } from "./palette";
-import { sendHome } from "./settlements";
+import { openSendFunds } from "./send-funds";
+import { nationMoney, sendHome, setNationMoney } from "./settlements";
 import { integrate, occupiedBy, tidyOccupations } from "./war";
 
 type Tab = "overview" | "economy" | "diplomacy" | "military" | "notes";
@@ -203,7 +204,7 @@ function render(): void {
       ${stat(t("Area"), `${cellsOfState(id)} ${t("cells")}`)}
       ${stat(t("Settlements"), String(burgs.length))}
       ${stat(t("Provinces"), String(provinces.length))}
-      ${stat(t("Treasury"), money(state.treasury || 0), "gold")}
+      ${stat(t("Treasury"), `${money(nationMoney(id))} <button type="button" class="np-send" data-act="send-funds" data-tip="${t("Send Funds")}">→</button>`, "gold")}
       ${stat(t("Military"), `${si(troops)} (${si(power)})`, "wide", "military")}
       ${stat(t("Vassals"), String(vassals(id).length))}
     </div>
@@ -279,7 +280,7 @@ function economy(id: number): string {
   const rules = state.tariffs?.length ?? 0;
   return /* html */ `
     <div class="np-form">
-      <label>${t("Treasury")}<input type="number" step="1" data-field="treasury" value="${Math.round(state.treasury || 0)}" /></label>
+      <label>${t("Treasury")}<input type="number" step="1" data-field="treasury" value="${Math.round(nationMoney(id))}" /></label>
       <label>${t("Sales tax")}<input type="number" min="0" max="1" step="0.01" data-field="salesTax" value="${state.salesTax ?? 0}" /></label>
       <label>${t("Poll tax")}<input type="number" min="0" step="0.01" data-field="pollTax" value="${state.pollTax ?? 0}" /></label>
     </div>
@@ -617,6 +618,9 @@ function onClick(event: MouseEvent): void {
     case "close":
       closeNation();
       return;
+    case "send-funds":
+      openSendFunds(id, undefined, render);
+      return;
     case "minimise":
       minimised = !minimised;
       remember();
@@ -736,7 +740,7 @@ function onChange(event: Event): void {
     States.recolor(id, el.value);
     Layers.draw("states", "borders", "labels");
   }
-  if (field === "treasury") States.setTreasury(id, Number(el.value) || 0);
+  if (field === "treasury") setNationMoney(id, Number(el.value) || 0);
   if (field === "salesTax" || field === "pollTax") {
     const sales = field === "salesTax" ? Number(el.value) : (state.salesTax ?? 0);
     const poll = field === "pollTax" ? Number(el.value) : (state.pollTax ?? 0);

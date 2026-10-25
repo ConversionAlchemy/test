@@ -24,7 +24,7 @@ import {
   setPixelMapSync
 } from "./pixel-map-sync";
 import { collectSeas } from "./sea-names";
-import { garrisonLoners } from "./settlements";
+import { foldCapitalPurses, garrisonLoners } from "./settlements";
 import { applyUnitZoom, nameLabels, snapAll, snapMarkers, stackAll } from "./units";
 import { spreadCrowds } from "./war";
 
@@ -106,6 +106,7 @@ window.addEventListener("map:generated", () => {
   const converted = convertUnitTypes(emoji => Icons.glyph(emoji));
   const split = normalise(raiseBeside);
   const garrisoned = garrisonLoners();
+  foldCapitalPurses();
   const spread = spreadCrowds();
   const emblems = applyFluoriaEmblems();
   void enrichPlainEmblems();

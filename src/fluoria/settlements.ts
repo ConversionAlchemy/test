@@ -102,14 +102,29 @@ function fitBuildings(burg: Burg): void {
     if (hasBuilding(burg, b) && (!size || !BUILDINGS[b].needs?.includes(size))) setBuilding(burg, b, false);
 }
 
-// --- money: a nation's treasury is held at its capital
+// --- money: a capital's money is its nation's treasury; other settlements keep their own
 
-const isCapital = (burg: Burg) => Boolean(burg.capital && pack.states[burg.state ?? 0]?.capital === burg.i);
+export const isCapital = (burg: Burg) => Boolean(burg.capital && pack.states[burg.state ?? 0]?.capital === burg.i);
 
-/** What a settlement can spend: its own treasury, and at the capital the nation's too */
+/** What a settlement can spend; at the capital, the nation's treasury */
 export function funds(burg: Burg): number {
   const own = Math.max(0, burg.treasury ?? 0);
   return isCapital(burg) ? own + Math.max(0, pack.states[burg.state ?? 0]?.treasury ?? 0) : own;
+}
+
+/** A nation's treasury, as one figure: what its capital holds */
+export function nationMoney(stateId: number): number {
+  const state = pack.states[stateId];
+  const capital = state ? pack.burgs[state.capital] : undefined;
+  return capital?.i && !capital.removed ? funds(capital) : Math.max(0, state?.treasury ?? 0);
+}
+
+export function setNationMoney(stateId: number, amount: number): void {
+  const state = pack.states[stateId];
+  if (!state) return;
+  const capital = pack.burgs[state.capital];
+  if (capital?.i) capital.treasury = 0;
+  state.treasury = Math.max(0, Math.round(amount));
 }
 
 function spend(burg: Burg, amount: number): void {
@@ -123,15 +138,39 @@ function spend(burg: Burg, amount: number): void {
   burg.treasury = Math.round(((burg.treasury ?? 0) - left) * 100) / 100;
 }
 
+function receive(burg: Burg, amount: number): void {
+  const state = pack.states[burg.state ?? 0];
+  if (isCapital(burg) && state) state.treasury = (state.treasury ?? 0) + amount;
+  else burg.treasury = (burg.treasury ?? 0) + amount;
+}
+
+/** Money from one settlement to another; to a capital it joins that nation's treasury */
+export function transfer(from: Burg, to: Burg, amount: number): string {
+  const sum = Math.round(amount);
+  if (!sum || sum < 1) return "Enter an amount";
+  if (from.i === to.i) return "Choose another settlement";
+  if (funds(from) < sum) return "Not enough funds";
+  spend(from, sum);
+  receive(to, sum);
+  return "";
+}
+
 /** Move money from the nation's treasury to a settlement */
 export function sendFunds(burg: Burg, amount: number): string {
-  const state = pack.states[burg.state ?? 0];
-  const sum = Math.round(amount);
-  if (!state || sum <= 0) return "Enter an amount";
-  if ((state.treasury ?? 0) < sum) return `The nation holds §${Math.floor(state.treasury ?? 0)}`;
-  state.treasury -= sum;
-  burg.treasury = (burg.treasury ?? 0) + sum;
-  return "";
+  const capital = pack.burgs[pack.states[burg.state ?? 0]?.capital ?? 0];
+  if (!capital?.i) return "The nation has no capital";
+  return transfer(capital, burg, amount);
+}
+
+/** Once on load: a capital's own purse joins its nation's treasury, so there is one figure */
+export function foldCapitalPurses(): void {
+  for (const state of pack.states) {
+    if (!state.i || state.removed) continue;
+    const capital = pack.burgs[state.capital];
+    if (!capital?.i || !capital.treasury) continue;
+    state.treasury = (state.treasury ?? 0) + capital.treasury;
+    capital.treasury = 0;
+  }
 }
 
 // --- people

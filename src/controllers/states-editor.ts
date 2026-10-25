@@ -509,7 +509,7 @@ function renderStatesPage(view: TableView<State>): void {
         <span data-tip="${populationTip}" class="icon-male"></span>
         <div data-tip="${populationTip}" class="statePopulation pointer">${si(population)}</div>
       </div>
-      <div data-tip="${treasuryTip}" class="stateTreasury pointer" data-col="treasury">🟡 ${si(s.treasury)}</div>
+      <div data-tip="${treasuryTip}" class="stateTreasury pointer" data-col="treasury">§${si(s.treasury)}</div>
       <select data-tip="${sentences(t("State type"), t("Defines growth model"), t("Click to change"))}" class="cultureType" data-col="type">${getTypeOptions(
         s.type
       )}</select>

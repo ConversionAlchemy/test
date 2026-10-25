@@ -284,7 +284,7 @@ export function nameLabels(): void {
     if (!unitCells.has(mainCell(burg.cell))) {
       if (label.dataset.flUnder) {
         delete label.dataset.flUnder;
-        label.style.translate = "";
+        label.style.translate = "0 1.5em"; // back under its symbol
       }
       continue;
     }

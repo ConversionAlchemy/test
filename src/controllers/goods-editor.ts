@@ -244,7 +244,7 @@ function renderGoodsPage(view: TableView<Good>) {
           <div style="display: inline-block; width: 3em">${percentage ? `${rn(totalStock ? (stock / totalStock) * 100 : 0, 2)}%` : stock}</div>
           <div style="display: inline-block; width: 0.4em; font-size: 1.2em;">⛁</div>
         </div>
-        <div data-col="price" data-tip="${sentences(t("Base (initial) price"), t("Click to compare prices across markets"))}" class="goodBasePrice pointer">🟡 ${good.value}</div>
+        <div data-col="price" data-tip="${sentences(t("Base (initial) price"), t("Click to compare prices across markets"))}" class="goodBasePrice pointer">§${good.value}</div>
         ${noteIcon(t("Edit free text notes (legend)"))}
         <span data-col="edit" data-tip="${t("Edit good")}" class="icon-pencil goodEdit"></span>
         <span data-col="remove" data-tip="${t("Remove")}" class="icon-trash-empty goodRemove"></span>
