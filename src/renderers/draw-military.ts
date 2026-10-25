@@ -11,18 +11,8 @@ import {
   troopsOf
 } from "@/fluoria/forces/forces";
 import { KIT } from "@/fluoria/forces/kit";
-import {
-  CARD,
-  type CardFace,
-  type CardSize,
-  cardUrl,
-  frameUrl,
-  STRIP,
-  settlementCardUrl,
-  short,
-  tabUrl
-} from "@/fluoria/forces/pixels";
-import { GARRISON_SLOTS, sizeOf } from "@/fluoria/settlement-size";
+import { CARD, type CardFace, type CardSize, cardUrl, frameUrl, STRIP, short, tabUrl } from "@/fluoria/forces/pixels";
+import { sizeOf } from "@/fluoria/settlement-size";
 import { garrisonOf } from "@/fluoria/settlements";
 import type { Regiment } from "../generators/military-generator";
 import { rn } from "../utils";
@@ -201,7 +191,7 @@ export const moveRegiment = (regiment: Regiment, x: number, y: number): void => 
     .tween("move", () => (t: number) => placeRegiment(el, fromX + (x - fromX) * t, fromY + (y - fromY) * t));
 };
 
-/** Towns, cities and capitals carry a pale card of their garrison; it stays put, a click opens the settlement */
+/** Close in, a settlement with troops shows their count above its symbol; hover lists them, a click opens it */
 export function drawSettlements(armies = document.getElementById("armies")): void {
   if (!armies) return;
   let layer = armies.querySelector<SVGGElement>(":scope > g#flSettlements");
@@ -211,28 +201,27 @@ export function drawSettlements(armies = document.getElementById("armies")): voi
   }
   armies.prepend(layer); // units stand above settlements
   layer.replaceChildren();
+  const h = size();
   for (const burg of pack.burgs ?? []) {
-    if (!burg?.i || burg.removed || !burg.state) continue;
-    const kind = sizeOf(burg);
-    if (!kind) continue;
+    if (!burg?.i || burg.removed || !burg.state || !sizeOf(burg)) continue;
     const garrison = garrisonOf(burg);
     const troops = garrison ? troopsOf(garrison) : 0;
-    const used = garrison ? slotsOf(garrison.u) : 0;
-    const cap = GARRISON_SLOTS[kind];
+    if (!troops) continue;
     const g = document.createElementNS(SVG, "g");
     g.dataset.burg = String(burg.i);
-    g.dataset.kind = kind;
-    if (!troops) g.dataset.empty = "1";
     g.classList.add("flSettle");
-    for (const stage of ["far", "close"] as CardSize[]) {
-      const image = add(g, "image", stage === "far" ? "flFar" : "flClose");
-      image.setAttribute("href", settlementCardUrl(colourOf(burg.state), stage, kind, troops, used, cap));
-      image.setAttribute("preserveAspectRatio", "none");
-    }
-    const sum = add(g, "text", "flTotal");
-    sum.setAttribute("text-anchor", "middle");
-    sum.textContent = troops ? short(troops) : "";
-    placeRegiment(g, burg.x, burg.y);
+    const count = add(g, "text", "flCount");
+    count.setAttribute("text-anchor", "middle");
+    count.setAttribute("x", String(rn(burg.x, 2)));
+    count.setAttribute("y", String(rn(burg.y - h * 0.3, 2)));
+    count.setAttribute("font-size", `${rn(h * 0.42, 2)}px`);
+    count.setAttribute("fill", tintOf(colourOf(burg.state)));
+    count.textContent = short(troops);
+    g.setAttribute("transform-origin", `${burg.x}px ${burg.y}px`);
     layer.append(g);
   }
 }
+
+/** The nation's colour lifted toward white, so a count reads on any ground */
+const tintOf = (hex: string) =>
+  `rgb(${[1, 3, 5].map(k => Math.round(Number.parseInt(hex.slice(k, k + 2), 16) * 0.35 + 255 * 0.65)).join(",")})`;

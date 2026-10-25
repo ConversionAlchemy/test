@@ -1237,5 +1237,6 @@ body[data-fl-view="military"] :is(#labels, #routes) { pointer-events: none; }
 .flRecruitLine { display: flex; gap: 4px; }
 .flRecruitCount { flex: 1; }
 #armies .flSettle { cursor: pointer; }
-/* far out, an empty town keeps just its symbol */
-#armies[data-fl-stage="far"] .flSettle[data-kind="town"][data-empty] { display: none; }
+/* a garrison's count above its settlement, close in only */
+#armies[data-fl-stage="far"] #flSettlements { display: none; }
+#flSettlements .flCount { font-family: "VT323", monospace; text-shadow: 0.06em 0.06em 0 #000000; }

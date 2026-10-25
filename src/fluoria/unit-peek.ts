@@ -31,7 +31,7 @@ export const regimentGroup = (r: Regiment): PeekGroup => ({
 });
 
 /** Show the contents beside an element */
-export function peek(anchor: Element, groups: PeekGroup[]): void {
+export function peek(anchor: Element, groups: PeekGroup[], withTotal = true): void {
   const list = groups.filter(g => present(g.units).length);
   if (!list.length) {
     hidePeek();
@@ -53,7 +53,8 @@ export function peek(anchor: Element, groups: PeekGroup[]): void {
       return `${list.length > 1 ? `<div class="flPeekTitle">${escapeHtml(g.title)}</div>` : ""}${lines}`;
     })
     .join("");
-  box.insertAdjacentHTML("beforeend", `<div class="flPeekTotal"><span>Total</span><b>${short(total)}</b></div>`);
+  if (withTotal)
+    box.insertAdjacentHTML("beforeend", `<div class="flPeekTotal"><span>Total</span><b>${short(total)}</b></div>`);
   const r = anchor.getBoundingClientRect();
   const width = box.offsetWidth;
   const left = r.right + 8 + width > window.innerWidth ? r.left - 8 - width : r.right + 8;
