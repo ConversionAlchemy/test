@@ -3,8 +3,9 @@
 import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
 import { cargo, carry, land, landingCells, load } from "./boarding";
-import { canStand, LANE_CELLS, laneTest, reachable, SEA_CELLS } from "./movement";
+import { canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
 import { dimPixelMap } from "./pixel-map-sync";
+import { laneSteps } from "./road-geometry";
 import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
 
 let range: Map<number, number> | null = null; // packed cells for armies, sea grid cells for fleets
@@ -85,7 +86,7 @@ export function selectRegiment(regiment: Regiment): void {
   rangeOf = regiment;
   if (regiment.n) {
     const start = seaCellAt(regiment.x, regiment.y);
-    range = start === undefined ? new Map() : seaReach(start, laneTest(), SEA_CELLS, LANE_CELLS);
+    range = start === undefined ? new Map() : seaReach(start, laneSteps(), SEA_CELLS, LANE_CELLS);
     dimPixelMap(new Set(range.keys()), "sea");
     return;
   }

@@ -27,17 +27,9 @@ export function seaCellAt(x: number, y: number): number | undefined {
   return best;
 }
 
-/** Every sea cell a fleet reaches this move: 6 cells across open sea, 10 along a sea lane */
-export function seaReach(
-  start: number,
-  onLaneAt: (x: number, y: number) => boolean,
-  open: number,
-  lane: number
-): Map<number, number> {
-  const { cells, points } = grid;
-  const onLane = (g: number) => onLaneAt(points[g][0], points[g][1]);
-  const laneOf = new Map<number, boolean>();
-  const isLane = (g: number) => laneOf.get(g) ?? laneOf.set(g, onLane(g)).get(g) ?? false;
+/** Every sea cell a fleet reaches this move: 6 cells across open sea, 10 along the steps of a sea lane */
+export function seaReach(start: number, lanes: ReadonlySet<string>, open: number, lane: number): Map<number, number> {
+  const { cells } = grid;
   const best = new Map<number, number>([[start, 0]]);
   const queue: [number, number][] = [[0, start]];
   while (queue.length) {
@@ -49,7 +41,7 @@ export function seaReach(
     if (cost > (best.get(cell) ?? Infinity)) continue;
     for (const next of cells.c[cell]) {
       if (!seaUsable(next)) continue;
-      const total = cost + 1 / (isLane(cell) && isLane(next) ? lane : open);
+      const total = cost + 1 / (lanes.has(`${cell}-${next}`) ? lane : open); // only steps along the lane itself
       if (total > 1 + 1e-9 || total >= (best.get(next) ?? Infinity)) continue;
       best.set(next, total);
       queue.push([total, next]);
