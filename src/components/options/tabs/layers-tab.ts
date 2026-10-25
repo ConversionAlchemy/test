@@ -37,6 +37,7 @@ export const getLayerByShortcut = (code: string): LayerId | undefined =>
 // labels and settlements show by zoom, the landscape layers are always on, and decorative layers are off
 const VIEW_BUTTONS: [ViewName, string][] = [
   ["terrain", t("Terrain")],
+  ["military", t("Military")],
   ["political", t("Political")]
 ];
 const MORE_VIEWS: [ViewName, string][] = [
@@ -121,7 +122,7 @@ function settleLayers(): void {
   if (on.length) Layers.show(...on);
   if (off.length) Layers.hide(...off);
   // the atlas look: a coordinate grid over every view but terrain
-  const grid = getMapView() !== "terrain";
+  const grid = getMapView() !== "terrain" && getMapView() !== "military";
   document.body.classList.toggle("fl-atlas", grid);
   if (!Layers.has("coordinates") || Layers.isOn("coordinates") === grid) return;
   if (grid) Layers.show("coordinates");

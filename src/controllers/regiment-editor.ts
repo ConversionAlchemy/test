@@ -10,12 +10,10 @@ import { Controllers } from "@/controllers";
 import { canLoad, landingCells, load } from "@/fluoria/boarding";
 import { addSlot, disband, encampRefusal, merge, regimentOf, setRow, splitOff } from "@/fluoria/forces/army";
 import {
-  cardPower,
   cargoSlots,
   domainOf,
   domainOfUnit,
   encamp,
-  isGroup,
   isTransport,
   kitOf,
   type List,
@@ -25,7 +23,6 @@ import {
   rows,
   shift,
   slotsOf,
-  strength,
   troopsOf
 } from "@/fluoria/forces/forces";
 import { KIT } from "@/fluoria/forces/kit";
@@ -36,15 +33,18 @@ import { dimPixelMap } from "@/fluoria/pixel-map-sync";
 import {
   chooseLanding,
   clearSelection,
+  closeStack,
   dragOver,
   dropAt,
+  isOpen,
   moved,
   selectRegiment,
   stackAll,
-  stackOf
+  stackOf,
+  toggleStack
 } from "@/fluoria/units";
 import { hasRoom } from "@/fluoria/war";
-import { placeRegiment } from "@/renderers/draw-military";
+import { faceOf, placeRegiment } from "@/renderers/draw-military";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
 import type { Regiment } from "../generators/military-generator";
@@ -72,91 +72,40 @@ const colourOf = (state: number) => {
   return colour && colour[0] === "#" && colour.length >= 7 ? colour.slice(0, 7) : "#999999";
 };
 
-function editRegiment(selector: string): void {
+/** Double-click: the regiment's folder, replacing any open one; with Shift, beside it */
+function editRegiment(selector: string, beside = false): void {
   if (customization) return;
   Layers.show("military");
   const regiment = regimentFrom(document.querySelector(selector));
   if (!regiment) return;
   bindRegiments();
-  if (stackOf(regiment).length > 1) openCell(regiment);
-  openFolder(regiment);
+  openFolder(regiment, beside);
   pick(regiment);
 }
 
-// --- a cell's folder: every unit standing there, one row each
-
-let cellFolder: { el: HTMLElement; cell: number } | null = null;
-
-function openCell(regiment: Regiment): void {
-  const cell = mainCell(regiment.cell);
-  if (!cellFolder) {
-    const el = document.createElement("div");
-    el.id = "flCellFolder";
-    el.className = "dialog flFolder";
-    ensureEl("dialogs").append(el);
-    cellFolder = { el, cell };
-    $(el).dialog({
-      title: t("Units in this cell"),
-      resizable: false,
-      width: "20em",
-      position: { my: "left top", at: "left+10 top+10", of: "#map" },
-      close: () => {
-        if (!cellFolder) return;
-        $(cellFolder.el).dialog("destroy");
-        cellFolder.el.remove();
-        cellFolder = null;
-      }
-    });
+/** A single click: a shared cell opens into a row of cards; a card is picked, with Shift added to the choice */
+function clickRegiment(selector: string, shift = false): void {
+  if (customization) return;
+  const regiment = regimentFrom(document.querySelector(selector));
+  if (!regiment) return;
+  bindRegiments();
+  if (mode) return; // the mode's own click handles it
+  if (stackOf(regiment).length > 1 && !isOpen(regiment)) {
+    toggleStack(regiment);
+    bindRegiments();
   }
-  cellFolder.cell = cell;
-  renderCell();
+  if (shift) elementOf(regiment)?.classList.toggle("fl-chosen");
+  else pick(regiment);
 }
 
-function renderCell(): void {
-  if (!cellFolder) return;
-  const { el, cell } = cellFolder;
-  const here = pack.states
-    .flatMap(s => (s.i && !s.removed ? (s.military ?? []) : []))
-    .filter(r => !r.hidden && mainCell(r.cell) === cell)
-    .sort((a, b) => cardPower(b) - cardPower(a));
-  if (here.length < 2) {
-    $(el).dialog("close");
-    return;
-  }
-  el.innerHTML = `<div class="flSlots">${here
-    .map(r => {
-      const lead = kitOf(rows(isTransport(r) ? r.u : r.u)[0]?.unit ?? "") ?? KIT[0];
-      return `<div class="flSlot flUnit" draggable="true" data-state="${r.state}" data-id="${r.i}">
-        <img src="${iconUrl(lead, colourOf(r.state))}" alt="" /><span class="flSlotName">${escapeHtml(r.name)}</span>
-        <span class="flSlotCount">${short(troopsOf(r))} · ${Math.round(strength(r) * 100)}%</span></div>`;
-    })
-    .join("")}</div>`;
-  for (const row of el.querySelectorAll<HTMLElement>(".flUnit")) {
-    const r = regimentOf(+row.dataset.state!, +row.dataset.id!);
-    if (!r) continue;
-    row.addEventListener("click", () => {
-      openFolder(r);
-      pick(r);
-    });
-    row.addEventListener("dragstart", event => {
-      unitCarried = r;
-      event.dataTransfer?.setData("text/plain", r.name);
-    });
-    row.addEventListener("dragend", () => {
-      unitCarried = null;
-    });
-    row.addEventListener("dragover", event => {
-      if (unitCarried && unitCarried !== r) event.preventDefault();
-    });
-    row.addEventListener("drop", event => {
-      event.preventDefault();
-      if (unitCarried && unitCarried !== r) joinOnMap(unitCarried, r);
-      unitCarried = null;
-    });
-  }
+/** Clicking empty ground, or Escape: folders shut, the row folds back, nothing picked */
+function clearAll(): void {
+  for (const key of [...folders.keys()]) closeFolder(key);
+  closeStack();
+  for (const el of document.querySelectorAll("#armies .fl-chosen")) el.classList.remove("fl-chosen");
+  setMode(null);
+  pick(null);
 }
-
-let unitCarried: Regiment | null = null;
 
 /** The regiment whose reach the map shows; the rest of the units step back */
 function pick(regiment: Regiment | null): void {
@@ -172,16 +121,28 @@ function pick(regiment: Regiment | null): void {
   selectRegiment(regiment);
 }
 
+/** Every regiment can be dragged at any time; a double-click on one opens its folder */
 function bindRegiments(): void {
   const armies = select<SVGGElement, unknown>("#armies");
   armies.selectAll(":scope > g").classed("draggable", true);
   armies.selectAll<SVGGElement, unknown>(":scope > g > g").call(drag<SVGGElement, unknown>().on("start", dragRegiment));
+  const node = armies.node();
+  if (node && !node.dataset.flDouble) {
+    node.dataset.flDouble = "1";
+    node.addEventListener("dblclick", event => {
+      const g = (event.target as Element).closest<SVGGElement>("#armies > g > g");
+      if (!g?.dataset.state) return;
+      event.stopPropagation(); // not the map's double-click zoom
+      editRegiment(`#${g.id}`, event.shiftKey);
+    });
+  }
 }
 
 // --- the folder
 
-function openFolder(regiment: Regiment): void {
+function openFolder(regiment: Regiment, beside = false): void {
   const key = keyOf(regiment);
+  if (!beside) for (const other of [...folders.keys()]) if (other !== key) closeFolder(other, false);
   const existing = folders.get(key);
   if (existing) {
     render(existing, regiment);
@@ -194,7 +155,7 @@ function openFolder(regiment: Regiment): void {
   ensureEl("dialogs").append(el);
   folders.set(key, el);
   render(el, regiment);
-  const previous = [...folders.values()].at(-2) ?? cellFolder?.el;
+  const previous = [...folders.values()].at(-2);
   $(el).dialog({
     title: regiment.name,
     resizable: false,
@@ -210,27 +171,14 @@ function openFolder(regiment: Regiment): void {
   });
 }
 
-function closeFolder(key: string): void {
+function closeFolder(key: string, letGo = true): void {
   const el = folders.get(key);
   folders.delete(key);
   if (el) {
     $(el).dialog("destroy");
     el.remove();
   }
-  if (picked && keyOf(picked) === key) {
-    const next = [...folders.keys()].map(k => regimentOf(...(k.split("-").map(Number) as [number, number])));
-    pick(next.find(Boolean) ?? null);
-  }
-  if (!folders.size) unbind();
-}
-
-function unbind(): void {
-  setMode(null);
-  pick(null);
-  select<SVGGElement, unknown>("#debug").selectAll("*").remove();
-  const armies = select<SVGGElement, unknown>("#armies");
-  armies.selectAll(":scope > g").classed("draggable", false);
-  armies.selectAll<SVGGElement, unknown>("g>g").on(".drag", null);
+  if (letGo && !folders.size) pick(null);
 }
 
 const slotRow = (list: List, unit: string, count: number, state: number) => {
@@ -243,16 +191,8 @@ const emptyRow = (list: List) => `<div class="flSlot flEmpty" data-list="${list}
 
 function render(el: HTMLElement, regiment: Regiment): void {
   const transport = isTransport(regiment);
-  const kit = kitOf(rows(regiment.u)[0]?.unit ?? "") ?? KIT[0];
-  const face = {
-    unit: kitOf(transport ? Object.keys(regiment.u)[0] : (rows(regiment.u)[0]?.unit ?? "")) ?? kit,
-    colour: colourOf(regiment.state),
-    power: cardPower(regiment),
-    troops: transport ? troopsOf({ u: regiment.cargo ?? {} }) : troopsOf(regiment),
-    slots: transport ? slotsOf(regiment.cargo) : slotsOf(regiment.u),
-    strength: strength(regiment)
-  };
-  const art = isGroup(regiment) ? cardUrl(face) : iconUrl(face.unit, face.colour);
+  const face = faceOf(regiment);
+  const art = cardUrl(faceOf(regiment), "close");
   const list: List = transport ? "cargo" : "u";
   const items = rows(transport ? regiment.cargo : regiment.u);
   const cap = transport ? cargoSlots(regiment) : MAX_SLOTS;
@@ -287,8 +227,9 @@ function render(el: HTMLElement, regiment: Regiment): void {
   for (const button of el.querySelectorAll<HTMLButtonElement>(".flFolderBottom button[data-act]"))
     button.classList.toggle("pressed", button.dataset.act === mode && picked === regiment);
   el.querySelector<HTMLInputElement>(".flFolderName")!.addEventListener("change", function () {
-    if (!this.value.trim()) return;
-    Military.rename(regiment.state, regiment.i, this.value);
+    if (!this.value.trim())
+      regiment.named = false; // back to its base name
+    else Military.rename(regiment.state, regiment.i, this.value);
     $(el).dialog("option", "title", regiment.name);
     changed();
   });
@@ -416,7 +357,7 @@ function dropCells(from: Regiment, list: List, unit: string, count: number): num
   const slots = slotsOf({ [unit]: count });
   const at = mainCell(from.cell);
   const cells = list === "cargo" ? landingCells(from) : [at, ...neighbours(at)].filter(cell => canStand(from, cell));
-  return cells.filter(cell => (list === "u" && cell === at) || hasRoom(from.state, cell, slots));
+  return cells.filter(cell => hasRoom(from.state, cell, list === "u" && cell === at ? 0 : slots));
 }
 
 function mapPoint(x: number, y: number): [number, number] | null {
@@ -609,7 +550,7 @@ function joinOnMap(self: Regiment, target: Regiment): void {
     report(t("Out of reach this move"));
     return;
   }
-  if (!same && !hasRoom(self.state, target.cell, slotsOf(self.u), self)) {
+  if (!same && !hasRoom(self.state, target.cell, slotsOf(self.u), self, 0)) {
     report(t("That cell is full: 12 slots"));
     return;
   }
@@ -704,7 +645,6 @@ function changed(): void {
     if (!r) closeFolder(key);
     else render(el, r);
   }
-  renderCell();
   if (picked && !regimentOf(picked.state, picked.i)) pick(null);
   else pick(picked);
   refreshEditors();
@@ -712,4 +652,14 @@ function changed(): void {
 
 watchMap();
 
-export const RegimentEditor = { open: editRegiment };
+export const RegimentEditor = { open: editRegiment, click: clickRegiment, bind: bindRegiments, clear: clearAll };
+
+window.addEventListener("fl:clear", clearAll);
+// captured: the hotkeys handler stops keyup at the document
+document.addEventListener(
+  "keyup",
+  event => {
+    if (event.key === "Escape" && !(event.target as HTMLElement)?.closest?.("input, textarea, select")) clearAll();
+  },
+  true
+);

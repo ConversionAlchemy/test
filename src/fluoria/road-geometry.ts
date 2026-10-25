@@ -12,6 +12,21 @@ export function nodePoint(cell: number): Point {
   return cellCentre(at);
 }
 
+const hasBurg = (cell: number) => {
+  const burg = pack.cells.burg[mainCell(cell)];
+  return Boolean(burg && pack.burgs[burg] && !pack.burgs[burg].removed);
+};
+
+/** A road ends at a settlement: a one-cell stub running on past the last settlement is dropped */
+function trimToSettlements(cells: number[]): number[] {
+  if (!cells.some(hasBurg)) return cells;
+  let a = 0;
+  let b = cells.length - 1;
+  if (!hasBurg(cells[a]) && hasBurg(cells[a + 1])) a++;
+  if (!hasBurg(cells[b]) && hasBurg(cells[b - 1])) b--;
+  return cells.slice(a, b + 1);
+}
+
 /** A route's cells in order, without repeats */
 export function routeCells(route: (typeof pack.routes)[number]): number[] {
   const out: number[] = [];
@@ -25,14 +40,15 @@ export function routeCells(route: (typeof pack.routes)[number]): number[] {
 }
 
 /** Straight node-to-node lines with each corner cut a little, so roads read as roads, not zigzags */
-export function roundedLine(nodes: Point[], cut = 0.22): Point[] {
+export function roundedLine(nodes: Point[], cut = 0.22, keep: (k: number) => boolean = () => false): Point[] {
   if (nodes.length < 3) return nodes;
   const out: Point[] = [nodes[0]];
   for (let k = 1; k < nodes.length - 1; k++) {
     const [px, py] = nodes[k - 1];
     const [x, y] = nodes[k];
     const [nx, ny] = nodes[k + 1];
-    out.push([x + (px - x) * cut, y + (py - y) * cut], [x + (nx - x) * cut, y + (ny - y) * cut]);
+    if (keep(k)) out.push([x, y]);
+    else out.push([x + (px - x) * cut, y + (py - y) * cut], [x + (nx - x) * cut, y + (ny - y) * cut]);
   }
   out.push(nodes[nodes.length - 1]);
   return out;
@@ -50,17 +66,20 @@ export interface RoadLine {
  * does to land cells. Gaps between its points are bridged across water
  */
 export function seaLaneCells(route: (typeof pack.routes)[number]): number[] {
-  const usable = (g: number) => grid.cells.h[g] < 20;
-  const out: number[] = [];
-  for (const point of route.points ?? []) {
+  // open ocean only: water not touching land; the ends may sit in a port's coastal water
+  const open = (g: number) => grid.cells.h[g] < 20 && (grid.cells.t?.[g] ?? -2) <= -2;
+  const points = route.points ?? [];
+  const stops: number[] = [];
+  points.forEach((point, k) => {
     const g = Grid.findCell(point[0], point[1]);
-    const last = out.at(-1);
-    if (g === last) continue;
-    if (last === undefined || grid.cells.c[last].includes(g)) {
-      out.push(g);
-      continue;
-    }
-    out.push(...seaPath(last, g, usable).slice(1));
+    if (stops.at(-1) === g) return;
+    if (k === 0 || k === points.length - 1 || open(g)) stops.push(g);
+  });
+  const out: number[] = stops.slice(0, 1);
+  for (let k = 1; k < stops.length; k++) {
+    const [a, b] = [stops[k - 1], stops[k]];
+    const near = new Set([...grid.cells.c[a], ...grid.cells.c[b]].filter(g => grid.cells.h[g] < 20));
+    out.push(...seaPath(a, b, g => open(g) || near.has(g)).slice(1));
   }
   return out;
 }
@@ -68,7 +87,7 @@ export function seaLaneCells(route: (typeof pack.routes)[number]): number[] {
 function seaPath(from: number, to: number, usable: (g: number) => boolean): number[] {
   const previous = new Map<number, number>([[from, from]]);
   let frontier = [from];
-  for (let step = 0; step < 30 && frontier.length && !previous.has(to); step++) {
+  for (let step = 0; step < 80 && frontier.length && !previous.has(to); step++) {
     const next: number[] = [];
     for (const g of frontier)
       for (const n of grid.cells.c[g]) {
@@ -116,9 +135,10 @@ export function roadLines(): RoadLine[] {
       out.push({ id: route.i, group: route.group, cells: lane, line: roundedLine(nodes) });
       continue;
     }
-    const cells = foldCells(routeCells(route));
+    const cells = trimToSettlements(foldCells(routeCells(route)));
     if (cells.length < 2) continue;
-    out.push({ id: route.i, group: route.group, cells, line: roundedLine(cells.map(nodePoint)) });
+    const line = roundedLine(cells.map(nodePoint), 0.22, k => hasBurg(cells[k]));
+    out.push({ id: route.i, group: route.group, cells, line });
   }
   return out;
 }

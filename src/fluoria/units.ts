@@ -2,8 +2,9 @@
 // selected one dims everything it can't reach in one move. A drag ends on a reachable cell or not at all
 import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
+import { paintRegiment, stripColour } from "@/renderers/draw-military";
 import { landingCells, unload } from "./boarding";
-import { cardPower, slotsOf } from "./forces/forces";
+import { cardPower, rows, slotsOf, troopsOf } from "./forces/forces";
 import { canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
 import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./one-grid";
 import { dimPixelMap } from "./pixel-map-sync";
@@ -34,16 +35,15 @@ const standAt = (
   return cell === undefined ? null : { cell, packCell: cell, point: cellCentre(cell) };
 };
 
-// on-screen size by zoom: a silhouette far out, the icon from 1.5, the card from 4.5
+// on-screen card size by zoom: the far card (23×23) out to 3, then the close card (29×29), growing a little
 const STAGES = [
-  [0, 10, "far"],
-  [1.5, 22, "mid"],
-  [4.5, 60, "close"],
-  [8, 72, "close"]
+  [0, 18, "far"],
+  [1.5, 23, "far"],
+  [3, 44, "close"],
+  [6, 52, "close"],
+  [10, 58, "close"]
 ] as const;
 let unitScale = 1;
-let zoom = 1;
-let stageNow = "far";
 
 /** Scale every regiment around its own point so its on-screen size follows the zoom stage, not the map zoom */
 export function applyUnitZoom(scale: number): void {
@@ -53,15 +53,11 @@ export function applyUnitZoom(scale: number): void {
   for (const [from, size, name] of STAGES) if (scale >= from) [px, stage] = [size, name];
   const box = styles.military.options.boxSize * 2; // art size in map units
   unitScale = Math.max(0.02, px / (box * scale));
-  zoom = scale;
-  stageNow = stage;
   armies.style.setProperty("--fl-unit", String(unitScale));
   armies.dataset.flStage = stage;
   armies.dataset.flNames = stage === "close" ? "1" : "0";
-  for (const stack of stacks) layStack(stack); // only the offsets of shared cells change with size
+  for (const stack of stacks) layStack(stack); // only an open stack's offsets change with size
 }
-
-let stacks: Regiment[][] = [];
 
 /** Markers stand at their cell's centre, or on the settlement in it */
 export function snapMarkers(): boolean {
@@ -159,7 +155,10 @@ export const selected = (): Regiment | null => rangeOf;
 /** Pick a land cell beside a transport for its cargo: the cells light up, a click lands them, Escape cancels */
 export function chooseLanding(transport: Regiment, done: () => void): void {
   const aboard = slotsOf(transport.cargo);
-  const targets = new Set(landingCells(transport).filter(cell => hasRoom(transport.state, cell, aboard)));
+  const units = rows(transport.cargo).length;
+  const targets = new Set(
+    landingCells(transport).filter(cell => hasRoom(transport.state, cell, aboard, undefined, units))
+  );
   if (!targets.size) return;
   if (targets.size === 1) {
     unload(transport, [...targets][0]);
@@ -225,12 +224,13 @@ function outline(cell: number | null, sea = false): void {
     .attr("pointer-events", "none");
 }
 
-// --- stacks: units sharing a cell sit as a deck, the strongest in front; close in they fan out sideways
+// --- stacks: units sharing a cell show as one card, the strongest, with a strip on top for each one behind and
+// the cell's total below; a tab beside it opens the cell into a row of cards, the stack darkened
 
-const STRIP = 4; // screen pixels of each card behind that show above the one in front
-const FAN = 0.5; // close in: each card's step across, of its width
+let stacks: Regiment[][] = [];
+let openCell: number | null = null;
 
-/** Lay out every shared cell as a deck */
+/** Lay out every shared cell as a stack */
 export function stackAll(): void {
   const armies = document.getElementById("armies");
   if (!armies) return;
@@ -247,27 +247,76 @@ export function stackAll(): void {
   }
   stacks = [...byCell.values()].filter(stack => stack.length > 1);
   for (const stack of stacks) stack.sort((a, b) => cardPower(b) - cardPower(a));
-  for (const stack of byCell.values()) layStack(stack);
+  if (openCell !== null && !stacks.some(stack => mainCell(stack[0].cell) === openCell)) openCell = null;
+  document.getElementById("flGhost")?.remove();
+  for (const stack of stacks) layStack(stack);
 }
 
 /** Regiments sharing a regiment's cell, itself included, strongest first */
 export const stackOf = (regiment: Regiment): Regiment[] => stacks.find(stack => stack.includes(regiment)) ?? [regiment];
 
+export const isOpen = (regiment: Regiment) => openCell === mainCell(regiment.cell);
+
+/** Open a shared cell into a row of cards, or close it */
+export function toggleStack(regiment: Regiment): void {
+  const cell = mainCell(regiment.cell);
+  openCell = openCell === cell ? null : cell;
+  stackAll();
+}
+
+export function closeStack(): void {
+  if (openCell === null) return;
+  openCell = null;
+  stackAll();
+}
+
 const elementOf = (regiment: Regiment) =>
   document.getElementById(`regiment${regiment.state}-${regiment.i}`) as SVGGElement | null;
 
 function layStack(stack: Regiment[]): void {
-  const size = styles.military.options.boxSize * 2 * unitScale;
-  const n = stack.length;
-  // drawn back to front, so the strongest ends up in front
-  for (let k = n - 1; k >= 0; k--) {
-    const element = elementOf(stack[k]);
-    if (!element) continue;
-    if (n > 1) element.parentNode?.append(element);
-    let dx = 0;
-    let dy = 0;
-    if (stageNow === "close") dx = (k - (n - 1) / 2) * size * FAN;
-    else if (stageNow === "mid") dy = (-k * STRIP) / zoom;
-    element.style.translate = dx || dy ? `${dx}px ${dy}px` : "";
+  const [front, ...behind] = stack;
+  const open = openCell === mainCell(front.cell);
+  const total = stack.reduce((sum, r) => sum + troopsOf(r), 0);
+  const frontEl = elementOf(front);
+  if (!frontEl) return;
+  // drawn back to front, so the front card is on top
+  for (const r of [...behind].reverse()) {
+    const el = elementOf(r);
+    if (el) frontEl.parentNode === el.parentNode ? frontEl.before(el) : el.parentNode?.append(el);
   }
+  frontEl.parentNode?.append(frontEl);
+  const size = styles.military.options.boxSize * 2 * unitScale;
+  if (!open) {
+    paintRegiment(frontEl, front, behind.map(stripColour), total);
+    frontEl.classList.remove("fl-row");
+    frontEl.style.translate = "";
+    for (const r of behind) {
+      const el = elementOf(r);
+      if (!el) continue;
+      el.classList.add("fl-behind");
+      el.classList.remove("fl-row");
+      el.style.translate = "";
+    }
+    return;
+  }
+  // the stack stays behind, darkened; every card stands in a row to its right
+  const armies = document.getElementById("armies")!;
+  const ghost = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  ghost.id = "flGhost";
+  paintRegiment(ghost, front, behind.map(stripColour), total);
+  ghost.querySelector(".flTab")?.classList.add("fl-tab-open");
+  ghost.addEventListener("click", event => {
+    event.stopPropagation();
+    closeStack();
+  });
+  armies.append(ghost);
+  paintRegiment(frontEl, front);
+  stack.forEach((r, k) => {
+    const el = elementOf(r);
+    if (!el) return;
+    el.classList.remove("fl-behind");
+    el.classList.add("fl-row");
+    el.style.translate = `${size * (1.3 + k * 1.04)}px 0px`;
+  });
+  for (const r of stack) elementOf(r)?.parentNode?.appendChild(elementOf(r)!);
 }

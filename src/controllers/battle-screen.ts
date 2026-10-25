@@ -1368,17 +1368,18 @@ function applyResults(): void {
 
   const outcome = relativeCasualties > 0.6 ? "attackers" : relativeCasualties < 0.4 ? "defenders" : null;
   const sides = { attackers: [...b.attackers.regiments], defenders: [...b.defenders.regiments] };
+  const name = b.name;
   closeBattleScreen();
   cleanData();
-  settle(sides, outcome);
+  settle(sides, outcome, name);
 }
 
 /** Fluoria: the beaten side falls back a cell; those with nowhere to go surrender, and the winner chooses */
-function settle(sides: Record<Side, Regiment[]>, winner: Side | null): void {
-  clearLosses([...sides.attackers, ...sides.defenders]);
+function settle(sides: Record<Side, Regiment[]>, winner: Side | null, battle: string): void {
+  clearLosses([...sides.attackers, ...sides.defenders], battle);
   const alive = (r: Regiment) => Boolean(pack.states[r.state]?.military?.includes(r));
   const done = () => {
-    Layers.draw("military");
+    Layers.draw("military", "markers");
     window.dispatchEvent(new Event("fl:occupation"));
   };
   if (!winner) {

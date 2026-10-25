@@ -7,10 +7,10 @@
 
 :root {
   --fl-text: #d8d6cc;
-  --fl-dim: #8e8c86;
+  --fl-dim: #b3b0a6;
   --fl-field: #1b1b1e;
   --fl-line: #46464d;
-  --fl-accent: #d6ac3c;
+  --fl-accent: #f2efe6;
   --sans-serif: "VT323", monospace !important;
   --serif: "VT323", monospace !important;
   --monospace: "VT323", monospace !important;
@@ -290,26 +290,6 @@ input[type="range"] {
   scrollbar-color: var(--fl-line) transparent;
 }
 
-/* Regiment stacks and cargo */
-#armies .flStack,
-#armies .flCargo {
-  fill: #ffffff;
-  stroke: #1b1b1e;
-  stroke-width: 0.4;
-  paint-order: stroke;
-  font-family: "VT323", monospace;
-  pointer-events: none;
-}
-
-#armies .flMore {
-  fill: #ffffff;
-  stroke: #1b1b1e;
-  stroke-width: 0.4;
-  paint-order: stroke;
-  font-family: "VT323", monospace;
-  cursor: pointer;
-}
-
 #contextMenu {
   color: var(--fl-text) !important;
   font-family: "VT323", monospace !important;
@@ -387,8 +367,9 @@ input[type="range"] {
   box-shadow: inset 0 -2px 0 var(--fl-accent);
 }
 
-/* Regiments keep about the same size on screen at every zoom: a silhouette far out, the icon, then the card */
-#armies > g > g {
+/* Regiments are cards that keep about the same size on screen: the far card out to zoom 3, then the close card */
+#armies > g > g,
+#flGhost {
   scale: var(--fl-unit, 1);
 }
 
@@ -396,19 +377,35 @@ input[type="range"] {
   image-rendering: pixelated;
 }
 
-#armies > g > g > image,
+#armies :is(.flFar, .flClose, .flTotal, .flTab),
+#armies .fl-behind,
 #armies[data-fl-names="0"] .regimentName {
   display: none;
 }
 
-#armies[data-fl-stage="far"] > g > g > .flDot,
-#armies[data-fl-stage="mid"] > g > g > .flIcon,
-#armies[data-fl-stage="close"] > g > g:not(.fl-group) > .flIcon,
-#armies[data-fl-stage="close"] > g > g.fl-group > .flCard {
+#armies[data-fl-stage="far"] .flFar,
+#armies[data-fl-stage="far"] .flTotal,
+#armies[data-fl-stage="close"] .flClose {
   display: inline;
 }
 
-#armies .regimentName {
+/* a shared cell: the tab beside the stack shows on hover, and while the cell is open */
+#armies > g > g:hover > .flTab,
+#flGhost > .flTab {
+  display: inline;
+  cursor: pointer;
+}
+
+#flGhost > :is(.flFar, .flClose) {
+  filter: brightness(0.45);
+  cursor: pointer;
+}
+
+#flGhost > .flTotal {
+  opacity: 0.5;
+}
+
+#armies :is(.flTotal, .regimentName) {
   fill: #ffffff;
   font-family: "VT323", monospace;
   text-shadow: 0.06em 0.06em 0 #000000;
@@ -416,13 +413,22 @@ input[type="range"] {
 }
 
 /* hover: a little brighter, nothing moves */
-#armies:not([data-fl-stage="far"]) > g > g:hover > image {
+#armies > g > g:hover > :is(.flFar, .flClose) {
   filter: brightness(1.2);
 }
 
-/* with a group open, the rest of the map's units step back */
-#armies.fl-picked > g > g:not(.fl-selected) {
+/* with a unit picked, the rest step back; chosen ones (Shift-click) are outlined */
+#armies.fl-picked > g > g:not(.fl-selected, .fl-chosen, .fl-row) {
   filter: grayscale(1) opacity(0.55);
+}
+
+#armies image.flPick {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#armies > g > g:is(.fl-selected, .fl-chosen) > image.flPick {
+  visibility: visible;
 }
 
 /* Cell card */
@@ -670,7 +676,7 @@ body.fl-atlas #coordinates text {
 }
 
 #flNation a {
-  color: var(--fl-accent, #e3c66b);
+  color: var(--fl-accent, #f2efe6);
   cursor: pointer;
 }
 
@@ -825,9 +831,9 @@ body.fl-atlas #coordinates text {
 }
 
 #flNation .np-tabs button.on {
-  color: #f1cf70;
+  color: #fff;
   background: #32312b;
-  box-shadow: inset 0 -3px var(--fl-accent, #e3c66b);
+  box-shadow: inset 0 -3px var(--fl-accent, #f2efe6);
 }
 
 #flNation .np-body {
@@ -859,7 +865,7 @@ body.fl-atlas #coordinates text {
 
 #flNation :is(h3.np-overlord, h3.np-vassal) {
   background: #45402d;
-  color: #d8c78e;
+  color: #d6d2c4;
 }
 
 #flNation h3 a {
@@ -1115,3 +1121,54 @@ body.fl-atlas #coordinates text {
   image-rendering: pixelated;
   vertical-align: middle;
 }
+
+/* marker tokens and their panel */
+#markers text.flMarkerName { font-family: "VT323", monospace; font-size: 11px; fill: #fff; stroke: #000; stroke-width: 2.5px; paint-order: stroke; text-anchor: middle; pointer-events: none; }
+#markerEditor .flMarkerHead { display: flex; gap: 0.5em; align-items: center; margin-bottom: 0.4em; }
+#markerEditor #markerToken { width: 34px; height: 34px; image-rendering: pixelated; }
+#markerEditor #markerName { flex: 1; font-size: 1.1em; }
+#markerEditor .flMarkerTabs { display: flex; gap: 2px; margin-top: 0.5em; }
+#markerEditor .flMarkerTabs button { flex: 1; background: #2a2a2a; color: #bbb; border: 1px solid #000; }
+#markerEditor .flMarkerTabs button.on { background: #ddd; color: #000; }
+#markerEditor .flMarkerNote { min-height: 7em; max-height: 16em; overflow: auto; background: #fff; color: #111; padding: 0.4em; border: 1px solid #000; }
+#markerEditor .flMarkerItem { display: flex; gap: 2px; margin: 2px 0; }
+#markerEditor .flMarkerItem input { flex: 1; min-width: 0; }
+
+/* emblem studio */
+#flStudio { position: fixed; z-index: 1000; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 720px; max-width: 96vw; max-height: 94vh; overflow: auto; background: #1e1e1e; color: #f2efe6; border: 1px solid #000; box-shadow: 0 6px 24px #000a; font: 20px/1.15 "VT323", monospace; }
+#flStudio * { box-sizing: border-box; }
+#flStudio button, #flStudio input { font: inherit; color: #f2efe6; background: #303030; border: 1px solid #555; border-radius: 0; padding: 2px 8px; cursor: pointer; }
+#flStudio button:hover { border-color: #ddd; }
+#flStudio button.on { background: #f2efe6; color: #111; border-color: #fff; }
+#flStudio button:disabled { opacity: 0.4; cursor: default; }
+#flStudio b { display: block; font-weight: normal; color: #c9c5b8; margin-bottom: 4px; }
+#flStudio header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-bottom: 1px solid #000; background: #111; font-size: 24px; }
+#flStudio .fs-main { display: grid; grid-template-columns: 396px 1fr; gap: 14px; padding: 12px; }
+#flStudio .fs-board canvas { display: block; width: 396px; height: 396px; image-rendering: pixelated; cursor: crosshair; touch-action: none; }
+#flStudio .fs-check { display: flex; gap: 6px; align-items: center; margin-top: 6px; color: #c9c5b8; }
+#flStudio .fs-side { display: flex; flex-direction: column; gap: 10px; }
+#flStudio .fs-row { display: flex; flex-wrap: wrap; gap: 4px; }
+#flStudio .fs-palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-bottom: 4px; }
+#flStudio .fs-palette button { height: 22px; padding: 0; background: var(--paint); border: 1px solid #000; }
+#flStudio .fs-palette button.on { outline: 2px solid #fff; outline-offset: 1px; }
+#flStudio input[type="color"] { width: 40px; height: 30px; padding: 1px; }
+#flStudio .fs-previews { display: flex; gap: 10px; align-items: end; }
+#flStudio .fs-previews canvas { image-rendering: pixelated; }
+#flStudio .fs-strip { padding: 0 12px 10px; }
+#flStudio .fs-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 4px; max-height: 220px; overflow: auto; }
+#flStudio .fs-list button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; font-size: 16px; }
+#flStudio .fs-list canvas { width: 33px; height: 33px; image-rendering: pixelated; }
+#flStudio footer { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-top: 1px solid #000; background: #111; }
+#flStudio .fs-status { margin-right: auto; color: #c9c5b8; }
+#flStudio .fs-save { background: #f2efe6; color: #111; }
+.np-emblem svg { image-rendering: pixelated; }
+
+/* the nation panel floats once moved; minimised it keeps only its bar */
+#flNation.np-float { bottom: auto; max-height: calc(100vh - 16px); border: 2px solid var(--fl-line, #444); }
+#flNation .np-bar [data-drag] { cursor: move; user-select: none; }
+#flNation.np-min > :not(.np-bar) { display: none; }
+#flNation.np-min { bottom: auto; }
+#flNation .np-stat[data-tab] { cursor: pointer; }
+#flNation .np-stat[data-tab]:hover { background: #393939; }
+#flNation .np-stat.wide { grid-column: span 2; }
+#flStudio input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; padding: 0; accent-color: #f2efe6; }

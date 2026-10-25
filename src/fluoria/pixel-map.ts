@@ -268,7 +268,7 @@ class PixelMap {
       if (k < style.from) continue;
       const mine = lines.filter(road => (ROAD_STYLE[road.group] ? road.group : "paths") === group);
       if (!mine.length) continue;
-      const width = Math.max(style.width, style.minPx / k);
+      const width = (style.minPx * Math.min(3, k ** 0.45)) / k; // grows on screen as you zoom in, gently
       const alpha = group === "searoutes" && k < 1.5 ? style.alpha * 0.75 : style.alpha;
       if (style.edge) {
         for (const road of mine) trace(road.line, 0);
@@ -556,7 +556,7 @@ class PixelMap {
       borders,
       borderPx: spec.borderPx,
       bandPx: spec.bandPx,
-      provinces: tile.level >= 3 && view === "terrain" && borders,
+      provinces: tile.level >= 3 && (view === "terrain" || view === "military") && borders,
       outline: isOutlineOnly(),
       coastPx: borders ? Math.max(1, Math.round(spec.scale / 3)) : 0,
       tint: borders ? (TINT[tile.level] ?? 0) : 0

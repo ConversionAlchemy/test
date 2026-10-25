@@ -7,6 +7,7 @@ import {
   flagship,
   mergeInto,
   normalise,
+  refreshNames,
   refusal,
   rows,
   shift,
@@ -123,5 +124,27 @@ describe("conversion", () => {
       ["1st Fleet II", { Gunboat: 6 }]
     ]);
     expect(convertUnitTypes(glyph)).toBe(false);
+  });
+});
+
+describe("base names", () => {
+  it("names each kind from the lowest free number, and leaves names of the user's own", () => {
+    pack.states[1].military = [
+      regiment({ Riflemen: 1000 }, { name: "1st (Markush) Regiment" }),
+      regiment({ Riflemen: 1500 }, { i: 1, name: "1st Army" }),
+      regiment({ Gunboat: 3 }, { i: 2, name: "x", n: 1 }),
+      regiment({ Riflemen: 400 }, { i: 3, name: "y" }),
+      regiment({ Troopship: 1 }, { i: 4, name: "z" }),
+      regiment({ Riflemen: 900 }, { i: 5, name: "The Iron Host", named: true })
+    ];
+    refreshNames();
+    expect(pack.states[1].military.map(r => r.name)).toEqual([
+      "2nd Army",
+      "1st Army",
+      "1st Fleet",
+      "1st Riflemen",
+      "1st Troopship",
+      "The Iron Host"
+    ]);
   });
 });

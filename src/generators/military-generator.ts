@@ -39,6 +39,7 @@ export interface Regiment {
   carrier?: [state: number, regiment: number]; // Fluoria, older maps: the fleet this regiment was aboard
   cargo?: Record<string, number>; // Fluoria: land units a transport carries
   full?: number; // Fluoria: power when last at full strength
+  named?: boolean; // Fluoria: renamed by the user, so its name shows on the map
 }
 
 interface Platoon {
@@ -519,7 +520,9 @@ class MilitaryModule {
 
   /** Rename a regiment, addressed by its state and its own id */
   rename(stateId: number, regimentId: number, name: string): void {
-    this.living(stateId, regimentId).name = requireName(name);
+    const regiment = this.living(stateId, regimentId);
+    regiment.name = requireName(name);
+    regiment.named = true; // Fluoria: a name of its own shows on the map
   }
 
   /** Disband a regiment, addressed by its state and its own id */

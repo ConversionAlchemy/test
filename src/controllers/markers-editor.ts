@@ -6,14 +6,16 @@ import {
   noteButton,
   refreshEditors
 } from "@/components/dialog/dialog-helpers";
-import { Icons } from "@/components/icons";
+import { Layers } from "@/components/layers";
 import { stopMapPlacement } from "@/components/map-placement";
-import { clearMainTip, tip } from "@/components/tooltips";
+import { clearMainTip } from "@/components/tooltips";
 import { Controllers } from "@/controllers";
-import type { Marker, MarkerAppearance } from "@/generators/markers-generator";
-import { Tags } from "@/generators/tags";
-import { drawMarkers, setEditedMarker } from "@/renderers/draw-markers";
+import { tokenUrl } from "@/fluoria/forces/pixels";
+import type { Marker } from "@/generators/markers-generator";
+import { Notes } from "@/generators/notes";
+import { drawMarkers, markerColour, markerLetter, setEditedMarker } from "@/renderers/draw-markers";
 import { sentences, t } from "@/utils/i18n";
+import { escapeHtml } from "@/utils/stringUtils";
 import { ensureEl, findEl, minmax, rn } from "../utils";
 
 let selectedElement: SVGSVGElement;
@@ -50,74 +52,48 @@ function open(markerI?: number, target?: Element): void {
 
 function renderDialog(): void {
   destroyDialog("markerEditor");
-
+  const states = pack.states.filter(state => state.i && !state.removed);
   const html = /* html */ `<div id="markerEditor" class="dialog">
     <div id="markerBody" style="padding-bottom: 0.3em">
-      <div data-tip="${t("Marker name, shown in the notes editor and overviews")}">
-        <div class="label">${t("Name")}:</div>
-        <input id="markerName" style="width: 10.3em" />
+      <div class="flMarkerHead">
+        <img id="markerToken" alt="" />
+        <input id="markerName" data-tip="${t("Type to rename; a name of your own shows under the token")}" />
       </div>
-      <div data-tip="${sentences(t("Marker type"), t("Style changes will apply to all markers of the same type"), t("Leave blank if the marker is unique"))}">
-        <div class="label">${t("Type")}:</div>
-        <input id="markerType" style="width: 10.3em" />
-      </div>
-      <div data-tip="${t("Marker tags (comma-separated)")}">
-        <div class="label">${t("Tags")}:</div>
-        <input
-          id="markerTags"
-          placeholder="${t("Tags")}"
-          autocorrect="off"
-          spellcheck="false"
-          style="width: 10.3em"
-        />
-      </div>
-      <div data-tip="${t("Marker icon")}" style="display: flex; align-items: center">
-        <div class="label">${t("Icon")}:</div>
-        <div id="markerIcon" style="font-size: 1.5em; width: 3.7em; display: flex"></div>
-        <button id="markerIconSelect" style="width: 5em">${t("Select")}</button>
-      </div>
-      <div data-tip="${t("Marker marker element and icon sizes in pixels")}">
-        <div class="label">${t("Size")}:</div>
-        <input data-tip="${t("Marker element size in pixels")}" id="markerSize" type="number" min="1" max="500" style="width: 5em" />
-        <input data-tip="${t("Marker icon sizes in pixels")}" id="markerIconSize" type="number" min="1" max="50" step="0.1" style="width: 5em" />
-      </div>
-      <div data-tip="${t("Marker icon shift (by X and by Y axis), percent. Set to 50 to position icon in center")}">
-        <div class="label">${t("Icon shift")}:</div>
-        <input id="markerIconShiftX" type="number" min="0" max="100" step="1" style="width: 5em" />
-        <input id="markerIconShiftY" type="number" min="0" max="100" step="1" style="width: 5em" />
-      </div>
-      <div data-tip="${t("Marker pin shape")}">
-        <div class="label">${t("Pin shape")}:</div>
-        <select id="markerPin" style="width: 10.3em">
-          <option value="bubble">${t("Bubble")}</option>
-          <option value="pin">${t("Pin")}</option>
-          <option value="square">${t("Square")}</option>
-          <option value="squarish">${t("Squarish")}</option>
-          <option value="diamond">${t("Diamond")}</option>
-          <option value="hex">${t("Hex")}</option>
-          <option value="hexy">${t("Hexy")}</option>
-          <option value="shieldy">${t("Shieldy")}</option>
-          <option value="shield">${t("Shield")}</option>
-          <option value="pentagon">${t("Pentagon")}</option>
-          <option value="heptagon">${t("Heptagon")}</option>
-          <option value="circle">${t("Circle")}</option>
-          <option value="no">${t("No")}</option>
+      <div data-tip="${t("Shape: a person, an event or story point, a place or thing")}">
+        <div class="label">${t("Shape")}:</div>
+        <select id="markerShape">
+          <option value="circle">${t("Circle: a person")}</option>
+          <option value="diamond">${t("Diamond: an event")}</option>
+          <option value="square">${t("Square: a place or thing")}</option>
         </select>
       </div>
-      <div data-tip="${t("Pin fill and stroke colors")}">
-        <div class="label">${t("Pin colors")}:</div>
-        <input id="markerFill" type="color" style="width: 5em; height: 1.6em" />
-        <input id="markerStroke" type="color" style="width: 5em; height: 1.6em" />
+      <div data-tip="${t("One letter or digit shown on the token")}">
+        <div class="label">${t("Letter")}:</div>
+        <input id="markerLetter" maxlength="1" style="width: 3em; text-transform: uppercase" />
       </div>
-      <div data-tip="${t("Icon fill and stroke colors: they paint the parts the icon leaves uncolored. Emoji keep their own colors")}">
-        <div class="label">${t("Icon colors")}:</div>
-        <input id="markerIconFill" type="color" style="width: 5em; height: 1.6em" />
-        <input id="markerIconStroke" type="color" style="width: 5em; height: 1.6em" />
-        <i id="markerIconPaintReset" data-tip="${t("Reset to default")}" class="icon-ccw pointer"></i>
+      <div data-tip="${t("Allegiance: the nation this marker serves sets its colour")}">
+        <div class="label">${t("Allegiance")}:</div>
+        <select id="markerState">
+          <option value="0">${t("None")}</option>
+          ${states.map(state => `<option value="${state.i}">${escapeHtml(state.name)}</option>`).join("")}
+        </select>
+      </div>
+      <nav class="flMarkerTabs">
+        <button type="button" data-tab="notes" class="on">${t("Notes")}</button>
+        <button type="button" data-tab="inventory">${t("Inventory")}</button>
+      </nav>
+      <div id="markerNotesTab" class="flMarkerNote" contenteditable="true"></div>
+      <div id="markerInventoryTab" style="display: none">
+        <div data-tip="${t("Coins this marker holds")}">
+          <div class="label">${t("Treasury")}:</div>
+          <input id="markerTreasury" type="number" step="1" style="width: 7em" />
+        </div>
+        <div id="markerItems"></div>
+        <button type="button" id="markerItemAdd">+ ${t("Add item")}</button>
       </div>
     </div>
     <div id="markerBottom">
-      ${noteButton("markerNotes", t("Edit free text notes (legend)"))}
+      ${noteButton("markerNotes", t("Open in the notes editor"))}
       <button id="markerRadius" data-tip="${t("Show markers within a radius of this one")}" class="icon-dot-circled"></button>
       <button id="markerLock" class="icon-lock-open" onmouseover="showElementLockTip(event)"></button>
       <button id="markerAdd" data-tip="${t("Add additional marker of that type")}" class="icon-plus"></button>
@@ -126,26 +102,75 @@ function renderDialog(): void {
   </div>`;
   ensureEl("dialogs").insertAdjacentHTML("beforeend", html);
 
-  // add listeners — dropped together with the dialog HTML on close
   ensureEl("markerName").addEventListener("change", changeMarkerName);
-  ensureEl("markerType").addEventListener("change", changeMarkerType);
-  ensureEl("markerTags").addEventListener("change", changeMarkerTags);
-  ensureEl("markerIconSelect").addEventListener("click", changeMarkerIcon);
-  ensureEl("markerIconSize").addEventListener("input", changeIconSize);
-  ensureEl("markerIconShiftX").addEventListener("input", changeIconShiftX);
-  ensureEl("markerIconShiftY").addEventListener("input", changeIconShiftY);
-  ensureEl("markerSize").addEventListener("input", changeMarkerSize);
-  ensureEl("markerPin").addEventListener("change", changeMarkerPin);
-  ensureEl("markerFill").addEventListener("input", changePinFill);
-  ensureEl("markerStroke").addEventListener("input", changePinStroke);
-  ensureEl("markerIconFill").addEventListener("input", changeIconFill);
-  ensureEl("markerIconStroke").addEventListener("input", changeIconStroke);
-  ensureEl("markerIconPaintReset").addEventListener("click", resetIconPaint);
+  ensureEl("markerShape").addEventListener("change", function (this: HTMLSelectElement) {
+    selectedMarker.shape = this.value as Marker["shape"];
+    redraw();
+  });
+  ensureEl("markerLetter").addEventListener("input", function (this: HTMLInputElement) {
+    const letter = this.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    this.value = letter;
+    if (letter) selectedMarker.letter = letter;
+    redraw();
+  });
+  ensureEl("markerState").addEventListener("change", function (this: HTMLSelectElement) {
+    selectedMarker.state = Number(this.value) || undefined;
+    redraw();
+  });
+  ensureEl("markerNotesTab").addEventListener("input", function (this: HTMLElement) {
+    Notes.write(`marker:${selectedMarker.i}`, this.innerHTML);
+  });
+  ensureEl("markerTreasury").addEventListener("change", function (this: HTMLInputElement) {
+    selectedMarker.treasury = Math.round(Number(this.value) || 0);
+  });
+  ensureEl("markerItemAdd").addEventListener("click", () => {
+    selectedMarker.items = [...(selectedMarker.items ?? []), { name: "", value: "" }];
+    renderItems();
+  });
+  for (const tab of document.querySelectorAll<HTMLElement>("#markerEditor [data-tab]"))
+    tab.addEventListener("click", () => {
+      for (const other of document.querySelectorAll("#markerEditor [data-tab]"))
+        other.classList.toggle("on", other === tab);
+      ensureEl("markerNotesTab").style.display = tab.dataset.tab === "notes" ? "" : "none";
+      ensureEl("markerInventoryTab").style.display = tab.dataset.tab === "inventory" ? "" : "none";
+    });
   ensureEl("markerNotes").addEventListener("click", editMarkerLegend);
   ensureEl("markerRadius").addEventListener("click", openMarkersInRadius);
   ensureEl("markerLock").addEventListener("click", toggleMarkerLock);
   ensureEl("markerAdd").addEventListener("click", toggleAddMarker);
   ensureEl("markerRemove").addEventListener("click", confirmMarkerDeletion);
+}
+
+function renderItems(): void {
+  const box = ensureEl("markerItems");
+  const items = selectedMarker.items ?? [];
+  box.innerHTML = items
+    .map(
+      (item, k) => `<div class="flMarkerItem" data-k="${k}">
+        <input data-field="name" placeholder="${t("Item")}" value="${escapeHtml(item.name)}" />
+        <input data-field="value" placeholder="${t("Value")}" value="${escapeHtml(item.value)}" />
+        <button type="button" class="icon-trash" data-remove="${k}"></button></div>`
+    )
+    .join("");
+  for (const input of box.querySelectorAll<HTMLInputElement>("input"))
+    input.addEventListener("change", () => {
+      const k = Number(input.closest<HTMLElement>("[data-k]")!.dataset.k);
+      items[k][input.dataset.field as "name" | "value"] = input.value;
+    });
+  for (const button of box.querySelectorAll<HTMLElement>("[data-remove]"))
+    button.addEventListener("click", () => {
+      items.splice(Number(button.dataset.remove), 1);
+      renderItems();
+    });
+}
+
+function redraw(): void {
+  ensureEl<HTMLImageElement>("markerToken").src = tokenUrl(
+    selectedMarker.shape ?? "circle",
+    markerColour(selectedMarker),
+    markerLetter(selectedMarker)
+  );
+  drawMarkers();
 }
 
 function getElement(markerI?: number, target?: Element): [SVGSVGElement, Marker] | null {
@@ -156,12 +181,6 @@ function getElement(markerI?: number, target?: Element): [SVGSVGElement, Marker]
   const element = findEl<SVGSVGElement>(`marker${id}`);
   if (!element) setEditedMarker(null);
   return element ? [element, marker] : null;
-}
-
-function getSameTypeMarkers(): Marker[] {
-  const currentType = selectedMarker.type;
-  if (!currentType) return [selectedMarker];
-  return pack.markers.filter(({ type }) => type === currentType);
 }
 
 function dragMarker(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
@@ -181,116 +200,30 @@ function dragMarker(this: SVGElement, event: D3DragEvent<SVGElement, unknown, un
     this.setAttribute("y", String(rn(y, 2)));
 
     Markers.move(selectedMarker.i, x, y);
-    drawMarkers();
+    Layers.draw("markers"); // it snaps to its cell's centre
   });
 }
 
 function updateInputs(): void {
   const marker = selectedMarker;
-  updateIconPaint();
-
   ensureEl<HTMLInputElement>("markerName").value = marker.name || "";
-  ensureEl<HTMLInputElement>("markerType").value = marker.type || "";
-  ensureEl<HTMLInputElement>("markerTags").value = Tags.format(marker.tags);
-  ensureEl<HTMLInputElement>("markerIconSize").value = String(marker.px || 12);
-  ensureEl<HTMLInputElement>("markerIconShiftX").value = String(marker.dx || 50);
-  ensureEl<HTMLInputElement>("markerIconShiftY").value = String(marker.dy || 50);
-  ensureEl<HTMLInputElement>("markerSize").value = String(marker.size || 30);
-  ensureEl<HTMLSelectElement>("markerPin").value = marker.pin || "bubble";
-  ensureEl<HTMLInputElement>("markerFill").value = marker.fill || "#ffffff";
-  ensureEl<HTMLInputElement>("markerStroke").value = marker.stroke || "#000000";
-
+  ensureEl<HTMLSelectElement>("markerShape").value = marker.shape ?? "circle";
+  ensureEl<HTMLInputElement>("markerLetter").value = markerLetter(marker);
+  ensureEl<HTMLSelectElement>("markerState").value = String(marker.state ?? 0);
+  ensureEl("markerNotesTab").innerHTML = Notes.get({ type: "marker", id: marker.i }) ?? "";
+  ensureEl<HTMLInputElement>("markerTreasury").value = String(marker.treasury ?? 0);
   ensureEl("markerLock").className = marker.lock ? "icon-lock" : "icon-lock-open";
-}
-
-/** the icon preview and its colors: the marker's own, else the icon's default paint */
-function updateIconPaint(): void {
-  const { icon, iconFill, iconStroke } = selectedMarker;
-  const paint = Icons.paint(icon);
-  const color = (value: string | undefined) => (value && /^#[\da-f]{6}$/i.test(value) ? value : "#000000");
-  ensureEl("markerIcon").innerHTML = Icons.html(icon, { fill: iconFill, stroke: iconStroke });
-  ensureEl<HTMLInputElement>("markerIconFill").value = color(iconFill ?? paint.fill);
-  ensureEl<HTMLInputElement>("markerIconStroke").value = color(iconStroke ?? paint.stroke);
-  ensureEl("markerIconPaintReset").style.visibility = iconFill || iconStroke ? "visible" : "hidden";
+  renderItems();
+  redraw();
 }
 
 function changeMarkerName(this: HTMLInputElement): void {
-  if (this.value.trim()) Markers.rename(selectedMarker.i, this.value);
-  if (findEl("notesEditor")) void Controllers.NotesEditor.open({ type: "marker", id: selectedMarker.i });
-}
-
-function changeMarkerType(this: HTMLInputElement): void {
-  if (this.value.trim()) Markers.setType(selectedMarker.i, this.value);
-}
-
-function changeMarkerTags(this: HTMLInputElement): void {
-  Tags.set(selectedMarker, this.value);
-  this.value = Tags.format(selectedMarker.tags);
-}
-
-function changeMarkerIcon(): void {
-  Controllers.IconPicker.open({
-    current: selectedMarker.icon,
-    live: true,
-    onPick: icon => {
-      for (const marker of getSameTypeMarkers()) marker.icon = icon;
-      updateIconPaint();
-      drawMarkers();
-    }
-  });
-}
-
-function changeIconSize(this: HTMLInputElement): void {
-  setSameTypeAppearance({ px: +this.value });
-}
-
-function changeIconShiftX(this: HTMLInputElement): void {
-  setSameTypeAppearance({ dx: +this.value });
-}
-
-function changeIconShiftY(this: HTMLInputElement): void {
-  setSameTypeAppearance({ dy: +this.value });
-}
-
-function changeMarkerSize(this: HTMLInputElement): void {
-  setSameTypeAppearance({ size: +this.value });
-}
-
-function changeMarkerPin(this: HTMLSelectElement): void {
-  setSameTypeAppearance({ pin: this.value });
-}
-
-function changePinFill(this: HTMLInputElement): void {
-  setSameTypeAppearance({ fill: this.value });
-}
-
-function changePinStroke(this: HTMLInputElement): void {
-  setSameTypeAppearance({ stroke: this.value });
-}
-
-function changeIconFill(this: HTMLInputElement): void {
-  setSameTypeAppearance({ iconFill: this.value });
-  updateIconPaint();
-}
-
-function changeIconStroke(this: HTMLInputElement): void {
-  setSameTypeAppearance({ iconStroke: this.value });
-  updateIconPaint();
-}
-
-function resetIconPaint(): void {
-  setSameTypeAppearance({ iconFill: null, iconStroke: null });
-  updateIconPaint();
-}
-
-/** Markers of one type share their look, as the editor shows it */
-function setSameTypeAppearance(appearance: MarkerAppearance): void {
-  try {
-    for (const marker of getSameTypeMarkers()) Markers.setAppearance(marker.i, appearance);
-  } catch (error) {
-    tip((error as Error).message, false, "error");
-  }
+  if (this.value.trim()) {
+    Markers.rename(selectedMarker.i, this.value);
+    selectedMarker.named = true;
+  } else selectedMarker.named = false;
   drawMarkers();
+  if (findEl("notesEditor")) void Controllers.NotesEditor.open({ type: "marker", id: selectedMarker.i });
 }
 
 function editMarkerLegend(): void {

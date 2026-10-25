@@ -2,7 +2,7 @@
 // the pixel map can both use it without loading each other
 import type { ViewName } from "./world-model";
 
-const VIEWS: readonly ViewName[] = ["terrain", "political", "provinces", "cultures", "religions"];
+const VIEWS: readonly ViewName[] = ["terrain", "military", "political", "provinces", "cultures", "religions"];
 
 let view: ViewName = "terrain"; // every visit opens on the terrain view
 const listeners = new Set<(view: ViewName) => void>();

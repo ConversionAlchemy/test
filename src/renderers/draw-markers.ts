@@ -1,45 +1,13 @@
-import { Icons } from "@/components/icons";
 import { Layers } from "@/components/layers";
 import { zoomFontSize } from "@/components/viewport";
+import { tokenUrl } from "@/fluoria/forces/pixels";
 import type { Marker } from "@/generators/markers-generator";
 import { ViewportLayers, type ViewportRenderContext } from "@/renderers/viewport/viewport-renderer";
-import { rn } from "@/utils/numberUtils";
 import { escapeHtml } from "@/utils/stringUtils";
 
 const layer = ViewportLayers.register({ id: "markers", render: reconcileMarkers });
 let editedMarker: Marker | null = null;
 let visibleMarkerIds: Set<number> | null = null;
-
-const pinShapes: { [key: string]: (fill: string, stroke: string) => string } = {
-  bubble: (fill: string, stroke: string) =>
-    `<path d="M6,19 l9,10 L24,19" fill="${stroke}" stroke="none" /><circle cx="15" cy="15" r="10" fill="${fill}" stroke="${stroke}"/>`,
-  pin: (fill: string, stroke: string) =>
-    `<path d="m 15,3 c -5.5,0 -9.7,4.09 -9.7,9.3 0,6.8 9.7,17 9.7,17 0,0 9.7,-10.2 9.7,-17 C 24.7,7.09 20.5,3 15,3 Z" fill="${fill}" stroke="${stroke}"/>`,
-  square: (fill: string, stroke: string) =>
-    `<path d="m 20,25 -5,4 -5,-4 z" fill="${stroke}"/><path d="M 5,5 H 25 V 25 H 5 Z" fill="${fill}" stroke="${stroke}"/>`,
-  squarish: (fill: string, stroke: string) =>
-    `<path d="m 5,5 h 20 v 20 h -6 l -4,4 -4,-4 H 5 Z" fill="${fill}" stroke="${stroke}" />`,
-  diamond: (fill: string, stroke: string) => `<path d="M 2,15 15,1 28,15 15,29 Z" fill="${fill}" stroke="${stroke}" />`,
-  hex: (fill: string, stroke: string) =>
-    `<path d="M 15,29 4.61,21 V 9 L 15,3 25.4,9 v 12 z" fill="${fill}" stroke="${stroke}" />`,
-  hexy: (fill: string, stroke: string) =>
-    `<path d="M 15,29 6,21 5,8 15,4 25,8 24,21 Z" fill="${fill}" stroke="${stroke}" />`,
-  shieldy: (fill: string, stroke: string) =>
-    `<path d="M 15,29 6,21 5,7 c 0,0 5,-3 10,-3 5,0 10,3 10,3 l -1,14 z" fill="${fill}" stroke="${stroke}" />`,
-  shield: (fill: string, stroke: string) =>
-    `<path d="M 4.6,5.2 H 25 v 6.7 A 20.3,20.4 0 0 1 15,29 20.3,20.4 0 0 1 4.6,11.9 Z" fill="${fill}" stroke="${stroke}" />`,
-  pentagon: (fill: string, stroke: string) =>
-    `<path d="M 4,16 9,4 h 12 l 5,12 -11,13 z" fill="${fill}" stroke="${stroke}" />`,
-  heptagon: (fill: string, stroke: string) =>
-    `<path d="M 15,29 6,22 4,12 10,4 h 10 l 6,8 -2,10 z" fill="${fill}" stroke="${stroke}" />`,
-  circle: (fill: string, stroke: string) => `<circle cx="15" cy="15" r="11" fill="${fill}" stroke="${stroke}" />`,
-  no: () => ""
-};
-
-const getPin = (shape = "bubble", fill = "#fff", stroke = "#000"): string => {
-  const shapeFunction = pinShapes[shape] || pinShapes.bubble;
-  return shapeFunction(fill, stroke);
-};
 
 export function setEditedMarker(marker: Marker | null): void {
   editedMarker = marker;
@@ -72,9 +40,12 @@ function reconcileMarkers({ root, bounds }: ViewportRenderContext): void {
     if (!edited && ((anyPinned && !marker.pinned) || (visibleMarkerIds && !visibleMarkerIds.has(marker.i)))) continue;
     const { x, y, size = 30 } = marker;
     const drawn = (size / 100) * fontSize; // the box in map units, for culling
-    if (!edited && (x - drawn / 2 > bounds.x1 || y - drawn > bounds.y1 || x + drawn / 2 < bounds.x0 || y < bounds.y0))
+    if (
+      !edited &&
+      (x - drawn / 2 > bounds.x1 || y - drawn / 2 > bounds.y1 || x + drawn / 2 < bounds.x0 || y + drawn / 2 < bounds.y0)
+    )
       continue;
-    // the box sits at the marker point; its content is shifted so the pin's tip is the point
+    // the box sits at the marker point; the token is centred on it
     const html = /*html*/ `<svg id="marker${marker.i}" viewBox="0 0 30 30" width="${size / 100}em" height="${size / 100}em" x="${x}" y="${y}" overflow="visible">${getMarkerContent(marker)}</svg>`;
     if (edited) selectedMarkup = html;
     else markup.push(html);
@@ -92,23 +63,19 @@ function reconcileMarkers({ root, bounds }: ViewportRenderContext): void {
   }
 }
 
-function getMarkerContent({
-  icon,
-  dx = 50,
-  dy = 50,
-  px = 12,
-  pin,
-  fill,
-  stroke,
-  iconFill,
-  iconStroke
-}: Marker): string {
-  // the icon box is centred on the dx/dy point of the pin box
-  const x = rn((dx * 30) / 100 - px / 2, 2);
-  const y = rn((dy * 30) / 100 - px / 2, 2);
-  const use = icon
-    ? `<use href="${escapeHtml(Icons.href(icon))}" x="${x}" y="${y}" width="${px}" height="${px}"${Icons.paintAttributes(icon, { fill: iconFill, stroke: iconStroke })}/>`
+/** Fluoria: a marker is a pixel token centred on its point, its name below once the user has given it one */
+function getMarkerContent(marker: Marker): string {
+  const href = tokenUrl(marker.shape ?? "circle", markerColour(marker), markerLetter(marker));
+  const name = marker.named
+    ? `<text x="0" y="17" text-anchor="middle" class="flMarkerName">${escapeHtml(marker.name)}</text>`
     : "";
-  // the one group carries the shift, so the pin's tip lands on the marker point at any box size
-  return /* html */ `<g transform="translate(-15 -30)">${getPin(pin, fill, stroke)}${use}</g>`;
+  return /* html */ `<image href="${href}" x="-10" y="-10" width="20" height="20" image-rendering="pixelated"/>${name}`;
+}
+
+export const markerLetter = (marker: Marker) => (marker.letter || marker.type || "?").slice(0, 1).toUpperCase();
+
+/** A marker takes its allegiance's colour; with none, a neutral grey */
+export function markerColour(marker: Marker): string {
+  const colour = marker.state ? pack.states[marker.state]?.color : "";
+  return colour && colour[0] === "#" && !pack.states[marker.state!]?.removed ? colour.slice(0, 7) : "#8a8a8a";
 }

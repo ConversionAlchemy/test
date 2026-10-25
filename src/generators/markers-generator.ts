@@ -95,6 +95,12 @@ export interface Marker {
   name: string;
   note?: string;
   tags?: string[];
+  shape?: "circle" | "diamond" | "square"; // Fluoria token: its outline
+  letter?: string; // Fluoria token: one letter or digit
+  state?: number; // Fluoria token: allegiance, which sets its colour
+  treasury?: number; // Fluoria inventory
+  items?: { name: string; value: string }[];
+  named?: boolean; // Fluoria: renamed by the user, so its name shows under the token
 }
 
 type MarkerConfig = {

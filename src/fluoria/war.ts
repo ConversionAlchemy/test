@@ -94,11 +94,32 @@ export function moveToCell(regiment: Regiment, cell: number): void {
   Military.move(regiment.state, regiment.i, x, y);
 }
 
-/** A regiment that lost its last troops, or its transport, is gone; cargo goes down with the ship */
-export function clearLosses(regiments: Regiment[]): void {
+/** A regiment that lost its last troops, or its transport, is gone, leaving a marker; cargo goes down with the ship */
+export function clearLosses(regiments: Regiment[], battle?: string): void {
   for (const r of regiments) {
     const hadTransport = Object.keys(r.u).some(name => kitOf(name)?.role === "transport") || r.cargo;
-    if (!troopsOf(r) || (hadTransport && !isTransport(r))) Military.remove(r.state, r.i);
+    if (!troopsOf(r) || (hadTransport && !isTransport(r))) {
+      fallen(r, battle);
+      Military.remove(r.state, r.i);
+    }
+  }
+}
+
+/** Where a regiment fell: a marker in its nation's colour holding its record */
+export function fallen(regiment: Regiment, battle?: string): void {
+  const nation = pack.states[regiment.state]?.name ?? "";
+  const { year, eraShort } = options.map.lore.calendar;
+  const end = `${regiment.name} of ${nation} fell${battle ? ` in the ${battle}` : ""}, ${year} ${eraShort}.`;
+  const record = regiment.note ? `<p>${regiment.note}</p>` : "";
+  try {
+    const id = Markers.place(regiment.x, regiment.y, "fallen", {
+      name: `Fall of the ${regiment.name}`,
+      note: `<p>${end}</p>${record}`
+    });
+    const marker = pack.markers.find(m => m.i === id);
+    if (marker) Object.assign(marker, { shape: "diamond", letter: "X", state: regiment.state });
+  } catch {
+    // a regiment off the map leaves no marker
   }
 }
 
@@ -107,6 +128,7 @@ export type Surrender = "eliminate" | "capture" | "release";
 /** A regiment with nowhere to fall back gives up: removed, taken over by the winner, or sent home */
 export function surrender(regiment: Regiment, how: Surrender, winner: number): void {
   if (how === "eliminate") {
+    fallen(regiment);
     Military.remove(regiment.state, regiment.i);
     return;
   }
@@ -182,16 +204,26 @@ export const CELL_SLOTS = 12;
 
 const friendly = (a: number, b: number) => ["self", "ally", "vassal", "overlord"].includes(standing(a, b));
 
-/** Slots friendly to `state` already standing in a cell; a transport is 1, its cargo nothing */
-export function cellLoad(state: number, cell: number, leaving?: Regiment): number {
+/** Units in a cell at most, whatever their size, so a stack opens into one short row */
+export const CELL_UNITS = 4;
+
+/** Slots and units friendly to `state` already standing in a cell; a transport is 1 slot, its cargo nothing */
+export function cellLoad(state: number, cell: number, leaving?: Regiment): { slots: number; units: number } {
   const at = mainCell(cell);
-  let load = 0;
+  let slots = 0;
+  let units = 0;
   for (const s of living())
     if (friendly(state, s.i))
-      for (const r of s.military ?? []) if (r !== leaving && !r.hidden && mainCell(r.cell) === at) load += slotsOf(r.u);
-  return load;
+      for (const r of s.military ?? [])
+        if (r !== leaving && !r.hidden && mainCell(r.cell) === at) {
+          slots += slotsOf(r.u);
+          units++;
+        }
+  return { slots, units };
 }
 
-/** Whether `slots` more fit in a cell for `state` */
-export const hasRoom = (state: number, cell: number, slots: number, leaving?: Regiment) =>
-  cellLoad(state, cell, leaving) + slots <= CELL_SLOTS;
+/** Whether `slots` more, in `units` more units, fit in a cell for `state` */
+export function hasRoom(state: number, cell: number, slots: number, leaving?: Regiment, units = 1): boolean {
+  const load = cellLoad(state, cell, leaving);
+  return load.slots + slots <= CELL_SLOTS && load.units + units <= CELL_UNITS;
+}

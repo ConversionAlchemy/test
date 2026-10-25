@@ -1,9 +1,12 @@
-// Unit art as pixels: the 17×17 icon, its far-out silhouette, and the 29×29 card, one grid with text laid over it
+// Unit art as pixels, numbers included: the 17×17 icon, the far card (23×23: icon only) and the close card (29×29:
+// power, troops and slots in a 3×5 pixel font). A single unit's card is pale; a stack adds a 2-pixel strip per unit
+// behind the front one
 import type { KitUnit } from "./kit";
 
-const CARD = 29;
-const ICON_AT = [6, 5] as const; // icon's top-left on the card: column 14 is the centre of both
 const SCALE = 4; // canvas pixels per art pixel
+export const CARD = { far: 23, close: 29 } as const;
+export type CardSize = keyof typeof CARD;
+export const STRIP = 2; // art pixels per unit behind the front card
 
 export type IconMode = "icon" | "silhouette" | "white";
 
@@ -13,6 +16,10 @@ const rgb = (hex: string): [number, number, number] => {
 };
 const css = (channels: number[]) => `rgb(${channels.map(Math.round).join(",")})`;
 const tint = (hex: string, a: number) => css(rgb(hex).map(v => v + (255 - v) * a));
+const shade = (hex: string, a: number) => css(rgb(hex).map(v => v * a));
+const hexOf = (channels: number[]) => `#${channels.map(v => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+/** A single unit's card colour: the nation colour halfway to white */
+export const pale = (hex: string) => hexOf(rgb(hex).map(v => v + (255 - v) * 0.5));
 
 function luminance(hex: string): number {
   const [r, g, b] = rgb(hex).map(v => {
@@ -46,28 +53,57 @@ export function short(value: number): string {
   return `${(v / 1e6).toFixed(1).replace(/\.0$/, "")}M`;
 }
 
-function paint(
-  ctx: CanvasRenderingContext2D,
-  cells: string[],
-  at: readonly [number, number],
-  colours: Record<string, string>
-) {
-  cells.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++) {
-      const fill = colours[row[x]];
-      if (!fill) continue;
-      ctx.fillStyle = fill;
-      ctx.fillRect((at[0] + x) * SCALE, (at[1] + y) * SCALE, SCALE, SCALE);
-    }
-  });
-}
+// 3×5 digits for card numbers
+const DIGITS: Record<string, string[]> = {
+  "0": ["###", "#.#", "#.#", "#.#", "###"],
+  "1": [".#.", "##.", ".#.", ".#.", "###"],
+  "2": ["###", "..#", "###", "#..", "###"],
+  "3": ["###", "..#", ".##", "..#", "###"],
+  "4": ["#.#", "#.#", "###", "..#", "..#"],
+  "5": ["###", "#..", "###", "..#", "###"],
+  "6": ["###", "#..", "###", "#.#", "###"],
+  "7": ["###", "..#", ".#.", ".#.", ".#."],
+  "8": ["###", "#.#", "###", "#.#", "###"],
+  "9": ["###", "#.#", "###", "..#", "###"],
+  K: ["#.#", "#.#", "##.", "#.#", "#.#"],
+  M: ["#.#", "###", "###", "#.#", "#.#"],
+  ".": [".", ".", ".", ".", "#"]
+};
+const textWidth = (text: string) => [...text].reduce((w, c) => w + (DIGITS[c]?.[0].length ?? 3) + 1, -1);
 
-function canvas(size: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
-  const element = document.createElement("canvas");
-  element.width = element.height = size * SCALE;
-  const ctx = element.getContext("2d")!;
-  ctx.imageSmoothingEnabled = false;
-  return [element, ctx];
+class Pixels {
+  readonly element = document.createElement("canvas");
+  private ctx: CanvasRenderingContext2D;
+  constructor(width: number, height: number) {
+    this.element.width = width * SCALE;
+    this.element.height = height * SCALE;
+    this.ctx = this.element.getContext("2d")!;
+  }
+  dot(x: number, y: number, colour: string): void {
+    this.ctx.fillStyle = colour;
+    this.ctx.fillRect(x * SCALE, y * SCALE, SCALE, SCALE);
+  }
+  art(rows: string[], x0: number, y0: number, colours: Record<string, string>, below = Infinity): void {
+    rows.forEach((row, y) => {
+      if (y0 + y >= below) return;
+      for (let x = 0; x < row.length; x++) if (colours[row[x]]) this.dot(x0 + x, y0 + y, colours[row[x]]);
+    });
+  }
+  text(value: string, x0: number, y0: number, colour: string, shadow: boolean): void {
+    let x = x0;
+    for (const c of value) {
+      const glyph = DIGITS[c];
+      if (!glyph) continue;
+      glyph.forEach((row, y) => {
+        for (let k = 0; k < row.length; k++) {
+          if (row[k] !== "#") continue;
+          if (shadow) this.dot(x + k + 1, y0 + y + 1, "#000");
+          this.dot(x + k, y0 + y, colour);
+        }
+      });
+      x += glyph[0].length + 1;
+    }
+  }
 }
 
 const cache = new Map<string, string>();
@@ -83,67 +119,129 @@ const cached = (key: string, draw: () => HTMLCanvasElement) => {
 /** A unit's icon in a nation's colour, its solid silhouette, or white for a card */
 export function iconUrl(unit: KitUnit, colour: string, mode: IconMode = "icon"): string {
   return cached(`i|${unit.id}|${colour}|${mode}`, () => {
-    const [element, ctx] = canvas(17);
+    const p = new Pixels(17, 17);
     const colours =
       mode === "silhouette"
         ? { "#": colour, R: colour, W: colour }
         : { "#": "#000", R: mode === "white" ? "#fff" : colour, W: "#fff" };
-    paint(ctx, unit.pixels, [0, 0], colours);
-    return element;
+    p.art(unit.pixels, 0, 0, colours);
+    return p.element;
   });
 }
 
 export interface CardFace {
   unit: KitUnit;
-  colour: string;
+  colour: string; // the nation's
+  single: boolean; // one slot on its own: pale
   power: number;
   troops: number;
   slots: number;
   strength: number;
+  behind?: string[]; // colours of the cards stacked behind, front to back
 }
 
-let fontReady = false;
-/** Cards drawn before VT323 loaded are drawn again once it has */
-export function whenFontReady(then: () => void): void {
-  void document.fonts?.load(`22px "VT323"`).then(() => {
-    if (fontReady) return;
-    fontReady = true;
-    cache.clear();
-    then();
+/** A card, with a strip on top for each unit behind it */
+export function cardUrl(face: CardFace, size: CardSize): string {
+  const step = Math.round(face.strength * 10) / 10;
+  const behind = face.behind ?? [];
+  const key = `c|${size}|${face.unit.id}|${face.colour}|${face.single}|${face.power}|${face.troops}|${face.slots}|${step}|${behind.join(",")}`;
+  return cached(key, () => {
+    const n = CARD[size];
+    const lift = behind.length * STRIP;
+    const p = new Pixels(n, n + lift);
+    behind.forEach((colour, k) => {
+      for (let x = 0; x < n; x++) {
+        p.dot(x, k * STRIP, "#000");
+        p.dot(x, k * STRIP + 1, x === 0 || x === n - 1 ? "#000" : shade(colour, 0.85));
+      }
+    });
+    const fill = face.single ? pale(face.colour) : face.colour;
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++) p.dot(x, lift + y, x === 0 || y === 0 || x === n - 1 || y >= n - 3 ? "#000" : fill);
+    const bar = Math.round(step * (n - 2));
+    for (let x = 1; x <= bar; x++) p.dot(x, lift + n - 2, barColour(step));
+    const icon = { "#": "#000", R: "#fff", W: "#fff" };
+    if (size === "far") {
+      p.art(face.unit.pixels, 3, lift + 2, icon, lift + n - 3);
+      return p.element;
+    }
+    p.art(face.unit.pixels, 6, lift + 8, icon, lift + n - 3);
+    const text = ink(fill);
+    const power = short(face.power);
+    const troops = short(face.troops);
+    p.text(power, 2, lift + 2, tint(fill, 0.6), true);
+    p.text(troops, n - 3 - textWidth(troops), lift + 2, text, text === "#fff");
+    p.text(String(face.slots), 2, lift + 20, text, text === "#fff");
+    return p.element;
   });
 }
 
-export function cardUrl(face: CardFace): string {
-  const step = Math.round(face.strength * 10) / 10;
-  const key = `c|${face.unit.id}|${face.colour}|${face.power}|${face.troops}|${face.slots}|${step}|${fontReady}`;
-  return cached(key, () => {
-    const [element, ctx] = canvas(CARD);
-    const grid = Array.from({ length: CARD }, (_, y) =>
-      Array.from({ length: CARD }, (_, x) => (x === 0 || y === 0 || x === CARD - 1 || y >= CARD - 3 ? "#" : "C")).join(
-        ""
-      )
-    );
-    paint(ctx, grid, [0, 0], { "#": "#000", C: face.colour });
-    paint(ctx, face.unit.pixels, ICON_AT, { "#": "#000", R: "#fff", W: "#fff" });
-    ctx.fillStyle = barColour(step);
-    ctx.fillRect(SCALE, (CARD - 2) * SCALE, Math.round(step * (CARD - 2)) * SCALE, SCALE);
+/** A white frame over a card's edge pixels: shows a card is selected */
+export function frameUrl(size: CardSize, lift: number): string {
+  return cached(`f|${size}|${lift}`, () => {
+    const n = CARD[size];
+    const p = new Pixels(n, n + lift);
+    for (let k = 0; k < n; k++) {
+      p.dot(k, lift, "#fff");
+      p.dot(k, lift + n - 1, "#fff");
+      p.dot(0, lift + k, "#fff");
+      p.dot(n - 1, lift + k, "#fff");
+    }
+    return p.element;
+  });
+}
 
-    const text = ink(face.colour);
-    ctx.font = `22px "VT323", monospace`;
-    ctx.textBaseline = "top";
-    const write = (value: string, x: number, y: number, fill: string, align: CanvasTextAlign, shadow: boolean) => {
-      ctx.textAlign = align;
-      if (shadow) {
-        ctx.fillStyle = "#000";
-        ctx.fillText(value, x + 2, y + 2);
-      }
-      ctx.fillStyle = fill;
-      ctx.fillText(value, x, y);
+/** The tab beside a stack that opens it */
+export function tabUrl(): string {
+  return cached("tab", () => {
+    const p = new Pixels(7, 11);
+    p.art(
+      [
+        "#......",
+        "##.....",
+        "#W#....",
+        "#WW#...",
+        "#WWW#..",
+        "#WWWW#.",
+        "#WWW#..",
+        "#WW#...",
+        "#W#....",
+        "##.....",
+        "#......"
+      ],
+      0,
+      0,
+      { "#": "#000", W: "#fff" }
+    );
+    return p.element;
+  });
+}
+
+export type TokenShape = "circle" | "diamond" | "square";
+
+/** A marker's token: a 17×17 shape in its colour with one letter or digit */
+export function tokenUrl(shape: TokenShape, colour: string, letter: string): string {
+  return cached(`t|${shape}|${colour}|${letter}`, () => {
+    const n = 17;
+    const p = new Pixels(n, n);
+    const inside = (x: number, y: number, r: number) => {
+      const dx = x - 8;
+      const dy = y - 8;
+      if (shape === "square") return Math.max(Math.abs(dx), Math.abs(dy)) <= r - 1;
+      if (shape === "diamond") return Math.abs(dx) + Math.abs(dy) <= r;
+      return dx * dx + dy * dy <= (r + 0.4) * (r + 0.4);
     };
-    const light = text === "#fff";
-    write(short(face.power), 8, 6, tint(face.colour, 0.6), "left", true);
-    write(short(face.troops), CARD * SCALE - 8, 6, text, "right", light);
-    write(String(face.slots), 8, 80, text, "left", light);
-    return element;
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++) {
+        if (inside(x, y, 7)) p.dot(x, y, colour);
+        else if (inside(x, y, 8)) p.dot(x, y, "#000");
+      }
+    const ctx = p.element.getContext("2d")!;
+    ctx.font = `${9 * SCALE}px "VT323", monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = ink(colour);
+    ctx.fillText(letter.slice(0, 1).toUpperCase(), 8.5 * SCALE, 8.7 * SCALE);
+    return p.element;
   });
 }

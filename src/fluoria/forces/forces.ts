@@ -88,9 +88,8 @@ export function flagship(regiment: Pick<Regiment, "u">): string | undefined {
 
 export const troopsOf = (regiment: Pick<Regiment, "u">) => present(regiment.u).reduce((sum, [, n]) => sum + n, 0);
 
-/** A card stands for a regiment of more than one slot, or a transport with cargo; one slot shows as its icon */
-export const isGroup = (regiment: Pick<Regiment, "u" | "cargo">) =>
-  slotsOf(regiment.u) > 1 || slotsOf(regiment.cargo) > 0;
+/** A regiment of more than one slot, or a transport: a full card; one slot on its own is pale */
+export const isGroup = (regiment: Pick<Regiment, "u" | "cargo">) => slotsOf(regiment.u) > 1 || isTransport(regiment);
 
 // --- moving troops between regiments, keeping each one's strength
 
@@ -298,4 +297,54 @@ function partsOf(units: Units): Units[] {
     if (present(current).length) grouped.push(current);
   }
   return [...grouped, ...parts];
+}
+
+// --- base names: "1st Army", "2nd Fleet", "1st Air Wing", "3rd Riflemen", "1st Troopship"
+
+const ORDINAL = (n: number) => {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th";
+  return `${n}${suffix}`;
+};
+
+/** What a regiment is called by kind: its transport or single unit by name, else Army, Fleet or Air Wing */
+export function kindOf(regiment: Pick<Regiment, "u" | "n">): string {
+  const transport = transportUnit(regiment);
+  if (transport) return transport;
+  const units = present(regiment.u);
+  if (units.length === 1 && slotsOf(regiment.u) === 1) return units[0][0];
+  const domain = domainOf(regiment);
+  return domain === "naval" ? "Fleet" : domain === "air" ? "Air Wing" : "Army";
+}
+
+/** Every regiment not named by the user gets its base name, numbered from the lowest free number of its kind */
+export function refreshNames(): number {
+  let changed = 0;
+  const pattern = /^(\d+)(?:st|nd|rd|th) (.+)$/;
+  for (const state of pack.states ?? []) {
+    if (!state?.i || state.removed) continue;
+    const taken = new Map<string, Set<number>>();
+    const keep = new Set<Regiment>();
+    const take = (kind: string, n: number) => taken.set(kind, (taken.get(kind) ?? new Set()).add(n));
+    for (const r of state.military ?? []) {
+      const match = r.name.match(pattern);
+      if (!match) continue;
+      const [n, kind] = [Number(match[1]), match[2]];
+      if (r.named) take(kind, n);
+      else if (kind === kindOf(r) && !taken.get(kind)?.has(n) && r.name === `${ORDINAL(n)} ${kind}`) {
+        take(kind, n);
+        keep.add(r);
+      }
+    }
+    for (const r of state.military ?? []) {
+      if (r.named || keep.has(r)) continue;
+      const kind = kindOf(r);
+      let n = 1;
+      while (taken.get(kind)?.has(n)) n++;
+      take(kind, n);
+      r.name = `${ORDINAL(n)} ${kind}`;
+      changed++;
+    }
+  }
+  return changed;
 }

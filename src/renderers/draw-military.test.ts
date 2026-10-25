@@ -6,8 +6,13 @@ import type { Regiment } from "@/generators/military-generator";
 import { drawMilitary, drawRegiment, moveRegiment } from "./draw-military";
 
 vi.mock("@/fluoria/forces/pixels", () => ({
-  iconUrl: (unit: { id: string }, _colour: string, mode = "icon") => `${mode}:${unit.id}`,
-  cardUrl: (face: { troops: number; slots: number }) => `card:${face.troops}:${face.slots}`
+  CARD: { far: 23, close: 29 },
+  STRIP: 2,
+  short: (v: number) => String(v),
+  tabUrl: () => "tab",
+  frameUrl: () => "frame",
+  cardUrl: (face: { troops: number; slots: number; single: boolean; unit: { id: string } }, size: string) =>
+    `${size}:${face.unit.id}:${face.troops}:${face.slots}:${face.single ? "pale" : "full"}`
 }));
 
 beforeEach(() => {
@@ -23,32 +28,31 @@ beforeEach(() => {
 const regiment = (u: Record<string, number>, extra: Partial<Regiment> = {}) =>
   ({ i: 1, state: 1, name: "1st Royal Army", x: 50, y: 50, n: 0, a: 0, u, ...extra }) as Regiment;
 
-test("a group gets a card; a single slot only its icon and silhouette", () => {
+test("every regiment is a card at both sizes; a single slot is pale", () => {
   pack.states[1].military = [regiment({ Riflemen: 1200 }), regiment({ Homeguard: 300 }, { i: 2 })];
   drawMilitary();
   const army = document.getElementById("regiment1-1")!;
-  expect(army.querySelector(".flCard")?.getAttribute("href")).toBe("card:1200:3");
-  expect(army.classList.contains("fl-group")).toBe(true);
-  const single = document.getElementById("regiment1-2")!;
-  expect(single.querySelector(".flCard")).toBeNull();
-  expect(single.querySelector(".flIcon")?.getAttribute("href")).toBe("icon:land_infantry_t1");
-  expect(single.querySelector(".flDot")?.getAttribute("href")).toBe("silhouette:land_infantry_t1");
+  expect(army.querySelector(".flClose")?.getAttribute("href")).toBe("close:land_infantry_t2:1200:3:full");
+  expect(army.querySelector(".flFar")?.getAttribute("href")).toBe("far:land_infantry_t2:1200:3:full");
+  expect(army.querySelector(".flTotal")?.textContent).toBe("1200");
+  expect(document.getElementById("regiment1-2")!.querySelector(".flClose")?.getAttribute("href")).toBe(
+    "close:land_infantry_t1:300:1:pale"
+  );
 });
 
-test("a transport's card counts its cargo", () => {
+test("a transport is always a full card, counting its cargo", () => {
   drawRegiment(regiment({ Troopship: 1 }, { cargo: { Riflemen: 1500 } }), 1);
-  expect(document.querySelector(".flCard")?.getAttribute("href")).toBe("card:1500:3");
-  expect(document.querySelector(".flIcon")?.getAttribute("href")).toBe("icon:naval_transport_t2");
+  expect(document.querySelector(".flClose")?.getAttribute("href")).toBe("close:naval_transport_t2:1500:3:full");
 });
 
-test("art is centred on the regiment, the name below; moving glides it", async () => {
+test("cards are centred on the regiment; only a name of its own shows; moving glides", async () => {
   const army = regiment({ Riflemen: 1000 });
   drawRegiment(army, 1);
-  const card = document.querySelector(".flCard")!;
+  expect(document.querySelector(".regimentName")).toBeNull();
+  drawRegiment({ ...army, named: true }, 1);
+  const card = document.querySelector(".flClose")!;
   expect(["x", "y", "width", "height"].map(name => Number(card.getAttribute(name)))).toEqual([45, 45, 10, 10]);
-  const name = document.querySelector(".regimentName")!;
-  expect(name.textContent).toBe("1st Royal Army");
-  expect(Number(name.getAttribute("y"))).toBeGreaterThan(55);
+  expect(document.querySelector(".regimentName")?.textContent).toBe("1st Royal Army");
   moveRegiment(army, 60, 50);
-  await vi.waitFor(() => expect(Number(card.getAttribute("x"))).toBe(55));
+  await vi.waitFor(() => expect(Number(document.querySelector(".flClose")!.getAttribute("x"))).toBe(55));
 });
