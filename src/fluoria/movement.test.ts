@@ -37,18 +37,16 @@ describe("movement", () => {
     expect(canStand({ n: 1 }, 10)).toBe(true);
   });
 
-  it("goes four cells along a main road, then one step off it", () => {
+  it("goes four cells along a main road and no further", () => {
     const reach = reachable({ n: 0, cell: 0 });
     expect(reach.has(4)).toBe(true);
-    expect(reach.has(5)).toBe(true); // one off the end of the road
-    expect(reach.has(6)).toBe(false);
+    expect(reach.has(5)).toBe(false); // no step off on top of a road move
   });
 
   it("costs each step by the road it's on", () => {
     const reach = reachable({ n: 0, cell: 3 });
     expect(reach.has(6)).toBe(true); // two main-road steps (½) and one path step (½)
-    expect(reach.has(7)).toBe(true); // one step off
-    expect(reach.has(8)).toBe(false);
+    expect(reach.has(7)).toBe(false);
   });
 
   it("moves one cell off road", () => {

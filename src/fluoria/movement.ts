@@ -1,13 +1,13 @@
 // How far a regiment can go in one move, counted in cells so every map plays the same whatever its scale.
 // Off road: one step to any neighbour. Along roads: up to 4 (main road), 3 (road) or 2 (path) cells, mixed routes
-// costing each step by the road it's on, with one step off the road allowed from any cell reached.
-// At sea, on the even grid: 6 cells, or 10 along a sea lane
+// costing each step by the road it's on; or one step to any neighbour, never both in one move.
+// At sea, on the even grid: 3 cells, or 12 along the cells of a sea lane
 import type { Regiment } from "@/generators/military-generator";
 
 export const CELLS_PER_MOVE: Record<string, number> = { roads: 4, trails: 3, paths: 2 };
 const OTHER_ROUTE = 2;
-export const SEA_CELLS = 6;
-export const LANE_CELLS = 10;
+export const SEA_CELLS = 3;
+export const LANE_CELLS = 12;
 
 const isWaterCell = (cell: number) => pack.cells.h[cell] < 20;
 
@@ -61,11 +61,9 @@ export function reachable(regiment: Pick<Regiment, "n" | "cell">): Map<number, n
       queue.push([total, next]);
     }
   }
-  // from anywhere reached along the road, one step off it
+  // or one ordinary step to any neighbour of where it stands; the two never combine
   const reach = new Map(onRoad);
-  for (const [cell, cost] of onRoad)
-    for (const next of cells.c[cell])
-      if (canStand(regiment, next) && !reach.has(next)) reach.set(next, Math.min(1, cost + 1));
+  for (const next of cells.c[start]) if (canStand(regiment, next) && !reach.has(next)) reach.set(next, 1);
   return reach;
 }
 
