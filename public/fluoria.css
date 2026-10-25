@@ -986,7 +986,15 @@ body.fl-atlas #coordinates text {
   color: var(--fl-dim);
 }
 
+.flFolder .flSlots,
+.flFolder .flFolderHead,
+.flFolder .flFolderBottom {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .flSlots {
+  display: block;
   max-height: 19.5em;
   overflow-y: auto;
   scrollbar-color: var(--fl-line) transparent;
@@ -994,6 +1002,8 @@ body.fl-atlas #coordinates text {
 
 .flSlot {
   display: flex;
+  width: 100%;
+  box-sizing: border-box;
   align-items: center;
   gap: 0.4em;
   height: 2em;
@@ -1049,4 +1059,51 @@ body.fl-atlas #coordinates text {
   display: flex;
   gap: 0.2em;
   padding: 0.3em 0;
+}
+
+/* Battle screen: "Clear totals", one row per unit type */
+#battleAttackers,
+#battleDefenders {
+  width: 100%;
+  min-width: 22em;
+  border-collapse: collapse;
+  margin-bottom: 0.6em;
+}
+
+#battleAttackers caption,
+#battleDefenders caption {
+  text-align: left;
+  color: var(--fl-dim);
+  padding-bottom: 0.2em;
+}
+
+#battleAttackers :is(th, td),
+#battleDefenders :is(th, td) {
+  padding: 0.1em 0.4em;
+  text-align: right;
+}
+
+#battleAttackers :is(th, td):nth-child(2),
+#battleDefenders :is(th, td):nth-child(2) {
+  text-align: left;
+}
+
+#battleAttackers tfoot td,
+#battleDefenders tfoot td {
+  border-top: 1px solid var(--fl-line);
+}
+
+#battleScreen .flLost {
+  color: #ff6a5a;
+}
+
+#battleScreen .flLeft {
+  color: #8fe388;
+}
+
+.flBattleIcon {
+  width: 1.4em;
+  height: 1.4em;
+  image-rendering: pixelated;
+  vertical-align: middle;
 }

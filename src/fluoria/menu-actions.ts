@@ -1,5 +1,8 @@
 // What the right-click menu offers for each kind of thing, Windows-style: short verbs, nothing else.
 // Every action goes through Azgaar's own modules, so editors and saves see the same change
+
+import { confirmationDialog } from "@/components/dialog/dialog-helpers";
+import { Layers } from "@/components/layers";
 import { type EntityRef, MapEntities } from "@/components/map-entities";
 import { tip } from "@/components/tooltips";
 import { Controllers } from "@/controllers";
@@ -16,6 +19,7 @@ import { showRoadEdit } from "./pixel-map-sync";
 import { nodePoint, segmentAt } from "./road-geometry";
 import { changeSegment, deleteRoute, findRoute, ROUTE_LEVELS, renameRoute, setRouteGroup } from "./routes";
 import { chooseLanding, stackAll } from "./units";
+import { annexCell, occupierOf, returnCell } from "./war";
 
 export interface MenuAction {
   label: string;
@@ -54,7 +58,11 @@ export function actionsFor(
 ): MenuAction[] {
   if (ref?.type === "regiment" && ref.sub !== undefined) {
     const regiment = regimentAt(ref.id, ref.sub);
-    if (regiment) return isTransport(regiment) ? transportActions(regiment, confirm) : armyActions(regiment, confirm);
+    if (regiment)
+      return [
+        ...(isTransport(regiment) ? transportActions(regiment, confirm) : armyActions(regiment, confirm)),
+        ...warActions(mainCell(regiment.cell))
+      ];
   }
   if (ref?.type === "route") return routeActions(ref.id, confirm, point);
   if (ref?.type === "burg") return burgActions(ref.id);
@@ -224,9 +232,12 @@ function burgActions(id: number): MenuAction[] {
 
 function cellActions(cell: number): MenuAction[] {
   const state = pack.cells.state[cell];
-  if (!state) return [];
+  const war = warActions(cell);
+  if (!state) return war;
   const water = pack.cells.h[cell] < 20;
   return [
+    ...war,
+
     {
       label: water ? t("Add fleet here") : t("Add army here"),
       run: () => {
@@ -237,4 +248,48 @@ function cellActions(cell: number): MenuAction[] {
       }
     }
   ];
+}
+
+/** A cell held in war: who holds it, and annexing it or giving it back */
+function warActions(cell: number): MenuAction[] {
+  const state = pack.cells.state[cell];
+  const occupier = occupierOf(cell);
+  const war: MenuAction[] = [];
+  if (occupier) {
+    const by = pack.states[occupier].name;
+    const burg = pack.cells.burg[mainCell(cell)];
+    const annex = () => {
+      annexCell(cell);
+      Layers.draw("states", "borders", "provinces", "burgIcons", "labels", "emblems");
+      window.dispatchEvent(new Event("fl:occupation"));
+    };
+    war.push(
+      { label: `${t("Occupied by")} ${by}`, disabled: true },
+      {
+        label: `${t("Annex this cell for")} ${by}`,
+        indent: true,
+        run: () =>
+          burg
+            ? confirmationDialog({
+                title: t("Annex"),
+                message: t("{{burg}} goes to {{state}} with this cell. Annex it?", {
+                  burg: pack.burgs[burg].name ?? "",
+                  state: by
+                }),
+                confirm: t("Annex"),
+                onConfirm: annex
+              })
+            : annex()
+      },
+      {
+        label: `${t("Return to")} ${state ? pack.states[state].name : t("neutral lands")}`,
+        indent: true,
+        run: () => {
+          returnCell(cell);
+          window.dispatchEvent(new Event("fl:occupation"));
+        }
+      }
+    );
+  }
+  return war;
 }

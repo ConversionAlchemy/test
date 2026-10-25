@@ -8,6 +8,7 @@ import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./on
 import { dimPixelMap } from "./pixel-map-sync";
 import { laneSteps } from "./road-geometry";
 import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
+import { afterMove, blocked } from "./war";
 
 let range: Map<number, number> | null = null; // packed cells for armies, sea grid cells for fleets
 let rangeOf: Regiment | null = null;
@@ -105,6 +106,7 @@ export function selectRegiment(regiment: Regiment): void {
     return;
   }
   range = reachable(regiment);
+  for (const cell of blocked(regiment)) range.delete(cell); // an enemy army is attacked, not walked into
   dimPixelMap(new Set(range.keys()), "land");
 }
 
@@ -133,8 +135,9 @@ export function dropAt(regiment: Regiment, x: number, y: number): [number, numbe
   return spot.point;
 }
 
-/** After a move the reach is measured again from the new cell */
+/** After a move: enemy ground taken or freed, and the reach measured again from the new cell */
 export function moved(regiment: Regiment): void {
+  if (afterMove(regiment)) window.dispatchEvent(new Event("fl:occupation"));
   selectRegiment(regiment);
   stackAll();
 }

@@ -50,6 +50,12 @@ const regimentFrom = (el: Element | null): Regiment | undefined => {
   const g = el?.closest<SVGGElement>("#armies > g > g");
   return g ? regimentOf(+g.dataset.state!, +g.dataset.id!) : undefined;
 };
+/** The regiment under a screen point, even beneath a label */
+const regimentAt = (x: number, y: number, skip?: Regiment): Regiment | undefined =>
+  document
+    .elementsFromPoint(x, y)
+    .map(el => regimentFrom(el))
+    .find(r => r && r !== skip);
 const colourOf = (state: number) => {
   const colour = pack.states[state]?.color;
   return colour && colour[0] === "#" && colour.length >= 7 ? colour.slice(0, 7) : "#999999";
@@ -101,12 +107,14 @@ function openFolder(regiment: Regiment): void {
   ensureEl("dialogs").append(el);
   folders.set(key, el);
   render(el, regiment);
-  const offset = (folders.size - 1) * 24;
+  const previous = [...folders.values()].at(-2);
   $(el).dialog({
     title: regiment.name,
     resizable: false,
     width: "20em",
-    position: { my: "left top", at: `left+${10 + offset} top+${10 + offset}`, of: "#map" },
+    position: previous // side by side, so rows can be dragged between them
+      ? { my: "left top", at: "right+8 top", of: $(previous).dialog("widget"), collision: "fit" }
+      : { my: "left top", at: "left+10 top+10", of: "#map" },
     close: () => closeFolder(key),
     focus: () => {
       const r = regimentOf(regiment.state, regiment.i);
@@ -289,7 +297,7 @@ function dropOnMap(event: DragEvent): void {
   const from = carried && regimentOf(carried.state, carried.id);
   if (!carried || !from) return;
   event.preventDefault();
-  const target = regimentFrom(event.target as Element);
+  const target = regimentAt(event.clientX, event.clientY);
   const row = carried;
   carried = null;
   if (target && target !== from) {
@@ -476,8 +484,8 @@ function onModeClick(this: SVGGElement, event: MouseEvent): void {
     }
     return;
   }
-  const target = regimentFrom(event.target as Element);
-  if (!target || target === self) {
+  const target = regimentAt(event.clientX, event.clientY, self);
+  if (!target) {
     report(t("Click another group"));
     return;
   }
@@ -555,26 +563,26 @@ function attack(attacker: Regiment, defender: Regiment): void {
 
 function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown, unknown>): void {
   const reg = regimentFrom(this);
-  if (!reg) return;
-  select(this).raise();
-  select(this.parentNode as Element).raise();
-  pick(reg);
+  if (!reg || mode) return; // in a mode, a click picks a target instead
   const from = [reg.x, reg.y] as const;
-  this.style.translate = "";
+  let started = false;
   event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
     const { x, y } = dragEvent;
     if (!isInMap(x, y)) return;
+    if (!started) {
+      started = true;
+      select(this).raise();
+      select(this.parentNode as Element).raise();
+      this.style.translate = "";
+      pick(reg);
+    }
     placeRegiment(this, x, y);
     dragOver(reg, x, y);
   });
   event.on("end", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
+    if (!started) return;
     const source = dragEvent.sourceEvent as MouseEvent | undefined;
-    const under = source
-      ? document
-          .elementsFromPoint(source.clientX, source.clientY)
-          .map(el => regimentFrom(el))
-          .find(r => r && r !== reg)
-      : undefined;
+    const under = source ? regimentAt(source.clientX, source.clientY, reg) : undefined;
     if (under && under.state === reg.state) {
       placeRegiment(this, from[0], from[1]);
       joinOnMap(reg, under);

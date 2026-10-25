@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { kitUnits } from "./forces/kit";
 import { canStand, cellPace, reachable } from "./movement";
 
 // a row of cells: 0–9 land, 10–11 sea; a main road joins 0–1–2–3–4–5, a path 5–6–7
@@ -55,5 +56,12 @@ describe("movement", () => {
     const reach = reachable({ n: 0, cell: 8 });
     expect([...reach.keys()].sort()).toEqual([7, 8, 9]);
     expect(cellPace(8)).toEqual({ cells: 1, road: null });
+  });
+
+  it("lets cavalry go two cells off road, and an army only as far as its slowest unit", () => {
+    globalThis.options = { map: { military: { units: kitUnits(e => e) } } } as unknown as typeof options;
+    globalThis.pack.routes = [];
+    expect([...reachable({ n: 0, cell: 5, u: { "Mounted rifles": 250 } }).keys()].sort()).toEqual([3, 4, 5, 6, 7]);
+    expect(reachable({ n: 0, cell: 5, u: { "Mounted rifles": 250, Riflemen: 500 } }).has(7)).toBe(false);
   });
 });

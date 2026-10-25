@@ -1,28 +1,18 @@
-import { mean, select, sum } from "d3";
+import { mean, sum } from "d3";
 import { closeDialogs } from "@/components/dialog/dialog-helpers";
 import { applySorting, applySortingByHeader } from "@/components/dialog/sorting";
 import { Icons } from "@/components/icons";
 import { Layers } from "@/components/layers";
 import { tip } from "@/components/tooltips";
+import { kitOf, powerOf } from "@/fluoria/forces/forces";
+import { iconUrl } from "@/fluoria/forces/pixels";
+import { mainCell, neighbours } from "@/fluoria/one-grid";
+import { clearLosses, fallBack, moveToCell, type Surrender, surrender } from "@/fluoria/war";
 import { moveRegiment } from "@/renderers/draw-military";
 import { sentences, t } from "@/utils/i18n";
 import type { Marker } from "../generators/markers-generator";
 import type { Regiment } from "../generators/military-generator";
-import {
-  capitalize,
-  ensureEl,
-  escapeHtml,
-  findEl,
-  getAdjective,
-  last,
-  list,
-  minmax,
-  P,
-  Pint,
-  rand,
-  rn,
-  wiki
-} from "../utils";
+import { ensureEl, escapeHtml, findEl, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
 
 type Side = "attackers" | "defenders";
 
@@ -538,17 +528,10 @@ function getTypeName(): string {
   return "battle"; // "air"
 }
 
+/** Fluoria: each side is one "Clear totals" table, filled by renderSide */
 function addHeaders(): void {
-  let headers = "<thead><tr><th></th><th></th>";
-
-  for (const u of options.map.military.units) {
-    const label = capitalize(u.name.replace(/_/g, " "));
-    headers += `<th data-tip="${label}">${Icons.html(u.icon)}</th>`;
-  }
-
-  headers += `<th data-tip="${t("Total military forces")}">${t("Total")}</th></tr></thead>`;
-  ensureEl("battleAttackers").innerHTML = headers;
-  ensureEl("battleDefenders").innerHTML = headers;
+  ensureEl("battleAttackers").innerHTML = "";
+  ensureEl("battleDefenders").innerHTML = "";
 }
 
 function addRegimentToSide(side: Side, regiment: Regiment): void {
@@ -558,50 +541,60 @@ function addRegimentToSide(side: Side, regiment: Regiment): void {
     return acc;
   }, {});
   regiment.survivors = { ...regiment.u };
-
-  const state = pack.states[regiment.state];
+  regiment.full = Math.max(regiment.full ?? 0, powerOf(regiment.u)); // Fluoria: losses show against what it went in with
   const distance = (Math.hypot(b.y - regiment.by, b.x - regiment.bx) * options.map.units.distance.scale) | 0; // distance between regiment and its base
-  const color = state.color?.[0] === "#" ? state.color : "#999";
-
-  const href = escapeHtml(Icons.href(regiment.icon ?? ""));
-  const icon = `<svg width="1.4em" height="1.4em" style="margin-bottom: -.6em; stroke: #333">
-      <rect x="0" y="0" width="100%" height="100%" fill="${color}"></rect>
-      <use href="${href}" x="10%" y="10%" width="80%" height="80%" stroke="none"></use></svg>`;
-  const body = `<tbody id="battle${state.i}-${regiment.i}">`;
-
-  let initial = `<tr class="battleInitial"><td>${icon}</td><td class="regiment" data-tip="${
-    regiment.name
-  }">${regiment.name.slice(0, 24)}</td>`;
-  let casualtiesRow = `<tr class="battleCasualties"><td></td><td data-tip="${state.fullName}">${state.fullName!.slice(
-    0,
-    26
-  )}</td>`;
-  let survivorsRow = `<tr class="battleSurvivors"><td></td><td data-tip="${t("Supply line length, affects morale")}">${t("Distance to base")}: ${distance} ${options.map.units.distance.unit}</td>`;
-
-  for (const u of options.map.military.units) {
-    initial += `<td data-tip="${t("Initial forces")}" style="width: 2.5em; text-align: center">${regiment.u[u.name] || 0}</td>`;
-    casualtiesRow += `<td data-tip="${t("Casualties")}" style="width: 2.5em; text-align: center; color: red">0</td>`;
-    survivorsRow += `<td data-tip="${t("Survivors")}" style="width: 2.5em; text-align: center; color: green">${
-      regiment.u[u.name] || 0
-    }</td>`;
-  }
-
-  initial += `<td data-tip="${t("Initial forces")}" style="width: 2.5em; text-align: center">${regiment.a || 0}</td></tr>`;
-  casualtiesRow += `<td data-tip="${t("Casualties")}"  style="width: 2.5em; text-align: center; color: red">0</td></tr>`;
-  survivorsRow += `<td data-tip="${t("Survivors")}" style="width: 2.5em; text-align: center; color: green">${
-    regiment.a || 0
-  }</td></tr>`;
-
-  const container = ensureEl(side === "attackers" ? "battleAttackers" : "battleDefenders");
-  container.innerHTML += `${body + initial + casualtiesRow + survivorsRow}</tbody>`;
   b[side].regiments.push(regiment);
   b[side].distances.push(distance);
+  renderSide(side);
+}
+
+/** One row per unit type on the side, all its regiments together: what it started with, lost and has left */
+function renderSide(side: Side): void {
+  const b = battle!;
+  const regiments = b[side].regiments;
+  const rows = new Map<string, { start: number; lost: number; left: number; state: number }>();
+  for (const r of regiments)
+    for (const unit of Object.keys(r.u)) {
+      const row = rows.get(unit) ?? { start: 0, lost: 0, left: 0, state: r.state };
+      row.start += r.u[unit] || 0;
+      row.lost += Math.abs(r.casualties?.[unit] || 0);
+      row.left += r.survivors?.[unit] ?? r.u[unit] ?? 0;
+      rows.set(unit, row);
+    }
+  const colour = (state: number) => {
+    const c = pack.states[state]?.color;
+    return c && c[0] === "#" ? c.slice(0, 7) : "#999999";
+  };
+  const icon = (unit: string, state: number) => {
+    const kit = kitOf(unit);
+    return kit ? `<img class="flBattleIcon" src="${iconUrl(kit, colour(state))}" alt="" />` : "";
+  };
+  const total = { start: 0, lost: 0, left: 0 };
+  const body = [...rows]
+    .filter(([, row]) => row.start)
+    .map(([unit, row]) => {
+      total.start += row.start;
+      total.lost += row.lost;
+      total.left += row.left;
+      return `<tr><td>${icon(unit, row.state)}</td><td>${escapeHtml(unit)}</td><td>${row.start.toLocaleString()}</td><td class="flLost">${row.lost.toLocaleString()}</td><td class="flLeft">${row.left.toLocaleString()}</td></tr>`;
+    })
+    .join("");
+  const nations = [...new Set(regiments.map(r => pack.states[r.state]?.name))].join(", ");
+  const names = regiments.map(r => escapeHtml(r.name)).join(", ");
+  ensureEl(side === "attackers" ? "battleAttackers" : "battleDefenders").innerHTML = /* html */ `
+    <caption>${escapeHtml(nations)} · ${names}</caption>
+    <thead><tr><th></th><th>${t("Unit")}</th><th>${t("Start")}</th><th>${t("Lost")}</th><th>${t("Left")}</th></tr></thead>
+    <tbody>${body}</tbody>
+    <tfoot><tr><td></td><td>${t("Total")}</td><td>${total.start.toLocaleString()}</td><td class="flLost">${total.lost.toLocaleString()}</td><td class="flLeft">${total.left.toLocaleString()}</td></tr></tfoot>`;
 }
 
 function addSide(): void {
   const b = battle!;
   const body = ensureEl("regimentSelectorBody");
-  const regiments = pack.states.filter(s => s.military && !s.removed).flatMap(s => s.military!);
+  const regiments = pack.states
+    .filter(s => s.military && !s.removed)
+    .flatMap(s => s.military!)
+    .filter(nearBattle);
 
   const distance = (reg: Regiment): number =>
     rn(Math.hypot(b.y - reg.y, b.x - reg.x) * options.map.units.distance.scale);
@@ -684,6 +677,14 @@ function addSide(): void {
     body.innerHTML = "";
     body.removeEventListener("click", selectLine);
   }
+}
+
+/** Fluoria: only units in the battle's cell or next to it, or next to an attacker, can join */
+function nearBattle(regiment: Regiment): boolean {
+  const b = battle!;
+  const fronts = [b.cell, ...b.attackers.regiments.map(r => r.cell)].map(mainCell);
+  const at = mainCell(regiment.cell);
+  return fronts.some(cell => cell === at || neighbours(cell).includes(at));
 }
 
 function showNameSection(): void {
@@ -1185,22 +1186,7 @@ function calculateCasualties(side: Side, casualties: number): void {
 }
 
 function updateTable(side: Side): void {
-  const b = battle!;
-  for (const r of b[side].regiments) {
-    const tbody = ensureEl(`battle${r.state}-${r.i}`);
-    const battleCasualties = tbody.querySelector(".battleCasualties")!;
-    const battleSurvivors = tbody.querySelector(".battleSurvivors")!;
-
-    let index = 3; // index to find table element easily
-    for (const u of options.map.military.units) {
-      battleCasualties.querySelector(`td:nth-child(${index})`)!.innerHTML = String(r.casualties![u.name] || 0);
-      battleSurvivors.querySelector(`td:nth-child(${index})`)!.innerHTML = String(r.survivors![u.name] || 0);
-      index++;
-    }
-
-    battleCasualties.querySelector(`td:nth-child(${index})`)!.innerHTML = String(sum(Object.values(r.casualties!)));
-    battleSurvivors.querySelector(`td:nth-child(${index})`)!.innerHTML = String(sum(Object.values(r.survivors!)));
-  }
+  renderSide(side);
   updateMorale(side);
 }
 
@@ -1291,8 +1277,6 @@ function applyResults(): void {
   });
 
   function applyResultForSide(r: Regiment, side: Side): void {
-    const id = `regiment${r.state}-${r.i}`;
-
     // add result to regiment note
     if (r.note) {
       const status = side === "attackers" ? battleStatus[0] : battleStatus[1];
@@ -1309,11 +1293,12 @@ function applyResults(): void {
       r.note += `<br><br>${battleName} (${options.map.lore.calendar.year} ${options.map.lore.calendar.eraShort}): ${status}. The regiment ${regStatus}.${initialText}${casualtiesText}`;
     }
 
-    r.u = { ...r.survivors };
+    r.u = Object.fromEntries(Object.entries(r.survivors ?? {}).filter(([, n]) => n > 0));
     r.a = sum(Object.values(r.u)); // reg total
-    select<SVGGElement, unknown>("#armies").select(`g#${id} > text`).text(Military.getTotal(r)); // update reg box
-
-    moveRegiment(r, r.px!, r.py!); // move regiment back to initial position
+    if (r.px !== undefined) {
+      r.x = r.px; // back to where it stood
+      r.y = r.py!;
+    }
   }
 
   const i = (last(pack.markers)?.i ?? -1) + 1;
@@ -1381,8 +1366,66 @@ function applyResults(): void {
 
   tip(t("{{battle}} is over. {{result}}", { battle: b.name, result }), true, "success", 4000);
 
+  const outcome = relativeCasualties > 0.6 ? "attackers" : relativeCasualties < 0.4 ? "defenders" : null;
+  const sides = { attackers: [...b.attackers.regiments], defenders: [...b.defenders.regiments] };
   closeBattleScreen();
   cleanData();
+  settle(sides, outcome);
+}
+
+/** Fluoria: the beaten side falls back a cell; those with nowhere to go surrender, and the winner chooses */
+function settle(sides: Record<Side, Regiment[]>, winner: Side | null): void {
+  clearLosses([...sides.attackers, ...sides.defenders]);
+  const alive = (r: Regiment) => Boolean(pack.states[r.state]?.military?.includes(r));
+  const done = () => {
+    Layers.draw("military");
+    window.dispatchEvent(new Event("fl:occupation"));
+  };
+  if (!winner) {
+    done();
+    return;
+  }
+  const losers = sides[winner === "attackers" ? "defenders" : "attackers"].filter(alive);
+  const victors = sides[winner].filter(alive);
+  const from = victors[0] ? ([victors[0].x, victors[0].y] as [number, number]) : ([0, 0] as [number, number]);
+  const trapped: Regiment[] = [];
+  for (const r of losers) {
+    const cell = fallBack(r, from);
+    if (cell === null) trapped.push(r);
+    else moveToCell(r, cell);
+  }
+  if (!trapped.length || !victors.length) {
+    done();
+    return;
+  }
+  askSurrender(trapped, victors[0].state, done);
+}
+
+function askSurrender(trapped: Regiment[], winner: number, done: () => void): void {
+  const el = document.createElement("div");
+  el.className = "dialog";
+  el.innerHTML = `<p>${t("Cut off with nowhere to fall back")}: ${trapped.map(r => escapeHtml(r.name)).join(", ")}.</p><p>${t("What happens to them?")}</p>`;
+  ensureEl("dialogs").append(el);
+  const choose = (how: Surrender) => {
+    for (const r of trapped) surrender(r, how, winner);
+    $(el).dialog("close");
+  };
+  $(el).dialog({
+    title: t("Surrender"),
+    resizable: false,
+    width: "24em",
+    position: { my: "center", at: "center", of: "#map" },
+    buttons: {
+      [t("Eliminate")]: () => choose("eliminate"),
+      [t("Capture")]: () => choose("capture"),
+      [t("Release")]: () => choose("release")
+    },
+    close: () => {
+      $(el).dialog("destroy");
+      el.remove();
+      done();
+    }
+  });
 }
 
 function cancelResults(): void {

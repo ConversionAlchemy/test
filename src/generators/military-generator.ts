@@ -1,5 +1,7 @@
 import { quadtree, sum } from "d3";
 import { Icons } from "@/components/icons";
+import { raiseBeside } from "@/fluoria/forces/army";
+import { normalise } from "@/fluoria/forces/forces";
 import { kitUnits } from "@/fluoria/forces/kit";
 import { requireName, requireOneOf } from "@/utils/validationUtils";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
@@ -461,6 +463,7 @@ class MilitaryModule {
       s.military = createRegiments(s.temp.platoons, s);
       delete s.temp; // do not store temp data
     });
+    normalise(raiseBeside); // Fluoria: every regiment within 12 slots, one domain, a transport on its own
   }
 
   /** Fluoria: the 39 kit unit types */

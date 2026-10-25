@@ -1,10 +1,10 @@
 // One front door to a nation: who it is, what it holds, how it stands with others, its army, money and notes. Every
 // field is Azgaar's own data and every change goes through Azgaar's modules; the full editors stay a click away.
 // While it is open the nation is in focus on the map
+import { confirmationDialog } from "@/components/dialog/dialog-helpers";
 import { Layers } from "@/components/layers";
 import { zoomTo } from "@/components/zoom";
 import { Controllers } from "@/controllers";
-import { RELATIONS } from "@/data/diplomacy";
 import type { Regiment } from "@/generators/military-generator";
 import { Notes } from "@/generators/notes";
 import { STATE_FORMS } from "@/generators/states-generator";
@@ -13,9 +13,11 @@ import { EmblemRenderer } from "@/renderers/emblems/renderer";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
 import { si } from "@/utils/unitUtils";
+import { slotsOf } from "./forces/forces";
 import { focusedNation, type Standing, setFocus, standing } from "./nation";
 import { cellCentre } from "./one-grid";
 import { cellsOfState } from "./owners";
+import { integrate, occupiedBy, tidyOccupations } from "./war";
 
 type Tab = "overview" | "economy" | "diplomacy" | "military" | "notes";
 
@@ -248,32 +250,80 @@ function diplomacy(id: number): string {
     if (folded) return head;
     return head + list.map(other => relationRow(other, kind)).join("");
   }).join("")}
+    ${occupiedBy(id).length ? `<button type="button" class="np-wide" data-act="integrate">${t("Integrate occupations")} (${occupiedBy(id).length} ${t("cells")})</button>` : ""}
     <a class="np-link" data-act="matrix">▦ ${t("Open full relations matrix")}</a>`;
 }
 
+const ACTIONS: Record<Standing, [string, string][]> = {
+  self: [],
+  neutral: [
+    ["ally", t("Ally")],
+    ["war", t("Declare war")],
+    ["vassal", t("Make vassal")],
+    ["annex", t("Annex nation")]
+  ],
+  ally: [
+    ["peace", t("End alliance")],
+    ["war", t("Declare war")],
+    ["vassal", t("Make vassal")],
+    ["annex", t("Annex nation")]
+  ],
+  enemy: [
+    ["peace", t("Make peace")],
+    ["vassal", t("Make vassal")],
+    ["annex", t("Annex nation")]
+  ],
+  vassal: [
+    ["release", t("Release")],
+    ["annex", t("Annex nation")]
+  ],
+  overlord: [["free", t("Break free")]]
+};
+
 function relationRow(other: (typeof pack.states)[number], kind: Standing): string {
   EmblemRenderer.trigger(`stateCOA${other.i}`, other.coa);
-  const control =
-    kind === "vassal"
-      ? `<button type="button" data-release="${other.i}">${t("Release")}</button>`
-      : kind === "overlord"
-        ? `<button type="button" data-free="${other.i}">${t("Break free")}</button>`
-        : `<select data-relation="${other.i}">${["Ally", "Neutral", "Enemy"]
-            .map(
-              r => `<option value="${r}" ${r.toLowerCase() === kind ? "selected" : ""}>${RELATIONS[r].label}</option>`
-            )
-            .join("")}</select>`;
+  const choices = ACTIONS[kind].map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
   return /* html */ `<div class="np-relation">
     <svg viewBox="0 0 200 200"><use href="#stateCOA${other.i}"></use></svg>
     <a data-nation="${other.i}">${escapeHtml(other.fullName || other.name)}</a>
-    ${control}
+    <select data-deal="${other.i}"><option value="">${t("Actions")}…</option>${choices}</select>
   </div>`;
+}
+
+/** A diplomatic act of the nation in focus towards another */
+function deal(id: number, other: number, act: string): void {
+  const redraw = () => {
+    tidyOccupations();
+    Layers.draw("states", "borders", "provinces", "burgIcons", "labels", "military", "emblems");
+    window.dispatchEvent(new Event("fl:occupation"));
+    render();
+  };
+  if (act === "ally") States.setRelation(id, other, "Ally");
+  if (act === "war") States.setRelation(id, other, "Enemy");
+  if (act === "peace" || act === "release" || act === "free") States.setRelation(id, other, "Neutral");
+  if (act === "vassal") States.setRelation(other, id, "Vassal");
+  if (act === "annex") {
+    confirmationDialog({
+      title: t("Annex nation"),
+      message: t("{{other}} becomes part of {{state}}: its lands, settlements and armies. Annex it?", {
+        other: pack.states[other].name,
+        state: pack.states[id].name
+      }),
+      confirm: t("Annex"),
+      onConfirm: () => {
+        States.merge(id, [other]);
+        redraw();
+      }
+    });
+    return;
+  }
+  redraw();
 }
 
 function military(regiments: Regiment[]): string {
   const row = (r: Regiment) => /* html */ `<div class="np-row">
       <a data-regiment="${r.i}">${r.n ? "≋" : "⚔"} ${escapeHtml(r.name)}</a>
-      <span>${r.n ? `${Object.values(r.u).reduce((a, b) => a + b, 0)} ${t("ships")}` : si(r.a)}${r.carrier ? ` · ${t("aboard")}` : ""}</span>
+      <span>${si(r.a)} · ${slotsOf(r.u)} ${t("slots")}</span>
       <button type="button" data-locate="${r.i}" aria-label="${t("Locate")}">⌖</button>
     </div>`;
   return /* html */ `
@@ -339,14 +389,6 @@ function onClick(event: MouseEvent): void {
     if (unit.dataset.regiment) Controllers.RegimentEditor.open(`#regiment${r.state}-${r.i}`);
     return;
   }
-  const release = el.closest<HTMLElement>("[data-release], [data-free]");
-  if (release) {
-    const other = Number(release.dataset.release ?? release.dataset.free);
-    States.setRelation(id, other, "Neutral");
-    Layers.draw("states");
-    render();
-    return;
-  }
   const act = el.closest<HTMLElement>("[data-act]")?.dataset.act;
   switch (act) {
     case "close":
@@ -384,6 +426,13 @@ function onClick(event: MouseEvent): void {
       return;
     case "matrix":
       void Controllers.DiplomacyOverview.open();
+      return;
+    case "integrate":
+      integrate(id);
+      tidyOccupations();
+      Layers.draw("states", "borders", "provinces", "burgIcons", "labels", "emblems");
+      window.dispatchEvent(new Event("fl:occupation"));
+      render();
       return;
     case "taxes":
       void Controllers.StatesEditor.openTreasury(id);
@@ -428,10 +477,9 @@ function onChange(event: Event): void {
   const el = event.target as HTMLInputElement | HTMLSelectElement | HTMLElement;
   const id = focusedNation();
   if (!living(id)) return;
-  const relation = el.closest<HTMLElement>("[data-relation]");
-  if (relation && el instanceof HTMLSelectElement) {
-    States.setRelation(id, Number(relation.dataset.relation), el.value);
-    render();
+  const other = el.closest<HTMLElement>("[data-deal]");
+  if (other && el instanceof HTMLSelectElement) {
+    if (el.value) deal(id, Number(other.dataset.deal), el.value);
     return;
   }
   const field = (el as HTMLElement).dataset?.field;
