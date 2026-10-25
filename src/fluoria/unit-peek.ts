@@ -19,7 +19,7 @@ export interface PeekRow {
   count: number;
 }
 
-const LINGER = 1000; // ms the panel waits after the pointer leaves
+export const LINGER = 300; // ms the panel waits after the pointer leaves, just long enough to reach it
 
 let box: HTMLElement | null = null;
 let timer = 0;
@@ -60,6 +60,7 @@ function ensureBox(): HTMLElement {
     const row = (event.target as HTMLElement).closest<HTMLElement>(".flPeekRow[data-id]");
     if (!row || !dragging) return;
     held = true;
+    queueMicrotask(() => box?.classList.add("flGone")); // out of the way once the drag has its image
     event.dataTransfer?.setData("text/plain", row.dataset.unit || "army");
     // a row without a unit is a whole army
     dragging(
@@ -74,14 +75,32 @@ function ensureBox(): HTMLElement {
   });
   box.addEventListener("dragend", () => {
     held = false;
+    box?.classList.remove("flGone");
     dropped?.();
     hidePeek();
   });
   return box;
 }
 
-/** Show the contents beside an element; `also` widens the anchor (a stack's arrow) so the panel sits past it */
-export function peek(anchor: Element, groups: PeekGroup[], withTotal = true, also?: Element | null): void {
+// gone at once when the map moves, a click lands elsewhere, or a drag starts
+for (const type of ["wheel", "dragstart"]) window.addEventListener(type, () => hidePeek(), true);
+window.addEventListener(
+  "pointerdown",
+  event => {
+    if (!(event.target as Element).closest?.("#flPeek")) hidePeek();
+  },
+  true
+);
+
+/** Show the contents beside an element; `also` widens the anchor (a stack's arrow) so the panel sits past it;
+ * `above` puts it over the anchor instead, for a card in an open stack's row */
+export function peek(
+  anchor: Element,
+  groups: PeekGroup[],
+  withTotal = true,
+  also?: Element | null,
+  above = false
+): void {
   clearTimeout(timer);
   const list = groups.filter(g => present(g.units).length);
   if (!list.length) {
@@ -107,7 +126,7 @@ export function peek(anchor: Element, groups: PeekGroup[], withTotal = true, als
       .join("");
     if (withTotal)
       el.insertAdjacentHTML("beforeend", `<div class="flPeekTotal"><span>Total</span><b>${short(total)}</b></div>`);
-    place(el, anchor, also);
+    place(el, anchor, also, above);
     return;
   }
   el.innerHTML = list
@@ -127,11 +146,16 @@ export function peek(anchor: Element, groups: PeekGroup[], withTotal = true, als
       return `${list.length > 1 ? `<div class="flPeekTitle">${escapeHtml(g.title)}</div>` : ""}${lines}`;
     })
     .join("");
-  place(el, anchor, also);
+  place(el, anchor, also, above);
 }
 
-function place(el: HTMLElement, anchor: Element, also?: Element | null): void {
+function place(el: HTMLElement, anchor: Element, also?: Element | null, above = false): void {
   const r = anchor.getBoundingClientRect();
+  if (above) {
+    el.style.left = `${Math.max(4, Math.min(window.innerWidth - el.offsetWidth - 4, r.left))}px`;
+    el.style.top = `${Math.max(4, r.top - el.offsetHeight - 6)}px`;
+    return;
+  }
   const right = Math.max(r.right, also?.getBoundingClientRect().right ?? 0);
   const width = el.offsetWidth;
   const left = right + 8 + width > window.innerWidth ? r.left - 8 - width : right + 8;

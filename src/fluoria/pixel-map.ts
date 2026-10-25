@@ -234,7 +234,7 @@ class PixelMap {
   }
 
   /** Darken every cell outside `bright`: packed cells for armies, even sea cells for fleets (land all dark) */
-  dim(bright: ReadonlySet<number> | null, kind: "land" | "sea" = "land"): void {
+  dim(bright: ReadonlySet<number> | null, kind: "land" | "sea" | "grid" = "land"): void {
     this.shade.clear();
     this.emphasis = Boolean(bright);
     this.cellLines.alpha = this.lineAlpha();
@@ -243,7 +243,8 @@ class PixelMap {
     const { land } = this.model;
     const sea = kind === "sea";
     for (let g = 0; g < grid.cells.i.length; g++) {
-      const lit = sea ? !land[g] && bright.has(g) : bright.has(cellOfGrid(g));
+      // grid: even grid cells, land and sea alike (airships)
+      const lit = kind === "grid" ? bright.has(g) : sea ? !land[g] && bright.has(g) : bright.has(cellOfGrid(g));
       if (lit) continue;
       const points = grid.cells.v[g].flatMap(v => grid.vertices.p[v]);
       if (points.length >= 6) this.shade.poly(points);
@@ -703,7 +704,7 @@ export const PixelMapLayer = {
   restyle: () => instance?.restyle(),
   drawRoads: () => instance?.drawRoads(),
   showRoadEdit: (edit: RoadEdit | null) => instance?.showRoadEdit(edit),
-  dim: (bright: ReadonlySet<number> | null, kind?: "land" | "sea") => instance?.dim(bright, kind),
+  dim: (bright: ReadonlySet<number> | null, kind?: "land" | "sea" | "grid") => instance?.dim(bright, kind),
   highlight: (cell: number | null) => instance?.highlight(cell),
   highlightNation: (state: number) => instance?.highlightNation(state),
   sync: () => instance?.sync()

@@ -139,13 +139,14 @@ export interface CardFace {
   slots: number;
   strength: number;
   behind?: string[]; // colours of the cards stacked behind, front to back
+  band?: string; // the nation it now serves, when it came from another: a band across the top
 }
 
 /** A card, with a strip on top for each unit behind it */
 export function cardUrl(face: CardFace, size: CardSize): string {
   const step = Math.round(face.strength * 10) / 10;
   const behind = face.behind ?? [];
-  const key = `c|${size}|${face.unit.id}|${face.colour}|${face.single}|${face.power}|${face.troops}|${face.slots}|${step}|${behind.join(",")}`;
+  const key = `c|${size}|${face.unit.id}|${face.colour}|${face.single}|${face.power}|${face.troops}|${face.slots}|${step}|${behind.join(",")}|${face.band ?? ""}`;
   return cached(key, () => {
     const n = CARD[size];
     const lift = behind.length * STRIP;
@@ -159,6 +160,10 @@ export function cardUrl(face: CardFace, size: CardSize): string {
     const fill = face.single ? pale(face.colour) : face.colour;
     for (let y = 0; y < n; y++)
       for (let x = 0; x < n; x++) p.dot(x, lift + y, x === 0 || y === 0 || x === n - 1 || y >= n - 3 ? "#000" : fill);
+    // assigned from another nation: its new nation's colour across the top, under the numbers
+    const bandRows = face.band ? (size === "far" ? 3 : 8) : 0;
+    for (let y = 1; y <= bandRows; y++) for (let x = 1; x < n - 1; x++) p.dot(x, lift + y, face.band!);
+    if (bandRows) for (let x = 1; x < n - 1; x++) p.dot(x, lift + bandRows + 1, "#000");
     const bar = Math.round(step * (n - 2));
     for (let x = 1; x <= bar; x++) p.dot(x, lift + n - 2, barColour(step));
     const icon = { "#": "#000", R: "#fff", W: "#fff" };
@@ -168,10 +173,12 @@ export function cardUrl(face: CardFace, size: CardSize): string {
     }
     p.art(face.unit.pixels, 6, lift + 8, icon, lift + n - 3);
     const text = ink(fill);
+    const top = face.band ?? fill; // the numbers along the top sit on the band when there is one
+    const topInk = ink(top);
     const power = short(face.power);
     const troops = short(face.troops);
-    p.text(power, 2, lift + 2, tint(fill, 0.6), true);
-    p.text(troops, n - 3 - textWidth(troops), lift + 2, text, text === "#fff");
+    p.text(power, 2, lift + 2, face.band ? topInk : tint(fill, 0.6), face.band ? topInk === "#fff" : true);
+    p.text(troops, n - 3 - textWidth(troops), lift + 2, topInk, topInk === "#fff");
     p.text(String(face.slots), 2, lift + 20, text, text === "#fff");
     return p.element;
   });

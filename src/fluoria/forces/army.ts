@@ -160,3 +160,21 @@ export function changeRow(
   regiment.a = troopsOf(regiment);
   return "";
 }
+
+/** Hand an army to another nation: it is theirs from now on, remembering where it came from */
+export function assign(r: Regiment, to: number): string {
+  const from = r.state;
+  const target = pack.states[to];
+  if (!target?.i || target.removed) return "Choose a nation";
+  if (to === from) return "";
+  if (r.garrison) return "A garrison stays with its settlement";
+  const list = pack.states[from]?.military ?? [];
+  list.splice(list.indexOf(r), 1);
+  target.military ??= [];
+  r.i = target.military.length ? Math.max(...target.military.map(m => m.i)) + 1 : 0;
+  r.origin = (r.origin ?? from) === to ? undefined : (r.origin ?? from); // back home: no longer from elsewhere
+  r.state = to;
+  r.home = undefined;
+  target.military.push(r);
+  return "";
+}

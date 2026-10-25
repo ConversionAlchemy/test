@@ -82,18 +82,22 @@ function build(): void {
     position: { my: "center", at: "center", of: "#map" },
     close: () => stopPicking()
   });
+  // only the two ends redraw: redrawing on the amount's change ate the Send click that caused it
   el.addEventListener("change", event => {
     const target = event.target as HTMLSelectElement;
+    if (!target.dataset.end) return;
     if (target.dataset.end === "from") from = +target.value;
-    if (target.dataset.end === "to") to = +target.value;
+    else to = +target.value;
     render();
+  });
+  el.addEventListener("keydown", event => {
+    if (event.key === "Enter" && (event.target as HTMLElement).id === "flSendAmount") send();
   });
   el.addEventListener("click", event => {
     const button = (event.target as HTMLElement).closest<HTMLElement>("[data-act]");
     if (!button) return;
     const act = button.dataset.act;
     if (act === "pick-from" || act === "pick-to") startPicking(act === "pick-from" ? "from" : "to");
-    if (act === "all") amountInput().value = String(Math.floor(funds(living(from)!)));
     if (act === "send") send();
     if (act === "undo") undo(Number(button.dataset.k));
   });
@@ -132,7 +136,6 @@ function render(): void {
     <div class="flSendError"></div>
     <div class="flSendButtons">
       <button type="button" data-act="send">${t("Send")}</button>
-      <button type="button" data-act="all">${t("All")}</button>
     </div>
     ${
       log.length
@@ -141,7 +144,9 @@ function render(): void {
             .map((s, k) => {
               const a = living(s.from);
               const b = living(s.to);
-              return `<div class="flSendRow"><span>§${s.amount.toLocaleString()} · ${escapeHtml(a ? label(a) : "?")} → ${escapeHtml(b ? label(b) : "?")}</span>${
+              const short = (x: Burg | null) =>
+                escapeHtml(x ? (x.state === nation ? name(x) : (pack.states[x.state ?? 0]?.name ?? name(x))) : "?");
+              return `<div class="flSendRow"><span>§${s.amount.toLocaleString()} · ${short(a)} → ${short(b)}</span>${
                 s.undone
                   ? `<i>${t("undone")}</i>`
                   : `<button type="button" data-act="undo" data-k="${k}">↶ ${t("undo")}</button>`
