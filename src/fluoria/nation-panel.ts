@@ -478,11 +478,14 @@ function wireMilitary(): void {
       event.dataTransfer?.setData("text/plain", row.dataset.unit!);
       event.stopPropagation();
     });
-  for (const s of panel.querySelectorAll<HTMLElement>("summary[data-army-drag]"))
+  for (const s of panel.querySelectorAll<HTMLElement>("summary[data-army-drag]")) {
     s.addEventListener("dragstart", event => {
       carried = { army: Number(s.dataset.armyDrag) };
       event.dataTransfer?.setData("text/plain", s.dataset.armyDrag!);
+      void Controllers.RegimentEditor.carry(id, Number(s.dataset.armyDrag)); // it can land on the map too
     });
+    s.addEventListener("dragend", () => void Controllers.RegimentEditor.carry(id, null));
+  }
   for (const d of panel.querySelectorAll<HTMLElement>("details.np-army")) {
     d.addEventListener("dragover", event => {
       if (!carried) return;

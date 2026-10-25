@@ -1273,3 +1273,24 @@ details.flPart .flPartSize { color: var(--fl-dim); white-space: nowrap; }
 details.flPart .flSlots { padding: 0 4px 4px 22px; box-sizing: border-box; }
 .flFolder a.flAt { cursor: pointer; border-bottom: 1px dashed #777; color: inherit; }
 .flInline::-webkit-inner-spin-button, .flInline::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* cursors say what can be done: grab what moves, point at what opens, a crosshair while picking a target */
+#armies > g:not(#flSettlements) > g { cursor: grab; }
+#armies > g:not(#flSettlements) > g:active { cursor: grabbing; }
+#armies .flTab, #flSettlements .flSettle, #burgIcons use, .flNationLink, .flBuilding, .flPx, .flAt, .flGear,
+#flNation .np-stat[data-tab], #flNation details.np-army summary, details.flPart > summary { cursor: pointer; }
+.flSlot[draggable="true"], #flPeek .flPeekRow[draggable="true"], #flNation .np-unit,
+#flNation summary[data-army-drag], details.flPart > summary[draggable="true"], .flFolderArt[draggable="true"] { cursor: grab; }
+.flSlot[draggable="true"]:active, #flPeek .flPeekRow[draggable="true"]:active, #flNation .np-unit:active { cursor: grabbing; }
+.flSlot.flEmpty:not(.flNoAdd) { cursor: copy; }
+.flFolderName, .flInline, .np-army-name { cursor: text; }
+#viewbox[style*="crosshair"] #armies > g > g { cursor: crosshair; }
+
+/* Azgaar's note preview, dark like the rest of the interface */
+#notes { background: #232323ee !important; border: 1px solid #000 !important; color: #e8e5d9; font-family: "VT323", monospace; box-shadow: 0 3px 10px #0008; }
+#notesHeader { border-bottom: 1px solid #444 !important; color: #fff; }
+#notesBody { color: #e8e5d9; }
+
+/* the money line keeps to one row */
+.flMoneyLine { flex-wrap: nowrap; white-space: nowrap; }
+.flMoneyLine .flInline { width: 3.6em; }
