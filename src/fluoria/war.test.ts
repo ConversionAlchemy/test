@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Regiment } from "@/generators/military-generator";
 import { kitUnits } from "./forces/kit";
-import { afterMove, blocked, fallBack, integrate, occupierOf } from "./war";
+import { afterMove, blocked, fallBack, hasRoom, integrate, occupierOf } from "./war";
 
 // a row of land cells 0–5: state 1 owns 0–2, state 2 owns 3–5; the two are at war
 function world(): void {
@@ -61,5 +61,12 @@ describe("war", () => {
     expect(integrate(1)).toBe(2);
     expect(States.setCells).toHaveBeenCalledWith(1, [3, 4]);
     expect(pack.states[1].occupied).toEqual([]);
+  });
+
+  it("holds at most 12 slots of a nation and its friends in a cell", () => {
+    pack.states[1].military = [{ ...army(1, 1), u: { Riflemen: 5000 } }];
+    expect(hasRoom(1, 1, 2)).toBe(true);
+    expect(hasRoom(1, 1, 3)).toBe(false);
+    expect(hasRoom(2, 1, 12)).toBe(true); // an enemy's units aren't counted against it
   });
 });

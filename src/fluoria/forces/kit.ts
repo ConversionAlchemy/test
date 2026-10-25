@@ -60,7 +60,7 @@ const RAISED: Record<string, [number, number]> = {
 };
 
 /** Airships end a move within this many cells of a settlement of their own nation or an ally */
-export const AIR_RANGE = 6;
+export const AIR_RANGE = 10;
 
 export const slotSize = (unit: KitUnit) => SLOT_SIZE[unit.role] ?? 1;
 

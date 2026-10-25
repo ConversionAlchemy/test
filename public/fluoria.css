@@ -415,10 +415,9 @@ input[type="range"] {
   pointer-events: none;
 }
 
-/* hover: lighter, lifted, a hard shadow; no easing */
+/* hover: a little brighter, nothing moves */
 #armies:not([data-fl-stage="far"]) > g > g:hover > image {
-  filter: brightness(1.15) drop-shadow(calc(var(--fl-lift) * 1.6) calc(var(--fl-lift) * 1.6) 0 #000000);
-  translate: calc(var(--fl-lift) * -1) calc(var(--fl-lift) * -1);
+  filter: brightness(1.2);
 }
 
 /* with a group open, the rest of the map's units step back */
@@ -1026,9 +1025,18 @@ body.fl-atlas #coordinates text {
 
 .flSlotName {
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.flSlotCount {
+  flex: none;
+}
+
+.flFolder {
+  overflow-x: hidden;
 }
 
 .flSlotCount input {
