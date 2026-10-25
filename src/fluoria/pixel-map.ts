@@ -128,6 +128,7 @@ class PixelMap {
   private focusShade = new Graphics(); // a nation in focus: the rest dimmed, tinted by how they stand to it
   private enemyMask = new Graphics();
   private enemyStripes = new Graphics();
+  private occupation = new Container(); // cells held in war: stripes in the occupier's colour
   private ready: Promise<void>;
   private rebuildTimer = 0;
   private frame = 0;
@@ -155,6 +156,7 @@ class PixelMap {
       this.focusShade,
       this.enemyMask,
       this.enemyStripes,
+      this.occupation,
       this.roads,
       this.hover,
       this.shade,
@@ -165,6 +167,7 @@ class PixelMap {
     document.body.classList.add("fluoria-pixel");
     this.enemyStripes.mask = this.enemyMask;
     onFocus(() => this.drawFocus());
+    window.addEventListener("fl:occupation", () => this.drawOccupation());
     this.pool = new TilePool();
     this.app.ticker.add(() => this.tick());
   }
@@ -179,6 +182,7 @@ class PixelMap {
       this.pool?.setModel(this.model);
       this.restyle();
       this.drawFocus();
+      this.drawOccupation();
     }
     if (ids.some(id => LINES.includes(id))) this.lines++;
     if (ids.includes("routes")) this.drawRoads();
@@ -369,6 +373,28 @@ class PixelMap {
     this.enemyStripes.stroke({ color: 0x5a0f0c, width: step * 0.3, alpha: 0.55 });
   }
 
+  /** Occupied cells, striped in the occupier's colour over the owner's */
+  private drawOccupation(): void {
+    for (const child of this.occupation.removeChildren()) child.destroy();
+    const { width, height } = wholeMap();
+    const step = Math.max(3, grid.spacing * 0.4);
+    for (const state of pack.states ?? []) {
+      if (!state?.i || state.removed || !state.occupied?.length) continue;
+      const mask = new Graphics();
+      for (const cell of state.occupied) {
+        const g = pack.cells.g?.[cell];
+        if (g !== undefined) this.polyOf(mask, g);
+      }
+      mask.fill({ color: 0xffffff });
+      const stripes = new Graphics();
+      for (let k = -height; k < width; k += step) stripes.moveTo(k, height).lineTo(k + height, 0);
+      const colour = Number.parseInt((state.color ?? "#999999").slice(1, 7), 16) || 0x999999;
+      stripes.stroke({ color: colour, width: step * 0.45, alpha: 0.85 });
+      stripes.mask = mask;
+      this.occupation.addChild(mask, stripes);
+    }
+  }
+
   /** Brighten one cell a little: a packed cell, or a sea grid cell as -1 - id; null for none */
   highlight(cell: number | null): void {
     this.hover.clear();
@@ -417,6 +443,7 @@ class PixelMap {
     this.drawCellLines();
     this.drawRoads();
     this.drawFocus();
+    this.drawOccupation();
     this.sync();
   }
 

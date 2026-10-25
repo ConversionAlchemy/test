@@ -7,6 +7,7 @@ import { focusedNation, STANDING_LABEL, standing } from "./nation";
 import { isPort } from "./one-grid";
 import { ownerText } from "./owners";
 import { laneSteps } from "./road-geometry";
+import { occupierOf } from "./war";
 
 let lanes: { key: string; cells: Set<number> } | null = null;
 
@@ -47,10 +48,14 @@ export function cellLine(cell: number | undefined, g: number): string {
   const owner = state ? ownerText(at) : t("Unclaimed");
   const focus = focusedNation();
   const relation = focus && state && state !== focus ? standing(focus, state) : null;
-  const ownerPart =
+  const occupier = occupierOf(at);
+  const held = occupier ? `${t("occupied by")} ${pack.states[occupier].name}` : "";
+  const ownerPart = join([
     relation && pack.states[focus]
       ? `${owner} (${t(STANDING_LABEL[relation])} ${t("of")} ${pack.states[focus].name})`
-      : owner;
+      : owner,
+    held
+  ]);
   const biome = pack.biomes[cells.biome[at]]?.name ?? "";
   const port = Boolean(living?.port) || isPort(at);
   return escapeHtml(

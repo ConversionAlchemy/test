@@ -2,12 +2,13 @@
 // selected one dims everything it can't reach in one move. A drag ends on a reachable cell or not at all
 import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
-import { cargo, carry, land, landingCells, load } from "./boarding";
+import { landingCells, unload } from "./boarding";
 import { canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
 import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./one-grid";
 import { dimPixelMap } from "./pixel-map-sync";
 import { laneSteps } from "./road-geometry";
 import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
+import { afterMove, blocked } from "./war";
 
 let range: Map<number, number> | null = null; // packed cells for armies, sea grid cells for fleets
 let rangeOf: Regiment | null = null;
@@ -32,46 +33,31 @@ const standAt = (
   return cell === undefined ? null : { cell, packCell: cell, point: cellCentre(cell) };
 };
 
-// regiment boxes keep about this height on screen, whatever the zoom: small chips far out, a little bigger close in
-const BOX_PX = [
-  [0, 9],
-  [1.5, 16],
-  [4.5, 20],
-  [8, 24]
+// on-screen size by zoom: a silhouette far out, the icon from 1.5, the card from 4.5
+const STAGES = [
+  [0, 10, "far"],
+  [1.5, 22, "mid"],
+  [4.5, 60, "close"],
+  [8, 72, "close"]
 ] as const;
 let unitScale = 1;
 
-/** Scale every regiment box around its own point so its on-screen size follows BOX_PX, not the map zoom */
+/** Scale every regiment around its own point so its on-screen size follows the zoom stage, not the map zoom */
 export function applyUnitZoom(scale: number): void {
   const armies = document.getElementById("armies");
   if (!armies || !scale || !styles?.military) return;
-  let px: number = BOX_PX[0][1];
-  for (const [from, size] of BOX_PX) if (scale >= from) px = size;
-  const box = styles.military.options.boxSize * 2; // box height in map units
+  let [, px, stage]: readonly [number, number, string] = STAGES[0];
+  for (const [from, size, name] of STAGES) if (scale >= from) [px, stage] = [size, name];
+  const box = styles.military.options.boxSize * 2; // art size in map units
   unitScale = Math.max(0.02, px / (box * scale));
   armies.style.setProperty("--fl-unit", String(unitScale));
-  armies.dataset.flNames = scale >= 4.5 ? "1" : "0";
-  const far = scale < FAR;
-  if (armies.dataset.flFar !== (far ? "1" : "0")) {
-    armies.dataset.flFar = far ? "1" : "0";
-    centreDots(armies, far);
-  }
+  armies.style.setProperty("--fl-lift", `${3 / (unitScale * scale)}px`);
+  armies.dataset.flStage = stage;
+  armies.dataset.flNames = stage === "close" ? "1" : "0";
   for (const stack of stacks) layStack(stack); // only the offsets of shared cells change with size
 }
 
 let stacks: Regiment[][] = [];
-
-const FAR = 1.5; // zoomed out further than this, each regiment is a dot of its state's colour
-
-/** Far out only the icon square shows, as a dot: move it onto the box's centre */
-function centreDots(armies: HTMLElement, far: boolean): void {
-  for (const regiment of armies.querySelectorAll<SVGGElement>(":scope > g > g")) {
-    const [box, icon] = regiment.querySelectorAll<SVGRectElement>(":scope > rect");
-    if (!box || !icon) continue;
-    const at = (rect: SVGRectElement) => Number(rect.getAttribute("x")) + Number(rect.getAttribute("width")) / 2;
-    icon.style.translate = far ? `${at(box) - at(icon)}px 0px` : "";
-  }
-}
 
 /** Markers stand at their cell's centre, or on the settlement in it */
 export function snapMarkers(): boolean {
@@ -120,6 +106,7 @@ export function selectRegiment(regiment: Regiment): void {
     return;
   }
   range = reachable(regiment);
+  for (const cell of blocked(regiment)) range.delete(cell); // an enemy army is attacked, not walked into
   dimPixelMap(new Set(range.keys()), "land");
 }
 
@@ -148,9 +135,9 @@ export function dropAt(regiment: Regiment, x: number, y: number): [number, numbe
   return spot.point;
 }
 
-/** After a move the reach is measured again from the new cell, and anyone aboard comes along */
+/** After a move: enemy ground taken or freed, and the reach measured again from the new cell */
 export function moved(regiment: Regiment): void {
-  if (regiment.n) carry(regiment);
+  if (afterMove(regiment)) window.dispatchEvent(new Event("fl:occupation"));
   selectRegiment(regiment);
   stackAll();
 }
@@ -158,10 +145,15 @@ export function moved(regiment: Regiment): void {
 /** The regiment whose reach is shown, if any */
 export const selected = (): Regiment | null => rangeOf;
 
-/** Pick a land cell next to the fleet for its troops: the cells light up, a click lands them, Escape cancels */
-export function chooseLanding(fleet: Regiment, troops: Regiment[], done: () => void): void {
-  const targets = new Set(landingCells(fleet));
-  if (!targets.size || !troops.length) return;
+/** Pick a land cell beside a transport for its cargo: the cells light up, a click lands them, Escape cancels */
+export function chooseLanding(transport: Regiment, done: () => void): void {
+  const targets = new Set(landingCells(transport));
+  if (!targets.size) return;
+  if (targets.size === 1) {
+    unload(transport, [...targets][0]);
+    done();
+    return;
+  }
   dimPixelMap(targets, "land");
   const map = document.getElementById("map");
   const finish = () => {
@@ -188,7 +180,7 @@ export function chooseLanding(fleet: Regiment, troops: Regiment[], done: () => v
     event.preventDefault();
     const cell = cellAt(event);
     if (cell === undefined || !targets.has(cell)) return;
-    for (const regiment of troops) land(regiment, cell);
+    unload(transport, cell);
     finish();
     done();
   };
@@ -230,7 +222,6 @@ const SHOWN = 3; // a column this long, or one longer than this plus one, shows 
 export function stackAll(): void {
   const armies = document.getElementById("armies");
   if (!armies) return;
-  if (armies.dataset.flFar === "1") centreDots(armies, true);
   const byCell = new Map<number, Regiment[]>();
   for (const state of pack.states) {
     if (!state.i || state.removed) continue;
@@ -243,31 +234,12 @@ export function stackAll(): void {
   }
   stacks = [...byCell.values()].filter(stack => stack.length > 1);
   for (const stack of byCell.values()) layStack(stack);
-  for (const state of pack.states)
-    for (const fleet of state.i && !state.removed ? (state.military ?? []) : []) if (fleet.n) cargoBadge(fleet);
-}
-
-/** A fleet with troops aboard shows how many it carries */
-function cargoBadge(fleet: Regiment): void {
-  const element = elementOf(fleet);
-  element?.querySelector(".flCargo")?.remove();
-  const troops = cargo(fleet).length ? load(fleet) : 0;
-  const box = element?.querySelector("rect");
-  if (!element || !box || !troops) return;
-  const size = styles.military.options.boxSize * 2;
-  const badge = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  badge.setAttribute("class", "flCargo");
-  badge.setAttribute("x", box.getAttribute("x") ?? "0");
-  badge.setAttribute("y", String(Number(box.getAttribute("y")) + size * 1.9));
-  badge.setAttribute("font-size", String(size * 0.8));
-  badge.textContent = `⚔ ${troops}`;
-  element.append(badge);
 }
 
 const elementOf = (regiment: Regiment) =>
   document.getElementById(`regiment${regiment.state}-${regiment.i}`) as SVGGElement | null;
 
-/** A column centred on the cell: each box centred across, a small gap between them */
+/** A column centred on the cell, a small gap between cards */
 function layStack(stack: Regiment[]): void {
   const size = styles.military.options.boxSize * 2 * unitScale;
   const shown = stack.length > SHOWN + 1 ? SHOWN : stack.length;
@@ -281,19 +253,20 @@ function layStack(stack: Regiment[]): void {
     element.style.translate = dy ? `0px ${dy}px` : "";
   });
   if (shown === stack.length) return;
-  const last = elementOf(stack[shown - 1]);
-  const box = last?.querySelector("rect");
-  if (!last || !box) return;
+  const last = stack[shown - 1];
+  const element = elementOf(last);
+  if (!element) return;
+  const box = styles.military.options.boxSize * 2;
   const tab = document.createElementNS("http://www.w3.org/2000/svg", "text");
   tab.setAttribute("class", "flMore");
-  tab.setAttribute("x", String(Number(box.getAttribute("x")) + Number(box.getAttribute("width")) / 2));
-  tab.setAttribute("y", String(Number(box.getAttribute("y")) + Number(box.getAttribute("height")) * 1.75));
-  tab.setAttribute("font-size", String(styles.military.options.boxSize * 1.6));
+  tab.setAttribute("x", String(last.x));
+  tab.setAttribute("y", String(last.y + box * 0.85));
+  tab.setAttribute("font-size", String(box * 0.6));
   tab.setAttribute("text-anchor", "middle");
   tab.textContent = `+${stack.length - shown}`;
   tab.addEventListener("click", event => {
-    event.stopPropagation(); // the full list, not the editor of the box it sits under
+    event.stopPropagation(); // the full list, not the editor of the card it sits under
     Controllers.ContextMenu.open(event);
   });
-  last.append(tab);
+  element.append(tab);
 }

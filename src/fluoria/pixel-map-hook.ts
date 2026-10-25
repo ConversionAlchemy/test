@@ -1,8 +1,13 @@
 // Eager, tiny: wires Azgaar's layer and zoom events to the pixel map, which loads (with PixiJS) on first draw
+
+import { Icons } from "@/components/icons";
 import { Layers } from "@/components/layers";
 import { tip } from "@/components/tooltips";
 import { viewport } from "@/components/viewport";
 import { ensureHitLayer, NATION_ZOOM } from "./cell-card";
+import { raiseBeside } from "./forces/army";
+import { convertUnitTypes, normalise } from "./forces/forces";
+import { whenFontReady } from "./forces/pixels";
 import { applyLabelZoom } from "./label-zoom";
 import { onMapView } from "./map-view";
 import { setFocus, simplifyDiplomacy } from "./nation";
@@ -65,20 +70,25 @@ Layers.onDraw(ids => {
   void load().then(map => map.drawn(ids));
 });
 Layers.subscribe(() => loaded?.toggled());
+whenFontReady(() => Layers.isOn("military") && Layers.draw("military"));
 
 // every map, made or loaded, is brought onto the one grid once
-// and its diplomacy kept to ally, neutral, enemy, vassal and overlord
+// its diplomacy kept to ally, neutral, enemy, vassal and overlord, and its forces to the Fluoria units and rules
 window.addEventListener("map:generated", () => {
   setFocus(0);
   const { moved, clashes } = foldMap();
   const relations = simplifyDiplomacy();
+  const converted = convertUnitTypes(emoji => Icons.glyph(emoji));
+  const split = normalise(raiseBeside);
   Layers.draw("burgIcons", "labels", "military", "markers", "routes");
   const lines = [
     moved.length
       ? `${moved.length} settlements moved onto their cell's centre (${moved.slice(0, 6).join(", ")}${moved.length > 6 ? "…" : ""}).`
       : "",
     clashes.length ? `Left in place (their cell already has a settlement): ${clashes.join(", ")}.` : "",
-    relations ? `${relations} relations set to neutral (friendly, suspicious, rival or unknown).` : ""
+    relations ? `${relations} relations set to neutral (friendly, suspicious, rival or unknown).` : "",
+    converted ? "Military units converted to the Fluoria unit types." : "",
+    split ? `${split} groups split off to keep every army within 12 slots.` : ""
   ].filter(Boolean);
   if (!lines.length) return;
   console.info(`Fluoria: ${lines.join(" ")}`, moved.length ? `Moved: ${moved.join(", ")}` : "");

@@ -1,5 +1,8 @@
 import { quadtree, sum } from "d3";
 import { Icons } from "@/components/icons";
+import { raiseBeside } from "@/fluoria/forces/army";
+import { normalise } from "@/fluoria/forces/forces";
+import { kitUnits } from "@/fluoria/forces/kit";
 import { requireName, requireOneOf } from "@/utils/validationUtils";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import type { State } from "./states-generator";
@@ -33,7 +36,9 @@ export interface Regiment {
   note?: string;
   hidden?: boolean;
   tags?: string[];
-  carrier?: [state: number, regiment: number]; // Fluoria: the fleet this regiment is aboard
+  carrier?: [state: number, regiment: number]; // Fluoria, older maps: the fleet this regiment was aboard
+  cargo?: Record<string, number>; // Fluoria: land units a transport carries
+  full?: number; // Fluoria: power when last at full strength
 }
 
 interface Platoon {
@@ -458,62 +463,12 @@ class MilitaryModule {
       s.military = createRegiments(s.temp.platoons, s);
       delete s.temp; // do not store temp data
     });
+    normalise(raiseBeside); // Fluoria: every regiment within 12 slots, one domain, a transport on its own
   }
 
+  /** Fluoria: the 39 kit unit types */
   getDefaultOptions() {
-    const units = [
-      {
-        icon: "⚔️",
-        name: "infantry",
-        rural: 0.25,
-        urban: 0.2,
-        crew: 1,
-        power: 1,
-        type: "melee",
-        separate: 0
-      },
-      {
-        icon: "🏹",
-        name: "archers",
-        rural: 0.12,
-        urban: 0.2,
-        crew: 1,
-        power: 1,
-        type: "ranged",
-        separate: 0
-      },
-      {
-        icon: "🐴",
-        name: "cavalry",
-        rural: 0.12,
-        urban: 0.03,
-        crew: 2,
-        power: 2,
-        type: "mounted",
-        separate: 0
-      },
-      {
-        icon: "💣",
-        name: "artillery",
-        rural: 0,
-        urban: 0.03,
-        crew: 8,
-        power: 12,
-        type: "machinery",
-        separate: 0
-      },
-      {
-        icon: "🌊",
-        name: "fleet",
-        rural: 0,
-        urban: 0.015,
-        crew: 100,
-        power: 50,
-        type: "naval",
-        separate: 1
-      }
-    ];
-    return units.map(unit => ({ ...unit, icon: Icons.glyph(unit.icon) }));
+    return kitUnits(emoji => Icons.glyph(emoji));
   }
 
   getName(r: Regiment, regiments: Regiment[]) {

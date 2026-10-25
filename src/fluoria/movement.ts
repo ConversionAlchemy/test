@@ -1,8 +1,12 @@
 // How far a regiment can go in one move, counted in cells so every map plays the same whatever its scale.
-// Off road: one step to any neighbour. Along roads: up to 4 (main road), 3 (road) or 2 (path) cells, mixed routes
-// costing each step by the road it's on; or one step to any neighbour, never both in one move.
-// At sea, on the even grid: 3 cells, or 12 along the cells of a sea lane
+// Off road: its slowest unit's steps (cavalry 2, the rest 1). Along roads: up to 4 (main road), 3 (road) or 2 (path)
+// cells, mixed routes costing each step by the road it's on; never both in one move.
+// At sea, on the even grid: 3 cells, or 12 along the cells of a sea lane.
+// In the air: 6–8 cells over anything, ending within range of a settlement of its own nation or an ally
 import type { Regiment } from "@/generators/military-generator";
+import { domainOf, kitOf } from "./forces/forces";
+import { AIR_RANGE, movePerTurn } from "./forces/kit";
+import { standing } from "./nation";
 import { foldCells, isPort, mainCell, neighbours } from "./one-grid";
 import { routeCells } from "./road-geometry";
 
@@ -13,10 +17,58 @@ export const LANE_CELLS = 12;
 
 const isWaterCell = (cell: number) => pack.cells.h[cell] < 20;
 
-/** Whether a regiment may stand in a cell at all: fleets on water or in a port, everyone else on land */
-export function canStand(regiment: Pick<Regiment, "n">, cell: number): boolean {
+type Mover = Pick<Regiment, "n" | "cell"> & Partial<Pick<Regiment, "u" | "state">>;
+
+type Stander = Pick<Regiment, "n"> & Partial<Pick<Regiment, "u">>;
+
+const isAir = (regiment: Stander) => Boolean(regiment.u) && domainOf(regiment as Pick<Regiment, "u" | "n">) === "air";
+
+/** Whether a regiment may stand in a cell at all: fleets on water or in a port, airships anywhere, armies on land */
+export function canStand(regiment: Stander, cell: number): boolean {
+  if (isAir(regiment)) return true;
   return regiment.n ? isWaterCell(cell) || isPort(cell) : !isWaterCell(cell);
 }
+
+/** Off-road steps a move allows: the slowest unit's, from Azgaar's unit settings or the kit */
+export function stepsOf(regiment: Mover): number {
+  let steps = Infinity;
+  for (const [name, n] of Object.entries(regiment.u ?? {})) {
+    if (!n) continue;
+    const unit = options.map.military.units.find(u => u.name === name);
+    const kit = kitOf(name);
+    steps = Math.min(steps, unit?.move ?? (kit ? movePerTurn(kit) : 1));
+  }
+  return Number.isFinite(steps) ? steps : 1;
+}
+
+/** Cells within `limit` steps of `from` that `ok` lets through, with their distance */
+function spread(from: number[], limit: number, ok: (cell: number) => boolean): Map<number, number> {
+  const seen = new Map(from.map(cell => [cell, 0]));
+  let frontier = from;
+  for (let d = 1; d <= limit && frontier.length; d++) {
+    const next: number[] = [];
+    for (const cell of frontier)
+      for (const n of neighbours(cell))
+        if (!seen.has(n) && ok(n)) {
+          seen.set(n, d);
+          next.push(n);
+        }
+    frontier = next;
+  }
+  return seen;
+}
+
+/** Cells within an airship's range of a settlement of its nation or one friendly to it */
+export function airCover(state: number, range = airRange()): Set<number> {
+  const friendly = (owner: number) => ["self", "ally", "vassal", "overlord"].includes(standing(state, owner));
+  const bases = (pack.burgs ?? [])
+    .filter(b => b?.i && !b.removed && b.state && friendly(b.state))
+    .map(b => mainCell(b.cell));
+  return new Set(spread(bases, range, () => true).keys());
+}
+
+const airRange = () =>
+  Math.max(...options.map.military.units.filter(u => u.range).map(u => u.range ?? 0), 0) || AIR_RANGE;
 
 /** Land road steps between neighbouring cells, "a-b" both ways, each with the best road group on it */
 function roadEdges(): Map<string, string> {
@@ -47,10 +99,17 @@ export function cellPace(cell: number): { cells: number; road: string | null } {
   return best;
 }
 
-/** Every land cell the regiment can reach this move, with the share of the move it costs */
-export function reachable(regiment: Pick<Regiment, "n" | "cell">): Map<number, number> {
-  const edges = roadEdges();
+/** Every cell the regiment can reach this move, with the share of the move it costs */
+export function reachable(regiment: Mover): Map<number, number> {
   const start = startCell(regiment);
+  const steps = stepsOf(regiment);
+  if (isAir(regiment)) {
+    const cover = airCover(regiment.state ?? 0);
+    const reach = new Map<number, number>();
+    for (const [cell, d] of spread([start], steps, () => true)) if (cover.has(cell)) reach.set(cell, d / steps);
+    return reach;
+  }
+  const edges = roadEdges();
   const onRoad = new Map<number, number>([[start, 0]]);
   const queue: [number, number][] = [[0, start]];
   while (queue.length) {
@@ -70,14 +129,15 @@ export function reachable(regiment: Pick<Regiment, "n" | "cell">): Map<number, n
       queue.push([total, next]);
     }
   }
-  // or one ordinary step to any neighbour of where it stands; the two never combine
+  // or its off-road steps over open ground; the two never combine
   const reach = new Map(onRoad);
-  for (const next of neighbours(start)) if (canStand(regiment, next) && !reach.has(next)) reach.set(next, 1);
+  for (const [cell, d] of spread([start], steps, next => canStand(regiment, next)))
+    if (d && !reach.has(cell)) reach.set(cell, d / steps);
   return reach;
 }
 
 /** A fleet moored at a port counts from its harbour; anyone stranded counts from the nearest cell they may use */
-function startCell(regiment: Pick<Regiment, "n" | "cell">): number {
+function startCell(regiment: Mover): number {
   const cell = mainCell(regiment.cell);
   if (canStand(regiment, cell)) return cell;
   const haven = pack.cells.haven?.[cell];

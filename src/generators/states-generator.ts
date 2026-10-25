@@ -65,6 +65,7 @@ export interface State {
   fullName?: string;
   form?: string;
   military?: Regiment[];
+  occupied?: number[]; // Fluoria: cells of other states this one holds in war
   provinces?: number[];
   temp?: any;
   alert?: number;
