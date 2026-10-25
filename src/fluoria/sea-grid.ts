@@ -28,12 +28,14 @@ export function seaCellAt(x: number, y: number): number | undefined {
 }
 
 /** Every sea cell a fleet reaches this move: 6 cells across open sea, 10 along a sea lane */
-export function seaReach(start: number, lanes: ReadonlySet<number>, open: number, lane: number): Map<number, number> {
+export function seaReach(
+  start: number,
+  onLaneAt: (x: number, y: number) => boolean,
+  open: number,
+  lane: number
+): Map<number, number> {
   const { cells, points } = grid;
-  const onLane = (g: number) => {
-    const cell = Pack.findCell(points[g][0], points[g][1]);
-    return cell !== undefined && lanes.has(cell);
-  };
+  const onLane = (g: number) => onLaneAt(points[g][0], points[g][1]);
   const laneOf = new Map<number, boolean>();
   const isLane = (g: number) => laneOf.get(g) ?? laneOf.set(g, onLane(g)).get(g) ?? false;
   const best = new Map<number, number>([[start, 0]]);

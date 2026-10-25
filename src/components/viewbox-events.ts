@@ -2,6 +2,7 @@
 import { drag, select } from "d3";
 import { Controllers } from "@/controllers";
 import { hoverAt, leave, openCellCard } from "@/fluoria/cell-card";
+import { roadUnder } from "@/fluoria/road-geometry";
 import type { LabelType } from "@/generators/labels-generator";
 import { dragLegendBox } from "@/renderers/draw-legend";
 import { findEl } from "@/utils";
@@ -93,7 +94,11 @@ export function openEditor(element: Element): boolean {
 
 function onClick(event: MouseEvent): void {
   if (!event?.target || options.map.viewOnly) return;
-  if (!openEditor(event.target as Element) && !customization) openCellCard(event); // Fluoria: ground with no editor
+  if (openEditor(event.target as Element) || customization) return;
+  // Fluoria: roads are clicked where they're drawn, not where Azgaar's hidden curve runs
+  const road = roadUnder(event);
+  if (road) return void Controllers.RouteEditor.open(`route${road.id}`);
+  openCellCard(event);
 }
 
 /** Right-click on the map belongs to the context menu; Shift+right-click keeps the browser's own */

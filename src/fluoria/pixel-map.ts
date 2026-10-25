@@ -78,7 +78,7 @@ const STYLE = `
 body.fluoria-pixel #map { background-color: transparent; }
 body.fluoria-pixel :is(#ocean, #landmass, #texture, #biomes, #terrain, #coastline, #cells) { display: none; }
 body.fluoria-pixel :is(#lakes, #rivers, #routes, #regions, #borders, #ice, #provs) { opacity: 0; }
-body.fluoria-roads #routes { pointer-events: none; }
+body.fluoria-pixel #routes { pointer-events: none; } /* clicked where drawn: see road-geometry roadUnder */
 #pixelMap { position: absolute; z-index: -1; pointer-events: none; image-rendering: pixelated; }
 #pixelMap canvas { display: block; image-rendering: pixelated; }
 `;
@@ -115,7 +115,9 @@ class PixelMap {
   private seaLines = new Graphics();
   private hover = new Graphics();
   private roads = new Graphics();
-  private roadEdit = new Graphics(); // road mode: nodes, the segment under the pointer, the road being drawn
+  private roadEdit = new Graphics(); // road mode: the segment under the pointer, the road being drawn
+  private roadNodes = new Graphics(); // road mode: every node, drawn once per change, not per pointer move
+  private nodeList: [number, number][] | null = null;
   private roadScale = 0;
   private shade = new Graphics();
   private seaShade = new Graphics();
@@ -152,6 +154,7 @@ class PixelMap {
       this.hover,
       this.shade,
       this.seaShade,
+      this.roadNodes,
       this.roadEdit
     );
     this.app.stage.addChild(this.overlay);
@@ -211,6 +214,7 @@ class PixelMap {
     if (bucket !== this.roadScale) {
       this.roadScale = bucket;
       this.drawRoads(); // line widths keep a floor on screen
+      this.drawNodes();
     }
     this.cellLines.visible = viewport.scale >= CELL_LINES_FROM || this.emphasis;
   }
@@ -266,12 +270,15 @@ class PixelMap {
   showRoadEdit(edit: RoadEdit | null): void {
     const g = this.roadEdit;
     g.clear();
+    if (!edit || edit.nodes === null) {
+      this.nodeList = null;
+      this.drawNodes();
+    } else if (edit.nodes) {
+      this.nodeList = edit.nodes;
+      this.drawNodes();
+    }
     if (!edit) return;
     const k = viewport.scale || 1;
-    if (edit.nodes) {
-      for (const [x, y] of edit.nodes) g.circle(x, y, 2.4 / k);
-      g.fill({ color: 0xffffff }).stroke({ color: 0x1b1b20, width: 1 / k });
-    }
     for (const cell of edit.cells ?? []) {
       const points = pack.cells.v[cell].flatMap(v => pack.vertices.p[v]);
       if (points.length >= 6) g.poly(points);
@@ -286,6 +293,15 @@ class PixelMap {
       for (let n = 1; n < line.length; n++) g.lineTo(line[n][0], line[n][1]);
       g.stroke({ color, width: 4 / k, cap: "round", join: "round", alpha: 0.9 });
     }
+  }
+
+  private drawNodes(): void {
+    const g = this.roadNodes;
+    g.clear();
+    if (!this.nodeList?.length) return;
+    const k = viewport.scale || 1;
+    for (const [x, y] of this.nodeList) g.circle(x, y, 2.4 / k);
+    g.fill({ color: 0xffffff }).stroke({ color: 0x1b1b20, width: 1 / k });
   }
 
   /** Brighten one cell a little: a packed cell, or a sea grid cell as -1 - id; null for none */

@@ -82,3 +82,13 @@ function distanceToSegment(x: number, y: number, ax: number, ay: number, bx: num
   const t = len ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
   return Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
 }
+
+/** The road segment under a pointer event, judged on the road as drawn, within a few screen pixels */
+export function roadUnder(event: MouseEvent, px = 6): ReturnType<typeof segmentAt> {
+  if (!pack?.routes?.length) return null;
+  const viewbox = document.getElementById("viewbox") as SVGGraphicsElement | null;
+  const ctm = viewbox?.getScreenCTM();
+  if (!ctm) return null;
+  const { x, y } = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+  return segmentAt(x, y, px / (ctm.a || 1));
+}
