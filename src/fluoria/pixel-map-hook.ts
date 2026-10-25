@@ -5,12 +5,13 @@ import { Layers } from "@/components/layers";
 import { tip } from "@/components/tooltips";
 import { viewport } from "@/components/viewport";
 import { Controllers } from "@/controllers";
+import { drawSettlements } from "@/renderers/draw-military";
 import { ensureHitLayer, NATION_ZOOM } from "./cell-card";
 import { applyFluoriaEmblems } from "./emblems/store";
 import { raiseBeside } from "./forces/army";
 import { convertUnitTypes, normalise } from "./forces/forces";
 import { applyLabelZoom } from "./label-zoom";
-import { onMapView } from "./map-view";
+import { getMapView, onMapView } from "./map-view";
 import { setFocus, simplifyDiplomacy } from "./nation";
 import { nationZoom, refreshNation } from "./nation-panel";
 import { foldMap } from "./one-grid";
@@ -23,7 +24,9 @@ import {
   setPixelMapSync
 } from "./pixel-map-sync";
 import { collectSeas } from "./sea-names";
-import { applyUnitZoom, snapAll, snapMarkers, stackAll } from "./units";
+import { garrisonLoners } from "./settlements";
+import { applyUnitZoom, nameLabels, snapAll, snapMarkers, stackAll } from "./units";
+import { spreadCrowds } from "./war";
 
 type PixelMapModule = typeof import("./pixel-map")["PixelMapLayer"];
 
@@ -55,7 +58,14 @@ const load = (): Promise<PixelMapModule> => {
 Layers.onDraw(ids => {
   ensureHitLayer();
   labelsOverUnits();
-  if (ids.includes("labels")) applyLabelZoom();
+  if (ids.includes("labels")) {
+    applyLabelZoom();
+    nameLabels();
+  }
+  if (ids.includes("burgIcons") && !ids.includes("military") && Layers.isOn("military")) {
+    drawSettlements();
+    stackAll();
+  }
   if (ids.some(id => id === "states" || id === "labels")) collectIslands();
   if (ids.some(id => id === "states" || id === "military")) refreshNation();
   if (ids.includes("labels")) collectSeas();
@@ -95,6 +105,8 @@ window.addEventListener("map:generated", () => {
   const relations = simplifyDiplomacy();
   const converted = convertUnitTypes(emoji => Icons.glyph(emoji));
   const split = normalise(raiseBeside);
+  const garrisoned = garrisonLoners();
+  const spread = spreadCrowds();
   const emblems = applyFluoriaEmblems();
   Layers.draw("burgIcons", "labels", "military", "markers", "routes");
   const lines = [
@@ -105,6 +117,8 @@ window.addEventListener("map:generated", () => {
     relations ? `${relations} relations set to neutral (friendly, suspicious, rival or unknown).` : "",
     converted ? "Military units converted to the Fluoria unit types." : "",
     split ? `${split} groups split off to keep every army within 12 slots.` : "",
+    garrisoned ? `${garrisoned} lone units stationed in nearby garrisons.` : "",
+    spread ? `${spread} units moved to nearby cells to keep every cell within 4 units.` : "",
     emblems ? `${emblems} nations given their Fluoria emblem.` : ""
   ].filter(Boolean);
   if (!lines.length) return;
@@ -127,11 +141,19 @@ function watchRoutes(draw: () => void): void {
   window.addEventListener("map:generated", () => setTimeout(watch));
 }
 
-/** Names are read first: the labels layer always sits above regiments */
+/** Names sit above regiments, except in the military view, where units come first and labels can't be dragged */
 function labelsOverUnits(): void {
   const armies = document.getElementById("armies");
   const labels = document.getElementById("labels");
   if (!armies || !labels || armies.parentNode !== labels.parentNode) return;
-  if (armies.compareDocumentPosition(labels) & Node.DOCUMENT_POSITION_PRECEDING)
-    queueMicrotask(() => Layers.move("military", "labels"));
+  const unitsFirst = getMapView() === "military";
+  const labelsBefore = Boolean(armies.compareDocumentPosition(labels) & Node.DOCUMENT_POSITION_PRECEDING);
+  if (unitsFirst && !labelsBefore) queueMicrotask(() => Layers.move("labels", "military"));
+  if (!unitsFirst && labelsBefore) queueMicrotask(() => Layers.move("military", "labels"));
 }
+
+document.body.dataset.flView = getMapView();
+onMapView(view => {
+  document.body.dataset.flView = view;
+  labelsOverUnits();
+});

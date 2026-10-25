@@ -2,6 +2,7 @@
 import { NATION_COLOURS } from "@/fluoria/palette";
 import { escapeHtml } from "@/utils/stringUtils";
 import { EMBLEM_NAMES, fluoriaEmblems, frame, SIZE } from "./art";
+import { MOTIFS, TEMPLATES, template } from "./patterns";
 import { emblemOf, setEmblem } from "./store";
 
 const N = SIZE;
@@ -31,63 +32,6 @@ const TOOLS: [Tool, string][] = [
   ["pick", "Pick"],
   ["line", "Line"]
 ];
-
-const MOTIFS: Record<string, string[]> = {
-  Star: [
-    "....#....",
-    "....#....",
-    "...###...",
-    "..#####..",
-    "#########",
-    "..#####..",
-    "...###...",
-    "....#....",
-    "....#...."
-  ],
-  Crown: ["#.#.#", "#.#.#", "#####", ".###.", ".###."],
-  Cross: ["..#..", "..#..", "#####", "..#..", "..#.."],
-  Chevron: ["....#....", "...#.#...", "..#...#..", ".#.....#.", "#.......#"],
-  Sword: [...Array(5).fill(".#."), "###", ...Array(9).fill(".#."), ".#."],
-  Tower: ["#.#.#", "#####", ".###.", ".#.#.", ".###.", ".###.", "#####"],
-  Fleur: ["...#...", "..###..", "#..#..#", "#######", "..###..", "...#...", "..###.."],
-  Tree: ["...#...", "..###..", ".#####.", "#######", "...#...", "...#...", "..###.."],
-  Coin: [".###.", "#...#", "#.#.#", "#...#", ".###."],
-  Peak: ["....#....", "...###...", "..##.##..", ".##...##.", "#########"]
-};
-
-const TEMPLATES = [
-  "Plain",
-  "Split",
-  "Halves",
-  "Quarters",
-  "Diagonal",
-  "Saltire",
-  "Cross",
-  "Checks",
-  "Bars",
-  "Canton",
-  "Border"
-];
-
-function template(name: string, field: string, charge: string): string[] {
-  const px: string[] = Array(N * N).fill(field);
-  for (let y = 1; y < N - 1; y++)
-    for (let x = 1; x < N - 1; x++) {
-      const mark =
-        (name === "Split" && x > MID) ||
-        (name === "Halves" && y > MID) ||
-        (name === "Quarters" && x > MID !== y > MID) ||
-        (name === "Diagonal" && Math.abs(x + y - 2 * MID) < 3) ||
-        (name === "Saltire" && (Math.abs(x - y) < 2 || Math.abs(x + y - 2 * MID) < 2)) ||
-        (name === "Cross" && (Math.abs(x - MID) < 2 || Math.abs(y - MID) < 2)) ||
-        (name === "Checks" && (Math.floor(((x - 1) / 31) * 5) + Math.floor(((y - 1) / 31) * 5)) % 2 === 0) ||
-        (name === "Bars" && [6, 15, 24].some(v => y >= v && y < v + 4)) ||
-        (name === "Canton" && x < 14 && y < 14) ||
-        (name === "Border" && (x < 4 || y < 4 || x > N - 5 || y > N - 5));
-      if (mark) px[y * N + x] = charge;
-    }
-  return frame(px);
-}
 
 let root: HTMLElement | null = null;
 
@@ -129,17 +73,19 @@ function build(stateId: number, start: string[]): HTMLElement {
   el.id = "flStudio";
   el.innerHTML = /* html */ `
     <header><span>Emblem · ${escapeHtml(state.name)}</span><button data-act="close" aria-label="Close">✕</button></header>
+    <footer><span class="fs-status">Ready</span><button data-act="close">Cancel</button><button data-act="save" class="fs-save">Save to Nation</button></footer>
+    <div class="fs-scroll">
     <div class="fs-main">
       <div>
         <div class="fs-board"><canvas width="${N * ZOOM}" height="${N * ZOOM}"></canvas></div>
-        <label class="fs-check"><input type="checkbox" data-act="grid" /> Pixel grid</label>
+        <label class="fs-check"><input type="checkbox" data-act="grid" /> Pixel Grid</label>
       </div>
       <div class="fs-side">
         <div><b>Tools</b><div class="fs-row">${TOOLS.map(([id, name]) => `<button data-tool="${id}">${name}</button>`).join("")}</div></div>
         <div><b>Brush</b><div class="fs-row">${[1, 3, 5].map(n => `<button data-size="${n}">${n}</button>`).join("")}</div></div>
-        <div><b>Mirror</b><div class="fs-row"><button data-mirror="off">Off</button><button data-mirror="lr">Left–right</button><button data-mirror="four">Four-way</button></div></div>
+        <div><b>Mirror</b><div class="fs-row"><button data-mirror="off">Off</button><button data-mirror="lr">Left–Right</button><button data-mirror="four">Four-Way</button></div></div>
         <div><b>Colour</b><div class="fs-palette"></div>
-          <div class="fs-row"><input type="color" data-act="picker" value="#ffffff" /><button data-act="addColour">Add colour</button></div></div>
+          <div class="fs-row"><input type="color" data-act="picker" value="#ffffff" /><button data-act="addColour">Add Colour</button></div></div>
         <div class="fs-row"><button data-act="undo">Undo</button><button data-act="redo">Redo</button><button data-act="clear">Clear</button></div>
         <div class="fs-previews"><canvas width="${N}" height="${N}"></canvas><canvas width="${N * 2}" height="${N * 2}"></canvas><canvas width="${N * 3}" height="${N * 3}"></canvas></div>
       </div>
@@ -149,7 +95,7 @@ function build(stateId: number, start: string[]): HTMLElement {
       .join("")}</div></div>
     <div class="fs-strip"><b>Templates</b><div class="fs-list" data-list="templates"></div></div>
     <div class="fs-strip"><b>Library</b><div class="fs-list" data-list="library"></div></div>
-    <footer><span class="fs-status">Ready</span><button data-act="close">Cancel</button><button data-act="save" class="fs-save">Save to nation</button></footer>`;
+    </div>`;
 
   const q = <T extends Element>(s: string) => el.querySelector<T>(s)!;
   const qa = (s: string) => [...el.querySelectorAll<HTMLElement>(s)];

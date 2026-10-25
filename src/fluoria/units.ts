@@ -1,5 +1,6 @@
 // Regiments on the map, Fluoria's way: they stand at the centre of their cell, share a cell as a stack, and a
 // selected one dims everything it can't reach in one move. A drag ends on a reachable cell or not at all
+
 import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
 import { paintRegiment, stripColour } from "@/renderers/draw-military";
@@ -56,7 +57,12 @@ export function applyUnitZoom(scale: number): void {
   armies.style.setProperty("--fl-unit", String(unitScale));
   armies.dataset.flStage = stage;
   armies.dataset.flNames = stage === "close" ? "1" : "0";
+  // a settlement's name steps below a unit standing on it (and below the far card's total)
+  const under = (px * (stage === "far" ? 1.35 : 0.85)) / scale;
+  document.getElementById("labels")?.style.setProperty("--fl-under", `${under}px`);
   for (const stack of stacks) layStack(stack); // only an open stack's offsets change with size
+  laySettlements();
+  nameLabels();
 }
 
 /** Markers stand at their cell's centre, or on the settlement in it */
@@ -250,6 +256,34 @@ export function stackAll(): void {
   if (openCell !== null && !stacks.some(stack => mainCell(stack[0].cell) === openCell)) openCell = null;
   document.getElementById("flGhost")?.remove();
   for (const stack of stacks) layStack(stack);
+  unitCells = new Set(byCell.keys());
+  laySettlements();
+  nameLabels();
+}
+
+let unitCells = new Set<number>();
+
+/** A settlement's card steps aside, to the left, when units stand on it */
+function laySettlements(): void {
+  const size = styles.military.options.boxSize * 2 * unitScale;
+  for (const g of document.querySelectorAll<SVGGElement>("#flSettlements > g")) {
+    const burg = pack.burgs[Number(g.dataset.burg)];
+    const shared = burg && unitCells.has(mainCell(burg.cell));
+    g.style.translate = shared ? `${-size * 1.1}px 0px` : "";
+  }
+}
+
+/** A settlement's name steps below a card standing on it */
+export function nameLabels(): void {
+  const far = document.getElementById("armies")?.dataset.flStage === "far";
+  const cards = new Set<number>();
+  for (const g of document.querySelectorAll<SVGGElement>("#flSettlements > g"))
+    if (!(far && g.dataset.kind === "town" && g.dataset.empty)) cards.add(Number(g.dataset.burg));
+  for (const burg of pack.burgs ?? []) {
+    if (!burg?.i || burg.removed) continue;
+    const held = unitCells.has(mainCell(burg.cell)) || cards.has(burg.i);
+    document.getElementById(`burgLabel${burg.i}`)?.classList.toggle("fl-under", held);
+  }
 }
 
 /** Regiments sharing a regiment's cell, itself included, strongest first */
@@ -305,10 +339,6 @@ function layStack(stack: Regiment[]): void {
   ghost.id = "flGhost";
   paintRegiment(ghost, front, behind.map(stripColour), total);
   ghost.querySelector(".flTab")?.classList.add("fl-tab-open");
-  ghost.addEventListener("click", event => {
-    event.stopPropagation();
-    closeStack();
-  });
   armies.append(ghost);
   paintRegiment(frontEl, front);
   stack.forEach((r, k) => {

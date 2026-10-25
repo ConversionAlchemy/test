@@ -831,12 +831,25 @@ function regenerateStates(): void {
   if (warning) tip(warning, false, "warn");
 
   unfog();
-  Layers.draw("states", "borders", "provinces", "labels", "burgIcons", "military", "goods", "emblems");
+  Production.regenerateEconomy(); // Fluoria: a nation's treasury is recollected from its new lands
+  Layers.draw(
+    "states",
+    "borders",
+    "provinces",
+    "labels",
+    "burgIcons",
+    "military",
+    "goods",
+    "emblems",
+    "markets",
+    "trade"
+  );
 }
 
 function regenerateBurgs(): void {
   Burgs.regenerate();
-  Layers.draw("burgIcons", "labels", "routes", "population", "goods", "emblems");
+  Production.regenerateEconomy(); // Fluoria: new settlements trade, so treasuries are filled again
+  Layers.draw("burgIcons", "labels", "routes", "population", "goods", "emblems", "markets", "trade");
 }
 
 function regenerateGoods(): void {

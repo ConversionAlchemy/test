@@ -29,3 +29,18 @@ export function onMapView(listener: (view: ViewName) => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
+
+let returnTo: ViewName | null = null;
+
+/** Switch view for a while (attack mode, a battle); `returnView` puts back what the user had */
+export function borrowView(next: ViewName): void {
+  if (returnTo === null) returnTo = view;
+  setMapView(next);
+}
+
+export function returnView(): void {
+  if (returnTo === null) return;
+  const back = returnTo;
+  returnTo = null;
+  setMapView(back);
+}

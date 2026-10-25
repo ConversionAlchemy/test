@@ -226,6 +226,7 @@ class PixelMap {
       this.roadScale = bucket;
       this.drawRoads(); // line widths keep a floor on screen
       this.drawNodes();
+      this.drawCellLines();
     }
     this.cellLines.visible = viewport.scale >= CELL_LINES_FROM || this.emphasis;
   }
@@ -234,7 +235,7 @@ class PixelMap {
   dim(bright: ReadonlySet<number> | null, kind: "land" | "sea" = "land"): void {
     this.shade.clear();
     this.emphasis = Boolean(bright);
-    this.cellLines.alpha = bright ? 0.4 : 0.16;
+    this.cellLines.alpha = bright ? 0.4 : 0.2;
     this.sync();
     if (!bright || !this.model) return;
     const { land } = this.model;
@@ -455,8 +456,9 @@ class PixelMap {
       if (points.length < 6) continue;
       this.landLines.poly(points);
     }
-    this.landLines.stroke({ color: 0xf2efe6, width: 1, pixelLine: true, alpha: 1 });
-    this.cellLines.alpha = this.emphasis ? 0.4 : 0.16;
+    // about 1.6 screen pixels: clear enough for tactics, still quiet
+    this.landLines.stroke({ color: 0xf2efe6, width: 1.6 / (viewport.scale || 1), alpha: 1 });
+    this.cellLines.alpha = this.emphasis ? 0.4 : 0.2;
   }
 
   /** The highest close-up level the zoom calls for */

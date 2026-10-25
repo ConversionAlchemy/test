@@ -15,6 +15,8 @@ import { Layers } from "@/components/layers";
 import { clearMainTip, tip } from "@/components/tooltips";
 import { applyDefaultViewboxEvents } from "@/components/viewbox-events";
 import { Controllers } from "@/controllers";
+import { flagship, kitOf } from "@/fluoria/forces/forces";
+import { iconUrl } from "@/fluoria/forces/pixels";
 import type { State } from "@/generators/states-generator";
 import { Tags } from "@/generators/tags";
 import { drawRegiment } from "@/renderers/draw-military";
@@ -232,7 +234,12 @@ function renderRegimentsPage(view: TableView<RegimentRow>): void {
           return `<div data-col="${unitColumnKey(unit.name)}" data-tip="${t("{{unit}} units number", { unit: capitalize(unit.name) })}">${percentage ? percent(value, unitTotals[unit.name]) : value}</div>`;
         })
         .join("");
-      const emblem = `<span data-col="emblem" data-tip="${t("Regiment's emblem")}">${Icons.html(regiment.icon ?? "")}</span>`;
+      // Fluoria: the regiment's lead unit icon, as on its card
+      const lead = kitOf(flagship(regiment) ?? "");
+      const colour = state.color?.slice(0, 7) ?? "#999999";
+      const emblem = lead
+        ? `<span data-col="emblem"><img src="${iconUrl(lead, colour)}" alt="" style="width:1.2em;height:1.2em;image-rendering:pixelated;vertical-align:middle" /></span>`
+        : `<span data-col="emblem">${Icons.html(regiment.icon ?? "")}</span>`;
 
       return /* html */ `<div class="states" data-id="${regiment.i}" data-s="${state.i}">
         <fill-box data-col="color" data-tip="${state.fullName}" fill="${state.color}" disabled></fill-box>

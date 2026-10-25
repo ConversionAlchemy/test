@@ -1,7 +1,9 @@
 // Armies, fleets, air groups and transports as Azgaar regiments, measured in slots. Units stay Azgaar's counts by
 // type (`u`); a transport carries land units in `cargo`; `full` is the power the regiment had when last whole
+
 import type { Regiment } from "@/generators/military-generator";
 import type { MilitaryUnit } from "@/types/Military";
+import { garrisonSlots } from "../settlement-size";
 import { type Domain, type KitUnit, kitUnit, kitUnits, SLOT_SIZE, slotSize } from "./kit";
 
 export const MAX_SLOTS = 12;
@@ -121,6 +123,13 @@ export function refusal(to: Regiment, list: List, unit: string, n: number): stri
     add(after, unit, n);
     const room = cargoSlots(to);
     return slotsOf(after) > room ? `Won't fit: needs ${slotsOf(after)} of ${room} slots` : "";
+  }
+  if (to.garrison) {
+    // a garrison holds any kind of unit, up to its settlement's slots
+    const after = { ...to.u };
+    add(after, unit, n);
+    const room = garrisonSlots(to.garrison);
+    return slotsOf(after) > room ? `Won't fit: the garrison holds ${room} slots` : "";
   }
   if (isTransport(to)) return "A transport carries land units as cargo";
   if (kitOf(unit)?.role === "transport" && troopsOf(to)) return "A transport stands alone";
