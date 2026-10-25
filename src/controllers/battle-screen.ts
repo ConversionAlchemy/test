@@ -1058,7 +1058,7 @@ function selectPhase(): void {
     if (P(1 - morale[0] / 30) && powerRatio < 1) return ["retreat", "pursue"]; // attackers retreat chance if moral < 30
     if (P(1 - morale[1] / 15)) return ["looting", "surrendering"]; // defenders surrendering chance if moral < 15
 
-    if (P((powerRatio - 1) / 2)) return ["storming", "defense"]; // start storm
+    if (P((powerRatio - 1) / 2 + i / 10)) return ["storming", "defense"]; // start storm; Fluoria: likelier each round
 
     if (prev[0] !== "storming") {
       const machinery = options.map.military.units.filter(u => u.type === "machinery").map(u => u.name); // machinery units
@@ -1186,7 +1186,7 @@ function runBattle(): void {
     shelling: 0.1,
     chase: 0.03,
     withdrawal: 0.03,
-    blockade: 0,
+    blockade: 0.03, // Fluoria: hunger and sniping, so a siege never stands still
     sheltering: 0,
     sortie: 0.1,
     bombardment: 0.05,
@@ -1197,7 +1197,7 @@ function runBattle(): void {
     surprise: 0.3,
     shock: 0.3,
     landing: 0.3,
-    flee: 0,
+    flee: 0.03,
     waiting: 0,
     maneuvering: 0.1,
     dogfight: 0.2
@@ -1208,8 +1208,8 @@ function runBattle(): void {
   const casualtiesA = (casualties * defense) / (attack + defense); // attackers casualties, ~5% per iteration
   const casualtiesD = (casualties * attack) / (attack + defense); // defenders casualties, ~5% per iteration
 
-  calculateCasualties("attackers", casualtiesA);
-  calculateCasualties("defenders", casualtiesD);
+  const lost = calculateCasualties("attackers", casualtiesA) + calculateCasualties("defenders", casualtiesD);
+  if (!lost) tip(t("No losses this round"), false, "info", 2000);
   b.attackers.casualties += casualtiesA;
   b.defenders.casualties += casualtiesD;
 
@@ -1228,16 +1228,19 @@ function runBattle(): void {
   calculateStrength("defenders");
 }
 
-function calculateCasualties(side: Side, casualties: number): void {
+function calculateCasualties(side: Side, casualties: number): number {
   const b = battle!;
+  let lost = 0;
   for (const r of b[side].regiments) {
     for (const unit in r.u) {
       const randomness = 0.8 + Math.random() * 0.4;
       const died = Math.min(Pint(r.u[unit] * casualties * randomness), r.survivors![unit]);
       r.casualties![unit] -= died;
       r.survivors![unit] -= died;
+      lost += died;
     }
   }
+  return lost;
 }
 
 function updateTable(side: Side): void {
