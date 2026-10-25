@@ -1,24 +1,13 @@
-// How far a regiment can go in one move: a cheapest-path search over cells, measured in the map's distance unit.
-// Terrain slows it (Azgaar's biome movement costs and climbing), roads speed it up, and land and sea never mix
+// How far a regiment can go in one move, counted in cells so every map plays the same whatever its scale.
+// Off road: one step to any neighbour. Along roads: up to 4 (main road), 3 (road) or 2 (path) cells, mixed routes
+// costing each step by the road it's on, with one step off the road allowed from any cell reached.
+// At sea, on the even grid: 6 cells, or 10 along a sea lane
 import type { Regiment } from "@/generators/military-generator";
 
-const MOVE_DAYS = 5; // one move is about a working week of travel
-
-// miles a day by Azgaar unit type; a regiment moves at the pace of its slowest troops
-const MILES_PER_DAY: Record<string, number> = {
-  melee: 20,
-  ranged: 20,
-  magical: 20,
-  mounted: 32,
-  machinery: 12,
-  armored: 15,
-  aviation: 100,
-  naval: 80
-};
-
-// route groups by how much they cut the cost of the way, as a factor on the distance
-const ROAD_FACTOR: Record<string, number> = { roads: 0.35, trails: 0.55, paths: 0.75, searoutes: 0.7 };
-const OTHER_ROUTE = 0.75;
+export const CELLS_PER_MOVE: Record<string, number> = { roads: 4, trails: 3, paths: 2 };
+const OTHER_ROUTE = 2;
+export const SEA_CELLS = 6;
+export const LANE_CELLS = 10;
 
 const isWaterCell = (cell: number) => pack.cells.h[cell] < 20;
 
@@ -27,65 +16,33 @@ export function canStand(regiment: Pick<Regiment, "n">, cell: number): boolean {
   return regiment.n ? isWaterCell(cell) : !isWaterCell(cell);
 }
 
-/** Distance a regiment covers in one move on open, level ground, in the map's distance unit */
-export function moveDistance(regiment: Pick<Regiment, "n" | "u">): number {
-  const perDay = regiment.n ? MILES_PER_DAY.naval : slowestPace(regiment.u);
-  const miles = perDay * MOVE_DAYS;
-  return options.map.units.distance.unit === "km" ? miles * 1.609 : miles;
+const routeById = () => new Map(pack.routes.map(route => [route.i, route]));
+
+/** The road joining two neighbouring cells, if any */
+function roadBetween(from: number, to: number, routes: Map<number, (typeof pack.routes)[number]>): string | null {
+  const id = pack.cells.routes?.[from]?.[to];
+  const route = id === undefined ? undefined : routes.get(id);
+  return route && route.group !== "searoutes" ? route.group : null;
 }
 
-function slowestPace(units: Record<string, number>): number {
-  const types = options.map.military.units;
-  let pace = Infinity;
-  for (const [name, count] of Object.entries(units)) {
-    if (!count) continue;
-    const type = types.find(unit => unit.name === name)?.type ?? "melee";
-    pace = Math.min(pace, MILES_PER_DAY[type] ?? MILES_PER_DAY.melee);
+/** How a cell moves: the best road through it, or open ground (one cell a move) */
+export function cellPace(cell: number): { cells: number; road: string | null } {
+  const routes = routeById();
+  let best: { cells: number; road: string | null } = { cells: 1, road: null };
+  for (const next of Object.keys(pack.cells.routes?.[cell] ?? {})) {
+    const road = roadBetween(cell, Number(next), routes);
+    const cells = road ? (CELLS_PER_MOVE[road] ?? OTHER_ROUTE) : 1;
+    if (cells > best.cells) best = { cells, road };
   }
-  return Number.isFinite(pace) ? pace : MILES_PER_DAY.melee;
+  return best;
 }
 
-/** The factor on the distance of stepping from one cell into a neighbour */
-function stepFactor(from: number, to: number, naval: boolean): number {
-  const { cells, routes } = pack;
-  const routeId = cells.routes?.[from]?.[to];
-  const route = routeId !== undefined ? routes.find(({ i }) => i === routeId) : undefined;
-  if (route) return ROAD_FACTOR[route.group] ?? OTHER_ROUTE;
-  if (naval) return 1;
-  const biomeCost = pack.biomes[cells.biome[to]]?.cost ?? 50;
-  const terrain = Math.min(6, Math.max(0.8, biomeCost / 50));
-  const climb = Math.max(0, cells.h[to] - cells.h[from]) / 20; // uphill tires, downhill doesn't
-  const peaks = cells.h[to] >= 70 ? 1.5 : 1;
-  return terrain * peaks + climb;
-}
-
-/** How moving through a cell compares with open level ground: its road if it has one, else its ground */
-export function cellPace(cell: number): { factor: number; road: string | null } {
-  const { cells, routes } = pack;
-  let best: { factor: number; road: string | null } | null = null;
-  for (const id of Object.values(cells.routes?.[cell] ?? {})) {
-    const route = routes.find(({ i }) => i === id);
-    if (!route) continue;
-    const factor = ROAD_FACTOR[route.group] ?? OTHER_ROUTE;
-    if (!best || factor < best.factor) best = { factor, road: route.group };
-  }
-  if (best) return best;
-  const biomeCost = pack.biomes[cells.biome[cell]]?.cost ?? 50;
-  const terrain = Math.min(6, Math.max(0.8, biomeCost / 50));
-  return { factor: terrain * (cells.h[cell] >= 70 ? 1.5 : 1), road: null };
-}
-
-/** The map-pixel distance a regiment covers in one move */
-export const moveBudget = (regiment: Pick<Regiment, "n" | "u">) =>
-  moveDistance(regiment) / options.map.units.distance.scale;
-
-/** Every cell the regiment can reach this move from where it stands, with what it costs to get there */
-export function reachable(regiment: Pick<Regiment, "n" | "u" | "cell">): Map<number, number> {
+/** Every land cell the regiment can reach this move, with the share of the move it costs */
+export function reachable(regiment: Pick<Regiment, "n" | "cell">): Map<number, number> {
   const { cells } = pack;
-  const naval = Boolean(regiment.n);
-  const budget = moveDistance(regiment) / options.map.units.distance.scale; // in map pixels
+  const routes = routeById();
   const start = startCell(regiment);
-  const best = new Map<number, number>([[start, 0]]);
+  const onRoad = new Map<number, number>([[start, 0]]);
   const queue: [number, number][] = [[0, start]];
   while (queue.length) {
     let k = 0;
@@ -93,23 +50,33 @@ export function reachable(regiment: Pick<Regiment, "n" | "u" | "cell">): Map<num
     const [cost, cell] = queue[k];
     queue[k] = queue[queue.length - 1];
     queue.pop();
-    if (cost > (best.get(cell) ?? Infinity)) continue;
-    const [x0, y0] = cells.p[cell];
+    if (cost > (onRoad.get(cell) ?? Infinity)) continue;
     for (const next of cells.c[cell]) {
       if (!canStand(regiment, next)) continue;
-      const [x1, y1] = cells.p[next];
-      const step = Math.hypot(x1 - x0, y1 - y0) * stepFactor(cell, next, naval);
-      const total = cost + step;
-      if (total >= (best.get(next) ?? Infinity)) continue;
-      if (total > budget) {
-        if (cost + step / 2 <= budget) best.set(next, total); // its near edge is in reach: it may end there
-        continue;
-      }
-      best.set(next, total);
+      const road = roadBetween(cell, next, routes);
+      if (!road) continue;
+      const total = cost + 1 / (CELLS_PER_MOVE[road] ?? OTHER_ROUTE);
+      if (total > 1 + 1e-9 || total >= (onRoad.get(next) ?? Infinity)) continue;
+      onRoad.set(next, total);
       queue.push([total, next]);
     }
   }
-  return best;
+  // from anywhere reached along the road, one step off it
+  const reach = new Map(onRoad);
+  for (const [cell, cost] of onRoad)
+    for (const next of cells.c[cell])
+      if (canStand(regiment, next) && !reach.has(next)) reach.set(next, Math.min(1, cost + 1));
+  return reach;
+}
+
+/** Packed cells a sea lane runs through */
+export function laneCells(): Set<number> {
+  const lanes = new Set<number>();
+  const routes = routeById();
+  for (const [from, nexts] of Object.entries(pack.cells.routes ?? {}))
+    for (const id of Object.values(nexts as Record<string, number>))
+      if (routes.get(id)?.group === "searoutes") lanes.add(Number(from));
+  return lanes;
 }
 
 /** A fleet moored at a port counts from its harbour; anyone stranded counts from the nearest cell they may use */

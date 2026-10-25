@@ -8,7 +8,9 @@ import { viewport } from "@/components/viewport";
 import { ensureEl } from "@/utils/nodeUtils";
 import { getMapView, isOutlineOnly } from "./map-view";
 import { css, Palette } from "./palette";
+import type { RoadEdit } from "./pixel-map-sync";
 import type { Stamp } from "./raster";
+import { roadLines } from "./road-geometry";
 import { TilePool } from "./tile-pool";
 import { collectWorld, iceStamps, lineStamps, type MapArea, regions, wholeMap } from "./world";
 import type { TileJob, WorldModel } from "./world-model";
@@ -33,6 +35,39 @@ const LEVELS: Level[] = [
   { scale: 8, from: 6, detail: 2, borderPx: 3, bandPx: 6, keep: 28 }
 ];
 const FADE_MS = 220;
+
+// widths in map pixels, with a floor in screen pixels so roads stay visible zoomed out
+const ROAD_STYLE: Record<string, { color: number; width: number; minPx: number; dash: number }> = {
+  roads: { color: 0xa83424, width: 1.1, minPx: 2.4, dash: 0 },
+  trails: { color: 0x84603a, width: 0.7, minPx: 1.6, dash: 0 },
+  paths: { color: 0x7a5c3a, width: 0.5, minPx: 1.2, dash: 5 },
+  searoutes: { color: 0x9ab8cc, width: 0.5, minPx: 1.2, dash: 7 }
+};
+
+/** A dashed polyline: alternate runs of `dash` map pixels */
+function dashed(g: Graphics, pts: [number, number][], dash: number): void {
+  let on = true;
+  let left = dash;
+  for (let n = 1; n < pts.length; n++) {
+    let [x, y] = pts[n - 1];
+    const [tx, ty] = pts[n];
+    let rest = Math.hypot(tx - x, ty - y);
+    while (rest > 0) {
+      const step = Math.min(left, rest);
+      const nx = x + ((tx - x) * step) / rest;
+      const ny = y + ((ty - y) * step) / rest;
+      if (on) g.moveTo(x, y).lineTo(nx, ny);
+      x = nx;
+      y = ny;
+      rest -= step;
+      left -= step;
+      if (left <= 1e-6) {
+        on = !on;
+        left = dash;
+      }
+    }
+  }
+}
 const CELL_LINES_FROM = 1.5;
 
 const TERRAIN: LayerId[] = ["ocean", "landmass", "heightmap", "lakes", "biomes", "coastline", "relief"];
@@ -43,6 +78,7 @@ const STYLE = `
 body.fluoria-pixel #map { background-color: transparent; }
 body.fluoria-pixel :is(#ocean, #landmass, #texture, #biomes, #terrain, #coastline, #cells) { display: none; }
 body.fluoria-pixel :is(#lakes, #rivers, #routes, #regions, #borders, #ice, #provs) { opacity: 0; }
+body.fluoria-roads #routes { pointer-events: none; }
 #pixelMap { position: absolute; z-index: -1; pointer-events: none; image-rendering: pixelated; }
 #pixelMap canvas { display: block; image-rendering: pixelated; }
 `;
@@ -78,6 +114,9 @@ class PixelMap {
   private landLines = new Graphics();
   private seaLines = new Graphics();
   private hover = new Graphics();
+  private roads = new Graphics();
+  private roadEdit = new Graphics(); // road mode: nodes, the segment under the pointer, the road being drawn
+  private roadScale = 0;
   private shade = new Graphics();
   private seaShade = new Graphics();
   private ready: Promise<void>;
@@ -105,7 +144,16 @@ class PixelMap {
     this.seaLines.mask = this.waterMask;
     this.seaShade.mask = this.waterMask;
     this.cellLines.addChild(this.landLines, this.seaLines);
-    this.overlay.addChild(this.waterMask, this.landMask, this.cellLines, this.hover, this.shade, this.seaShade);
+    this.overlay.addChild(
+      this.waterMask,
+      this.landMask,
+      this.cellLines,
+      this.roads,
+      this.hover,
+      this.shade,
+      this.seaShade,
+      this.roadEdit
+    );
     this.app.stage.addChild(this.overlay);
     document.body.classList.add("fluoria-pixel");
     this.pool = new TilePool();
@@ -123,6 +171,7 @@ class PixelMap {
       this.restyle();
     }
     if (ids.some(id => LINES.includes(id))) this.lines++;
+    if (ids.includes("routes")) this.drawRoads();
   }
 
   /** A layer was switched on or off */
@@ -130,6 +179,7 @@ class PixelMap {
     await this.ready;
     this.restyle();
     this.lines++;
+    this.drawRoads();
   }
 
   /** The view changed: repaint every tile, keeping the old ones on screen until the new arrive */
@@ -157,6 +207,11 @@ class PixelMap {
     });
     this.overlay.position.set(viewport.x, viewport.y);
     this.overlay.scale.set(viewport.scale);
+    const bucket = Math.round(Math.log2(viewport.scale || 1) * 3);
+    if (bucket !== this.roadScale) {
+      this.roadScale = bucket;
+      this.drawRoads(); // line widths keep a floor on screen
+    }
     this.cellLines.visible = viewport.scale >= CELL_LINES_FROM || this.emphasis;
   }
 
@@ -183,6 +238,54 @@ class PixelMap {
       if (points.length >= 6) this.seaShade.poly(points);
     }
     this.seaShade.fill({ color: 0x0c0c10, alpha: 0.42 });
+  }
+
+  /** Roads as pixel-style lines over the terrain: redrawn on every edit, so changes show at once */
+  drawRoads(): void {
+    const g = this.roads;
+    g.clear();
+    if (!Layers.isOn("routes") || !pack?.routes) return;
+    const k = viewport.scale || 1;
+    const lines = roadLines();
+    for (const group of ["paths", "searoutes", "trails", "roads"]) {
+      const style = ROAD_STYLE[group];
+      for (const road of lines) {
+        if ((ROAD_STYLE[road.group] ? road.group : "paths") !== group) continue;
+        const pts = road.line;
+        if (style.dash) dashed(g, pts, style.dash / k);
+        else {
+          g.moveTo(pts[0][0], pts[0][1]);
+          for (let n = 1; n < pts.length; n++) g.lineTo(pts[n][0], pts[n][1]);
+        }
+      }
+      g.stroke({ color: style.color, width: Math.max(style.width, style.minPx / k), cap: "round", join: "round" });
+    }
+  }
+
+  /** Road mode drawing: nodes, a highlighted segment, a road in progress */
+  showRoadEdit(edit: RoadEdit | null): void {
+    const g = this.roadEdit;
+    g.clear();
+    if (!edit) return;
+    const k = viewport.scale || 1;
+    if (edit.nodes) {
+      for (const [x, y] of edit.nodes) g.circle(x, y, 2.4 / k);
+      g.fill({ color: 0xffffff }).stroke({ color: 0x1b1b20, width: 1 / k });
+    }
+    for (const cell of edit.cells ?? []) {
+      const points = pack.cells.v[cell].flatMap(v => pack.vertices.p[v]);
+      if (points.length >= 6) g.poly(points);
+    }
+    if (edit.cells?.length) g.fill({ color: 0xffffff, alpha: 0.14 });
+    for (const [line, color] of [
+      [edit.segment, 0xf2c94c],
+      [edit.drawing, edit.invalid ? 0xe05a4a : 0xffffff]
+    ] as const) {
+      if (!line || line.length < 2) continue;
+      g.moveTo(line[0][0], line[0][1]);
+      for (let n = 1; n < line.length; n++) g.lineTo(line[n][0], line[n][1]);
+      g.stroke({ color, width: 4 / k, cap: "round", join: "round", alpha: 0.9 });
+    }
   }
 
   /** Brighten one cell a little: a packed cell, or a sea grid cell as -1 - id; null for none */
@@ -234,6 +337,7 @@ class PixelMap {
     this.look++;
     this.lines++;
     this.drawCellLines();
+    this.drawRoads();
     this.sync();
   }
 
@@ -431,7 +535,7 @@ class PixelMap {
     };
     const stamps: Stamp[] = [
       ...(Layers.isOn("ice") ? iceStamps(frame) : []),
-      ...lineStamps(frame, Layers.isOn("rivers"), Layers.isOn("routes"))
+      ...lineStamps(frame, Layers.isOn("rivers"), false) // roads are their own layer, drawn on top
     ];
     const clip = { x: 0, y: 0, x1: tile.width, y1: tile.height };
     const put = (x: number, y: number, color: number) => {
@@ -489,6 +593,8 @@ export const PixelMapLayer = {
   },
   toggled: () => void instance?.toggled(),
   restyle: () => instance?.restyle(),
+  drawRoads: () => instance?.drawRoads(),
+  showRoadEdit: (edit: RoadEdit | null) => instance?.showRoadEdit(edit),
   dim: (bright: ReadonlySet<number> | null, kind?: "land" | "sea") => instance?.dim(bright, kind),
   highlight: (cell: number | null) => instance?.highlight(cell),
   sync: () => instance?.sync()

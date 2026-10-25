@@ -150,3 +150,51 @@ export function pickNode(point: Point, nodes: readonly Point[], tolerance: numbe
   });
   return best;
 }
+
+/** Points for a run of cells: the settlement where there is one, else the cell centre */
+function cellPoints(cells: number[]): Point[] {
+  return cells.map(cell => {
+    const burg = pack.cells.burg[cell];
+    const p = burg && !pack.burgs[burg]?.removed ? [pack.burgs[burg].x, pack.burgs[burg].y] : pack.cells.p[cell];
+    return [p[0], p[1]] as Point;
+  });
+}
+
+/** Build a road through a run of neighbouring cells */
+export function createRoadThrough(cells: number[], group: RouteGroup): number | null {
+  if (cells.length < 2) return null;
+  const id = createRoute(cellPoints(cells), group);
+  const route = findRoute(id);
+  if (route) route.points = route.points.map((point, k) => [point[0], point[1], cells[k] ?? point[2]]);
+  pack.cells.routes = Routes.buildLinks(pack.routes);
+  drawRoutes();
+  return id;
+}
+
+/**
+ * Change one segment of a route, the step between its k-th and next cell: give it another group, or remove it
+ * (group null). The route splits around it, every piece keeping the route's name
+ */
+export function changeSegment(id: number, k: number, group: RouteGroup | null): void {
+  const route = findRoute(id);
+  if (!route) return;
+  const cells: number[] = [];
+  for (const point of route.points) if (cells.at(-1) !== point[2]) cells.push(point[2]);
+  if (k < 0 || k + 1 >= cells.length) return;
+  if (group === route.group) return;
+  const pieces = [
+    { cells: cells.slice(0, k + 1), group: route.group as string },
+    { cells: cells.slice(k, k + 2), group: group as string | null },
+    { cells: cells.slice(k + 1), group: route.group as string }
+  ].filter((piece): piece is { cells: number[]; group: string } => piece.cells.length >= 2 && piece.group !== null);
+  const name = route.name;
+  if (group) ensureGroup(group);
+  Routes.remove(id);
+  for (const piece of pieces) {
+    const made = createRoadThrough(piece.cells, piece.group as RouteGroup);
+    const madeRoute = made === null ? undefined : findRoute(made);
+    if (madeRoute && name) madeRoute.name = name;
+  }
+  pack.cells.routes = Routes.buildLinks(pack.routes);
+  drawRoutes();
+}

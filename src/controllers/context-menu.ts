@@ -5,6 +5,8 @@ import { revealEntity } from "@/components/reveal";
 import { openEditor } from "@/components/viewbox-events";
 import { Controllers } from "@/controllers";
 import { actionsFor, type MenuAction } from "@/fluoria/menu-actions";
+import { showRoadEdit } from "@/fluoria/pixel-map-sync";
+import { roadModeOn } from "@/fluoria/road-mode";
 import * as Connection from "@/services/assistant/provider/connection";
 import { escapeHtml, findEl, getPointer, rn } from "@/utils";
 import { t } from "@/utils/i18n";
@@ -39,13 +41,14 @@ class ContextMenuController {
     this.rows = this.collect(event.clientX, event.clientY, cell);
     // Fluoria: what the thing under the cursor can do comes first; the other things here follow
     const top = this.rows[0]?.element ? this.rows[0] : undefined;
-    this.actions = actionsFor(top?.ref, cell, run => confirmationDialog({ onConfirm: run }));
+    this.actions = actionsFor(top?.ref, cell, run => confirmationDialog({ onConfirm: run }), this.point);
     if (top && this.actions.length) this.rows = this.rows.slice(1);
     this.render(event.clientX, event.clientY);
     this.listen();
   }
 
   close(): void {
+    if (this.root && !roadModeOn()) showRoadEdit(null); // the highlighted road segment
     this.root?.remove();
     this.root = undefined;
     this.rows = [];

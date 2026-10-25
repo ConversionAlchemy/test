@@ -482,3 +482,78 @@ input[type="range"] {
   margin-top: 0.4em;
   padding: 0.3em 0;
 }
+
+/* Tools: headings left, arrow first, even spacing; a one-line hint for the active tool */
+#toolsContent .separator {
+  text-align: left;
+  margin: 0.7em 0 0.35em;
+  padding: 0.2em 0.4em 0.25em;
+  border-bottom: 1px solid var(--fl-line);
+}
+
+#toolsContent .separator::before {
+  display: inline-block;
+  width: 1.1em;
+}
+
+#toolsContent .grid {
+  margin-bottom: 0.2em;
+}
+
+#toolsContent .flHint {
+  margin: 0.4em 0.2em 0.2em;
+  padding: 0.35em 0.5em;
+  background: var(--fl-field);
+  border-left: 2px solid var(--fl-accent);
+  color: var(--fl-text);
+}
+
+#toolsContent .flHint[hidden] {
+  display: none;
+}
+
+body.fluoria-roads #map {
+  cursor: crosshair;
+}
+
+/* Road segment menu, in the right-click menu's style */
+.flRoadMenu {
+  position: fixed;
+  z-index: 100000;
+  min-width: 11em;
+  padding: 0.25em;
+  background: var(--bg-dialogs);
+  border: 1px solid var(--fl-line);
+  box-shadow: 0 0.5em 1.5em #00000060;
+}
+
+.flRoadMenu button {
+  display: block;
+  width: 100%;
+  padding: 0.3em 0.6em;
+  border: 0;
+  background: transparent;
+  color: var(--fl-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.flRoadMenu button:hover:not(:disabled) {
+  background: var(--header);
+}
+
+.flRoadMenu button.off {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.flRoadMenu button.danger {
+  color: #e07a6a;
+}
+
+.flRoadMenu hr {
+  border: 0;
+  border-top: 1px solid var(--fl-line);
+  margin: 0.25em 0;
+}

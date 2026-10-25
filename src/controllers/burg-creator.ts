@@ -28,7 +28,9 @@ function toggle(): void {
 }
 
 function addOnClick(event: MouseEvent): void {
-  const point = pointer(event, event.currentTarget as SVGGElement);
+  const [px, py] = pointer(event, event.currentTarget as SVGGElement);
+  const cell = Pack.findCell(px, py);
+  const point: [number, number] = cell === undefined ? [px, py] : [pack.cells.p[cell][0], pack.cells.p[cell][1]]; // Fluoria: at the cell centre
   let burgId: number;
   try {
     burgId = Burgs.add(...point);

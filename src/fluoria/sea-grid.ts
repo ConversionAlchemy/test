@@ -27,9 +27,15 @@ export function seaCellAt(x: number, y: number): number | undefined {
   return best;
 }
 
-/** Every sea cell reachable within `budget` map pixels; cells whose near edge is in reach count too */
-export function seaReach(start: number, budget: number): Map<number, number> {
+/** Every sea cell a fleet reaches this move: 6 cells across open sea, 10 along a sea lane */
+export function seaReach(start: number, lanes: ReadonlySet<number>, open: number, lane: number): Map<number, number> {
   const { cells, points } = grid;
+  const onLane = (g: number) => {
+    const cell = Pack.findCell(points[g][0], points[g][1]);
+    return cell !== undefined && lanes.has(cell);
+  };
+  const laneOf = new Map<number, boolean>();
+  const isLane = (g: number) => laneOf.get(g) ?? laneOf.set(g, onLane(g)).get(g) ?? false;
   const best = new Map<number, number>([[start, 0]]);
   const queue: [number, number][] = [[0, start]];
   while (queue.length) {
@@ -39,16 +45,10 @@ export function seaReach(start: number, budget: number): Map<number, number> {
     queue[k] = queue[queue.length - 1];
     queue.pop();
     if (cost > (best.get(cell) ?? Infinity)) continue;
-    const [x0, y0] = points[cell];
     for (const next of cells.c[cell]) {
       if (!seaUsable(next)) continue;
-      const step = Math.hypot(points[next][0] - x0, points[next][1] - y0);
-      const total = cost + step;
-      if (total >= (best.get(next) ?? Infinity)) continue;
-      if (total > budget) {
-        if (cost + step / 2 <= budget) best.set(next, total); // its edge is in reach: it may end there
-        continue;
-      }
+      const total = cost + 1 / (isLane(cell) && isLane(next) ? lane : open);
+      if (total > 1 + 1e-9 || total >= (best.get(next) ?? Infinity)) continue;
       best.set(next, total);
       queue.push([total, next]);
     }

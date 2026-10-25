@@ -34,7 +34,8 @@ function addOnClick(event: MouseEvent, baseMarker?: Marker): void {
   const selectedType = ensureEl<HTMLSelectElement>("addedMarkerType").value;
   const selectedConfig = Markers.getConfig().find(({ type }) => type === selectedType);
   const template = baseMarker || selectedConfig || { icon: Icons.glyph("❓"), type: "custom" };
-  const marker = Markers.add({ ...template, x: rn(point[0], 2), y: rn(point[1], 2), cell } as Marker);
+  const [cx, cy] = pack.cells.p[cell]; // Fluoria: markers stand at their cell's centre
+  const marker = Markers.add({ ...template, x: rn(cx, 2), y: rn(cy, 2), cell } as Marker);
   selectedConfig?.add(marker, cell);
 
   Layers.draw("markers");

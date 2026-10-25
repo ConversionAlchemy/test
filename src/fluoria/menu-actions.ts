@@ -7,7 +7,9 @@ import { drawMilitary } from "@/renderers/draw-military";
 import { t } from "@/utils/i18n";
 import { findEl } from "@/utils/nodeUtils";
 import { board, canBoard, capacity, cargo, carrierOf, fleetsFor, landingCells, load, space } from "./boarding";
-import { deleteRoute, findRoute, ROUTE_LEVELS, renameRoute, setRouteGroup } from "./routes";
+import { showRoadEdit } from "./pixel-map-sync";
+import { nodePoint, segmentAt } from "./road-geometry";
+import { changeSegment, deleteRoute, findRoute, ROUTE_LEVELS, renameRoute, setRouteGroup } from "./routes";
 import { chooseLanding, selected, stackAll } from "./units";
 
 export interface MenuAction {
@@ -37,12 +39,17 @@ const embark = (army: Regiment, fleet: Regiment) => {
 const openRegiment = (r: Regiment) => () => Controllers.RegimentEditor.open(`#regiment${r.state}-${r.i}`);
 
 /** Actions for the thing right-clicked; `cell` is where, for the empty-ground menu */
-export function actionsFor(ref: EntityRef | undefined, cell: number, confirm: (run: () => void) => void): MenuAction[] {
+export function actionsFor(
+  ref: EntityRef | undefined,
+  cell: number,
+  confirm: (run: () => void) => void,
+  point?: [number, number]
+): MenuAction[] {
   if (ref?.type === "regiment" && ref.sub !== undefined) {
     const regiment = regimentAt(ref.id, ref.sub);
     if (regiment) return regiment.n ? fleetActions(regiment, confirm) : armyActions(regiment, confirm);
   }
-  if (ref?.type === "route") return routeActions(ref.id, confirm);
+  if (ref?.type === "route") return routeActions(ref.id, confirm, point);
   if (ref?.type === "burg") return burgActions(ref.id);
   return cellActions(cell);
 }
@@ -164,17 +171,24 @@ function boardLabel(army: Regiment, fleet: Regiment): string {
     : `${t("Board")} ${fleet.name} (${t("fits {{fit}} of {{total}}", { fit: free, total: army.a })})`;
 }
 
-function routeActions(id: number, confirm: (run: () => void) => void): MenuAction[] {
+function routeActions(id: number, confirm: (run: () => void) => void, point?: [number, number]): MenuAction[] {
   const route = findRoute(id);
   if (!route) return [];
+  const scale = (document.getElementById("viewbox") as SVGGraphicsElement | null)?.getScreenCTM()?.a || 1;
+  const segment = point ? segmentAt(point[0], point[1], 8 / scale) : null;
+  const here = segment && segment.id === id ? segment : null;
+  if (here) showRoadEdit({ segment: [nodePoint(here.a), nodePoint(here.b)] }); // which step the levels apply to
   return [
     { label: t("Edit"), run: () => Controllers.RouteEditor.open(`route${id}`) },
     { label: t("Rename"), rename: { value: route.name ?? "", apply: name => renameRoute(id, name) } },
-    ...ROUTE_LEVELS.filter(level => level.group !== route.group).map(level => ({
-      label: `${t("Make")} ${t(level.name).toLowerCase()}`,
-      run: () => setRouteGroup(id, level.group)
+    ...ROUTE_LEVELS.filter(level => !here || level.group !== route.group).map(level => ({
+      label: here
+        ? `${t("Make segment")} ${t(level.name).toLowerCase()}`
+        : `${t("Make")} ${t(level.name).toLowerCase()}`,
+      run: () => (here ? changeSegment(id, here.k, level.group) : setRouteGroup(id, level.group))
     })),
-    { label: t("Delete"), danger: true, run: () => confirm(() => deleteRoute(id)) }
+    ...(here ? [{ label: t("Delete segment"), danger: true, run: () => changeSegment(id, here.k, null) }] : []),
+    { label: t("Delete road"), danger: true, run: () => confirm(() => deleteRoute(id)) }
   ];
 }
 
