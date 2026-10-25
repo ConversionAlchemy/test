@@ -2,7 +2,7 @@
 // Rows drag between open folders, out onto the map to stand alone or join a regiment there, and into a transport.
 // A regiment dragged onto another on the map merges with it, or loads into it if it's a transport
 import { type D3DragEvent, drag, easeSinInOut, select, transition } from "d3";
-import { confirmationDialog, noteButton, refreshEditors } from "@/components/dialog/dialog-helpers";
+import { confirmationDialog, refreshEditors } from "@/components/dialog/dialog-helpers";
 import { Icons } from "@/components/icons";
 import { Layers } from "@/components/layers";
 import { clearMainTip, tip } from "@/components/tooltips";
@@ -12,10 +12,12 @@ import { Controllers } from "@/controllers";
 import { canLoad, landingCells, load } from "@/fluoria/boarding";
 import { addSlot, changeRow, disband, encampRefusal, merge, regimentOf, splitOff } from "@/fluoria/forces/army";
 import {
+  cardPower,
   cargoSlots,
   domainOf,
   domainOfUnit,
   encamp,
+  flagship,
   isTransport,
   kitOf,
   type List,
@@ -28,13 +30,13 @@ import {
   troopsOf
 } from "@/fluoria/forces/forces";
 import { KIT } from "@/fluoria/forces/kit";
-import { cardUrl, iconUrl, short, stallUrl } from "@/fluoria/forces/pixels";
+import { buttonUrl, cardUrl, iconUrl, short, stallUrl } from "@/fluoria/forces/pixels";
 import { borrowView, returnView } from "@/fluoria/map-view";
 import { canStand, reachable } from "@/fluoria/movement";
 import { openNation } from "@/fluoria/nation-panel";
 import { cellAtPoint, mainCell, neighbours } from "@/fluoria/one-grid";
 import { dimPixelMap } from "@/fluoria/pixel-map-sync";
-import { GARRISON_SLOTS, sizeOf } from "@/fluoria/settlement-size";
+import { GARRISON_SLOTS, garrisonSlots, sizeOf } from "@/fluoria/settlement-size";
 import {
   BUILDING_ORDER,
   BUILDINGS,
@@ -45,7 +47,6 @@ import {
   demolish,
   ensureGarrison,
   formArmy,
-  funds,
   garrisonOf,
   hasBuilding,
   peopleFor,
@@ -60,7 +61,7 @@ import {
   station,
   unitName
 } from "@/fluoria/settlements";
-import { hidePeek, peek, regimentGroup } from "@/fluoria/unit-peek";
+import { hidePeek, onPeekDrag, peek, regimentGroup } from "@/fluoria/unit-peek";
 import {
   chooseLanding,
   clearSelection,
@@ -157,34 +158,36 @@ function bindRegiments(): void {
   armies.selectAll(":scope > g").classed("draggable", true);
   armies
     .selectAll<SVGGElement, unknown>(":scope > g:not(#flSettlements) > g")
-    .call(drag<SVGGElement, unknown>().on("start", dragRegiment));
+    .call(drag<SVGGElement, unknown>().clickDistance(4).on("start", dragRegiment)); // a shaky click is still a click
   const node = armies.node();
   if (node && !node.dataset.flDouble) {
     node.dataset.flDouble = "1";
     // the arrow beside a stack opens and closes it, and never starts a drag
-    node.addEventListener(
-      "pointerdown",
-      event => {
-        hidePeek();
-        if ((event.target as Element).closest(".flTab")) event.stopPropagation();
-      },
-      true
-    );
+    for (const type of ["pointerdown", "mousedown", "touchstart"])
+      node.addEventListener(
+        type,
+        event => {
+          hidePeek();
+          if ((event.target as Element).closest(".flTab")) event.stopPropagation(); // the drag never sees it
+        },
+        true
+      );
     // hovering a card shows what's inside; a closed stack shows all of its units
     node.addEventListener("mouseover", event => {
       if ((event as MouseEvent).buttons) return;
       if ((event.target as Element).closest(".flSettle")) return; // a settlement's own hover shows it
       const g = (event.target as Element).closest<SVGGElement>("#armies > g > g");
       const regiment = regimentFrom(g);
-      if (!g || !regiment || (event.target as Element).closest(".flTab")) return hidePeek();
+      if (!g || !regiment) return hidePeek(1000);
+      if ((event.target as Element).closest(".flTab")) return; // the arrow keeps whatever is showing
       const stack = stackOf(regiment);
       const all = stack.length > 1 && !isOpen(regiment) ? stack : [regiment];
       const card = g.querySelector(`image.${node.dataset.flStage === "far" ? "flFar" : "flClose"}:not(.flPick)`) ?? g;
-      peek(card, all.map(regimentGroup));
+      peek(card, all.map(regimentGroup), true, g.querySelector("image.flTab"));
     });
     node.addEventListener("mouseout", event => {
       const to = (event as MouseEvent).relatedTarget as Element | null;
-      if (!to?.closest?.("#armies > g > g")) hidePeek();
+      if (!to?.closest?.("#armies > g > g")) hidePeek(1000);
     });
     node.addEventListener(
       "click",
@@ -337,6 +340,8 @@ function render(el: HTMLElement, regiment: Regiment): void {
   const filled = items.map(row => slotRow(list, row.unit, row.count, regiment.state)).join("");
   const empty = Array.from({ length: Math.max(0, cap - items.length) }, () => emptyRow(list)).join("");
   const own = transport ? Object.keys(regiment.u)[0] : "";
+  const burgHere = pack.burgs[pack.cells.burg[mainCell(regiment.cell)]];
+  const at = burgHere?.i && !burgHere.removed ? burgHere : null;
 
   el.innerHTML = /* html */ `
     <div class="flFolderHead">
@@ -345,22 +350,20 @@ function render(el: HTMLElement, regiment: Regiment): void {
         <input class="flFolderName" value="${escapeHtml(regiment.name)}" data-tip="${t("Type to rename")}" spellcheck="false" />
         <div class="flFolderSub">${t("Power")} ${short(face.power)} · ${short(face.troops)} ${t("troops")}</div>
         <div class="flFolderSub">${transport ? `${escapeHtml(own)} · ${t("cargo")}` : t("Slots")} ${items.length}/${cap}</div>
+        ${at ? `<div class="flFolderSub">${t("At")} <a class="flAt" data-burg="${at.i}">${escapeHtml(at.name ?? "")} ›</a></div>` : ""}
       </div>
     </div>
     <div class="flSlots" data-list="${list}">${filled}${empty}</div>
     <div class="flFolderBottom">
-      <button data-act="attack" data-tip="${t("Attack a regiment next to this one")}" class="icon-button-melee"></button>
-      ${transport ? "" : `<button data-act="merge" data-tip="${t("Merge into another group: click it on the map, or drag this one onto it")}" class="icon-attach"></button>`}
-      ${
-        transport
-          ? `<button data-act="unload" data-tip="${t("Unload all cargo onto the coast beside it")}" class="icon-button-landing"></button>`
-          : `<button data-act="disband" data-tip="${t("Disband: every slot stands on its own in this cell")}" class="icon-object-ungroup"></button>`
-      }
-      <button data-act="encamp" data-tip="${t("Encamp: rest and repair, the strength bar refills (no new troops)")}" class="icon-campground"></button>
-      <button data-act="add" data-tip="${t("Raise a new group: click on the map")}" class="icon-user-plus"></button>
-      ${noteButton(`flFolderNote${keyOf(regiment)}`, t("Edit free text notes (legend)"))}
-      <button data-act="delete" data-tip="${t("Release: its troops go home to the settlement they came from")}" class="icon-trash"></button>
+      ${px("attack", "attack", t("Attack a regiment next to this one"))}
+      ${transport ? "" : px("merge", "merge", t("Merge into another group: click it on the map, or drag this one onto it"))}
+      ${transport ? px("unload", "unload", t("Unload all cargo onto the coast beside it")) : px("disband", "disband", t("Disband: every slot stands on its own in this cell"))}
+      ${px("encamp", "encamp", t("Encamp: rest and repair, the strength bar refills (no new troops)"))}
+      ${px("add", "recruit", t("Raise a new group: click on the map"))}
+      ${px("", "notes", t("Notes"), `flFolderNote${keyOf(regiment)}`)}
+      ${px("delete", "release", t("Release: its troops go home to the settlement they came from"))}
     </div>`;
+  el.querySelector(".flAt")?.addEventListener("click", () => openSettlement(at!.i, true));
 
   for (const button of el.querySelectorAll<HTMLButtonElement>(".flFolderBottom button[data-act]"))
     button.classList.toggle("pressed", button.dataset.act === mode && picked === regiment);
@@ -381,6 +384,10 @@ function render(el: HTMLElement, regiment: Regiment): void {
   );
   wireSlots(el, regiment);
 }
+
+/** A folder button with a pixel icon */
+const px = (act: string, icon: string, tip: string, id = "") =>
+  `<button type="button" class="flPx"${act ? ` data-act="${act}"` : ""}${id ? ` id="${id}"` : ""} data-tip="${tip}"><img src="${buttonUrl(icon)}" alt="" /></button>`;
 
 // --- settlements
 
@@ -413,6 +420,27 @@ function goodsOf(burg: Burg): string {
     .join("");
 }
 
+const openParts = new Set<string>(); // folded sections a settlement folder keeps open: "b12:g" (garrison), "b12:3-7"
+let carriedArmy: Regiment | null = null;
+
+/** A nested folder in a settlement: an army or the garrison, its units as rows */
+function partFolder(key: string, r: Regiment, title: string, cap: number, open: boolean, garrisonOfBurg = 0): string {
+  const lead = kitOf(flagship(r) ?? "");
+  const icon = lead ? `<img src="${iconUrl(lead, colourOf(r.state))}" alt="" />` : "<span class='flNoIcon'></span>";
+  const items = rows(r.u);
+  const empty = Math.max(0, cap - slotsOf(r.u));
+  return /* html */ `<details class="flPart" data-part="${key}" data-state="${r.state}" data-id="${r.i}" ${open ? "open" : ""}>
+    <summary ${garrisonOfBurg ? "" : 'draggable="true"'}>${icon}<span class="flPartName">${escapeHtml(title)}</span>
+      <span class="flPartSize">${short(troopsOf(r))} (${cardPower(r)})</span>
+      ${garrisonOfBurg ? "" : px("", "locate", t("Locate"))}
+    </summary>
+    <div class="flSlots" data-list="u">${items.map(row => slotRow("u", row.unit, row.count, r.state)).join("")}${Array.from(
+      { length: empty },
+      () => `<div class="flSlot flEmpty flNoAdd" data-list="u"></div>`
+    ).join("")}</div>
+  </details>`;
+}
+
 function renderSettlement(el: HTMLElement, burgId: number): void {
   const burg = pack.burgs[burgId];
   if (!burg?.i || burg.removed) return;
@@ -420,14 +448,26 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
   const garrison = size ? ensureGarrison(burg) : null;
   const state = burg.state ?? 0;
   if (state) void EmblemRenderer.trigger(`stateCOA${state}`, pack.states[state].coa);
-  const province = pack.provinces?.[pack.cells.province?.[burg.cell] ?? 0];
-  const where = province && "name" in province ? province.name : (pack.states[state]?.name ?? "");
   const cap = size ? GARRISON_SLOTS[size] : 0;
-  const kind = size ? `${SIZE_NAME[size]} (${cap} ${t("Slots")})` : t("Village");
   const capitalOfNation = size === "capital" && pack.states[state]?.capital === burg.i;
-  const money = capitalOfNation
-    ? `<span class="flGold" data-tip="${t("The nation's treasury, held here")}">§${Math.floor(funds(burg)).toLocaleString()}</span>`
-    : `<span class="flGold">§${Math.floor(burg.treasury ?? 0).toLocaleString()}</span>`;
+  const sizePick =
+    size === "capital"
+      ? `<span class="flFolderSub">${t("Capital")} (12 ${t("Slots")})</span>`
+      : `<select class="flSize">${(["village", "town", "city"] as const)
+          .map(g => {
+            const label = g === "village" ? t("Village") : `${SIZE_NAME[g]} (${GARRISON_SLOTS[g]} ${t("Slots")})`;
+            const on = (size ?? "village") === g;
+            return `<option value="${g}" ${on ? "selected" : ""}>${label}</option>`;
+          })
+          .join("")}</select>`;
+  const money = /* html */ `<span class="flGold">§</span><input class="flInline flGold" data-money="own" type="number" value="${Math.floor(burg.treasury ?? 0)}" data-tip="${t("This settlement's treasury")}" />
+    ${
+      capitalOfNation
+        ? `<span class="flFolderSub">${t("Nation")}</span><span class="flGold">§</span><input class="flInline flGold" data-money="nation" type="number" value="${Math.floor(pack.states[state].treasury ?? 0)}" data-tip="${t("The nation's treasury, held here")}" />`
+        : size
+          ? px("funds", "send", t("Send Funds from the nation"))
+          : ""
+    }`;
   const buildings = size
     ? BUILDING_ORDER.map(b => {
         const on = hasBuilding(burg, b);
@@ -435,42 +475,61 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
         return `<button type="button" class="flBuilding${on ? " on" : ""}" data-build="${b}" data-tip="${t(BUILDINGS[b].name)} · ${t(BUILDINGS[b].unlocks)} · ${why}"><img src="${buildingIcon(b, on)}" alt="" /></button>`;
       }).join("")
     : "";
-  const items = garrison ? rows(garrison.u) : [];
-  const slots = garrison
-    ? `<div class="flSlots" data-list="u">${items.map(row => slotRow("u", row.unit, row.count, state)).join("")}${Array.from(
-        { length: Math.max(0, cap - slotsOf(garrison.u)) },
-        () => `<div class="flSlot flEmpty flNoAdd" data-list="u"></div>`
-      ).join("")}</div>`
-    : "";
+  const here = (pack.states[state]?.military ?? []).filter(
+    r => !r.hidden && !r.garrison && mainCell(r.cell) === mainCell(burg.cell)
+  );
+  const gKey = `b${burgId}:g`;
+  if (!openParts.has(`${gKey}:seen`)) {
+    openParts.add(`${gKey}:seen`);
+    openParts.add(gKey); // the garrison opens by default
+  }
 
   el.innerHTML = /* html */ `
     <div class="flFolderHead">
       <svg class="flFolderArt flNationLink" viewBox="0 0 200 200" data-tip="${t("Open the nation")}"><use href="#stateCOA${state}"></use></svg>
       <div>
         <input class="flFolderName" value="${escapeHtml(burg.name ?? "")}" data-tip="${t("Type to rename")}" spellcheck="false" />
-        <div class="flFolderSub">${kind} · ${escapeHtml(where)}</div>
-        <div class="flFolderSub">${t("Pop")} ${peopleOf(burg).toLocaleString()} · ${money}</div>
+        <div class="flFolderSub">${sizePick}</div>
+        <div class="flFolderSub flMoneyLine">${t("Pop")} <input class="flInline" data-pop type="number" value="${peopleOf(burg)}" /> · ${money}</div>
       </div>
     </div>
     <div class="flSettleRow"><div class="flBuildings">${buildings}</div><div class="flGoods">${goodsOf(burg)}</div></div>
-    ${slots}
+    ${garrison ? `<div class="flPartHead">${t("Garrison")}</div>${partFolder(gKey, garrison, garrison.name, cap, openParts.has(gKey), burgId)}` : ""}
+    ${here.length ? `<div class="flPartHead">${t("Armies Here")}</div>${here.map(r => partFolder(`b${burgId}:${keyOf(r)}`, r, r.name, MAX_SLOTS, openParts.has(`b${burgId}:${keyOf(r)}`))).join("")}` : ""}
     ${recruiting === burgId && size ? recruitForm(burg) : ""}
     <div class="flFolderBottom">
-      ${size ? `<button data-act="recruit" data-tip="${t("Recruit")}" class="icon-user-plus${recruiting === burgId ? " pressed" : ""}"></button>` : ""}
-      ${size ? `<button data-act="form" data-tip="${t("Form Army: the garrison marches out as a group (or drag rows onto the map)")}" class="icon-flag"></button>` : ""}
-      ${size && !capitalOfNation ? `<button data-act="funds" data-tip="${t("Send Funds from the nation")}" class="icon-bank"></button>` : ""}
-      <button data-act="locate" data-tip="${t("Locate")}" class="icon-target"></button>
-      ${noteButton(`flSettleNote${burgId}`, t("Notes"))}
-      <button data-act="lock" data-tip="${t("Lock")}" class="${burg.lock ? "icon-lock" : "icon-lock-open"}"></button>
-      <button data-act="remove" data-tip="${t("Delete")}" class="icon-trash"></button>
-      <button data-act="editor" data-tip="${t("Full Editor")}" class="icon-cog"></button>
+      ${size ? px("recruit", "recruit", t("Recruit")) : ""}
+      ${size ? px("form", "form", t("Form Army: the garrison marches out as a group (or drag rows onto the map)")) : ""}
+      ${px("locate", "locate", t("Locate"))}
+      ${px("", "notes", t("Notes"), `flSettleNote${burgId}`)}
+      ${px("lock", burg.lock ? "locked" : "unlocked", burg.lock ? t("Unlock") : t("Lock"))}
+      ${px("remove", "delete", t("Delete"))}
     </div>`;
+  el.querySelector('[data-act="recruit"]')?.classList.toggle("pressed", recruiting === burgId);
 
   el.querySelector<HTMLInputElement>(".flFolderName")!.addEventListener("change", function () {
     if (!this.value.trim()) return;
     Burgs.rename(burgId, this.value.trim());
     $(el).dialog("option", "title", burg.name);
     Layers.draw("labels");
+  });
+  el.querySelector<HTMLSelectElement>(".flSize")?.addEventListener("change", function () {
+    resize(burg, this.value);
+    changed();
+  });
+  el.querySelector<HTMLInputElement>("[data-pop]")?.addEventListener("change", function () {
+    Burgs.setPopulation(burgId, Math.max(0, Math.round(+this.value || 0)));
+    changed();
+  });
+  for (const input of el.querySelectorAll<HTMLInputElement>("[data-money]"))
+    input.addEventListener("change", () => {
+      const amount = Math.max(0, Math.round(+input.value || 0));
+      if (input.dataset.money === "nation") States.setTreasury(state, amount);
+      else Burgs.setTreasury(burgId, amount);
+      changed();
+    });
+  el.querySelector(".flMoneyLine")?.addEventListener("click", event => {
+    if ((event.target as HTMLElement).closest('[data-act="funds"]')) settlementAction("funds", burg, el);
   });
   el.querySelector(".flNationLink")?.addEventListener("click", () => {
     if (state) openNation(state);
@@ -501,8 +560,66 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
     "click",
     () => void Controllers.NotesEditor.open({ type: "burg", id: burgId })
   );
-  if (garrison) wireSlots(el, garrison);
+  for (const part of el.querySelectorAll<HTMLDetailsElement>("details.flPart")) {
+    const r = regimentOf(+part.dataset.state!, +part.dataset.id!);
+    if (!r) continue;
+    part.addEventListener("toggle", () => {
+      if (part.open) openParts.add(part.dataset.part!);
+      else openParts.delete(part.dataset.part!);
+    });
+    wireSlots(part, r);
+    const summary = part.querySelector("summary")!;
+    summary.querySelector(".flPx")?.addEventListener("click", event => {
+      event.preventDefault();
+      zoomTo(r.x, r.y, 6, 900);
+    });
+    summary.addEventListener("dragstart", () => {
+      carriedArmy = r;
+    });
+    summary.addEventListener("dragend", () => {
+      carriedArmy = null;
+    });
+    if (r.garrison) {
+      // a whole army dragged onto the garrison is stationed in it
+      part.addEventListener("dragover", event => {
+        if (carriedArmy) event.preventDefault();
+      });
+      part.addEventListener("drop", event => {
+        if (!carriedArmy) return;
+        event.preventDefault();
+        const army = carriedArmy;
+        carriedArmy = null;
+        stationIn(army, burg);
+      });
+    }
+  }
   if (recruiting === burgId) wireRecruit(el, burg);
+}
+
+/** A settlement made bigger or smaller; a garrison that no longer fits sends the rest home to the capital */
+function resize(burg: Burg, group: string): void {
+  const names = options.map.burgs.groups.filter(g => !g.removed).map(g => g.name);
+  if (names.includes(group)) Burgs.setGroup(burg.i, group);
+  else burg.group = group;
+  const garrison = garrisonOf(burg);
+  if (!garrison) return;
+  const cap = garrisonSlots(burg.i);
+  const extra: Record<string, number> = {};
+  const kept = rows(garrison.u);
+  while (kept.length > cap) {
+    const row = kept.pop()!;
+    extra[row.unit] = (extra[row.unit] ?? 0) + row.count;
+  }
+  if (!Object.keys(extra).length) return;
+  for (const [unit, n] of Object.entries(extra)) {
+    garrison.u[unit] -= n;
+    if (garrison.u[unit] <= 0) delete garrison.u[unit];
+  }
+  sendHome({ ...garrison, home: 0, garrison: 0 }, extra);
+  garrison.a = troopsOf(garrison);
+  if (!cap) Military.remove(garrison.state, garrison.i);
+  tip(t("Troops that no longer fit went home to the capital"), false, "info");
+  Layers.draw("burgIcons", "labels");
 }
 
 function recruitForm(burg: Burg): string {
@@ -600,11 +717,6 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
   if (act === "lock") {
     burg.lock = !burg.lock;
     renderSettlement(el, burg.i);
-    return;
-  }
-  if (act === "editor") {
-    closeFolder(`b${burg.i}`);
-    void Controllers.BurgEditor.open(burg.i);
     return;
   }
   if (act === "remove")
@@ -1110,8 +1222,21 @@ function watchSettlements(): void {
   });
   document.addEventListener("mouseout", event => {
     const from = burgOfElement(event.target as Element);
-    if (from && burgOfElement((event as MouseEvent).relatedTarget as Element | null) !== from) hidePeek();
+    if (from && burgOfElement((event as MouseEvent).relatedTarget as Element | null) !== from) hidePeek(1000);
   });
+  // rows dragged out of the hover panel behave like folder rows
+  onPeekDrag(
+    row => {
+      const from = regimentOf(row.state, row.id);
+      if (!from) return;
+      carried = { state: row.state, id: row.id, list: "u", unit: row.unit, count: row.count };
+      dimPixelMap(new Set(dropCells(from, "u", row.unit, row.count)), "land");
+    },
+    () => {
+      carried = null;
+      pick(picked);
+    }
+  );
 }
 
 export const RegimentEditor = {

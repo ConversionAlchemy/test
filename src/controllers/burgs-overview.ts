@@ -505,7 +505,7 @@ function toggleBurgLockStatus(this: HTMLElement): void {
 
 function openBurgEditor(this: HTMLElement): void {
   const burg = +(this.closest(".states") as HTMLElement).dataset.id!;
-  Controllers.BurgEditor.open(burg);
+  Controllers.RegimentEditor.settlement(burg); // Fluoria: the settlement folder
 }
 
 function triggerBurgRemove(this: HTMLElement): void {

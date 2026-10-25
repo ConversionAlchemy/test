@@ -89,7 +89,7 @@ function ladder(cell: number, client?: [number, number]): MenuAction[] {
   if (burg && pack.burgs[burg] && !pack.burgs[burg].removed)
     out.push({
       label: `${pack.burgs[burg].name} · ${t("settlement")} ›`,
-      run: () => Controllers.BurgEditor.open(burg)
+      run: () => Controllers.RegimentEditor.settlement(burg)
     });
   out.push({
     label: t("Cell details"),
@@ -218,7 +218,7 @@ function burgActions(id: number): MenuAction[] {
     state.i && !state.removed ? (state.military ?? []).filter(r => !r.hidden && r.cell === burg.cell) : []
   );
   return [
-    { label: t("Edit"), run: () => Controllers.BurgEditor.open(id) },
+    { label: t("Edit"), run: () => Controllers.RegimentEditor.settlement(id) },
     { label: t("Rename"), rename: { value: burg.name ?? "", apply: name => Burgs.rename(id, name) } },
     ...(here.length
       ? [

@@ -57,9 +57,6 @@ export function applyUnitZoom(scale: number): void {
   armies.style.setProperty("--fl-unit", String(unitScale));
   armies.dataset.flStage = stage;
   armies.dataset.flNames = stage === "close" ? "1" : "0";
-  // a settlement's name steps below a unit standing on it (and below the far card's total)
-  const under = (px * (stage === "far" ? 1.35 : 0.85)) / scale;
-  document.getElementById("labels")?.style.setProperty("--fl-under", `${under}px`);
   for (const stack of stacks) layStack(stack); // only an open stack's offsets change with size
   laySettlements();
   nameLabels();
@@ -273,11 +270,30 @@ function laySettlements(): void {
   }
 }
 
-/** A settlement's name steps below a unit card standing on it */
+/** A settlement's name sits just below a unit card standing on it (and below the far card's total), at any zoom */
 export function nameLabels(): void {
+  const armies = document.getElementById("armies");
+  if (!armies || !styles?.military) return;
+  const h = styles.military.options.boxSize * 2 * unitScale; // the card's size on the map
+  const far = armies.dataset.flStage === "far";
   for (const burg of pack.burgs ?? []) {
     if (!burg?.i || burg.removed) continue;
-    document.getElementById(`burgLabel${burg.i}`)?.classList.toggle("fl-under", unitCells.has(mainCell(burg.cell)));
+    const label = document.getElementById(`burgLabel${burg.i}`) as SVGTextElement | null;
+    if (!label) continue;
+    if (!unitCells.has(mainCell(burg.cell))) {
+      if (label.dataset.flUnder) {
+        delete label.dataset.flUnder;
+        label.style.translate = "";
+      }
+      continue;
+    }
+    label.dataset.flUnder = "1";
+    const bottom = burg.y + h * (far ? 1.05 : 0.5) + h * 0.08;
+    let top = burg.y;
+    try {
+      top = label.getBBox().y;
+    } catch {}
+    label.style.translate = `0px ${Math.max(0, bottom - top)}px`;
   }
 }
 
