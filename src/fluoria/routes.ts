@@ -3,6 +3,8 @@
 import type { Route } from "@/generators/routes-generator";
 import { drawRoutes } from "@/renderers/draw-routes";
 import { rn } from "@/utils/numberUtils";
+import { cellAtPoint } from "./one-grid";
+import { nodePoint } from "./road-geometry";
 
 export type Point = [number, number];
 
@@ -50,7 +52,7 @@ function fallbackName(route: Route, group: RouteGroup): string {
 export function moveRoutePoints(id: number, points: Point[]): void {
   const route = findRoute(id);
   if (!route) return;
-  route.points = points.map(([x, y]) => [rn(x, 2), rn(y, 2), Pack.findCell(x, y) ?? route.points[0][2]]);
+  route.points = points.map(([x, y]) => [rn(x, 2), rn(y, 2), cellAtPoint(x, y) ?? route.points[0][2]]);
   pack.cells.routes = Routes.buildLinks(pack.routes);
   drawRoutes();
 }
@@ -153,11 +155,7 @@ export function pickNode(point: Point, nodes: readonly Point[], tolerance: numbe
 
 /** Points for a run of cells: the settlement where there is one, else the cell centre */
 function cellPoints(cells: number[]): Point[] {
-  return cells.map(cell => {
-    const burg = pack.cells.burg[cell];
-    const p = burg && !pack.burgs[burg]?.removed ? [pack.burgs[burg].x, pack.burgs[burg].y] : pack.cells.p[cell];
-    return [p[0], p[1]] as Point;
-  });
+  return cells.map(cell => nodePoint(cell) as Point);
 }
 
 /** Build a road through a run of neighbouring cells */

@@ -80,6 +80,13 @@ export const RELATIONS: Record<string, Relation> = {
 
 export const isRelation = (value: string): boolean => Object.hasOwn(RELATIONS, value);
 
+/** Fluoria keeps diplomacy to what changes play: allies, enemies, neutrals, and who rules whom */
+export const PLAYABLE_RELATIONS = ["Ally", "Neutral", "Enemy", "Vassal", "Suzerain"] as const;
+
+/** Any of Azgaar's moods (friendly, suspicious, rival, unknown) is neutral in play */
+export const playableRelation = (relation: string): string =>
+  (PLAYABLE_RELATIONS as readonly string[]).includes(relation) || relation === "x" ? relation : "Neutral";
+
 /** the relation the other state holds back */
 export const getInverseRelation = (relation: string): string =>
   relation === "Vassal" ? "Suzerain" : relation === "Suzerain" ? "Vassal" : relation;

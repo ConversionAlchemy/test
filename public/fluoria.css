@@ -396,6 +396,19 @@ input[type="range"] {
   display: none;
 }
 
+/* far out, each regiment is a dot of its state's colour */
+#armies[data-fl-far="1"] > g > g > :is(rect:first-of-type, text, use, .flMore, .flCargo) {
+  display: none;
+}
+
+#armies[data-fl-far="1"] > g > g > rect[fill="currentColor"] {
+  fill: inherit;
+  stroke: #1b1b1e;
+  stroke-width: 0.12em;
+  rx: 50%;
+  ry: 50%;
+}
+
 /* Cell card */
 #cellCard {
   position: fixed;
@@ -466,15 +479,25 @@ input[type="range"] {
   padding-right: 1.4em;
 }
 
-/* Outlying islands carry their owner's short name */
+/* Every piece of a state's land carries its name: big pieces always, small ones close in */
 #flIslands text {
-  fill: #ffffff;
-  stroke: #1b1b20;
-  stroke-width: 0.2em;
+  stroke: #f4f0e4;
+  stroke-opacity: 0.85;
+  stroke-width: 0.08em;
   stroke-linejoin: round;
   paint-order: stroke;
   font-family: "VT323", monospace;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+#flIslands text[data-big="0"] {
+  font-size: var(--fl-island);
+  display: none;
+}
+
+#flIslands[data-close="1"] text[data-big="0"] {
+  display: inline;
 }
 
 #layersContent .flWide {
@@ -556,4 +579,364 @@ body.fluoria-roads #map {
   border: 0;
   border-top: 1px solid var(--fl-line);
   margin: 0.25em 0;
+}
+
+/* Atlas views: sea names in spaced blue italics and a light coordinate grid */
+#flSeas {
+  display: none;
+}
+
+body.fl-atlas #flSeas {
+  display: inline;
+}
+
+#flSeas text {
+  fill: #3d6a98;
+  font-family: "VT323", monospace;
+  font-style: italic;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+body.fl-atlas #coordinates {
+  stroke: #6f98bd !important;
+  stroke-opacity: 0.45 !important;
+  stroke-width: 0.6px !important;
+  stroke-dasharray: none !important;
+  fill: none;
+}
+
+body.fl-atlas #coordinates text {
+  fill: #3d6a98 !important;
+  stroke: none !important;
+  font-family: "VT323", monospace !important;
+}
+
+/* Nation panel: one front door to a nation, docked on the left */
+#flNation {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 100vw);
+  background: var(--bg-dialogs, #232323);
+  border-right: 2px solid var(--fl-line, #444);
+  box-shadow: 0.4em 0 1.2em #00000060;
+  color: var(--fl-text, #e8e5d9);
+  font: 20px/1.1 "VT323", monospace;
+}
+
+#flNation button,
+#flNation select,
+#flNation input {
+  font: inherit;
+  color: inherit;
+  background: #2e2e2e;
+  border: 1px solid var(--fl-line, #444);
+  border-radius: 0;
+}
+
+#flNation button {
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+#flNation button:hover:not(:disabled) {
+  background: #393939;
+}
+
+#flNation button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+#flNation a {
+  color: var(--fl-accent, #e3c66b);
+  cursor: pointer;
+}
+
+#flNation a:hover {
+  text-decoration: underline;
+}
+
+#flNation .np-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--header, #333339);
+  border-bottom: 2px solid #141414;
+}
+
+#flNation .np-bar span {
+  flex: 1;
+  text-align: center;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-size: 22px;
+}
+
+#flNation .np-identity {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  padding: 12px 12px 8px;
+}
+
+#flNation .np-emblem {
+  width: 96px;
+  height: 112px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+#flNation .np-emblem svg {
+  width: 100%;
+  height: 100%;
+}
+
+#flNation .np-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+#flNation .np-name strong {
+  font-size: 30px;
+  font-weight: 400;
+}
+
+#flNation .np-name button {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--fl-dim, #b8b5a9);
+}
+
+#flNation .np-full {
+  margin-bottom: 6px;
+  color: var(--fl-dim, #bbb9ae);
+}
+
+#flNation .np-rename {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+#flNation .np-rename div {
+  display: flex;
+  gap: 4px;
+}
+
+#flNation .np-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 18px;
+}
+
+#flNation .np-line select {
+  min-width: 0;
+  max-width: 190px;
+}
+
+#flNation input[type="color"] {
+  width: 28px;
+  height: 24px;
+  padding: 0;
+}
+
+#flNation .np-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  padding: 0 12px 10px;
+  color: var(--fl-dim, #bbb9ae);
+  font-size: 18px;
+}
+
+#flNation .np-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  margin: 0 10px 10px;
+}
+
+#flNation .np-stat {
+  min-width: 0;
+  padding: 5px 2px 4px;
+  background: #2e2e2e;
+  border: 1px solid var(--fl-line, #444);
+  text-align: center;
+}
+
+#flNation .np-stat label {
+  display: block;
+  color: var(--fl-dim, #bcb9ad);
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+#flNation .np-stat strong {
+  font-weight: 400;
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+#flNation .np-stat.gold strong {
+  color: #e3c66b;
+}
+
+#flNation .np-tabs {
+  display: flex;
+  border-top: 1px solid var(--fl-line, #444);
+  border-bottom: 1px solid var(--fl-line, #444);
+}
+
+#flNation .np-tabs button {
+  flex: 1;
+  padding: 7px 0;
+  border: 0;
+  border-right: 1px solid var(--fl-line, #444);
+  background: #292929;
+  font-size: 18px;
+}
+
+#flNation .np-tabs button.on {
+  color: #f1cf70;
+  background: #32312b;
+  box-shadow: inset 0 -3px var(--fl-accent, #e3c66b);
+}
+
+#flNation .np-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px 12px;
+}
+
+#flNation h3 {
+  margin: 8px 0 0;
+  padding: 3px 8px;
+  background: #313131;
+  color: #c1bfb5;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+#flNation h3.np-ally {
+  background: #2b4032;
+  color: #bbd0b8;
+}
+
+#flNation h3.np-enemy {
+  background: #4b2a2b;
+  color: #e3b7b5;
+}
+
+#flNation :is(h3.np-overlord, h3.np-vassal) {
+  background: #45402d;
+  color: #d8c78e;
+}
+
+#flNation h3 a {
+  color: inherit;
+}
+
+#flNation .np-row,
+#flNation .np-relation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 3px 8px;
+  background: #292929;
+  border: 1px solid #3c3c3c;
+  border-top: 0;
+}
+
+#flNation .np-row > :first-child,
+#flNation .np-relation > a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#flNation a.np-row {
+  color: inherit;
+}
+
+#flNation .np-relation svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+
+#flNation .np-form {
+  display: grid;
+  gap: 6px;
+}
+
+#flNation .np-form label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#flNation .np-form input {
+  width: 8em;
+}
+
+#flNation .np-dim,
+#flNation .np-empty {
+  color: var(--fl-dim, #b8b5a9);
+}
+
+#flNation .np-wide {
+  width: 100%;
+}
+
+#flNation .np-pair {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+#flNation .np-pair button {
+  flex: 1;
+}
+
+#flNation .np-link {
+  display: inline-block;
+  margin-top: 10px;
+}
+
+#flNation .np-note {
+  min-height: 12em;
+  padding: 8px;
+  background: #1e1e1e;
+  border: 1px solid var(--fl-line, #444);
+  font-family: inherit;
+  outline: none;
+}
+
+#flNation .np-foot {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--fl-line, #444);
+  background: #292929;
+}
+
+#flNation .np-foot button {
+  flex: 1;
 }

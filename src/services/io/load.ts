@@ -310,7 +310,10 @@ async function parseLoadedData(data: string[], mapVersion: string | null): Promi
     grid.cells.f = Uint16Array.from(data[9].split(","), Number);
     grid.cells.t = Int8Array.from(data[10].split(","), Number);
     grid.cells.temp = Int8Array.from(data[11].split(","), Number);
-    Pack.generate();
+    // older maps split their coasts into finer cells, Fluoria's don't: rebuild the way the saved cells were made
+    const savedCells = data[16].split(",").length;
+    Pack.generate(true);
+    if (pack.cells.i.length !== savedCells) Pack.generate(false);
     Features.markupPack();
     if (data[3]?.startsWith("[")) {
       type LoadedBiome = (typeof pack.biomes)[number] & {

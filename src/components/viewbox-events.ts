@@ -1,7 +1,8 @@
 // Default interaction on the map canvas: pan/zoom, click-to-edit, the context menu and hover tooltips
 import { drag, select } from "d3";
 import { Controllers } from "@/controllers";
-import { hoverAt, leave, openCellCard } from "@/fluoria/cell-card";
+import { groundClick, hoverAt, leave, zoomedOut } from "@/fluoria/cell-card";
+import { openNation } from "@/fluoria/nation-panel";
 import { roadUnder } from "@/fluoria/road-geometry";
 import type { LabelType } from "@/generators/labels-generator";
 import { dragLegendBox } from "@/renderers/draw-legend";
@@ -28,7 +29,7 @@ export function applyDefaultViewboxEvents(): void {
     .on("mouseleave.fluoria", leave)
     .on("click.fluoria", (event: MouseEvent) => {
       if ((event.target as Element)?.id !== "map" || options.map.viewOnly || customization) return;
-      openCellCard(event);
+      groundClick(event);
     });
 
   select<SVGGElement, unknown>("#legend").call(drag<SVGGElement, unknown>().on("start", dragLegendBox));
@@ -78,6 +79,10 @@ export function openEditor(element: Element): boolean {
   if (label) {
     const id = Number(label.dataset.id);
     const type = label.dataset.labelType as LabelType;
+    if (type === "state") {
+      openNation(id); // Fluoria: a nation's name opens the nation
+      return true;
+    }
     if (type === "burg") {
       const burgEditor = findEl("burgEditor");
       const isBurgEditorOpen = burgEditor?.dataset.burgId === String(id);
@@ -96,9 +101,10 @@ function onClick(event: MouseEvent): void {
   if (!event?.target || options.map.viewOnly) return;
   if (openEditor(event.target as Element) || customization) return;
   // Fluoria: roads are clicked where they're drawn, not where Azgaar's hidden curve runs
-  const road = roadUnder(event);
+  const road = zoomedOut() ? null : roadUnder(event); // zoomed out a click is for the nation
+
   if (road) return void Controllers.RouteEditor.open(`route${road.id}`);
-  openCellCard(event);
+  groundClick(event);
 }
 
 /** Right-click on the map belongs to the context menu; Shift+right-click keeps the browser's own */

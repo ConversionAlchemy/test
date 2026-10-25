@@ -4,6 +4,7 @@ import { color, hsl } from "d3";
 import { viewport } from "@/components/viewport";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
+import { cellCentre, isSliver } from "./one-grid";
 
 const living = (id: number) => (id && pack.states[id] && !pack.states[id].removed ? pack.states[id] : null);
 
@@ -18,23 +19,43 @@ export function ownerText(cell: number): string {
   return over ? t("{{state}}, vassal of {{suzerain}}", { state: name, suzerain: over.fullName || over.name }) : name;
 }
 
-// --- island names: a state's land on other islands carries its short name, so a lone island is never unclaimed
+// --- names on every piece of land: a state's land away from its main island carries its name too. Big pieces are
+// named at every zoom, sized to fit; small ones only close in. Tiny states' own names also wait for the zoom
 
 interface IslandLabel {
   x: number;
   y: number;
   text: string;
+  state: number;
+  size: number; // map units, for named-at-every-zoom pieces; 0 for small ones, a fixed size on screen
 }
 
 let islands: IslandLabel[] = [];
+const stateCells = new Map<number, number>();
 
-/** Find every piece of a state's land that is off the island it mostly lives on */
+const BIG_PIECE = 5; // cells from which an outlying piece is named at every zoom
+export const TINY_STATE = 4; // cells under which a state's name waits for the zoom
+export const TINY_FROM = 3;
+
+/** Cells a state holds, counted on the one grid */
+export const cellsOfState = (state: number): number => stateCells.get(state) ?? 0;
+
+/** Ink for a state's name: a deep shade of its own colour */
+export function stateInk(state: number): string {
+  const base = hsl(living(state)?.color ?? "#555");
+  if (Number.isNaN(base.h)) return "#2a2a30";
+  return hsl(base.h, Math.min(0.6, base.s || 0.4), 0.24).formatHex();
+}
+
+/** Find every piece of a state's land off the island it mostly lives on */
 export function collectIslands(): void {
   const { cells } = pack;
   const byState = new Map<number, Map<number, number[]>>();
+  stateCells.clear();
   for (let c = 0; c < cells.i.length; c++) {
     const s = cells.state[c];
-    if (!living(s) || cells.h[c] < 20) continue;
+    if (!living(s) || cells.h[c] < 20 || isSliver(c)) continue;
+    stateCells.set(s, (stateCells.get(s) ?? 0) + 1);
     const features = byState.get(s) ?? new Map<number, number[]>();
     const list = features.get(cells.f[c]) ?? [];
     list.push(c);
@@ -47,33 +68,42 @@ export function collectIslands(): void {
     const main = [...features.entries()].sort((a, b) => b[1].length - a[1].length)[0][0];
     for (const [feature, list] of features) {
       if (feature === main) continue;
-      let sx = 0;
-      let sy = 0;
-      for (const c of list) {
-        sx += cells.p[c][0];
-        sy += cells.p[c][1];
-      }
-      const cx = sx / list.length;
-      const cy = sy / list.length;
-      let best = list[0];
-      let bestD = Infinity;
-      for (const c of list) {
-        const d = (cells.p[c][0] - cx) ** 2 + (cells.p[c][1] - cy) ** 2;
-        if (d < bestD) {
-          bestD = d;
-          best = c;
-        }
-      }
-      islands.push({ x: cells.p[best][0], y: cells.p[best][1], text: pack.states[s].name });
+      const [x, y] = middleOf(list);
+      const big = list.length >= BIG_PIECE;
+      const size = big ? grid.spacing * (0.5 + 0.11 * Math.sqrt(list.length)) : 0;
+      islands.push({ x, y, text: pack.states[s].name, state: s, size });
     }
   }
   drawIslands();
 }
 
-const ISLANDS_FROM = 3; // zoom at which outlying islands are named
+/** The cell nearest the middle of a group of cells */
+function middleOf(list: number[]): [number, number] {
+  let sx = 0;
+  let sy = 0;
+  for (const c of list) {
+    const [x, y] = cellCentre(c);
+    sx += x;
+    sy += y;
+  }
+  const cx = sx / list.length;
+  const cy = sy / list.length;
+  let best: [number, number] = cellCentre(list[0]);
+  let bestD = Infinity;
+  for (const c of list) {
+    const p = cellCentre(c);
+    const d = (p[0] - cx) ** 2 + (p[1] - cy) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = p;
+    }
+  }
+  return best;
+}
+
 const ISLAND_PX = 12;
 
-/** Island names as plain svg text over the map, a fixed size on screen */
+/** Island names as svg text over the map: big pieces in map units, small ones a fixed size on screen from close in */
 export function drawIslands(): void {
   const viewbox = document.getElementById("viewbox");
   if (!viewbox) return;
@@ -86,14 +116,18 @@ export function drawIslands(): void {
     group = created;
   }
   const scale = viewport.scale || 1;
-  group.style.display = scale >= ISLANDS_FROM ? "" : "none";
-  group.setAttribute("font-size", String(ISLAND_PX / scale));
-  if (group.childElementCount !== islands.length || group.dataset.for !== String(pack.cells.i.length)) {
-    group.dataset.for = String(pack.cells.i.length);
+  const key = `${pack.cells.i.length}:${islands.length}:${islands.map(i => i.text).join()}`;
+  if (group.dataset.for !== key) {
+    group.dataset.for = key;
     group.innerHTML = islands
-      .map(({ x, y, text }) => `<text x="${x}" y="${y}" text-anchor="middle" dy="0.35em">${escapeHtml(text)}</text>`)
+      .map(
+        ({ x, y, text, state, size }) =>
+          `<text x="${x}" y="${y}" text-anchor="middle" dy="0.35em" data-big="${size ? 1 : 0}" fill="${stateInk(state)}"${size ? ` font-size="${size}"` : ""}>${escapeHtml(text)}</text>`
+      )
       .join("");
   }
+  group.style.setProperty("--fl-island", `${ISLAND_PX / scale}px`);
+  group.dataset.close = scale >= TINY_FROM ? "1" : "0";
 }
 
 // --- colour fix: states that touch, across a strait too, and look alike are moved apart in hue

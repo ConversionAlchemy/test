@@ -1,11 +1,22 @@
-// Bare ground on the map: hovering brightens the cell a little, clicking opens a small card about it.
-// Anything with its own editor (settlements, labels, regiments, markers, roads) keeps its own click
+// Bare ground on the map. Zoomed out, hovering lights up a nation and a click opens it; zoomed in, hovering brightens
+// a cell and a click clears the screen. The cell card opens from the right-click menu. Anything with its own editor
+// (settlements, labels, regiments, markers, roads) keeps its own click
+import { Controllers } from "@/controllers";
 import type { Regiment } from "@/generators/military-generator";
 import { t } from "@/utils/i18n";
 import { convertTemperature, getHeight, getPrecipitation } from "@/utils/unitUtils";
 import { cellPace } from "./movement";
-import { highlightCell } from "./pixel-map-sync";
+import { closeNation, openNation } from "./nation-panel";
+import { cellAtPoint, cellCentre, cellPolygon } from "./one-grid";
+import { highlightCell, highlightNation } from "./pixel-map-sync";
 import { seaCellAt } from "./sea-grid";
+import { clearSelection } from "./units";
+
+/** Zoomed out further than this, the map is about nations: hover lights one up, a click opens it */
+export const NATION_ZOOM = 1.5;
+
+export const zoomedOut = (): boolean =>
+  ((document.getElementById("viewbox") as SVGGraphicsElement | null)?.getScreenCTM()?.a ?? 1) < NATION_ZOOM;
 
 const OWN_CLICK = "#labels text, #burgIcons *, #anchors *, #armies *, #markers *, #routes *, #emblems *, #legend *";
 
@@ -27,7 +38,7 @@ const mapPoint = (event: MouseEvent): DOMPoint | null => {
 
 const pointCell = (event: MouseEvent): number | undefined => {
   const point = mapPoint(event);
-  return point ? Pack.findCell(point.x, point.y) : undefined;
+  return point ? cellAtPoint(point.x, point.y) : undefined;
 };
 
 /** A transparent sheet under everything in the viewbox, so clicks on bare ground reach Azgaar's tools */
@@ -73,9 +84,9 @@ function preview(event: MouseEvent): void {
   debug?.querySelector("#flPlace")?.remove();
   const kind = window.customization ? null : activeTool();
   const point = kind && mapPoint(event);
-  const cell = point ? Pack.findCell(point.x, point.y) : undefined;
+  const cell = point ? cellAtPoint(point.x, point.y) : undefined;
   if (!kind || cell === undefined || !debug) return;
-  const [x, y] = pack.cells.p[cell];
+  const [x, y] = cellCentre(cell);
   const scale = (document.getElementById("viewbox") as SVGGraphicsElement | null)?.getScreenCTM()?.a || 1;
   const why = refusal(kind, cell);
   const size = 12 / scale;
@@ -84,7 +95,10 @@ function preview(event: MouseEvent): void {
     kind === "burg"
       ? `<circle r="${size / 2.4}" fill="none" stroke="${colour}" stroke-width="${2 / scale}"/>`
       : `<rect x="${-size / 2}" y="${-size / 2}" width="${size}" height="${size}" fill="none" stroke="${colour}" stroke-width="${2 / scale}"/>`;
-  const cellShape = pack.cells.v[cell].map(v => pack.vertices.p[v].join(",")).join(" ");
+  const flat = cellPolygon(cell);
+  const corners: string[] = [];
+  for (let k = 0; k + 1 < flat.length; k += 2) corners.push(`${flat[k]},${flat[k + 1]}`);
+  const cellShape = corners.join(" ");
   debug.insertAdjacentHTML(
     "beforeend",
     `<g id="flPlace" pointer-events="none">
@@ -98,11 +112,20 @@ function preview(event: MouseEvent): void {
   );
 }
 
-/** Hover: brighten the cell under the pointer when nothing clickable is there */
+let hoveredNation = 0;
+
+/** Hover: zoomed out, the nation under the pointer lights up; closer in, the cell does, when nothing clickable is there */
 export function hoverAt(event: MouseEvent): void {
   preview(event);
   const own = (event.target as Element | null)?.closest?.(OWN_CLICK);
   const cell = own || window.customization ? undefined : pointCell(event);
+  const nation = zoomedOut() && cell !== undefined && pack.cells.h[cell] >= 20 ? pack.cells.state[cell] : 0;
+  if (nation !== hoveredNation) {
+    hoveredNation = nation;
+    highlightNation(nation);
+    hovered = null;
+  }
+  if (zoomedOut()) return;
   // at sea the even grid is what's drawn, so that's what lights up; sea cells are told apart by sign
   let next = cell === undefined ? null : cell;
   if (next !== null && pack.cells.h[next] < 20) {
@@ -117,21 +140,43 @@ export function hoverAt(event: MouseEvent): void {
 
 export function leave(): void {
   hovered = null;
+  hoveredNation = 0;
   highlightCell(null);
+  highlightNation(0);
 }
 
-/** Click on bare ground: the card for that cell */
-export function openCellCard(event: MouseEvent): void {
+/** Click on bare ground: zoomed out it opens the nation there; closer in it clears the screen */
+export function groundClick(event: MouseEvent): void {
   const cell = pointCell(event);
-  if (cell === undefined) return;
+  const nation = cell !== undefined && pack.cells.h[cell] >= 20 ? pack.cells.state[cell] : 0;
+  if (zoomedOut() && nation) {
+    clearScreen(false);
+    openNation(nation);
+    return;
+  }
+  clearScreen();
+}
+
+/** Close whatever is open over the map: the cell card, the nation panel, menus, a selected unit */
+export function clearScreen(nation = true): void {
+  close();
+  if (nation) closeNation();
+  void Controllers.ContextMenu.close();
+  clearSelection();
+  const editor = $("#regimentEditor");
+  if (editor.hasClass("ui-dialog-content") && editor.dialog("isOpen")) editor.dialog("close");
+}
+
+/** The full card for a cell, near a point on screen: from the right-click menu */
+export function openCellCard(cell: number, clientX: number, clientY: number): void {
   close();
   card = document.createElement("div");
   card.id = "cellCard";
   card.innerHTML = cardHtml(cell);
   document.body.append(card);
   const { width, height } = card.getBoundingClientRect();
-  card.style.left = `${Math.max(4, Math.min(event.clientX + 14, window.innerWidth - width - 4))}px`;
-  card.style.top = `${Math.max(4, Math.min(event.clientY + 14, window.innerHeight - height - 4))}px`;
+  card.style.left = `${Math.max(4, Math.min(clientX + 14, window.innerWidth - width - 4))}px`;
+  card.style.top = `${Math.max(4, Math.min(clientY + 14, window.innerHeight - height - 4))}px`;
   card.addEventListener("click", onCardClick);
   setTimeout(() => window.addEventListener("pointerdown", outside, true));
   window.addEventListener("keyup", onKey, true);
@@ -163,7 +208,7 @@ function onCardClick(event: MouseEvent): void {
   close();
   if (kind === "regiment") Controllers.RegimentEditor.open(`#regiment${a}-${b}`);
   if (kind === "burg") Controllers.BurgEditor.open(Number(a));
-  if (kind === "state") Controllers.StatesEditor.open();
+  if (kind === "state") openNation(Number(a));
 }
 
 const row = (label: string, value: string) =>
@@ -211,7 +256,7 @@ function cardHtml(cell: number): string {
     ${row(t("Temperature"), temp === undefined ? "" : convertTemperature(temp))}
     ${row(t("Moisture"), prec === undefined || water ? "" : getPrecipitation(prec))}
     ${row(t("Movement"), paceText)}
-    ${state ? `<div class="row"><span>${t("State")}</span><a data-open="state">${name(pack.states, state)}</a></div>` : ""}
+    ${state ? `<div class="row"><span>${t("State")}</span><a data-open="state:${state}">${name(pack.states, state)}</a></div>` : ""}
     ${row(t("Province"), name(pack.provinces as { name?: string }[], cells.province?.[cell] ?? 0))}
     ${row(t("Culture"), name(pack.cultures, cells.culture[cell]))}
     ${row(t("Religion"), name(pack.religions, cells.religion[cell]))}

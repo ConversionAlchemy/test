@@ -34,6 +34,17 @@ export function highlightCell(cell: number | null): void {
   highlighter?.(cell);
 }
 
+let nationHighlighter: ((state: number) => void) | null = null;
+
+export function setPixelMapNationHighlighter(next: (state: number) => void): void {
+  nationHighlighter = next;
+}
+
+/** Light up a whole nation, zoomed out; 0 for none */
+export function highlightNation(state: number): void {
+  nationHighlighter?.(state);
+}
+
 /** What road mode shows over the map: road nodes, a highlighted segment, a road being drawn and its cells */
 export interface RoadEdit {
   nodes?: [number, number][] | null; // given only when they change; null clears them

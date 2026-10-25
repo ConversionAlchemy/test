@@ -149,38 +149,39 @@ describe("painting relations", () => {
     const { DiplomacyEditor: fresh } = await import("./diplomacy-editor");
     fresh.open(1);
     expect(checkedRelation()).toBe("Ally");
-    choose("Rival");
+    choose("Enemy");
     fresh.close();
 
     fresh.open(1);
-    expect(checkedRelation()).toBe("Rival");
+    expect(checkedRelation()).toBe("Enemy");
     await paint([3]);
-    expect(states[3].diplomacy![1]).toBe("Rival");
+    expect(states[3].diplomacy![1]).toBe("Enemy");
     fresh.close();
   });
 
   test("uses the former relation for war termination history", async () => {
     states[2].diplomacy![1] = states[1].diplomacy![2] = "Enemy";
     DiplomacyEditor.open(1);
-    choose("Friendly");
+    choose("Neutral");
     await paint([2]);
     action("Apply");
     expect(chronicle()).toEqual([
       [
         "War termination",
         "Two and One agreed to cease fire and signed a peace treaty",
-        "Two-Onean relations changed to friendly"
+        "Two-Onean relations changed to neutral"
       ]
     ]);
   });
 
   test("repairs a broken inverse of the same relation without a record", async () => {
     states[1].diplomacy![2] = "x";
+    states[2].diplomacy![1] = "Ally";
     DiplomacyEditor.open(1);
-    choose("Rival");
+    choose("Ally");
     await paint([2]);
     action("Apply");
-    expect(states[1].diplomacy![2]).toBe("Rival");
+    expect(states[1].diplomacy![2]).toBe("Ally");
     expect(chronicle()).toEqual([]);
   });
 });

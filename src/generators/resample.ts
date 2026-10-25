@@ -64,7 +64,7 @@ class Resampler {
     Coordinates.calculate();
     Temperature.generate();
 
-    Pack.generate();
+    Pack.generate(false); // Fluoria: one cell size
     Features.markupPack();
     Ice.generate();
     Measurers.createDefaultRuler();

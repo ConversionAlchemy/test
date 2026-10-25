@@ -4,7 +4,7 @@ import { destroyDialog, refreshEditors } from "@/components/dialog/dialog-helper
 import { Layers } from "@/components/layers";
 import { clearMainTip, tip } from "@/components/tooltips";
 import { applyDefaultViewboxEvents } from "@/components/viewbox-events";
-import { getInverseRelation, RELATIONS } from "@/data/diplomacy";
+import { getInverseRelation, PLAYABLE_RELATIONS, RELATIONS } from "@/data/diplomacy";
 import { removeRelationsMark, showRelations } from "@/renderers/overlays/diplomacy";
 import type { Point } from "@/types/global";
 import { ensureEl, findEl } from "@/utils";
@@ -23,7 +23,7 @@ type Stroke = { diplomacy: Map<number, string[] | undefined>; pairs: [number, nu
 const dialogId = "diplomacyEditor";
 
 let stateId = 0;
-let chosenRelation = Object.keys(RELATIONS)[0]; // kept between openings
+let chosenRelation: string = PLAYABLE_RELATIONS[0]; // kept between openings
 let options: EditorOptions = {};
 let strokes: Stroke[] = [];
 let activeStroke: Stroke | null = null;
@@ -82,6 +82,7 @@ function close(): void {
 
 function renderDialog(states: typeof pack.states): void {
   const relations = Object.entries(RELATIONS)
+    .filter(([relation]) => (PLAYABLE_RELATIONS as readonly string[]).includes(relation))
     .map(
       ([relation, { color, tip, label }]) => /* html */ `<label class="pointer" data-tip="${tip}">
         <input type="radio" name="diplomacyRelation" value="${relation}" ${relation === chosenRelation ? "checked" : ""} />

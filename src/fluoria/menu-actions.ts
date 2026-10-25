@@ -1,12 +1,15 @@
 // What the right-click menu offers for each kind of thing, Windows-style: short verbs, nothing else.
 // Every action goes through Azgaar's own modules, so editors and saves see the same change
-import type { EntityRef } from "@/components/map-entities";
+import { type EntityRef, MapEntities } from "@/components/map-entities";
 import { Controllers } from "@/controllers";
 import type { Regiment } from "@/generators/military-generator";
 import { drawMilitary } from "@/renderers/draw-military";
 import { t } from "@/utils/i18n";
 import { findEl } from "@/utils/nodeUtils";
 import { board, canBoard, capacity, cargo, carrierOf, fleetsFor, landingCells, load, space } from "./boarding";
+import { openCellCard } from "./cell-card";
+import { openNation } from "./nation-panel";
+import { cellCentre, mainCell } from "./one-grid";
 import { showRoadEdit } from "./pixel-map-sync";
 import { nodePoint, segmentAt } from "./road-geometry";
 import { changeSegment, deleteRoute, findRoute, ROUTE_LEVELS, renameRoute, setRouteGroup } from "./routes";
@@ -19,6 +22,7 @@ export interface MenuAction {
   disabled?: boolean;
   indent?: boolean; // one of a list under the row above
   danger?: boolean;
+  ladder?: string; // leads to this kind of thing's own panel: its row in the list below is left out
 }
 
 const regimentAt = (state: number, id: number) =>
@@ -38,12 +42,13 @@ const embark = (army: Regiment, fleet: Regiment) => {
 
 const openRegiment = (r: Regiment) => () => Controllers.RegimentEditor.open(`#regiment${r.state}-${r.i}`);
 
-/** Actions for the thing right-clicked; `cell` is where, for the empty-ground menu */
+/** Actions for the thing right-clicked; `cell` is where, for the empty-ground menu; `client` is the pointer on screen */
 export function actionsFor(
   ref: EntityRef | undefined,
   cell: number,
   confirm: (run: () => void) => void,
-  point?: [number, number]
+  point?: [number, number],
+  client?: [number, number]
 ): MenuAction[] {
   if (ref?.type === "regiment" && ref.sub !== undefined) {
     const regiment = regimentAt(ref.id, ref.sub);
@@ -51,7 +56,36 @@ export function actionsFor(
   }
   if (ref?.type === "route") return routeActions(ref.id, confirm, point);
   if (ref?.type === "burg") return burgActions(ref.id);
-  return cellActions(cell);
+  return [...ladder(cell, client), ...cellActions(cell)];
+}
+
+/** On bare ground: up the ladder from the cell to its settlement, province and nation, each opening its own panel */
+function ladder(cell: number, client?: [number, number]): MenuAction[] {
+  const at = mainCell(cell);
+  const { cells } = pack;
+  const out: MenuAction[] = [];
+  const state = cells.state[at];
+  if (state && pack.states[state] && !pack.states[state].removed)
+    out.push({ label: `${pack.states[state].name} · ${t("nation")} ›`, ladder: "state", run: () => openNation(state) });
+  const province = cells.province?.[at];
+  const p = province ? pack.provinces[province] : null;
+  if (p && "name" in p && !p.removed)
+    out.push({
+      label: `${p.name} · ${t("province")} ›`,
+      ladder: "province",
+      run: () => void MapEntities.open({ type: "province", id: province as number })
+    });
+  const burg = cells.burg[at];
+  if (burg && pack.burgs[burg] && !pack.burgs[burg].removed)
+    out.push({
+      label: `${pack.burgs[burg].name} · ${t("settlement")} ›`,
+      run: () => Controllers.BurgEditor.open(burg)
+    });
+  out.push({
+    label: t("Cell details"),
+    run: () => openCellCard(at, client?.[0] ?? window.innerWidth / 2, client?.[1] ?? window.innerHeight / 2)
+  });
+  return out;
 }
 
 function common(regiment: Regiment): MenuAction[] {
@@ -219,7 +253,7 @@ function cellActions(cell: number): MenuAction[] {
     {
       label: water ? t("Add fleet here") : t("Add army here"),
       run: () => {
-        const [x, y] = pack.cells.p[cell];
+        const [x, y] = cellCentre(cell);
         const id = Military.add(state, x, y);
         redraw();
         Controllers.RegimentEditor.open(`#regiment${state}-${id}`);

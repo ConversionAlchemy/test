@@ -12,9 +12,12 @@ declare global {
 
 class PackModule {
   private readonly quadtreeCache = new WeakMap<object, Quadtree<[number, number, number]>>();
+  /** whether coastal cells are split; Fluoria makes maps on one cell size, older maps keep their split coasts */
+  private splitCoast = true;
 
-  /** deep ocean points dropped and coastal cells split so packed graph has a higher resolution where needed */
-  generate(): void {
+  /** deep ocean points dropped and, on older maps, coastal cells split for a finer coast */
+  generate(splitCoast = this.splitCoast): void {
+    this.splitCoast = splitCoast;
     const { cells: gridCells, points, features, spacing, sampling, boundary } = grid;
     const newCells: { p: Point[]; g: number[]; h: number[] } = { p: [], g: [], h: [] };
     // coastal pairs further apart get a point between; the more regular the lattice, the fewer pairs qualify
@@ -39,7 +42,7 @@ class PackModule {
       addNewPoint(i, x, y, height);
 
       // add additional points for cells along coast
-      if (type === 1 || type === -1) {
+      if (splitCoast && (type === 1 || type === -1)) {
         if (gridCells.b[i]) continue; // not for near-border cells
 
         for (const e of gridCells.c[i]) {

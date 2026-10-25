@@ -22,8 +22,8 @@ function world(): void {
       haven: []
     },
     routes: [
-      { i: 1, group: "roads" },
-      { i: 2, group: "paths" }
+      { i: 1, group: "roads", points: [0, 1, 2, 3, 4, 5].map(c => [c * 30, 0, c]) },
+      { i: 2, group: "paths", points: [5, 6, 7].map(c => [c * 30, 0, c]) }
     ]
   } as unknown as typeof pack;
 }
@@ -50,7 +50,7 @@ describe("movement", () => {
   });
 
   it("moves one cell off road", () => {
-    globalThis.pack.cells.routes = {};
+    globalThis.pack.routes = [];
     const reach = reachable({ n: 0, cell: 8 });
     expect([...reach.keys()].sort()).toEqual([7, 8, 9]);
     expect(cellPace(8)).toEqual({ cells: 1, road: null });
