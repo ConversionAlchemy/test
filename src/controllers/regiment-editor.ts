@@ -31,6 +31,7 @@ import { KIT } from "@/fluoria/forces/kit";
 import { cardUrl, iconUrl, short, stallUrl } from "@/fluoria/forces/pixels";
 import { borrowView, returnView } from "@/fluoria/map-view";
 import { canStand, reachable } from "@/fluoria/movement";
+import { openNation } from "@/fluoria/nation-panel";
 import { cellAtPoint, mainCell, neighbours } from "@/fluoria/one-grid";
 import { dimPixelMap } from "@/fluoria/pixel-map-sync";
 import { GARRISON_SLOTS, sizeOf } from "@/fluoria/settlement-size";
@@ -444,7 +445,7 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
 
   el.innerHTML = /* html */ `
     <div class="flFolderHead">
-      <svg class="flFolderArt" viewBox="0 0 200 200"><use href="#stateCOA${state}"></use></svg>
+      <svg class="flFolderArt flNationLink" viewBox="0 0 200 200" data-tip="${t("Open the nation")}"><use href="#stateCOA${state}"></use></svg>
       <div>
         <input class="flFolderName" value="${escapeHtml(burg.name ?? "")}" data-tip="${t("Type to rename")}" spellcheck="false" />
         <div class="flFolderSub">${kind} · ${escapeHtml(where)}</div>
@@ -470,6 +471,9 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
     Burgs.rename(burgId, this.value.trim());
     $(el).dialog("option", "title", burg.name);
     Layers.draw("labels");
+  });
+  el.querySelector(".flNationLink")?.addEventListener("click", () => {
+    if (state) openNation(state);
   });
   el.querySelector(".flBuildings")?.addEventListener("click", event => {
     const b = (event.target as HTMLElement).closest<HTMLElement>("[data-build]")?.dataset.build as Building | undefined;

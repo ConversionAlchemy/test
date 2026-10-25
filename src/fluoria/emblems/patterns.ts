@@ -104,12 +104,12 @@ export function randomEmblem(colour: string, seed: number): string[] {
   };
   const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)];
   const field = /^#[0-9a-f]{6}$/i.test(colour) ? colour.toLowerCase() : "#8a8a8a";
-  const dark = hex(rgb(field).map(v => v * 0.45));
-  const pale = hex(rgb(field).map(v => v + (255 - v) * 0.7));
-  const second = pick([dark, pale, light(field) ? "#17191a" : "#eee5cd"]);
+  // the second tone always stands apart from the field: darker on a light field, paler on a dark one
+  const second = light(field)
+    ? pick([hex(rgb(field).map(v => v * 0.4)), "#17191a"])
+    : pick([hex(rgb(field).map(v => v + (255 - v) * 0.7)), "#eee5cd"]);
   const ink = light(field) ? "#17191a" : "#eee5cd";
   const layout = pick([
-    "Plain",
     "Plain",
     "Split",
     "Halves",
@@ -122,12 +122,16 @@ export function randomEmblem(colour: string, seed: number): string[] {
     "Border"
   ]);
   const px = template(layout, field, second);
-  const motif =
-    rand() < 0.75 ? pick(["Star", "Crown", "Tower", "Tree", "Fleur", "Sword", "Coin", "Peak", "Cross"]) : null;
-  if (motif) {
-    const inCanton = layout === "Canton";
-    const scale = inCanton ? 1 : MOTIFS[motif][0].length <= 5 ? 3 : 2;
-    stamp(px, motif, inCanton ? 7 : MID, inCanton ? 7 : MID, inCanton ? field : layout === "Plain" ? ink : ink, scale);
+  if (layout === "Canton") {
+    // a small charge, large enough to read, in the canton
+    stamp(px, pick(["Crown", "Cross", "Tower", "Coin"]), 7, 7, field, 2);
+    return frame(px);
+  }
+  // a plain field always carries a charge, so no emblem is a bare colour
+  if (layout === "Plain" || rand() < 0.7) {
+    const motif = pick(["Star", "Crown", "Tower", "Tree", "Fleur", "Sword", "Coin", "Peak", "Cross"]);
+    const scale = MOTIFS[motif][0].length <= 5 ? 3 : 2;
+    stamp(px, motif, MID, MID, layout === "Plain" ? second : ink, scale);
   }
   return frame(px);
 }

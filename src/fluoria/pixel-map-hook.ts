@@ -7,7 +7,7 @@ import { viewport } from "@/components/viewport";
 import { Controllers } from "@/controllers";
 import { drawSettlements } from "@/renderers/draw-military";
 import { ensureHitLayer, NATION_ZOOM } from "./cell-card";
-import { applyFluoriaEmblems } from "./emblems/store";
+import { applyFluoriaEmblems, enrichPlainEmblems } from "./emblems/store";
 import { raiseBeside } from "./forces/army";
 import { convertUnitTypes, normalise } from "./forces/forces";
 import { applyLabelZoom } from "./label-zoom";
@@ -108,6 +108,7 @@ window.addEventListener("map:generated", () => {
   const garrisoned = garrisonLoners();
   const spread = spreadCrowds();
   const emblems = applyFluoriaEmblems();
+  void enrichPlainEmblems();
   Layers.draw("burgIcons", "labels", "military", "markers", "routes");
   const lines = [
     moved.length

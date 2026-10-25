@@ -1240,3 +1240,4 @@ body[data-fl-view="military"] :is(#labels, #routes) { pointer-events: none; }
 /* a garrison's count above its settlement, close in only */
 #armies[data-fl-stage="far"] #flSettlements { display: none; }
 #flSettlements .flCount { font-family: "VT323", monospace; text-shadow: 0.06em 0.06em 0 #000000; }
+.flNationLink { cursor: pointer; }
