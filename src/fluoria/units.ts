@@ -51,7 +51,6 @@ export function applyUnitZoom(scale: number): void {
   const box = styles.military.options.boxSize * 2; // art size in map units
   unitScale = Math.max(0.02, px / (box * scale));
   armies.style.setProperty("--fl-unit", String(unitScale));
-  armies.style.setProperty("--fl-lift", `${3 / (unitScale * scale)}px`);
   armies.dataset.flStage = stage;
   armies.dataset.flNames = stage === "close" ? "1" : "0";
   for (const stack of stacks) layStack(stack); // only the offsets of shared cells change with size
