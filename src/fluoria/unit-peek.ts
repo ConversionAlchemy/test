@@ -60,9 +60,15 @@ function ensureBox(): HTMLElement {
     const row = (event.target as HTMLElement).closest<HTMLElement>(".flPeekRow[data-id]");
     if (!row || !dragging) return;
     held = true;
-    event.dataTransfer?.setData("text/plain", row.dataset.unit!);
+    event.dataTransfer?.setData("text/plain", row.dataset.unit || "army");
+    // a row without a unit is a whole army
     dragging(
-      { state: +row.dataset.state!, id: +row.dataset.id!, unit: row.dataset.unit!, count: +row.dataset.count! },
+      {
+        state: +row.dataset.state!,
+        id: +row.dataset.id!,
+        unit: row.dataset.unit ?? "",
+        count: +(row.dataset.count ?? 0)
+      },
       event
     );
   });
@@ -94,7 +100,9 @@ export function peek(anchor: Element, groups: PeekGroup[], withTotal = true, als
         total += count;
         const kit = kitOf(units[0].unit);
         const icon = kit ? `<img src="${iconUrl(kit, colourOf(g.state))}" alt="" />` : "<span></span>";
-        return `<div class="flPeekRow">${icon}<span>${escapeHtml(g.title)}</span><b>${short(count)}</b></div>`;
+        const grab = g.id === undefined ? "" : ` draggable="true" data-state="${g.state}" data-id="${g.id}"`;
+        const grip = g.id === undefined ? "" : '<i class="flGrip">⋮⋮</i>';
+        return `<div class="flPeekRow"${grab}>${grip}${icon}<span>${escapeHtml(g.title)}</span><b>${short(count)}</b></div>`;
       })
       .join("");
     if (withTotal)

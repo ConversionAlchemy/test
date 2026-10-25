@@ -373,6 +373,16 @@ function render(el: HTMLElement, regiment: Regiment): void {
       ${px("delete", "release", t("Release: its troops go home to the settlement they came from"))}
     </div>`;
   el.querySelector(".flAt")?.addEventListener("click", () => openSettlement(at!.i, true));
+  const handle = el.querySelector<HTMLImageElement>(".flFolderArt");
+  if (handle) {
+    handle.draggable = true;
+    handle.dataset.tip = t("Drag onto the map to move the whole army");
+    handle.addEventListener("dragstart", event => {
+      event.dataTransfer?.setData("text/plain", regiment.name);
+      carryArmy(regiment);
+    });
+    handle.addEventListener("dragend", () => carryArmy(null));
+  }
 
   for (const button of el.querySelectorAll<HTMLButtonElement>(".flFolderBottom button[data-act]"))
     button.classList.toggle("pressed", button.dataset.act === mode && picked === regiment);
@@ -439,7 +449,7 @@ function partFolder(key: string, r: Regiment, title: string, cap: number, open: 
   const items = rows(r.u);
   const empty = Math.max(0, cap - slotsOf(r.u));
   return /* html */ `<details class="flPart" data-part="${key}" data-state="${r.state}" data-id="${r.i}" ${open ? "open" : ""}>
-    <summary ${garrisonOfBurg ? "" : 'draggable="true"'}>${icon}<span class="flPartName">${escapeHtml(title)}</span>
+    <summary draggable="true" data-tip="${t("Drag onto the map to march out")}">${icon}<span class="flPartName">${escapeHtml(title)}</span>
       <span class="flPartSize">${short(troopsOf(r))} (${cardPower(r)})</span>
       ${garrisonOfBurg ? "" : px("", "locate", t("Locate"))}
     </summary>
@@ -582,19 +592,18 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
       event.preventDefault();
       zoomTo(r.x, r.y, 6, 900);
     });
-    summary.addEventListener("dragstart", () => {
-      carriedArmy = r;
+    summary.addEventListener("dragstart", event => {
+      event.dataTransfer?.setData("text/plain", r.name);
+      carryArmy(r);
     });
-    summary.addEventListener("dragend", () => {
-      carriedArmy = null;
-    });
+    summary.addEventListener("dragend", () => carryArmy(null));
     if (r.garrison) {
       // a whole army dragged onto the garrison is stationed in it
       part.addEventListener("dragover", event => {
-        if (carriedArmy) event.preventDefault();
+        if (carriedArmy && carriedArmy !== r) event.preventDefault();
       });
       part.addEventListener("drop", event => {
-        if (!carriedArmy) return;
+        if (!carriedArmy || carriedArmy === r) return;
         event.preventDefault();
         const army = carriedArmy;
         carriedArmy = null;
@@ -899,6 +908,65 @@ function dropOnMap(event: DragEvent): void {
   changed();
 }
 
+/** A whole army (or garrison) is being dragged from a folder, a hover panel or the Military tab */
+function carryArmy(r: Regiment | null): void {
+  carriedArmy = r;
+  if (r && !r.garrison) selectRegiment(r); // show where it can go
+  if (!r) pick(picked);
+}
+
+/** A whole army dropped on the map from a list: like dragging its card. A garrison marches out first */
+function dropArmy(army: Regiment, clientX: number, clientY: number): void {
+  if (army.garrison) {
+    const burg = pack.burgs[army.garrison];
+    const units = marchOut(army.u);
+    if (!burg || !Object.keys(units).length) {
+      report(t("The garrison is empty"));
+      return;
+    }
+    if (settlementAt(clientX, clientY) === burg) return;
+    const made = formArmy(burg, units);
+    if (typeof made === "string") {
+      report(made);
+      return;
+    }
+    if (!landArmy(made, clientX, clientY)) station(made, burg); // nowhere to go: back inside
+    changed();
+    return;
+  }
+  landArmy(army, clientX, clientY);
+  changed();
+}
+
+/** Put an army where a pointer let go: into a settlement, onto a friend, into battle, or onto a cell in reach */
+function landArmy(reg: Regiment, clientX: number, clientY: number): boolean {
+  const town = settlementAt(clientX, clientY);
+  if (town && town.state === reg.state && town.cell !== reg.cell) {
+    stationIn(reg, town);
+    return true;
+  }
+  const under = regimentAt(clientX, clientY, reg);
+  if (under && under.state === reg.state) {
+    joinOnMap(reg, under);
+    return true;
+  }
+  const point = mapPoint(clientX, clientY);
+  if (!point) return false;
+  const cell = cellAtPoint(point[0], point[1]);
+  const foe =
+    under && atWar(reg.state, under.state) ? under : cell === undefined ? undefined : enemiesIn(reg.state, cell)[0];
+  if (foe) return attack(reg, foe);
+  selectRegiment(reg); // its reach, measured now (a garrison's army has only just formed)
+  const spot = dropAt(reg, point[0], point[1]);
+  if (!spot) {
+    report(t("Out of reach this move"));
+    return false;
+  }
+  Military.move(reg.state, reg.i, spot[0], spot[1]);
+  moved(reg);
+  return true;
+}
+
 /** Where a row may be dropped: its own cell or a neighbour with room; cargo onto the shore beside the transport */
 function dropCells(from: Regiment, list: List, unit: string, count: number): number[] {
   const slots = slotsOf({ [unit]: count });
@@ -920,9 +988,18 @@ function watchMap(): void {
   if (!map || map.dataset.flFolders) return;
   map.dataset.flFolders = "1";
   map.addEventListener("dragover", event => {
-    if (carried) event.preventDefault();
+    if (carried || carriedArmy) event.preventDefault();
   });
-  map.addEventListener("drop", dropOnMap);
+  map.addEventListener("drop", event => {
+    if (carriedArmy) {
+      event.preventDefault();
+      const army = carriedArmy;
+      carryArmy(null);
+      dropArmy(army, event.clientX, event.clientY);
+      return;
+    }
+    dropOnMap(event);
+  });
 }
 
 // --- editing slots in place
@@ -1258,17 +1335,23 @@ function watchSettlements(): void {
     row => {
       const from = regimentOf(row.state, row.id);
       if (!from) return;
+      if (!row.unit) {
+        carryArmy(from);
+        return;
+      }
       carried = { state: row.state, id: row.id, list: "u", unit: row.unit, count: row.count };
       dimPixelMap(new Set(dropCells(from, "u", row.unit, row.count)), "land");
     },
     () => {
       carried = null;
+      carryArmy(null);
       pick(picked);
     }
   );
 }
 
 export const RegimentEditor = {
+  carry: (state: number, id: number | null) => carryArmy(id === null ? null : (regimentOf(state, id) ?? null)),
   open: editRegiment,
   click: clickRegiment,
   bind: bindRegiments,
