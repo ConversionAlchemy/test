@@ -228,6 +228,7 @@ function declutter(): void {
 
 /** A port's name goes under its symbol when the sea lies above it, so it sits on land */
 function landSide(text: SVGTextElement): void {
+  if (text.dataset.flUnder) return; // a unit card stands on it: the name already sits below the card
   const burg = pack.burgs[Number(text.dataset.id)];
   if (!burg?.port) return;
   const haven = pack.cells.haven?.[burg.cell];

@@ -11,7 +11,7 @@ import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./on
 import { dimPixelMap } from "./pixel-map-sync";
 import { laneSteps } from "./road-geometry";
 import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
-import { afterMove, blocked, hasRoom } from "./war";
+import { afterMove, blocked, hasRoom, placeOf } from "./war";
 
 let range: Map<number, number> | null = null; // packed cells for armies, sea grid cells for fleets
 let rangeOf: Regiment | null = null;
@@ -57,9 +57,6 @@ export function applyUnitZoom(scale: number): void {
   armies.style.setProperty("--fl-unit", String(unitScale));
   armies.dataset.flStage = stage;
   armies.dataset.flNames = stage === "close" ? "1" : "0";
-  // a settlement's name steps below a unit standing on it (and below the far card's total)
-  const under = (px * (stage === "far" ? 1.35 : 0.85)) / scale;
-  document.getElementById("labels")?.style.setProperty("--fl-under", `${under}px`);
   for (const stack of stacks) layStack(stack); // only an open stack's offsets change with size
   laySettlements();
   nameLabels();
@@ -108,10 +105,8 @@ export function selectRegiment(regiment: Regiment): void {
   if (regiment.n) {
     const start = seaCellAt(regiment.x, regiment.y);
     range = start === undefined ? new Map() : seaReach(start, laneSteps(), SEA_CELLS, LANE_CELLS);
-    for (const g of [...range.keys()]) {
-      const cell = cellOfGrid(g);
-      if (cell >= 0 && g !== start && !hasRoom(regiment.state, cell, slotsOf(regiment.u), regiment)) range.delete(g);
-    }
+    for (const g of [...range.keys()])
+      if (g !== start && !hasRoom(regiment.state, -1 - g, slotsOf(regiment.u), regiment)) range.delete(g); // by sea cell
     dimPixelMap(new Set(range.keys()), "sea");
     return;
   }
@@ -241,11 +236,14 @@ export function stackAll(): void {
   const armies = document.getElementById("armies");
   if (!armies) return;
   const byCell = new Map<number, Regiment[]>();
+  const standing = new Set<number>();
   for (const state of pack.states) {
     if (!state.i || state.removed) continue;
     for (const regiment of state.military ?? []) {
       if (regiment.hidden) continue;
-      const cell = mainCell(regiment.cell);
+      standing.add(mainCell(regiment.cell));
+      const cell = placeOf(regiment); // a fleet: its sea grid cell
+
       const list = byCell.get(cell) ?? [];
       list.push(regiment);
       byCell.set(cell, list);
@@ -253,10 +251,10 @@ export function stackAll(): void {
   }
   stacks = [...byCell.values()].filter(stack => stack.length > 1);
   for (const stack of stacks) stack.sort((a, b) => cardPower(b) - cardPower(a));
-  if (openCell !== null && !stacks.some(stack => mainCell(stack[0].cell) === openCell)) openCell = null;
+  if (openCell !== null && !stacks.some(stack => placeOf(stack[0]) === openCell)) openCell = null;
   document.getElementById("flGhost")?.remove();
   for (const stack of stacks) layStack(stack);
-  unitCells = new Set(byCell.keys());
+  unitCells = standing;
   laySettlements();
   nameLabels();
 }
@@ -273,22 +271,41 @@ function laySettlements(): void {
   }
 }
 
-/** A settlement's name steps below a unit card standing on it */
+/** A settlement's name sits just below a unit card standing on it (and below the far card's total), at any zoom */
 export function nameLabels(): void {
+  const armies = document.getElementById("armies");
+  if (!armies || !styles?.military) return;
+  const h = styles.military.options.boxSize * 2 * unitScale; // the card's size on the map
+  const far = armies.dataset.flStage === "far";
   for (const burg of pack.burgs ?? []) {
     if (!burg?.i || burg.removed) continue;
-    document.getElementById(`burgLabel${burg.i}`)?.classList.toggle("fl-under", unitCells.has(mainCell(burg.cell)));
+    const label = document.getElementById(`burgLabel${burg.i}`) as SVGTextElement | null;
+    if (!label) continue;
+    if (!unitCells.has(mainCell(burg.cell))) {
+      if (label.dataset.flUnder) {
+        delete label.dataset.flUnder;
+        label.style.translate = "";
+      }
+      continue;
+    }
+    label.dataset.flUnder = "1";
+    const bottom = burg.y + h * (far ? 1.05 : 0.5) + h * 0.08;
+    let top = burg.y;
+    try {
+      top = label.getBBox().y;
+    } catch {}
+    label.style.translate = `0px ${Math.max(0, bottom - top)}px`;
   }
 }
 
 /** Regiments sharing a regiment's cell, itself included, strongest first */
 export const stackOf = (regiment: Regiment): Regiment[] => stacks.find(stack => stack.includes(regiment)) ?? [regiment];
 
-export const isOpen = (regiment: Regiment) => openCell === mainCell(regiment.cell);
+export const isOpen = (regiment: Regiment) => openCell === placeOf(regiment);
 
 /** Open a shared cell into a row of cards, or close it */
 export function toggleStack(regiment: Regiment): void {
-  const cell = mainCell(regiment.cell);
+  const cell = placeOf(regiment);
   openCell = openCell === cell ? null : cell;
   stackAll();
 }
@@ -304,7 +321,7 @@ const elementOf = (regiment: Regiment) =>
 
 function layStack(stack: Regiment[]): void {
   const [front, ...behind] = stack;
-  const open = openCell === mainCell(front.cell);
+  const open = openCell === placeOf(front);
   const total = stack.reduce((sum, r) => sum + troopsOf(r), 0);
   const frontEl = elementOf(front);
   if (!frontEl) return;

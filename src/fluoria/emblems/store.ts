@@ -74,3 +74,23 @@ export function applyFluoriaEmblems(): number {
   if (applied) Layers.draw("emblems");
   return applied;
 }
+
+/** Emblems made before every one carried a charge: a bare field is made again, once */
+export async function enrichPlainEmblems(): Promise<number> {
+  let made = 0;
+  for (const state of pack.states) {
+    if (!state.i || state.removed || !(state.coa && "icon" in state.coa && state.coa.icon === iconId(state.i)))
+      continue;
+    const icon = CustomIcons.get(iconId(state.i));
+    if (!icon) continue;
+    const px = await fromPng(icon.content).catch(() => null);
+    if (!px) continue;
+    const inner = new Set(px.filter((_, k) => k % SIZE && k % SIZE !== SIZE - 1 && k >= SIZE && k < SIZE * (SIZE - 1)));
+    if (inner.size > 1) continue;
+    const seed = state.i * 7919 + (Number(String(options.map.seed).slice(-6)) || 0) + 1;
+    setEmblem(state.i, randomEmblem(state.color?.slice(0, 7) ?? "", seed), false);
+    made++;
+  }
+  if (made) Layers.draw("emblems");
+  return made;
+}

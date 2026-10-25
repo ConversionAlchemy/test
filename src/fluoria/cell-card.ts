@@ -206,7 +206,7 @@ function onCardClick(event: MouseEvent): void {
   const [kind, a, b] = (button.dataset.open ?? "").split(":");
   close();
   if (kind === "regiment") Controllers.RegimentEditor.open(`#regiment${a}-${b}`);
-  if (kind === "burg") Controllers.BurgEditor.open(Number(a));
+  if (kind === "burg") Controllers.RegimentEditor.settlement(Number(a));
   if (kind === "state") openNation(Number(a));
 }
 

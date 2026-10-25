@@ -793,31 +793,37 @@ body.fl-atlas #coordinates text {
   font-size: 18px;
 }
 
+/* the nation's numbers as a list: name on the left, value on the right */
 #flNation .np-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 3px;
+  display: flex;
+  flex-direction: column;
   margin: 0 10px 10px;
+  border: 1px solid var(--fl-line, #444);
 }
 
 #flNation .np-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
-  padding: 5px 2px 4px;
-  background: #2e2e2e;
-  border: 1px solid var(--fl-line, #444);
-  text-align: center;
+  padding: 3px 8px;
+  background: #2a2a2a;
+}
+
+#flNation .np-stat:nth-child(even) {
+  background: #303030;
 }
 
 #flNation .np-stat label {
-  display: block;
   color: var(--fl-dim, #bcb9ad);
-  font-size: 15px;
+  font-size: 18px;
   white-space: nowrap;
 }
 
 #flNation .np-stat strong {
   font-weight: 400;
-  font-size: 20px;
+  font-size: 19px;
   white-space: nowrap;
 }
 
@@ -1184,16 +1190,15 @@ body.fl-atlas #coordinates text {
 #flNation.np-min { bottom: auto; }
 #flNation .np-stat[data-tab] { cursor: pointer; }
 #flNation .np-stat[data-tab]:hover { background: #393939; }
-#flNation .np-stat.wide { grid-column: span 2; }
+
 #flStudio input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; padding: 0; accent-color: #f2efe6; }
 
 /* a settlement's name steps below a unit standing on it */
-#labels .fl-under { translate: 0 var(--fl-under, 0px); }
 /* the military view: units come first; roads and labels can't be picked up */
 body[data-fl-view="military"] :is(#labels, #routes) { pointer-events: none; }
 
 /* what a card holds, on hover */
-#flPeek { position: fixed; z-index: 60; pointer-events: none; min-width: 150px; background: #232323; border: 1px solid #000; box-shadow: 0 3px 10px #0008; padding: 3px; font: 16px/1.1 "VT323", monospace; color: #e8e5d9; }
+#flPeek { position: fixed; z-index: 60; min-width: 150px; background: #232323; border: 1px solid #000; box-shadow: 0 3px 10px #0008; padding: 3px; font: 16px/1.1 "VT323", monospace; color: #e8e5d9; }
 #flPeek .flPeekRow, #flPeek .flPeekTotal { display: flex; align-items: center; gap: 6px; padding: 2px 4px; }
 #flPeek .flPeekRow { background: #1b1b1b; border: 1px solid #333; margin: 1px 0; }
 #flPeek .flPeekRow img { width: 17px; height: 17px; image-rendering: pixelated; }
@@ -1240,3 +1245,31 @@ body[data-fl-view="military"] :is(#labels, #routes) { pointer-events: none; }
 /* a garrison's count above its settlement, close in only */
 #armies[data-fl-stage="far"] #flSettlements { display: none; }
 #flSettlements .flCount { font-family: "VT323", monospace; text-shadow: 0.06em 0.06em 0 #000000; }
+.flNationLink { cursor: pointer; }
+
+/* the hover panel's rows can be grabbed */
+#flPeek .flPeekRow[draggable="true"] { cursor: grab; }
+#flPeek .flGrip { color: #6c6c6c; font-style: normal; letter-spacing: -2px; }
+/* folder buttons are pixel icons */
+.flFolderBottom .flPx, .flMoneyLine .flPx, .flPart .flPx { display: inline-grid; place-items: center; width: 34px; height: 28px; padding: 0; background: #4a4a4a; border: 1px solid #2a2a2a; cursor: pointer; }
+.flMoneyLine .flPx, .flPart .flPx { width: 24px; height: 22px; }
+.flPx img { width: 22px; height: 22px; image-rendering: pixelated; }
+.flMoneyLine .flPx img, .flPart .flPx img { width: 16px; height: 16px; }
+.flPx:hover { background: #5c5c5c; }
+.flPx.pressed { background: #e8e5d9; }
+.flPx.pressed img { filter: invert(1); }
+/* the settlement folder: inline edits and nested parts */
+.flInline { width: 4.2em; appearance: textfield; -moz-appearance: textfield; background: transparent; border: 1px solid transparent; color: inherit; font: inherit; padding: 0 2px; }
+.flInline:hover, .flInline:focus { border-color: #555; background: #1e1e1e; }
+.flMoneyLine { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.flSize { font: inherit; }
+.flPartHead { color: var(--fl-dim); padding: 4px 2px 2px; }
+details.flPart { background: #292929; border: 1px solid #3c3c3c; margin: 2px 0; }
+details.flPart > summary { display: flex; align-items: center; gap: 6px; padding: 3px 6px; cursor: pointer; list-style: none; }
+details.flPart > summary::-webkit-details-marker { display: none; }
+details.flPart > summary img:not(.flPx img) { width: 17px; height: 17px; image-rendering: pixelated; }
+details.flPart .flPartName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+details.flPart .flPartSize { color: var(--fl-dim); white-space: nowrap; }
+details.flPart .flSlots { padding: 0 4px 4px 22px; box-sizing: border-box; }
+.flFolder a.flAt { cursor: pointer; border-bottom: 1px dashed #777; color: inherit; }
+.flInline::-webkit-inner-spin-button, .flInline::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

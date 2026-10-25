@@ -5,8 +5,19 @@ import { domainOf, isTransport, kitOf, slotsOf, troopsOf } from "./forces/forces
 import { canStand } from "./movement";
 import { standing } from "./nation";
 import { cellCentre, mainCell, neighbours } from "./one-grid";
+import { seaCellAt, seaPoint, seaUsable } from "./sea-grid";
 
 const living = () => pack.states.filter(s => s?.i && !s.removed);
+
+/** Where a regiment stands, as a key: its land cell, or for a fleet the sea grid cell under it (older maps pack
+ * open ocean into big cells, which would heap every fleet in it together) */
+export function placeOf(r: Pick<Regiment, "n" | "cell" | "x" | "y">): number {
+  if (r.n && typeof Grid !== "undefined") {
+    const g = seaCellAt(r.x, r.y);
+    if (g !== undefined) return -1 - g;
+  }
+  return mainCell(r.cell);
+}
 export const atWar = (a: number, b: number) => Boolean(a && b && a !== b && standing(a, b) === "enemy");
 
 /** The state holding a cell in war, or 0 */
@@ -212,13 +223,13 @@ export const CELL_UNITS = 4;
 
 /** Slots and units friendly to `state` already standing in a cell; a transport is 1 slot, its cargo nothing */
 export function cellLoad(state: number, cell: number, leaving?: Regiment): { slots: number; units: number } {
-  const at = mainCell(cell);
+  const at = cell < 0 ? cell : mainCell(cell);
   let slots = 0;
   let units = 0;
   for (const s of living())
     if (friendly(state, s.i))
       for (const r of s.military ?? [])
-        if (r !== leaving && !r.hidden && mainCell(r.cell) === at) {
+        if (r !== leaving && !r.hidden && placeOf(r) === at) {
           slots += slotsOf(r.u);
           units++;
         }
@@ -238,7 +249,7 @@ export function spreadCrowds(): number {
   for (const s of living())
     for (const r of s.military ?? []) {
       if (r.hidden) continue;
-      const at = mainCell(r.cell);
+      const at = placeOf(r);
       byCell.set(at, [...(byCell.get(at) ?? []), r]);
     }
   for (const [cell, here] of byCell) {
@@ -246,6 +257,15 @@ export function spreadCrowds(): number {
     for (const r of weakestLast.reverse()) {
       const load = cellLoad(r.state, cell);
       if (load.units <= CELL_UNITS && load.slots <= CELL_SLOTS) break;
+      if (cell < 0) {
+        const g = nearestSea(r, -1 - cell);
+        if (g === null) continue;
+        const [x, y] = seaPoint(g);
+        r.cell = Pack.findCell(x, y) ?? r.cell;
+        Military.move(r.state, r.i, x, y);
+        moved++;
+        continue;
+      }
       const spot = nearestRoom(r, cell);
       if (spot === null) continue;
       moveToCell(r, spot);
@@ -253,6 +273,24 @@ export function spreadCrowds(): number {
     }
   }
   return moved;
+}
+
+/** The nearest open sea grid cell with room for a fleet */
+function nearestSea(r: Regiment, from: number): number | null {
+  const seen = new Set([from]);
+  let ring = [from];
+  for (let step = 0; step < 8 && ring.length; step++) {
+    const next: number[] = [];
+    for (const g of ring)
+      for (const n of grid.cells.c[g]) {
+        if (seen.has(n) || !seaUsable(n)) continue;
+        seen.add(n);
+        next.push(n);
+        if (hasRoom(r.state, -1 - n, slotsOf(r.u))) return n;
+      }
+    ring = next;
+  }
+  return null;
 }
 
 function nearestRoom(r: Regiment, from: number): number | null {
