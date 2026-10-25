@@ -82,15 +82,11 @@ function ensureBox(): HTMLElement {
   return box;
 }
 
-// gone at once when the map moves, a click lands elsewhere, or a drag starts
-for (const type of ["wheel", "dragstart"]) window.addEventListener(type, () => hidePeek(), true);
-window.addEventListener(
-  "pointerdown",
-  event => {
-    if (!(event.target as Element).closest?.("#flPeek")) hidePeek();
-  },
-  true
-);
+// gone at once when the map moves, a click lands elsewhere, or a drag starts elsewhere
+const outside = (event: Event) => !(event.target as Element).closest?.("#flPeek");
+window.addEventListener("wheel", () => hidePeek(), true);
+for (const type of ["pointerdown", "dragstart"])
+  window.addEventListener(type, event => outside(event) && hidePeek(), true);
 
 /** Show the contents beside an element; `also` widens the anchor (a stack's arrow) so the panel sits past it;
  * `above` puts it over the anchor instead, for a card in an open stack's row */
