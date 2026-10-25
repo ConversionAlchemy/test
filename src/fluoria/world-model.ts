@@ -7,7 +7,7 @@ import { PixelRaster } from "./raster";
 import { Terrain } from "./terrain";
 
 /** Region colouring for a view: per-pixel region ids come from one of the per-cell id arrays */
-export type ViewName = "terrain" | "political" | "provinces" | "cultures" | "religions";
+export type ViewName = "terrain" | "political" | "provinces" | "cultures" | "religions" | "military";
 
 export interface WorldModel {
   seed: number;
@@ -174,12 +174,13 @@ export function paintTile(model: WorldModel, job: TileJob): Uint32Array {
   raster.bandPx = job.bandPx;
   raster.coastPx = job.coastPx;
   raster.bandColors = Array.from(model.colors.state);
-  if (job.view !== "terrain") raster.bandColors = Array.from(colors);
+  const military = job.view === "military"; // the terrain darkened, each nation's land washed in its colour
+  if (job.view !== "terrain" && !military) raster.bandColors = Array.from(colors);
   raster.regionColors = Array.from(colors);
-  const atlas = job.view !== "terrain";
+  const atlas = job.view !== "terrain" && !military;
   const fill = atlas && !job.outline;
   raster.atlas = atlas;
-  raster.tint = fill ? 0.8 : atlas ? 0 : job.tint;
+  raster.tint = fill ? 0.8 : atlas ? 0 : military ? 0.45 : job.tint;
   raster.flatten = fill ? 0.92 : 0;
   if (atlas) {
     raster.bandPx = 0;
@@ -193,7 +194,16 @@ export function paintTile(model: WorldModel, job: TileJob): Uint32Array {
     const from = (cy + row) * width + cx;
     out.set(raster.pixels.subarray(from, from + w), row * w);
   }
+  if (military) for (let k = 0; k < out.length; k++) out[k] = darken(out[k], 0.5);
   return out;
+}
+
+/** A packed pixel (alpha in the top byte) with its colour scaled towards black */
+function darken(pixel: number, keep: number): number {
+  const r = (pixel & 255) * keep;
+  const g = ((pixel >>> 8) & 255) * keep;
+  const b = ((pixel >>> 16) & 255) * keep;
+  return ((pixel & 0xff000000) | (Math.round(b) << 16) | (Math.round(g) << 8) | Math.round(r)) >>> 0;
 }
 
 /** In a port cell, past a ragged line through its centre on the side facing the sea */

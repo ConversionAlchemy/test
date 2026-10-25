@@ -4,10 +4,11 @@ import { Icons } from "@/components/icons";
 import { Layers } from "@/components/layers";
 import { tip } from "@/components/tooltips";
 import { viewport } from "@/components/viewport";
+import { Controllers } from "@/controllers";
 import { ensureHitLayer, NATION_ZOOM } from "./cell-card";
+import { applyFluoriaEmblems } from "./emblems/store";
 import { raiseBeside } from "./forces/army";
 import { convertUnitTypes, normalise } from "./forces/forces";
-import { whenFontReady } from "./forces/pixels";
 import { applyLabelZoom } from "./label-zoom";
 import { onMapView } from "./map-view";
 import { setFocus, simplifyDiplomacy } from "./nation";
@@ -64,13 +65,27 @@ Layers.onDraw(ids => {
     else {
       applyUnitZoom(viewport.scale);
       stackAll();
+      void Controllers.RegimentEditor.bind(); // regiments drag at any time
     }
   }
+  if (ids.some(id => id === "states" || id === "borders") && coloursChanged())
+    queueMicrotask(() => {
+      // units and markers wear their nation's colour
+      if (Layers.isOn("military")) Layers.draw("military");
+      if (Layers.isOn("markers")) Layers.draw("markers");
+    });
   if (ids.includes("markers") && Layers.isOn("markers") && snapMarkers()) queueMicrotask(() => Layers.draw("markers")); // markers stand at their cell's centre
   void load().then(map => map.drawn(ids));
 });
 Layers.subscribe(() => loaded?.toggled());
-whenFontReady(() => Layers.isOn("military") && Layers.draw("military"));
+
+let colours = "";
+function coloursChanged(): boolean {
+  const now = (pack.states ?? []).map(s => s?.color ?? "").join();
+  if (now === colours) return false;
+  colours = now;
+  return true;
+}
 
 // every map, made or loaded, is brought onto the one grid once
 // its diplomacy kept to ally, neutral, enemy, vassal and overlord, and its forces to the Fluoria units and rules
@@ -80,6 +95,7 @@ window.addEventListener("map:generated", () => {
   const relations = simplifyDiplomacy();
   const converted = convertUnitTypes(emoji => Icons.glyph(emoji));
   const split = normalise(raiseBeside);
+  const emblems = applyFluoriaEmblems();
   Layers.draw("burgIcons", "labels", "military", "markers", "routes");
   const lines = [
     moved.length
@@ -88,7 +104,8 @@ window.addEventListener("map:generated", () => {
     clashes.length ? `Left in place (their cell already has a settlement): ${clashes.join(", ")}.` : "",
     relations ? `${relations} relations set to neutral (friendly, suspicious, rival or unknown).` : "",
     converted ? "Military units converted to the Fluoria unit types." : "",
-    split ? `${split} groups split off to keep every army within 12 slots.` : ""
+    split ? `${split} groups split off to keep every army within 12 slots.` : "",
+    emblems ? `${emblems} nations given their Fluoria emblem.` : ""
   ].filter(Boolean);
   if (!lines.length) return;
   console.info(`Fluoria: ${lines.join(" ")}`, moved.length ? `Moved: ${moved.join(", ")}` : "");

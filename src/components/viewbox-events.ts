@@ -63,7 +63,8 @@ const GREAT_EDITORS: Record<string, Opener> = {
   burgIcons: target => Controllers.BurgEditor.open(Number(target.dataset.id)),
   markers: target => Controllers.MarkersEditor.open(undefined, target),
   ruler: () => Controllers.MeasurersEditor.open(),
-  armies: (_target, parent) => Controllers.RegimentEditor.open(`#${parent.id}`)
+  armies: (_target, parent) =>
+    Controllers.RegimentEditor.click(`#${parent.id}`, Boolean((window.event as MouseEvent | undefined)?.shiftKey))
 };
 
 /** Open the editor for a map element, as a click on it does; false when it has none */

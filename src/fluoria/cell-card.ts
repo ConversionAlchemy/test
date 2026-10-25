@@ -163,8 +163,7 @@ export function clearScreen(nation = true): void {
   if (nation) closeNation();
   void Controllers.ContextMenu.close();
   clearSelection();
-  const editor = $("#regimentEditor");
-  if (editor.hasClass("ui-dialog-content") && editor.dialog("isOpen")) editor.dialog("close");
+  window.dispatchEvent(new Event("fl:clear")); // folders, an open stack, the picked unit
 }
 
 /** The full card for a cell, near a point on screen: from the right-click menu */

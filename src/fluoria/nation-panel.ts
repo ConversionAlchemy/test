@@ -13,10 +13,12 @@ import { EmblemRenderer } from "@/renderers/emblems/renderer";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
 import { si } from "@/utils/unitUtils";
+import { openStudio } from "./emblems/studio";
 import { slotsOf } from "./forces/forces";
 import { focusedNation, type Standing, setFocus, standing } from "./nation";
 import { cellCentre } from "./one-grid";
 import { cellsOfState } from "./owners";
+import { NATION_COLOURS } from "./palette";
 import { integrate, occupiedBy, tidyOccupations } from "./war";
 
 type Tab = "overview" | "economy" | "diplomacy" | "military" | "notes";
@@ -35,6 +37,7 @@ let editingName = false;
 let showNeutral = false;
 const history: number[] = [];
 let at = -1;
+let minimised = false;
 let quietUntil = 0; // the panel's own fly-tos don't count as the user zooming in
 
 const living = (id: number) => (id && pack.states[id] && !pack.states[id].removed ? pack.states[id] : null);
@@ -82,11 +85,62 @@ function show(id: number): void {
     panel.id = "flNation";
     panel.addEventListener("click", onClick);
     panel.addEventListener("change", onChange);
+    panel.addEventListener("pointerdown", startDrag);
     document.body.append(panel);
+    place();
     window.addEventListener("keyup", onKey, true);
   }
   setFocus(id);
   render();
+}
+
+// the panel floats where it was last left, open or minimised
+const SPOT = "fl-nation-panel";
+function place(): void {
+  if (!panel) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(SPOT) ?? "{}") as { x?: number; y?: number; min?: boolean };
+    minimised = Boolean(saved.min);
+    if (saved.x !== undefined && saved.y !== undefined) moveTo(saved.x, saved.y);
+  } catch {}
+}
+
+function moveTo(x: number, y: number): void {
+  if (!panel) return;
+  const left = Math.max(0, Math.min(window.innerWidth - 120, x));
+  const top = Math.max(0, Math.min(window.innerHeight - 40, y));
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+  panel.classList.add("np-float");
+}
+
+function remember(): void {
+  if (!panel) return;
+  try {
+    const box = panel.getBoundingClientRect();
+    const float = panel.classList.contains("np-float");
+    localStorage.setItem(
+      SPOT,
+      JSON.stringify(float ? { x: box.left, y: box.top, min: minimised } : { min: minimised })
+    );
+  } catch {}
+}
+
+function startDrag(event: PointerEvent): void {
+  const handle = (event.target as HTMLElement).closest("[data-drag]");
+  if (!handle || !panel) return;
+  event.preventDefault();
+  const box = panel.getBoundingClientRect();
+  const dx = event.clientX - box.left;
+  const dy = event.clientY - box.top;
+  const move = (e: PointerEvent) => moveTo(e.clientX - dx, e.clientY - dy);
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    remember();
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
 }
 
 /** Redraw the open panel from the data as it is now */
@@ -111,11 +165,13 @@ function render(): void {
   const army = regiments.filter(r => !r.n).reduce((sum, r) => sum + r.a, 0);
   const fleets = regiments.filter(r => r.n).length;
 
+  panel.classList.toggle("np-min", minimised);
   panel.innerHTML = /* html */ `
     <header class="np-bar">
       <button type="button" data-act="back" ${at > 0 ? "" : "disabled"} aria-label="${t("Previous nation")}">◂</button>
       <button type="button" data-act="forward" ${at < history.length - 1 ? "" : "disabled"} aria-label="${t("Next nation")}">▸</button>
-      <span>${t("Nation")}</span>
+      <span data-drag>${t("Nation")}</span>
+      <button type="button" data-act="minimise" aria-label="${t("Minimise")}">${minimised ? "▢" : "▁"}</button>
       <button type="button" data-act="close" aria-label="${t("Close")}">✕</button>
     </header>
     <div class="np-identity">
@@ -128,7 +184,8 @@ function render(): void {
           <select data-field="form">${formOptions(state.formName ?? "")}</select>
         </label>
         <div class="np-line">
-          <input type="color" data-field="color" value="${state.color ?? "#999999"}" data-tip="${t("Nation colour")}" />
+          <input type="color" data-field="color" list="flNationColours" value="${state.color ?? "#999999"}" data-tip="${t("Nation colour")}" />
+          <datalist id="flNationColours">${NATION_COLOURS.map(c => `<option value="${c}"></option>`).join("")}</datalist>
           <button type="button" data-act="locate">⌖ ${t("Locate")}</button>
         </div>
       </div>
@@ -143,9 +200,8 @@ function render(): void {
       ${stat(t("Area"), `${cellsOfState(id)} ${t("cells")}`)}
       ${stat(t("Settlements"), String(burgs.length))}
       ${stat(t("Provinces"), String(provinces.length))}
-      ${stat(t("Treasury"), `● ${si(state.treasury || 0)}`, "gold")}
-      ${stat(t("Army"), si(army))}
-      ${stat(t("Fleets"), String(fleets))}
+      ${stat(t("Treasury"), money(state.treasury || 0), "gold")}
+      ${stat(t("Military"), `${si(army)} · ${fleets} ${t("fleets")}`, "wide", "military")}
       ${stat(t("Vassals"), String(vassals(id).length))}
     </div>
     <nav class="np-tabs">
@@ -158,8 +214,11 @@ function render(): void {
     </footer>`;
 }
 
-const stat = (label: string, value: string, kind = "") =>
-  `<div class="np-stat ${kind}"><label>${label}</label><strong>${value}</strong></div>`;
+const stat = (label: string, value: string, kind = "", open = "") =>
+  `<div class="np-stat ${kind}"${open ? ` data-tab="${open}"` : ""}><label>${label}</label><strong>${value}</strong></div>`;
+
+/** Fluoria money: §2,312 */
+export const money = (value: number) => `§${Math.round(value).toLocaleString("en-US")}`;
 
 function nameView(state: (typeof pack.states)[number]): string {
   return /* html */ `<div class="np-name">
@@ -394,6 +453,11 @@ function onClick(event: MouseEvent): void {
     case "close":
       closeNation();
       return;
+    case "minimise":
+      minimised = !minimised;
+      remember();
+      render();
+      return;
     case "back":
       if (at > 0) show(history[--at]);
       return;
@@ -401,7 +465,7 @@ function onClick(event: MouseEvent): void {
       if (at < history.length - 1) show(history[++at]);
       return;
     case "emblem":
-      void Controllers.EmblemsEditor.open("state", `stateCOA${id}`, state);
+      void openStudio(id);
       return;
     case "rename":
       editingName = true;

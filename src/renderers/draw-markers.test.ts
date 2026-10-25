@@ -6,6 +6,9 @@ import { ViewportLayers } from "@/renderers/viewport/viewport-renderer";
 
 const mocks = vi.hoisted(() => ({ layerOn: true }));
 vi.mock("@/components/layers", () => ({ Layers: { isOn: () => mocks.layerOn } }));
+vi.mock("@/fluoria/forces/pixels", () => ({
+  tokenUrl: (shape: string, colour: string, letter: string) => `${shape}|${colour}|${letter}`
+}));
 
 import "@/generators/styles";
 import "@/generators/relief-generator"; // the models own the icon sets references resolve against
@@ -41,8 +44,8 @@ test("panning culls markers and repeated rendering produces the same markup", ()
   expect(document.getElementById("marker2")).not.toBeNull();
 });
 
-test("culling includes partially visible pins and uses their zoomed size", () => {
-  pack.markers = [marker(1, 190), marker(2, 50, 200), marker(3, 196), marker(4, 50, -81)];
+test("culling includes partially visible tokens and uses their zoomed size", () => {
+  pack.markers = [marker(1, 190), marker(2, 50, 185), marker(3, 196), marker(4, 50, -97)];
   drawMarkers();
   expect(document.getElementById("marker1")).not.toBeNull();
   expect(document.getElementById("marker2")).not.toBeNull();
@@ -63,7 +66,7 @@ test("a marker is sized in em at its point, so the layer font size scales it; ex
     "50",
     "50"
   ]);
-  expect(marker1.firstElementChild?.getAttribute("transform")).toBe("translate(-15 -30)"); // the pin's tip is the point
+  expect(marker1.querySelector("image")?.getAttribute("x")).toBe("-10"); // the token is centred on the point
   const clone = document.getElementById("map")!.cloneNode(true) as SVGSVGElement;
   ViewportLayers.renderTo(clone);
   expect(clone.querySelectorAll("#markers > svg")).toHaveLength(2);
@@ -107,14 +110,11 @@ test("an offscreen edited marker stays attached until editing ends", () => {
   element!.classList.add("draggable");
   ViewportLayers.renderNow();
   expect(document.getElementById("marker2")).toBe(element);
-  edited.icon = "custom-1a2b3c4d";
-  edited.pin = "no";
-  edited.px = 20;
+  edited.shape = "diamond";
+  edited.letter = "Q";
   drawMarkers();
   expect(document.getElementById("marker2")).toBe(element);
-  expect(element?.querySelector("use")?.getAttribute("href")).toBe("#custom-1a2b3c4d");
-  expect(element?.querySelector("use")?.getAttribute("width")).toBe("20");
-  expect(element?.querySelector("g > path, g > circle")).toBeNull(); // no pin
+  expect(element?.querySelector("image")?.getAttribute("href")).toBe("diamond|#8a8a8a|Q");
   expect(element?.classList.contains("draggable")).toBe(true);
   expect(element?.namespaceURI).toBe("http://www.w3.org/2000/svg");
   element!.dispatchEvent(new Event("click"));
@@ -124,10 +124,10 @@ test("an offscreen edited marker stays attached until editing ends", () => {
 });
 
 test("offscreen edits, deletion and replacement map data are reflected when rendered", () => {
-  pack.markers[1].icon = "glyph-1f3f0";
+  pack.markers[1].letter = "W";
   setViewportTransform(1, -450, 0);
   ViewportLayers.renderNow();
-  expect(document.querySelector("#marker2 use")?.getAttribute("href")).toBe("#glyph-1f3f0");
+  expect(document.querySelector("#marker2 image")?.getAttribute("href")).toBe("circle|#8a8a8a|W");
   pack.markers = [marker(3, 500)];
   ViewportLayers.renderNow();
   expect(document.getElementById("marker2")).toBeNull();

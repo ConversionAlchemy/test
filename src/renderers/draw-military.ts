@@ -1,80 +1,126 @@
 import { easeSinInOut, select, transition } from "d3";
-import { cardPower, flagship, isGroup, isTransport, kitOf, slotsOf, strength, troopsOf } from "@/fluoria/forces/forces";
+import {
+  cardPower,
+  flagship,
+  isGroup,
+  isTransport,
+  kitOf,
+  refreshNames,
+  slotsOf,
+  strength,
+  troopsOf
+} from "@/fluoria/forces/forces";
 import { KIT } from "@/fluoria/forces/kit";
-import { cardUrl, iconUrl } from "@/fluoria/forces/pixels";
+import { CARD, type CardFace, type CardSize, cardUrl, frameUrl, STRIP, short, tabUrl } from "@/fluoria/forces/pixels";
 import type { Regiment } from "../generators/military-generator";
 import { rn } from "../utils";
 
-// Fluoria: a regiment is a pixel silhouette far out, its icon closer, and a card close in when it holds more than
-// one slot. The three are drawn at once and the zoom picks one (see units.ts)
+// Fluoria: every regiment is a pixel card: far out the small one with its total below, close in the big one with its
+// numbers. Both are drawn and the zoom picks one (units.ts); a shared cell shows as a stack (units.ts)
 
 const SVG = "http://www.w3.org/2000/svg";
 const size = () => styles.military.options.boxSize * 2;
 
 export const getRegimentWidth = (_regiment: Regiment): number => size();
 
-const colourOf = (stateId: number) => {
+export const colourOf = (stateId: number) => {
   const colour = pack.states[stateId]?.color;
   return colour && colour[0] === "#" && colour.length >= 7 ? colour.slice(0, 7) : "#999999";
 };
 
-function faceOf(regiment: Regiment) {
+export function faceOf(regiment: Regiment, behind: string[] = []): CardFace {
   const lead = flagship(regiment);
-  const unit = (lead && kitOf(lead)) || KIT[0];
   const carrier = isTransport(regiment);
   return {
-    unit,
+    unit: (lead && kitOf(lead)) || KIT[0],
     colour: colourOf(regiment.state),
+    single: !isGroup(regiment),
     power: cardPower(regiment),
     troops: carrier ? troopsOf({ u: regiment.cargo ?? {} }) : troopsOf(regiment),
     slots: carrier ? slotsOf(regiment.cargo) : slotsOf(regiment.u),
-    strength: strength(regiment)
+    strength: strength(regiment),
+    behind
   };
 }
 
-function image(g: SVGGElement, kind: string, href: string): void {
-  const element = document.createElementNS(SVG, "image");
+/** The colour a card shows as a strip behind another */
+export const stripColour = (regiment: Regiment) => {
+  const face = faceOf(regiment);
+  return face.single ? `${face.colour}80` : face.colour;
+};
+
+function add(g: SVGGElement, tag: string, kind: string): SVGElement {
+  const element = document.createElementNS(SVG, tag) as SVGElement;
   element.setAttribute("class", kind);
-  element.setAttribute("href", href);
-  element.setAttribute("preserveAspectRatio", "none");
-  element.setAttribute("image-rendering", "pixelated");
   g.append(element);
+  return element;
 }
 
-/** Fill a regiment's group: silhouette, icon, card and name */
-export function paintRegiment(g: SVGGElement, regiment: Regiment): void {
+/** Fill a regiment's group: its two cards, the total under the far one, its name if it has one of its own */
+export function paintRegiment(g: SVGGElement, regiment: Regiment, behind: string[] = [], total?: number): void {
   g.replaceChildren();
-  const face = faceOf(regiment);
-  image(g, "flDot", iconUrl(face.unit, face.colour, "silhouette"));
-  image(g, "flIcon", iconUrl(face.unit, face.colour));
-  const group = isGroup(regiment);
-  g.classList.toggle("fl-group", group);
-  if (group) image(g, "flCard", cardUrl(face));
-  if (styles.military.options.showNames) {
-    const name = document.createElementNS(SVG, "text");
-    name.setAttribute("class", "regimentName");
+  const face = faceOf(regiment, behind);
+  for (const stage of ["far", "close"] as CardSize[]) {
+    const image = add(g, "image", stage === "far" ? "flFar" : "flClose");
+    image.setAttribute("href", cardUrl(face, stage));
+    image.setAttribute("preserveAspectRatio", "none");
+    image.setAttribute("image-rendering", "pixelated");
+    image.dataset.lift = String((behind.length * STRIP) / CARD[stage]);
+    // CSS outlines and shadows misdraw under the unit scale, so selection is a frame image of its own
+    const frame = add(g, "image", `${stage === "far" ? "flFar" : "flClose"} flPick`);
+    frame.setAttribute("href", frameUrl(stage, behind.length * STRIP));
+    frame.setAttribute("preserveAspectRatio", "none");
+    frame.setAttribute("image-rendering", "pixelated");
+    frame.dataset.lift = image.dataset.lift;
+  }
+  const sum = add(g, "text", "flTotal");
+  sum.setAttribute("text-anchor", "middle");
+  sum.textContent = short(total ?? face.troops);
+  if (behind.length) {
+    const tab = add(g, "image", "flTab");
+    tab.setAttribute("href", tabUrl());
+    tab.setAttribute("image-rendering", "pixelated");
+  }
+  g.classList.toggle("fl-group", !face.single);
+  if (regiment.named && styles.military.options.showNames) {
+    const name = add(g, "text", "regimentName");
     name.setAttribute("text-anchor", "middle");
-    name.setAttribute("text-rendering", "optimizeSpeed");
     name.textContent = regiment.name;
-    g.append(name);
   }
   placeRegiment(g, regiment.x, regiment.y);
 }
 
-/** Put a regiment's art centred on a point */
+/** Put a regiment's art centred on a point; a stack grows upwards */
 export function placeRegiment(g: SVGGElement, x: number, y: number): void {
   const h = size();
   g.setAttribute("transform-origin", `${x}px ${y}px`);
-  for (const element of g.querySelectorAll("image")) {
-    element.setAttribute("x", String(rn(x - h / 2, 2)));
-    element.setAttribute("y", String(rn(y - h / 2, 2)));
-    element.setAttribute("width", String(h));
-    element.setAttribute("height", String(h));
+  for (const image of g.querySelectorAll<SVGImageElement>("image.flFar, image.flClose")) {
+    const lift = Number(image.dataset.lift || 0) * h;
+    image.setAttribute("x", String(rn(x - h / 2, 2)));
+    image.setAttribute("y", String(rn(y - h / 2 - lift, 2)));
+    image.setAttribute("width", String(h));
+    image.setAttribute("height", String(rn(h + lift, 3)));
+  }
+  const tab = g.querySelector("image.flTab");
+  if (tab) {
+    for (const [k, v] of Object.entries({
+      x: x + h / 2 + h * 0.06,
+      y: y - h * 0.19,
+      width: h * 0.24,
+      height: h * 0.38
+    }))
+      tab.setAttribute(k, String(rn(v, 2)));
+  }
+  const total = g.querySelector("text.flTotal");
+  if (total) {
+    total.setAttribute("x", String(rn(x, 2)));
+    total.setAttribute("y", String(rn(y + h * 0.9, 2)));
+    total.setAttribute("font-size", `${rn(h * 0.5, 2)}px`);
   }
   const name = g.querySelector("text.regimentName");
   if (name) {
     name.setAttribute("x", String(rn(x, 2)));
-    name.setAttribute("y", String(rn(y + h * 0.95, 2)));
+    name.setAttribute("y", String(rn(y + h * 0.9, 2)));
     name.setAttribute("font-size", `${rn(h * 0.4, 2)}px`);
   }
 }
@@ -104,6 +150,7 @@ export const drawMilitary = (): void => {
   TIME && console.time("drawMilitary");
   const armies = document.getElementById("armies");
   if (!armies) return;
+  refreshNames(); // base names follow what each regiment now is
   armies.replaceChildren();
   armies.setAttribute("font-size", String(size()));
   for (const state of pack.states) {

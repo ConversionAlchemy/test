@@ -319,7 +319,8 @@ class IconLibrary {
     const open = `<symbol id="${escapeHtml(id)}" viewBox="${escapeHtml(viewBox)}">`;
     if (kind === "image") {
       if (!/^(https?:\/\/|data:image\/)/.test(content)) return "";
-      return `${open}<image href="${escapeHtml(content)}" width="100" height="100"/></symbol>`;
+      const pixelated = id.startsWith("custom-px-") ? ' image-rendering="pixelated"' : ""; // Fluoria pixel emblems
+      return `${open}<image href="${escapeHtml(content)}" width="100" height="100"${pixelated}/></symbol>`;
     }
     const svg = sanitizeSvgIcon(`<svg>${content}</svg>`);
     return svg ? `${open}${svg.innerHTML}</symbol>` : "";

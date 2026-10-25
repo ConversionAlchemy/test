@@ -1,4 +1,14 @@
+import { execSync } from "node:child_process";
 import { fileURLToPath, URL } from "node:url";
+
+// Fluoria: the commit a build came from, shown on the loading screen
+const commit = (() => {
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "dev";
+  }
+})();
 
 /**
  * The desktop app ships the same renderer, minus the parts that only make sense on the web:
@@ -35,6 +45,7 @@ export default ({ mode }: { mode: string }) => ({
     }
   },
   publicDir: "../public",
+  define: { __FL_COMMIT__: JSON.stringify(commit) },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url))

@@ -159,6 +159,7 @@ export function applyLabelZoom(scale = viewport.scale): void {
   }
   let icon: number = ICON_PX[0][1];
   for (const [from, size] of ICON_PX) if (scale >= from) icon = size;
+  icon = Math.round(icon * Math.min(1.8, Math.max(1, (scale / 2) ** 0.3))); // and keeps growing a little closer in
   document.getElementById("burgIcons")?.style.setProperty("--fl-burg", `${icon / scale}px`);
   document.body.dataset.flTier = scale < 1.6 ? "political" : scale < 4.5 ? "region" : "close";
   scheduleDeclutter();

@@ -180,12 +180,16 @@ function showUpdateWindow(storedVersion: string | null): void {
   });
 }
 
+declare const __FL_COMMIT__: string;
+const FL_PASS = 16;
+
 function announceVersion(): void {
   if (parseMapVersion(VERSION) !== VERSION) alert("versioning: Invalid format or parsing function");
 
   document.title += ` v${VERSION}`;
   const loadingScreenVersion = findEl("versionText");
-  if (loadingScreenVersion) loadingScreenVersion.textContent = `v${VERSION}`;
+  if (loadingScreenVersion)
+    loadingScreenVersion.textContent = `Fluoria · pass ${FL_PASS} · ${typeof __FL_COMMIT__ === "string" ? __FL_COMMIT__ : "dev"}`;
 
   const storedVersion = localStorage.getItem("version");
   if (!storedVersion) {

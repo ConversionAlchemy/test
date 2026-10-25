@@ -72,3 +72,31 @@ export const css = (c: RGB): string => `rgb(${c[0]},${c[1]},${c[2]})`;
 function clamp(v: number): number {
   return v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
 }
+
+/** Nation colours: twelve striking, twelve muted */
+export const NATION_COLOURS = [
+  "#1e40ff",
+  "#e8101e",
+  "#ffe600",
+  "#00c853",
+  "#ff7a00",
+  "#e0119d",
+  "#00d4ff",
+  "#7b2cff",
+  "#a8ff00",
+  "#b0002a",
+  "#f2f2f2",
+  "#1a1a1a",
+  "#6b7a3a",
+  "#4a5d7e",
+  "#9c4a2b",
+  "#b8a272",
+  "#3d7a74",
+  "#6e4a6b",
+  "#4f6b45",
+  "#7d8a96",
+  "#b08532",
+  "#8a3b36",
+  "#2c3a57",
+  "#8f8578"
+];
