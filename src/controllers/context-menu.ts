@@ -5,6 +5,7 @@ import { revealEntity } from "@/components/reveal";
 import { openEditor } from "@/components/viewbox-events";
 import { Controllers } from "@/controllers";
 import { actionsFor, type MenuAction } from "@/fluoria/menu-actions";
+import { cellAtPoint } from "@/fluoria/one-grid";
 import { showRoadEdit } from "@/fluoria/pixel-map-sync";
 import { roadUnder } from "@/fluoria/road-geometry";
 import { roadModeOn } from "@/fluoria/road-mode";
@@ -34,7 +35,7 @@ class ContextMenuController {
     if (!viewbox || !pack.cells?.p) return;
 
     const [x, y] = getPointer(event, viewbox);
-    const cell = Pack.findCell(x, y);
+    const cell = cellAtPoint(x, y) ?? Pack.findCell(x, y);
     if (cell === undefined) return;
 
     this.cell = cell;
@@ -51,8 +52,14 @@ class ContextMenuController {
     }
     // Fluoria: what the thing under the cursor can do comes first; the other things here follow
     const top = this.rows[0]?.element ? this.rows[0] : undefined;
-    this.actions = actionsFor(top?.ref, cell, run => confirmationDialog({ onConfirm: run }), this.point);
+    this.actions = actionsFor(top?.ref, cell, run => confirmationDialog({ onConfirm: run }), this.point, [
+      event.clientX,
+      event.clientY
+    ]);
     if (top && this.actions.length) this.rows = this.rows.slice(1);
+    // Fluoria: what the ladder already leads to isn't listed again
+    const ladder = new Set(this.actions.map(action => action.ladder).filter(Boolean));
+    this.rows = this.rows.filter(row => !ladder.has(row.ref.type));
     this.render(event.clientX, event.clientY);
     this.listen();
   }

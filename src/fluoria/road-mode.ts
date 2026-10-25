@@ -2,6 +2,7 @@
 // to cell (cells skipped over are filled with the shortest way across land), and letting go builds it at the chosen
 // level. Hovering a segment highlights it; right-click it to change its level or delete just that step
 import { t } from "@/utils/i18n";
+import { cellAtPoint, mainCell, neighbours } from "./one-grid";
 import { showRoadEdit } from "./pixel-map-sync";
 import { nodePoint, routeCells, segmentAt } from "./road-geometry";
 import { changeSegment, createRoadThrough, ROUTE_LEVELS, type RouteGroup } from "./routes";
@@ -68,7 +69,7 @@ export function setRoadMode(on: boolean, next: RouteGroup = level): void {
 function nodes(): [number, number][] {
   const seen = new Set<number>();
   for (const route of pack.routes ?? [])
-    if (route.group !== "searoutes") for (const cell of routeCells(route)) seen.add(cell);
+    if (route.group !== "searoutes") for (const cell of routeCells(route)) seen.add(mainCell(cell));
   return [...seen].map(nodePoint);
 }
 
@@ -111,7 +112,7 @@ function onDown(event: PointerEvent): void {
   if (event.button !== 0) return;
   closeMenu();
   const point = toMap(event);
-  const cell = point ? Pack.findCell(point[0], point[1]) : undefined;
+  const cell = point ? cellAtPoint(point[0], point[1]) : undefined;
   if (!isLand(cell)) return;
   event.stopPropagation();
   event.preventDefault();
@@ -124,7 +125,7 @@ function onMove(event: PointerEvent): void {
   if (!point) return;
   if (drawing) {
     event.stopPropagation();
-    const cell = Pack.findCell(point[0], point[1]);
+    const cell = cellAtPoint(point[0], point[1]);
     if (!isLand(cell) || cell === drawing.at(-1)) return;
     const back = drawing.indexOf(cell);
     if (back >= 0)
@@ -207,14 +208,13 @@ const viewportScale = () => {
 
 /** Shortest run of land cells between two cells, both included; a straight hop when they touch */
 function landPath(from: number, to: number): number[] {
-  const { cells } = pack;
-  if (cells.c[from].includes(to)) return [from, to];
+  if (neighbours(from).includes(to)) return [from, to];
   const previous = new Map<number, number>([[from, from]]);
   let frontier = [from];
   for (let step = 0; step < 40 && frontier.length && !previous.has(to); step++) {
     const next: number[] = [];
     for (const cell of frontier)
-      for (const n of cells.c[cell]) {
+      for (const n of neighbours(cell)) {
         if (previous.has(n) || !isLand(n)) continue;
         previous.set(n, cell);
         next.push(n);

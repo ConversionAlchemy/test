@@ -57,6 +57,8 @@ export class PixelRaster {
   bandColors: number[] = [];
   /** A band of the owner's colour along coasts, this many pixels wide; 0 for none */
   coastPx = 0;
+  /** The atlas look: pale sea, a crisp dark coastline, no beaches */
+  atlas = false;
   /** State border width in game pixels */
   borderPx = 1;
   /** Optional second level of regions (provinces), outlined with a thin dashed line */
@@ -197,7 +199,7 @@ export class PixelRaster {
     let color = t === Terrain.River ? this.river(x, y) : isWater(t) ? this.water(x, y, t) : this.land(x, y, t);
     const i = this.at(x, y);
     if (this.region && !isOpenWater(own)) color = this.political(x, y, color);
-    if (this.coastPx && this.region && !isWater(own)) {
+    if (this.coastPx && this.region && !isWater(own) && !this.atlas) {
       const band = this.bandColors[this.region[i]];
       const d = band ? this.distanceTo(x, y, true, this.coastPx) : 0;
       if (d) color = mixP(color, band, 0.6 - (d - 1) * 0.15); // whose coast it is, even on a one-cell island
@@ -219,7 +221,8 @@ export class PixelRaster {
         const j = i + dy * this.width + dx;
         return !isOpenWater(this.terrain[j]) && region[j] !== id;
       };
-      for (let d = 1; d <= this.borderPx; d++) if (other(d, 0) || other(0, d)) return mixP(color, C.ink, 0.8);
+      for (let d = 1; d <= this.borderPx; d++)
+        if (other(d, 0) || other(0, d)) return mixP(color, C.ink, this.atlas ? 0.62 : 0.8);
       if (this.bandPx) {
         const other4 = (dx: number, dy: number) => {
           if (lx + dx < 0 || ly + dy < 0 || lx + dx >= this.width || ly + dy >= this.height) return false;
@@ -241,8 +244,9 @@ export class PixelRaster {
         if (right || down) return mixP(color, C.ink, 0.55);
       }
     }
-    const tint = this.regionColors[id];
-    if (!tint || !this.tint) return color;
+    const base = this.regionColors[id];
+    if (!base || !this.tint) return color;
+    const tint = this.atlas ? mixP(base, C.paper, 0.3) : base; // atlas colours are printed light
     if (this.flatten) color = mixP(color, greyP(color), this.flatten);
     const high = this.flatten ? 0 : Math.min(1, this.elevation[i] / 190); // lighter on high ground, so relief shows
     return mixP(color, tint, this.tint * (1 - high * 0.65));
@@ -254,6 +258,10 @@ export class PixelRaster {
 
   private water(x: number, y: number, t: number): number {
     const s = this.seed;
+    if (this.atlas) {
+      if (this.distanceTo(x, y, false, 1) === 1) return C.atlasCoast;
+      return valueNoise(x, y, 40, s + 1) > 0.72 ? C.atlas2 : C.atlas;
+    }
     if (this.detail === 0) {
       if (this.distanceTo(x, y, false, 1) === 1) return C.foam;
       const n = valueNoise(x, y, 10, s + 1);
@@ -274,7 +282,7 @@ export class PixelRaster {
   private land(x: number, y: number, t: number): number {
     const s = this.seed;
     const macro = 0.94 + (fbm(x, y, 48, 2, s + 5) - 0.5) * 0.24;
-    if (t !== Terrain.Sand && t !== Terrain.Snow && this.distanceTo(x, y, true, 1) === 1) {
+    if (!this.atlas && t !== Terrain.Sand && t !== Terrain.Snow && this.distanceTo(x, y, true, 1) === 1) {
       if (t === Terrain.Mountains || t === Terrain.Cobbles) return shadeP(C.stone2, macro);
       return hash2(x, y, s + 2) < 0.6 ? C.sand : C.sand2;
     }
@@ -340,10 +348,14 @@ export class PixelRaster {
     const r = hash2(x, y, s + 21);
     switch (t) {
       case Terrain.Forest:
-      case Terrain.Jungle:
-        return r < 0.2 ? C.tree2 : n > 0.55 ? C.tree3 : C.tree;
+      case Terrain.Jungle: {
+        // clumps of trees with lighter ground between, as a painted map shows woodland
+        const clump = valueNoise(x, y, 3, s + 23);
+        if (clump < 0.34) return n > 0.5 ? C.g1 : C.g3;
+        return r < 0.22 ? C.tree2 : clump > 0.7 ? C.tree3 : C.tree;
+      }
       case Terrain.Taiga:
-        return r < 0.25 ? packRGB([34, 58, 48]) : packRGB([52, 84, 66]);
+        return valueNoise(x, y, 3, s + 23) < 0.3 ? C.g3 : r < 0.25 ? packRGB([34, 62, 46]) : packRGB([54, 88, 62]);
       case Terrain.Mountains:
         return n > 0.6 ? C.stone3 : n > 0.3 ? C.stone : C.stone2;
       case Terrain.Hills:

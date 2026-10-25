@@ -7,6 +7,8 @@ import { type LayerId, Layers } from "@/components/layers";
 import { viewport } from "@/components/viewport";
 import { ensureEl } from "@/utils/nodeUtils";
 import { getMapView, isOutlineOnly } from "./map-view";
+import { focusedNation, onFocus, type Standing, standing } from "./nation";
+import { cellOfGrid, cellPolygon } from "./one-grid";
 import { css, Palette } from "./palette";
 import type { RoadEdit } from "./pixel-map-sync";
 import type { Stamp } from "./raster";
@@ -35,14 +37,20 @@ const LEVELS: Level[] = [
   { scale: 8, from: 6, detail: 2, borderPx: 3, bandPx: 6, keep: 28 }
 ];
 const FADE_MS = 220;
+const TINT = [0.2, 0.2, 0.08]; // by level: nations' colour over the terrain, clearest zoomed out
 
-// widths in map pixels, with a floor in screen pixels so roads stay visible zoomed out
-const ROAD_STYLE: Record<string, { color: number; width: number; minPx: number; dash: number }> = {
-  roads: { color: 0xa83424, width: 1.1, minPx: 2.4, dash: 0 },
-  trails: { color: 0x84603a, width: 0.7, minPx: 1.6, dash: 0 },
-  paths: { color: 0x7a5c3a, width: 0.5, minPx: 1.2, dash: 5 },
-  searoutes: { color: 0x9ab8cc, width: 0.5, minPx: 1.2, dash: 7 }
+// widths in map pixels, with a floor in screen pixels so roads stay visible zoomed out; solid roads get a dark edge
+// so they read on any ground. Lesser roads show only closer in
+const ROAD_STYLE: Record<
+  string,
+  { color: number; width: number; minPx: number; dash: number; edge: boolean; from: number; alpha: number }
+> = {
+  roads: { color: 0xb23a26, width: 1.1, minPx: 2.4, dash: 0, edge: true, from: 0, alpha: 1 },
+  trails: { color: 0xd2a862, width: 0.8, minPx: 1.8, dash: 0, edge: true, from: 1.5, alpha: 1 },
+  paths: { color: 0x5e4630, width: 0.45, minPx: 1.2, dash: 2.2, edge: false, from: 3, alpha: 0.9 },
+  searoutes: { color: 0xb4cadb, width: 0.5, minPx: 1.2, dash: 7, edge: false, from: 0, alpha: 0.75 }
 };
+const ROAD_EDGE = 0x2b2118;
 
 /** A dashed polyline: alternate runs of `dash` map pixels */
 function dashed(g: Graphics, pts: [number, number][], dash: number): void {
@@ -108,11 +116,8 @@ class PixelMap {
   private tiles = LEVELS.map(() => new Map<string, Tile>());
   // everything drawn in map units follows the viewport through one container
   private overlay = new Container();
-  private waterMask = new Graphics(); // the sea as drawn, so the even sea grid never crosses the coast
-  private landMask = new Graphics();
   private cellLines = new Container();
   private landLines = new Graphics();
-  private seaLines = new Graphics();
   private hover = new Graphics();
   private roads = new Graphics();
   private roadEdit = new Graphics(); // road mode: the segment under the pointer, the road being drawn
@@ -120,7 +125,9 @@ class PixelMap {
   private nodeList: [number, number][] | null = null;
   private roadScale = 0;
   private shade = new Graphics();
-  private seaShade = new Graphics();
+  private focusShade = new Graphics(); // a nation in focus: the rest dimmed, tinted by how they stand to it
+  private enemyMask = new Graphics();
+  private enemyStripes = new Graphics();
   private ready: Promise<void>;
   private rebuildTimer = 0;
   private frame = 0;
@@ -142,23 +149,22 @@ class PixelMap {
     await this.app.init({ width: 1, height: 1, background: css(Palette.deep), antialias: false, resolution: 1 });
     this.host.append(this.app.canvas);
     for (const layer of this.layers) this.app.stage.addChild(layer);
-    this.landLines.mask = this.landMask;
-    this.seaLines.mask = this.waterMask;
-    this.seaShade.mask = this.waterMask;
-    this.cellLines.addChild(this.landLines, this.seaLines);
+    this.cellLines.addChild(this.landLines);
     this.overlay.addChild(
-      this.waterMask,
-      this.landMask,
       this.cellLines,
+      this.focusShade,
+      this.enemyMask,
+      this.enemyStripes,
       this.roads,
       this.hover,
       this.shade,
-      this.seaShade,
       this.roadNodes,
       this.roadEdit
     );
     this.app.stage.addChild(this.overlay);
     document.body.classList.add("fluoria-pixel");
+    this.enemyStripes.mask = this.enemyMask;
+    onFocus(() => this.drawFocus());
     this.pool = new TilePool();
     this.app.ticker.add(() => this.tick());
   }
@@ -172,6 +178,7 @@ class PixelMap {
       Object.assign(this.model, regions()); // states, provinces or colours may have been edited
       this.pool?.setModel(this.model);
       this.restyle();
+      this.drawFocus();
     }
     if (ids.some(id => LINES.includes(id))) this.lines++;
     if (ids.includes("routes")) this.drawRoads();
@@ -219,29 +226,22 @@ class PixelMap {
     this.cellLines.visible = viewport.scale >= CELL_LINES_FROM || this.emphasis;
   }
 
-  /** Darken everything outside `bright`: packed cells for armies, the even sea grid for fleets (land all dark) */
+  /** Darken every cell outside `bright`: packed cells for armies, even sea cells for fleets (land all dark) */
   dim(bright: ReadonlySet<number> | null, kind: "land" | "sea" = "land"): void {
     this.shade.clear();
-    this.seaShade.clear();
     this.emphasis = Boolean(bright);
     this.cellLines.alpha = bright ? 0.4 : 0.16;
     this.sync();
-    if (!bright) return;
-    const { cells, vertices } = pack;
+    if (!bright || !this.model) return;
+    const { land } = this.model;
     const sea = kind === "sea";
-    for (let cell = 0; cell < cells.i.length; cell++) {
-      if (sea ? cells.h[cell] < 20 : bright.has(cell)) continue;
-      const points = cells.v[cell].flatMap(v => vertices.p[v]);
+    for (let g = 0; g < grid.cells.i.length; g++) {
+      const lit = sea ? !land[g] && bright.has(g) : bright.has(cellOfGrid(g));
+      if (lit) continue;
+      const points = grid.cells.v[g].flatMap(v => grid.vertices.p[v]);
       if (points.length >= 6) this.shade.poly(points);
     }
     this.shade.fill({ color: 0x0c0c10, alpha: 0.42 });
-    if (!sea) return;
-    for (let g = 0; g < grid.cells.i.length; g++) {
-      if (bright.has(g)) continue; // the water mask keeps this off the land
-      const points = grid.cells.v[g].flatMap(v => grid.vertices.p[v]);
-      if (points.length >= 6) this.seaShade.poly(points);
-    }
-    this.seaShade.fill({ color: 0x0c0c10, alpha: 0.42 });
   }
 
   /** Roads as pixel-style lines over the terrain: redrawn on every edit, so changes show at once */
@@ -251,18 +251,27 @@ class PixelMap {
     if (!Layers.isOn("routes") || !pack?.routes) return;
     const k = viewport.scale || 1;
     const lines = roadLines();
+    const trace = (pts: [number, number][], dash: number) => {
+      if (dash) {
+        dashed(g, pts, dash);
+        return;
+      }
+      g.moveTo(pts[0][0], pts[0][1]);
+      for (let n = 1; n < pts.length; n++) g.lineTo(pts[n][0], pts[n][1]);
+    };
     for (const group of ["paths", "searoutes", "trails", "roads"]) {
       const style = ROAD_STYLE[group];
-      for (const road of lines) {
-        if ((ROAD_STYLE[road.group] ? road.group : "paths") !== group) continue;
-        const pts = road.line;
-        if (style.dash) dashed(g, pts, style.dash / k);
-        else {
-          g.moveTo(pts[0][0], pts[0][1]);
-          for (let n = 1; n < pts.length; n++) g.lineTo(pts[n][0], pts[n][1]);
-        }
+      if (k < style.from) continue;
+      const mine = lines.filter(road => (ROAD_STYLE[road.group] ? road.group : "paths") === group);
+      if (!mine.length) continue;
+      const width = Math.max(style.width, style.minPx / k);
+      const alpha = group === "searoutes" && k < 1.5 ? style.alpha * 0.75 : style.alpha;
+      if (style.edge) {
+        for (const road of mine) trace(road.line, 0);
+        g.stroke({ color: ROAD_EDGE, width: width + 1.4 / k, cap: "round", join: "round", alpha: 0.85 });
       }
-      g.stroke({ color: style.color, width: Math.max(style.width, style.minPx / k), cap: "round", join: "round" });
+      for (const road of mine) trace(road.line, style.dash ? style.dash / k : 0);
+      g.stroke({ color: style.color, width, cap: "round", join: "round", alpha });
     }
   }
 
@@ -280,7 +289,7 @@ class PixelMap {
     if (!edit) return;
     const k = viewport.scale || 1;
     for (const cell of edit.cells ?? []) {
-      const points = pack.cells.v[cell].flatMap(v => pack.vertices.p[v]);
+      const points = cellPolygon(cell);
       if (points.length >= 6) g.poly(points);
     }
     if (edit.cells?.length) g.fill({ color: 0xffffff, alpha: 0.14 });
@@ -304,14 +313,67 @@ class PixelMap {
     g.fill({ color: 0xffffff }).stroke({ color: 0x1b1b20, width: 1 / k });
   }
 
+  /** Light up a whole nation under the pointer, zoomed out; 0 for none */
+  highlightNation(state: number): void {
+    this.hover.clear();
+    if (!state || !this.model) return;
+    const { state: owner, land } = this.model;
+    for (let g = 0; g < owner.length; g++) if (land[g] && owner[g] === state) this.polyOf(this.hover, g);
+    this.hover.fill({ color: 0xffffff, alpha: 0.16 });
+  }
+
+  private polyOf(g: Graphics, cell: number): void {
+    const points = grid.cells.v[cell].flatMap(v => grid.vertices.p[v]);
+    if (points.length >= 6) g.poly(points);
+  }
+
+  /** The nation in focus at full brightness; allies green, enemies red and striped, vassals and overlord in their
+   * own colour, everyone else dimmed */
+  private drawFocus(): void {
+    const g = this.focusShade;
+    g.clear();
+    this.enemyMask.clear();
+    this.enemyStripes.clear();
+    const focus = focusedNation();
+    if (!focus || !this.model) return;
+    const { state: owner, land } = this.model;
+    const groups = new Map<Standing, number[]>();
+    for (let cell = 0; cell < owner.length; cell++) {
+      if (!land[cell]) continue;
+      const kind = owner[cell] ? standing(focus, owner[cell]) : "neutral";
+      if (kind === "self") continue;
+      const list = groups.get(kind) ?? [];
+      list.push(cell);
+      groups.set(kind, list);
+    }
+    const paint = (kind: Standing, fill: () => void) => {
+      const cells = groups.get(kind);
+      if (!cells?.length) return;
+      for (const cell of cells) this.polyOf(g, cell);
+      fill();
+    };
+    paint("neutral", () => g.fill({ color: 0x0c0c10, alpha: 0.5 }));
+    paint("vassal", () => g.fill({ color: 0x0c0c10, alpha: 0.12 }));
+    paint("overlord", () => g.fill({ color: 0x0c0c10, alpha: 0.12 }));
+    paint("ally", () => g.fill({ color: 0x2f9e44, alpha: 0.42 }));
+    paint("enemy", () => g.fill({ color: 0xb02a22, alpha: 0.45 }));
+    this.enemyMask.clear();
+    this.enemyStripes.clear();
+    const enemies = groups.get("enemy");
+    if (!enemies?.length) return;
+    for (const cell of enemies) this.polyOf(this.enemyMask, cell);
+    this.enemyMask.fill({ color: 0xffffff });
+    const { width, height } = wholeMap();
+    const step = Math.max(3, grid.spacing * 0.45); // stripes across the enemy's land, at war
+    for (let k = -height; k < width; k += step) this.enemyStripes.moveTo(k, height).lineTo(k + height, 0);
+    this.enemyStripes.stroke({ color: 0x5a0f0c, width: step * 0.3, alpha: 0.55 });
+  }
+
   /** Brighten one cell a little: a packed cell, or a sea grid cell as -1 - id; null for none */
   highlight(cell: number | null): void {
     this.hover.clear();
     if (cell === null) return;
-    const points =
-      cell < 0
-        ? (grid.cells.v[-1 - cell] ?? []).flatMap(v => grid.vertices.p[v])
-        : (pack.cells.v[cell] ?? []).flatMap(v => pack.vertices.p[v]);
+    const points = cell < 0 ? (grid.cells.v[-1 - cell] ?? []).flatMap(v => grid.vertices.p[v]) : cellPolygon(cell);
     if (points.length >= 6) this.hover.poly(points).fill({ color: 0xffffff, alpha: 0.1 });
   }
 
@@ -354,30 +416,19 @@ class PixelMap {
     this.lines++;
     this.drawCellLines();
     this.drawRoads();
+    this.drawFocus();
     this.sync();
   }
 
-  /** Land cells as Azgaar packed them; the sea as the even grid, clipped to the water */
+  /** Every cell on the one even grid, land and sea alike */
   private drawCellLines(): void {
-    const { cells, vertices } = pack;
-    const polygon = (cell: number) => cells.v[cell].flatMap(v => vertices.p[v]);
-    for (const g of [this.landLines, this.seaLines, this.waterMask, this.landMask]) g.clear();
-    for (let cell = 0; cell < cells.i.length; cell++) {
-      const points = polygon(cell);
-      if (points.length < 6) continue;
-      const water = cells.h[cell] < 20;
-      (water ? this.waterMask : this.landMask).poly(points);
-      if (!water) this.landLines.poly(points);
-    }
-    this.waterMask.fill({ color: 0xffffff });
-    this.landMask.fill({ color: 0xffffff });
+    this.landLines.clear();
     for (let g = 0; g < grid.cells.i.length; g++) {
       const points = grid.cells.v[g].flatMap(v => grid.vertices.p[v]);
-      if (points.length >= 6) this.seaLines.poly(points);
+      if (points.length < 6) continue;
+      this.landLines.poly(points);
     }
-    const stroke = { color: 0xf2efe6, width: 1, pixelLine: true, alpha: 1 };
-    this.landLines.stroke(stroke);
-    this.seaLines.stroke(stroke);
+    this.landLines.stroke({ color: 0xf2efe6, width: 1, pixelLine: true, alpha: 1 });
     this.cellLines.alpha = this.emphasis ? 0.4 : 0.16;
   }
 
@@ -480,7 +531,8 @@ class PixelMap {
       bandPx: spec.bandPx,
       provinces: tile.level >= 3 && view === "terrain" && borders,
       outline: isOutlineOnly(),
-      coastPx: borders ? Math.max(1, Math.round(spec.scale / 3)) : 0
+      coastPx: borders ? Math.max(1, Math.round(spec.scale / 3)) : 0,
+      tint: borders ? (TINT[tile.level] ?? 0) : 0
     };
   }
 
@@ -613,5 +665,6 @@ export const PixelMapLayer = {
   showRoadEdit: (edit: RoadEdit | null) => instance?.showRoadEdit(edit),
   dim: (bright: ReadonlySet<number> | null, kind?: "land" | "sea") => instance?.dim(bright, kind),
   highlight: (cell: number | null) => instance?.highlight(cell),
+  highlightNation: (state: number) => instance?.highlightNation(state),
   sync: () => instance?.sync()
 };

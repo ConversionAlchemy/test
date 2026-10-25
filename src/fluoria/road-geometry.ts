@@ -1,20 +1,24 @@
 // Roads as Fluoria shows them: every node is a cell centre (or the settlement standing in that cell), joined by
 // straight segments with lightly rounded corners. Azgaar's route data is only read here
+import { cellCentre, foldCells, mainCell } from "./one-grid";
+
 type Point = [number, number];
 
 /** The map point a road passes through in a cell: the settlement there, else the cell centre */
 export function nodePoint(cell: number): Point {
-  const burg = pack.cells.burg[cell];
+  const at = mainCell(cell);
+  const burg = pack.cells.burg[at];
   if (burg && pack.burgs[burg] && !pack.burgs[burg].removed) return [pack.burgs[burg].x, pack.burgs[burg].y];
-  return [pack.cells.p[cell][0], pack.cells.p[cell][1]];
+  return cellCentre(at);
 }
 
 /** A route's cells in order, without repeats */
 export function routeCells(route: (typeof pack.routes)[number]): number[] {
   const out: number[] = [];
+  const n = pack.cells.i.length;
   for (const point of route.points ?? []) {
     const cell = point[2];
-    if (cell === undefined || out.at(-1) === cell) continue;
+    if (cell === undefined || !(cell >= 0 && cell < n) || out.at(-1) === cell) continue;
     out.push(cell);
   }
   return out;
@@ -112,7 +116,7 @@ export function roadLines(): RoadLine[] {
       out.push({ id: route.i, group: route.group, cells: lane, line: roundedLine(nodes) });
       continue;
     }
-    const cells = routeCells(route);
+    const cells = foldCells(routeCells(route));
     if (cells.length < 2) continue;
     out.push({ id: route.i, group: route.group, cells, line: roundedLine(cells.map(nodePoint)) });
   }

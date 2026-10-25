@@ -4,6 +4,7 @@ import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
 import { cargo, carry, land, landingCells, load } from "./boarding";
 import { canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
+import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./one-grid";
 import { dimPixelMap } from "./pixel-map-sync";
 import { laneSteps } from "./road-geometry";
 import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
@@ -11,19 +12,29 @@ import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
 let range: Map<number, number> | null = null; // packed cells for armies, sea grid cells for fleets
 let rangeOf: Regiment | null = null;
 
-/** Where a regiment stands and the cell it is measured in: fleets on the even sea grid, armies on packed cells */
-const standAt = (regiment: Regiment, x: number, y: number): { cell: number; point: [number, number] } | null => {
+/**
+ * Where a regiment stands: the cell it is measured in (sea grid cells for fleets), the packed cell it records, and
+ * the cell's centre
+ */
+const standAt = (
+  regiment: Regiment,
+  x: number,
+  y: number
+): { cell: number; packCell: number; point: [number, number] } | null => {
   if (regiment.n) {
     const g = seaCellAt(x, y);
-    return g === undefined ? null : { cell: g, point: seaPoint(g) };
+    if (g === undefined) return null;
+    const point = seaPoint(g);
+    const own = cellOfGrid(g);
+    return { cell: g, packCell: own >= 0 ? own : (Pack.findCell(point[0], point[1]) ?? regiment.cell), point };
   }
-  const cell = Pack.findCell(x, y);
-  return cell === undefined ? null : { cell, point: [pack.cells.p[cell][0], pack.cells.p[cell][1]] };
+  const cell = cellAtPoint(x, y);
+  return cell === undefined ? null : { cell, packCell: cell, point: cellCentre(cell) };
 };
 
 // regiment boxes keep about this height on screen, whatever the zoom: small chips far out, a little bigger close in
 const BOX_PX = [
-  [0, 11],
+  [0, 9],
   [1.5, 16],
   [4.5, 20],
   [8, 24]
@@ -40,18 +51,36 @@ export function applyUnitZoom(scale: number): void {
   unitScale = Math.max(0.02, px / (box * scale));
   armies.style.setProperty("--fl-unit", String(unitScale));
   armies.dataset.flNames = scale >= 4.5 ? "1" : "0";
+  const far = scale < FAR;
+  if (armies.dataset.flFar !== (far ? "1" : "0")) {
+    armies.dataset.flFar = far ? "1" : "0";
+    centreDots(armies, far);
+  }
   for (const stack of stacks) layStack(stack); // only the offsets of shared cells change with size
 }
 
 let stacks: Regiment[][] = [];
+
+const FAR = 1.5; // zoomed out further than this, each regiment is a dot of its state's colour
+
+/** Far out only the icon square shows, as a dot: move it onto the box's centre */
+function centreDots(armies: HTMLElement, far: boolean): void {
+  for (const regiment of armies.querySelectorAll<SVGGElement>(":scope > g > g")) {
+    const [box, icon] = regiment.querySelectorAll<SVGRectElement>(":scope > rect");
+    if (!box || !icon) continue;
+    const at = (rect: SVGRectElement) => Number(rect.getAttribute("x")) + Number(rect.getAttribute("width")) / 2;
+    icon.style.translate = far ? `${at(box) - at(icon)}px 0px` : "";
+  }
+}
 
 /** Markers stand at their cell's centre, or on the settlement in it */
 export function snapMarkers(): boolean {
   let moved = false;
   for (const marker of pack.markers ?? []) {
     if (marker.cell === undefined) continue;
-    const burg = pack.cells.burg[marker.cell];
-    const [x, y] = burg ? [pack.burgs[burg].x, pack.burgs[burg].y] : pack.cells.p[marker.cell];
+    const at = mainCell(marker.cell);
+    const burg = pack.cells.burg[at];
+    const [x, y] = burg ? [pack.burgs[burg].x, pack.burgs[burg].y] : cellCentre(at);
     if (marker.x === x && marker.y === y) continue;
     marker.x = x;
     marker.y = y;
@@ -70,7 +99,7 @@ export function snapAll(): boolean {
       const spot = standAt(regiment, regiment.x, regiment.y);
       if (!spot) continue;
       const [x, y] = spot.point;
-      const cell = Pack.findCell(x, y) ?? regiment.cell;
+      const cell = spot.packCell;
       if (regiment.cell === cell && regiment.x === x && regiment.y === y) continue;
       regiment.cell = cell;
       regiment.x = x;
@@ -113,8 +142,8 @@ export function dropAt(regiment: Regiment, x: number, y: number): [number, numbe
   outline(null);
   const spot = standAt(regiment, x, y);
   if (!spot || !range?.has(spot.cell)) return null;
-  const cell = Pack.findCell(spot.point[0], spot.point[1]);
-  if (cell === undefined || !canStand(regiment, cell)) return null;
+  const cell = spot.packCell;
+  if (!canStand(regiment, cell) && !regiment.n) return null;
   regiment.cell = cell;
   return spot.point;
 }
@@ -148,7 +177,7 @@ export function chooseLanding(fleet: Regiment, troops: Regiment[], done: () => v
     const matrix = viewbox?.getScreenCTM()?.inverse();
     if (!matrix) return undefined;
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix);
-    return Pack.findCell(point.x, point.y);
+    return cellAtPoint(point.x, point.y);
   };
   const onMove = (event: PointerEvent) => {
     const cell = cellAt(event);
@@ -177,7 +206,7 @@ function outline(cell: number | null, sea = false): void {
   const debug = select<SVGGElement, unknown>("#debug");
   debug.select("#flTargetCell").remove();
   if (cell === null) return;
-  const flat = sea ? seaPolygon(cell) : pack.cells.v[cell].flatMap(v => pack.vertices.p[v]);
+  const flat = sea ? seaPolygon(cell) : cellPolygon(cell);
   const pairs: string[] = [];
   for (let k = 0; k + 1 < flat.length; k += 2) pairs.push(`${flat[k]},${flat[k + 1]}`);
   const points = pairs.join(" ");
@@ -199,7 +228,9 @@ const SHOWN = 3; // a column this long, or one longer than this plus one, shows 
 
 /** Lay out every shared cell as a column */
 export function stackAll(): void {
-  if (!document.getElementById("armies")) return;
+  const armies = document.getElementById("armies");
+  if (!armies) return;
+  if (armies.dataset.flFar === "1") centreDots(armies, true);
   const byCell = new Map<number, Regiment[]>();
   for (const state of pack.states) {
     if (!state.i || state.removed) continue;

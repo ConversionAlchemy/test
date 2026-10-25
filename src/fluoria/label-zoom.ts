@@ -1,6 +1,7 @@
 // Fluoria's map lettering, atlas-style: which label groups show at which zoom, how big they are on screen, how each
 // kind looks, and which give way where they overlap. Labels and icons stay Azgaar's; this styles and gates them
 import { viewport } from "@/components/viewport";
+import { cellsOfState, stateInk, TINY_FROM, TINY_STATE } from "./owners";
 
 interface Tier {
   min: number; // Azgaar zoom from which the group shows
@@ -42,22 +43,24 @@ export function labelTier(group: string): { min: number; max: number } | undefin
 
 const STYLE = `
 #labels > g { opacity: 1 !important; }
+/* dark ink with a hairline pale halo, as an atlas prints it */
 #labels text, #labels textPath, #labels tspan {
-  fill: #2a2a30 !important;
+  fill: #26262b !important;
   fill-opacity: 1 !important;
-  stroke: #ffffff !important;
-  stroke-opacity: 1 !important;
-  stroke-width: 0.2em !important; /* in step with each label's own size */
+  stroke: #f4f0e4 !important;
+  stroke-opacity: 0.85 !important;
+  stroke-width: 0.1em !important; /* in step with each label's own size */
   stroke-linejoin: round !important;
   paint-order: stroke !important;
   text-shadow: none !important;
 }
-/* areas are light on dark, places dark on light */
+/* areas in spaced capitals: states in their own deep colour (set per label), provinces muted */
 #labels > g:is([data-group="state"], [data-group="province"]) :is(text, textPath, tspan) {
-  fill: #ffffff !important;
-  stroke: #1b1b20 !important;
+  stroke-width: 0.07em !important;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
+#labels > g[data-group="province"] :is(text, textPath, tspan) { fill: #5b5246 !important; }
 #labels > g[data-group="province"] { opacity: 0.85 !important; }
 #labels > g[data-group="river"] :is(text, textPath, tspan) {
   fill: #2c5d93 !important;
@@ -188,10 +191,21 @@ function declutter(): void {
   const labels = document.querySelectorAll<SVGTextElement>("#labels > g > text");
   const placed: DOMRect[] = [];
   const items: { text: SVGTextElement; rank: number }[] = [];
+  const close = (viewport.scale || 1) >= TINY_FROM;
   for (const text of labels) {
     text.classList.remove("flHidden");
     const group = (text.parentElement as HTMLElement | null)?.dataset.group ?? "";
     if (text.dataset.labelType === "burg") landSide(text);
+    const state = group === "state" ? Number(text.id.replace("stateLabel", "")) : 0;
+    if (state) {
+      const ink = stateInk(state);
+      for (const part of [text, ...text.querySelectorAll<SVGElement>("textPath, tspan")])
+        part.style.setProperty("fill", ink, "important");
+      if (!close && cellsOfState(state) < TINY_STATE) {
+        text.classList.add("flHidden"); // a tiny state's name waits for the zoom
+        continue;
+      }
+    }
     items.push({ text, rank: TIERS[group]?.rank ?? 6 });
   }
   items.sort((a, b) => a.rank - b.rank);

@@ -1,6 +1,7 @@
 // Troops aboard ships. A fleet carries as many soldiers as its ships' crews; boarding troops leave the map and travel
 // with the fleet, and land again on a land cell next to it. Aboard is a `carrier` on the regiment, saved with the map
 import type { Regiment } from "@/generators/military-generator";
+import { cellCentre, isPort, mainCell, neighbours } from "./one-grid";
 
 const isWater = (cell: number) => pack.cells.h[cell] < 20;
 
@@ -31,16 +32,19 @@ export const space = (fleet: Regiment) => Math.max(0, capacity(fleet) - load(fle
 
 // how far from a fleet's point a shore cell counts as next to it: a little over one even sea cell
 const reachOf = () => grid.spacing * 1.6;
-const near = (cell: number, fleet: Regiment) =>
-  Math.hypot(pack.cells.p[cell][0] - fleet.x, pack.cells.p[cell][1] - fleet.y) <= reachOf();
+const near = (cell: number, fleet: Regiment) => {
+  const [x, y] = cellCentre(cell);
+  return Math.hypot(x - fleet.x, y - fleet.y) <= reachOf();
+};
 
 /** A fleet is within reach of troops on the shore beside it, or in the port it lies off */
 export function canBoard(army: Regiment, fleet: Regiment): boolean {
   if (army.n || !fleet.n || army.carrier || army === fleet) return false;
-  const { cells } = pack;
+  const at = mainCell(army.cell);
+  const docked = mainCell(fleet.cell) === at && isPort(at); // moored in the port the troops stand in
   const next =
-    near(army.cell, fleet) || cells.c[army.cell].includes(fleet.cell) || cells.haven?.[army.cell] === fleet.cell;
-  return next && isWater(fleet.cell) && space(fleet) > 0;
+    docked || near(at, fleet) || neighbours(at).includes(fleet.cell) || pack.cells.haven?.[at] === fleet.cell;
+  return next && (isWater(fleet.cell) || isPort(fleet.cell)) && space(fleet) > 0;
 }
 
 /** Fleets an army could board where it stands */
@@ -73,15 +77,16 @@ export function board(army: Regiment, fleet: Regiment): Regiment {
 
 /** Land cells the fleet's troops may step onto */
 export function landingCells(fleet: Regiment): number[] {
-  const { cells } = pack;
-  const out = new Set(cells.c[fleet.cell].filter(cell => !isWater(cell)));
-  for (const water of [fleet.cell, ...cells.c[fleet.cell]])
-    for (const cell of cells.c[water]) if (!isWater(cell) && near(cell, fleet)) out.add(cell);
+  const at = mainCell(fleet.cell);
+  const out = new Set(neighbours(at).filter(cell => !isWater(cell)));
+  if (isPort(at)) out.add(at);
+  for (const water of [at, ...neighbours(at)])
+    for (const cell of neighbours(water)) if (!isWater(cell) && near(cell, fleet)) out.add(cell);
   return [...out];
 }
 
 export function land(regiment: Regiment, cell: number): void {
-  const [x, y] = pack.cells.p[cell];
+  const [x, y] = cellCentre(cell);
   regiment.carrier = undefined;
   regiment.hidden = false;
   regiment.cell = cell;

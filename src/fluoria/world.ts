@@ -2,6 +2,7 @@
 // relief follows elevation, snow follows temperature, and rivers, roads, states and towns come from the map itself
 import { color } from "d3";
 import { valueNoise } from "./noise";
+import { cellOfGrid } from "./one-grid";
 import { Palette, packRGB } from "./palette";
 import type { Stamp } from "./raster";
 import { Terrain, type TerrainId } from "./terrain";
@@ -70,40 +71,51 @@ function cellTerrain(cell: number): TerrainId {
   return t;
 }
 
-/** Gather what the painter needs from Azgaar's map: per-cell looks and regions, and the smooth height fields */
+/** Each grid cell's packed cell, -1 for open ocean */
+const packOfGrid = (): Int32Array => Int32Array.from(grid.cells.i, g => cellOfGrid(g));
+
+/**
+ * Gather what the painter needs from Azgaar's map, one entry per cell of the even grid: per-cell looks and regions,
+ * and the smooth height fields. Data comes from the packed cell standing for each grid cell
+ */
 export function collectWorld(): WorldModel {
-  const { cells, vertices, features } = pack;
+  const { cells, features } = pack;
   const map = wholeMap();
   const width = Math.ceil(map.width);
   const height = Math.ceil(map.height);
-  const n = cells.i.length;
+  const n = grid.cells.i.length;
+  const of = packOfGrid();
 
   const sites = new Float32Array(n * 2);
-  for (let c = 0; c < n; c++) {
-    sites[c * 2] = cells.p[c][0];
-    sites[c * 2 + 1] = cells.p[c][1];
+  for (let g = 0; g < n; g++) {
+    sites[g * 2] = grid.points[g][0];
+    sites[g * 2 + 1] = grid.points[g][1];
   }
   const adjStarts = new Int32Array(n + 1);
-  for (let c = 0; c < n; c++) adjStarts[c + 1] = adjStarts[c] + cells.c[c].length;
+  for (let g = 0; g < n; g++) adjStarts[g + 1] = adjStarts[g] + grid.cells.c[g].length;
   const adj = new Int32Array(adjStarts[n]);
-  for (let c = 0; c < n; c++) adj.set(cells.c[c], adjStarts[c]);
+  for (let g = 0; g < n; g++) adj.set(grid.cells.c[g], adjStarts[g]);
 
   const terrain = new Uint8Array(n);
   const land = new Uint8Array(n);
   const lake = new Uint8Array(n);
-  for (let c = 0; c < n; c++) {
-    land[c] = isLand(c) ? 1 : 0;
-    lake[c] = features[cells.f[c]]?.type === "lake" ? 1 : 0;
-    terrain[c] = land[c] ? cellTerrain(c) : Terrain.Water;
+  const heights = new Uint8Array(n);
+  for (let g = 0; g < n; g++) {
+    const c = of[g];
+    heights[g] = c < 0 ? grid.cells.h[g] : cells.h[c];
+    if (c < 0) continue;
+    land[g] = isLand(c) ? 1 : 0;
+    lake[g] = features[cells.f[c]]?.type === "lake" ? 1 : 0;
+    terrain[g] = land[g] ? cellTerrain(c) : Terrain.Water;
   }
 
-  const cellOf = rasterizeCells(cells.v, vertices.p, width, height, 1, map);
+  const cellOf = rasterizeCells(grid.cells.v, grid.vertices.p, width, height, 1, map);
   const elevation = new Float32Array(width * height);
   const depth = new Float32Array(width * height);
   for (let i = 0; i < cellOf.length; i++) {
-    const c = cellOf[i];
-    if (land[c]) elevation[i] = Math.max(0, (cells.h[c] - 20) / 80);
-    depth[i] = Math.min(20, cells.h[c]);
+    const g = cellOf[i];
+    if (land[g]) elevation[i] = Math.max(0, (heights[g] - 20) / 80);
+    depth[i] = Math.min(20, heights[g]);
   }
   smooth(elevation, width, height, Math.max(2, Math.round(grid.spacing * 0.6)));
   smooth(depth, width, height, Math.max(2, Math.round(grid.spacing * 0.9)));
@@ -119,10 +131,44 @@ export function collectWorld(): WorldModel {
     terrain,
     land,
     lake,
+    ...harbours(of, land),
     ...regions(),
     elevation,
     depth
   };
+}
+
+/**
+ * Port cells are half land, half sea: the water side faces the open sea around them. Small rocks stand in some
+ * shallow sea cells, decoration only
+ */
+function harbours(of: Int32Array, land: Uint8Array): Pick<WorldModel, "harbour" | "rock"> {
+  const n = of.length;
+  const harbour = new Float32Array(n * 2);
+  const rock = new Uint8Array(n);
+  for (const burg of pack.burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.port) continue;
+    const g = pack.cells.g[burg.cell];
+    if (!land[g]) continue;
+    let dx = 0;
+    let dy = 0;
+    for (const next of grid.cells.c[g]) {
+      if (land[next]) continue;
+      const len = Math.hypot(grid.points[next][0] - grid.points[g][0], grid.points[next][1] - grid.points[g][1]) || 1;
+      dx += (grid.points[next][0] - grid.points[g][0]) / len;
+      dy += (grid.points[next][1] - grid.points[g][1]) / len;
+    }
+    const len = Math.hypot(dx, dy);
+    if (!len) continue;
+    harbour[g * 2] = dx / len;
+    harbour[g * 2 + 1] = dy / len;
+  }
+  for (let g = 0; g < n; g++) {
+    if (land[g] || grid.cells.h[g] < 17 || grid.cells.t[g] === -2) continue;
+    if (grid.cells.c[g].some(next => land[next])) continue; // only out at sea, never touching a coast
+    if ((g * 2654435761) % 7 === 0) rock[g] = 1;
+  }
+  return { harbour, rock };
 }
 
 const palette = (list: { color?: string; removed?: boolean }[] | undefined) =>
@@ -131,11 +177,13 @@ const palette = (list: { color?: string; removed?: boolean }[] | undefined) =>
 /** Who owns each cell and the colours they're drawn in: cheap, so taken again after any political edit */
 export function regions(): Pick<WorldModel, "state" | "province" | "culture" | "religion" | "colors"> {
   const { cells } = pack;
+  const of = packOfGrid();
+  const take = (values: ArrayLike<number> | undefined) => Uint16Array.from(of, c => (c < 0 ? 0 : (values?.[c] ?? 0)));
   return {
-    state: Uint16Array.from(cells.state),
-    province: Uint16Array.from(cells.province ?? new Uint16Array(cells.i.length)),
-    culture: Uint16Array.from(cells.culture),
-    religion: Uint16Array.from(cells.religion),
+    state: take(cells.state),
+    province: take(cells.province),
+    culture: take(cells.culture),
+    religion: take(cells.religion),
     colors: {
       state: palette(pack.states),
       province: palette(pack.provinces as { color?: string; removed?: boolean }[]),
@@ -175,8 +223,7 @@ export function lineStamps(build: StampFrame, rivers: boolean, routes: boolean):
   };
   if (rivers)
     for (const river of pack.rivers)
-      if (near(river.cells?.filter(cell => cell >= 0).map(cell => pack.cells.p[cell])))
-        stamps.push(...riverStamp(river, build));
+      if (near(river.cells?.map(cell => pack.cells.p[cell]).filter(Boolean))) stamps.push(...riverStamp(river, build));
   if (routes) for (const route of pack.routes) if (near(route.points)) stamps.push(...routeStamp(route, build));
   return stamps;
 }

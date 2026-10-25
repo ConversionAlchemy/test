@@ -56,7 +56,6 @@ const ALWAYS_OFF: LayerId[] = [
   "emblems",
   "journeys",
   "zones",
-  "coordinates",
   "compass",
   "grid",
   "vignette",
@@ -121,6 +120,12 @@ function settleLayers(): void {
   const off = ALWAYS_OFF.filter(id => Layers.has(id) && Layers.isOn(id));
   if (on.length) Layers.show(...on);
   if (off.length) Layers.hide(...off);
+  // the atlas look: a coordinate grid over every view but terrain
+  const grid = getMapView() !== "terrain";
+  document.body.classList.toggle("fl-atlas", grid);
+  if (!Layers.has("coordinates") || Layers.isOn("coordinates") === grid) return;
+  if (grid) Layers.show("coordinates");
+  else Layers.hide("coordinates");
 }
 
 ensureEl("mapLayers").addEventListener("click", event => {
@@ -162,5 +167,6 @@ Layers.subscribe(render);
 Layers.subscribe(settleLayers);
 Layers.subscribe(() => ViewportLayers.renderNow());
 onMapView(render);
+onMapView(settleLayers);
 
 render();

@@ -39,21 +39,22 @@ Reference images are in `design/previews/`. The region preview (`2-region.png`) 
 
 | Token | RGB | Use |
 | --- | --- | --- |
-| deep / water / water2 / foam | 46,74,112 · 58,92,132 · 66,102,142 · 132,168,196 | Sea, lakes, shore |
-| sand / sand2 | 196,182,134 · 178,164,118 | Beaches |
-| g1–g4 | 92,124,62 · 104,138,70 · 82,112,56 · 120,152,80 | Grass |
+| deep / water / water2 / foam | 28,54,94 · 34,63,106 · 42,74,120 · 120,150,178 | Sea, lakes, shore |
+| sand / sand2 | 222,206,150 · 204,186,130 | Beaches |
+| g1–g4 | 176,180,104 · 192,192,116 · 160,168,94 · 206,200,128 | Grass |
 | dirt / dirt2 / dirt3 | 138,110,74 · 120,94,62 · 156,128,88 | Dirt, tracks, town ground |
 | cob1–cob3 / gap | 150,146,136 · 132,128,120 · 166,162,150 · 88,84,80 | Cobbles |
 | clay / clay2 / clay3 | 156,82,60 · 128,64,48 · 176,102,74 | Clay roofs |
 | slate / slate2 / slate3 | 80,88,108 · 64,70,88 · 98,106,126 | Slate roofs |
 | thatch / thatch2 / thatch3 | 178,150,94 · 150,124,74 · 196,172,112 | Thatch roofs |
-| stone / stone2 / stone3 | 124,120,112 · 100,96,90 · 146,142,132 | Walls, quays |
-| tree / tree2 / tree3 | 60,94,50 · 44,72,40 · 82,118,62 | Trees |
-| field1–3 | 176,160,90 · 150,150,78 · 130,146,70 | Farmland |
+| stone / stone2 / stone3 | 140,130,116 · 112,104,94 · 168,160,146 | Walls, quays, mountains |
+| tree / tree2 / tree3 | 82,122,56 · 58,94,44 · 112,152,70 | Trees |
+| field1–3 | 214,186,120 · 198,178,110 · 184,174,100 | Farmland, dry plains |
 | wood / wood2 | 118,86,56 · 92,66,42 | Piers, furniture, beams |
 | gold / gold2 | 214,172,60 · 166,126,36 | Coins, highlights |
 | blood / blood2 / scorch | 128,22,26 · 92,14,18 · 56,48,42 | Overlays |
 | ink | 36,32,38 | Outlines, text |
+| atlas / atlas2 / atlasCoast | 204,226,240 · 196,220,237 · 64,104,150 | Atlas views: sea, coastline |
 
 The exact values live in `design/prototype/common.py` until the real renderer has its own palette module.
 
@@ -129,21 +130,27 @@ Each phase ends with something Osh can open and use.
 - Phase 2, pixel engine: done, in `src/fluoria/` (palette, noise, terrain and overlay types, the pixel raster, brushes, camera, labels, and the PixiJS stage). The sample coast is still available with `?view=pixel-test`.
 - Phase 3, world view: in progress. Azgaar's map is drawn in pixels by default, inside Azgaar's own UI (`src/fluoria/pixel-map.ts`), under the SVG, so every click and editor stays Azgaar's. The menu is dark grey in VT323.
   - Tabs: Map, Data, Tools, Settings, Lore. Style has no button; Ctrl+click on a toggle still opens it.
-  - Map tab: a view (Terrain, Political, and Provinces, Cultures, Religions under More views; the map always opens on Terrain) and three toggles (Roads, Military, Markers). Labels, settlements, rivers, lakes, ice, cells and the scale bar are always on; emblems, journeys, zones, coordinates, wind rose, grid, vignette and rulers always off. Views only change the ground under the cells.
+  - Map tab: a view (Terrain, Political, and Provinces, Cultures, Religions under More views; the map always opens on Terrain) and three toggles (Roads, Military, Markers). Labels, settlements, rivers, lakes, ice, cells and the scale bar are always on; emblems, journeys, zones, wind rose, grid, vignette and rulers always off. Terrain is the hand-painted look (light land, deep navy sea, relief lit from the north-west) with nation ribbons inside borders and a faint nation tint zoomed out; every other view is an atlas page (pale sea, a coordinate grid, sea names from Azgaar's water features, flat light nation colours, thin borders, a crisp coastline).
   - Data tab: a topic (population, temperature, moisture, elevation, production, trade, land) shows its overlay and opens Data Charts on the matching chart; pressing Plot moves the map with the chart (overlay by metric, region outlines by entity), and closing the charts puts the map back. Below, Azgaar's overviews. Tools keeps only the making tools.
   - Detail pyramid (`world.ts` gathers a `WorldModel` once per map; `world-model.ts` paints; `tile-worker.ts` and `tile-pool.ts` run it on background workers): a quick quarter-scale first look, the whole map at 1 game pixel per map pixel in a painted style, then 2, 4 and 8 for the tiles on screen, textures richer at each step. Tiles fade in; the region level fills in around the view while idle.
-  - One look per cell: each pixel takes its cell's ground, snow and region from the nearest cell site to a slightly warped point, so cell edges are ragged and everything inside a cell matches. Snow is per cell (glacier biome, or high and freezing). Relief stays smooth across cells.
-  - Borders: a dark line with a band of the state's colour inside. Political fills states strongly over greyed ground.
-  - Labels (`label-zoom.ts`), atlas-style: state and province names white with a dark outline in capitals; settlement names dark with a white outline, sized by rank; rivers blue italic and roads brown, closest zoom only. Where labels overlap on screen the lower rank hides; port names sit on the land side.
+  - One grid (`one-grid.ts`): every cell, land or sea, is a cell of Azgaar's even grid. New maps are packed without split coasts; older maps keep their packed cells, and the coastal slivers fold into the cell on the grid point (settlements in them move there, or to the nearest free cell of their state, once, on load). Drawing, hover, clicks, movement, roads and boarding all go through the one grid. Port cells are half land, half sea: fleets moor in them and armies board there. Small rocks out at sea are decoration only.
+  - One look per cell: each pixel takes its cell's ground, snow and region from the nearest grid point to a slightly warped point, so cell edges (coasts included) are ragged and everything inside a cell matches. Snow is per cell (glacier biome, or high and freezing). Relief stays smooth across cells.
+  - Borders: a dark line with a band of the state's colour inside; thin dark lines in the atlas views.
+  - Labels (`label-zoom.ts`), atlas-style, all VT323: dark ink with a hairline pale halo. State names in spaced capitals in a deep shade of the state's colour, province names muted; settlement names sized by rank; rivers blue italic and roads brown, closest zoom only. Every piece of a state's land of 5+ cells carries its name, smaller pieces from zoom 3; states under 4 cells are named from zoom 3. Where labels overlap on screen the lower rank hides; port names sit on the land side.
   - Settlement symbols: national capital a square with a dot, regional capital a hollow square, city a filled circle, town a smaller circle, village a dot; ports are the hollow form of their size.
-  - Owners (`owners.ts`): outlying islands carry their owner's short name from zoom 3; coastlines carry a band of the owner's colour; the hover line names a vassal's suzerain; Map › Fix colours separates neighbours (across straits too) that look alike.
-  - Units: regiments stay about 11–24 screen pixels tall at every zoom, names close in; markers stand at their cell's centre. Regiments sharing a cell stand in a vertical column on the cell's centre (three shown, then "+N"); nothing moves on hover. The regiment base and rotate handle are gone.
-  - Sea (`sea-grid.ts`): fleets stand on, move across and dim by Azgaar's original even grid, and the sea's cell lines are drawn from it, clipped to the water, so ocean cells are the same size up to the coast. A fleet still records the packed cell under it. A cell counts as reachable when its near edge is in range.
-  - Cells: faint lines from zoom 1.5, clearer with a unit selected. Hover brightens a cell; a click on bare ground opens the cell card.
-  - Movement (`movement.ts`) counts cells: 1 off road; along roads 4 (main road), 3 (road), 2 (path), each step costed by its road, with one step off the road from any cell reached; at sea 6 cells, 10 along a sea lane.
-  - Roads (`road-geometry.ts`, `road-mode.ts`) are a layer over the terrain, redrawn on every edit (Azgaar's own route editors included). Every node is a cell centre (or the settlement in it), joined by straight segments with lightly rounded corners. Road mode (Tools › Draw, or R) shows the nodes; drag across cells to build a road at the chosen level (skipped cells filled across land); right-click a segment to change its level or delete it, the route splitting around it. Outside road mode the right-click menu offers the same for the clicked segment.
+  - Owners (`owners.ts`): coastlines carry a band of the owner's colour; Map › Fix colours separates neighbours (across straits too) that look alike.
+  - Hover line (`cell-line.ts`), in Azgaar's tooltip: settlement (population), port, province, owner (naming a vassal's overlord, and how it stands to the nation in focus), terrain, population off settlements, temperature, height. At sea: open sea, sea lane or lake, and temperature.
+  - Clicks: zoomed out (under 1.5) hovering lights up a nation and a click opens it; zoomed in a click on bare ground clears the screen (cards, menus, panel, selected unit). Right-click on bare ground leads up a ladder: nation, province, settlement, cell details (the full cell card), then the usual actions.
+  - Nation panel (`nation-panel.ts`): docked left; emblem, name (renamed in place), government, colour, Locate; capital, culture, religion; population, area, settlements, provinces, treasury, army, fleets, vassals; tabs Overview, Economy (treasury and taxes, tariffs in Azgaar's dialog), Diplomacy (allies, enemies, overlord, vassals, neutral folded; release or break free), Military, Notes; Charts and the full editor below. Back and forward between nations. Opens from a zoomed-out click, a state's name, or the right-click ladder; closes on its X, Escape, or zooming in.
+  - Focus (`nation.ts`): while the panel is open the nation is in focus: others dim, allies green, enemies red with stripes, vassals and overlord barely dimmed.
+  - Diplomacy is kept to Ally, Neutral, Enemy, Vassal and Suzerain: Azgaar's friendly, suspicious, rival and unknown become neutral on load, and the diplomacy editor offers only these five.
+  - Units: regiments stay about 9–24 screen pixels tall at every zoom, names close in, and under zoom 1.5 each is a dot of its state's colour; markers stand at their cell's centre. Regiments sharing a cell stand in a vertical column on the cell's centre (three shown, then "+N"); nothing moves on hover. The regiment base and rotate handle are gone.
+  - Sea (`sea-grid.ts`): fleets stand on, move across and dim by the even grid. A fleet still records the packed cell under it.
+  - Cells: faint lines from zoom 1.5, clearer with a unit selected; hover brightens a cell.
+  - Movement (`movement.ts`) counts cells: either one step to any neighbour, or along roads 4 (main road), 3 (road), 2 (path), each step costed by its road, never both; at sea 3 cells, 12 along the cells of a sea lane.
+  - Roads (`road-geometry.ts`, `road-mode.ts`) are a layer over the terrain, redrawn on every edit (Azgaar's own route editors included): main roads red, roads ochre, both with a dark edge; paths dotted umber; sea lanes pale dashes. Zoomed out only main roads show, roads from 1.5, paths from 3. Every node is a cell centre (or the settlement in it), joined by straight segments with lightly rounded corners. Road mode (Tools › Draw, or R) shows the nodes; drag across cells to build a road at the chosen level (skipped cells filled across land); right-click a segment to change its level or delete it, the route splitting around it. Outside road mode the right-click menu offers the same for the clicked segment.
   - Click-to-place tools work on bare ground again (a transparent sheet in the viewbox); settlements and markers are placed at the cell centre, with a preview that shows the cell and why a cell is refused. Labels sit above regiments.
-  - Next: occupation and annexing, adjacent-only attacks through Azgaar's battle screen, amphibious port cells and Tidy roads; then march orders and a turn button; the Shape and Draw tools with the slope rule; halving the distance scale; the minimap.
+  - Next: the war pass (occupation and annexing, adjacent-only attacks through Azgaar's battle screen, push-out, surrender choices); Tidy roads; then march orders and a turn button; the Shape and Draw tools with the slope rule; halving the distance scale; the minimap. Pinned: a fixed money supply with a bank, transfers, a ledger and pay day; six simple goods.
 
 ## Working rules for this fork
 

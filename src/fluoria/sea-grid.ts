@@ -1,13 +1,13 @@
 // At sea, fleets use Azgaar's original even grid instead of the packed cells: the packed sea is merged into huge
 // cells offshore and slivers along coasts, the grid is the same size everywhere. Nothing is stored in grid terms:
 // a fleet still records the packed cell under it, the grid only decides where it stands and how far it goes
-const isWaterPack = (cell: number | undefined) => cell !== undefined && pack.cells.h[cell] < 20;
+import { cellOfGrid, isPort } from "./one-grid";
 
-/** A grid cell a fleet may stand in: water in the grid, and water in the map as drawn */
+/** A grid cell a fleet may stand in: sea as drawn, or a port's harbour */
 export function seaUsable(g: number): boolean {
-  if (grid.cells.h[g] >= 20) return false;
-  const [x, y] = grid.points[g];
-  return isWaterPack(Pack.findCell(x, y));
+  const cell = cellOfGrid(g);
+  if (cell < 0) return grid.cells.h[g] < 20;
+  return pack.cells.h[cell] < 20 || isPort(cell);
 }
 
 /** The usable sea cell at a map point, or the nearest usable one around it */

@@ -2,7 +2,8 @@ import { select } from "d3";
 import { Layers } from "@/components/layers";
 import { MapEntities } from "@/components/map-entities";
 import { FEATURE_SUBTYPE_LABELS } from "@/data/id-labels";
-import { ownerText } from "@/fluoria/owners";
+import { cellLine } from "@/fluoria/cell-line";
+import { cellAtPoint } from "@/fluoria/one-grid";
 import { Notes } from "@/generators/notes";
 import { highlightEmblemElement } from "@/renderers/overlays/highlight";
 import type { Point } from "@/types/global";
@@ -84,15 +85,15 @@ export function showMapTooltip(point: Point, event: Event, cellId: number, gridC
 
   const target = event.target as SVGElement;
   const path = (event.composedPath ? event.composedPath() : getComposedPath(target)) as HTMLElement[];
-  if (!path[path.length - 8]) return;
-
-  const group = path[path.length - 7].id;
   const isLand = pack.cells.h[cellId] >= 20;
-
-  const elementTip = getElementTip({ group, target, event, path, cellId });
-  if (elementTip !== undefined) {
-    tip(elementTip);
-    return;
+  // bare ground (Fluoria's hit sheet) sits right in the viewbox, too shallow to belong to any layer group
+  if (path[path.length - 8]) {
+    const group = path[path.length - 7].id;
+    const elementTip = getElementTip({ group, target, event, path, cellId });
+    if (elementTip !== undefined) {
+      tip(elementTip);
+      return;
+    }
   }
 
   showLayerTip(point, cellId, gridCellId, isLand);
@@ -306,12 +307,6 @@ function showLayerTip(point: Point, cellId: number, gridCellId: number, isLand: 
     if (religion.type === "Folk") return void tip(`${t("Folk religion")}: ${escapeHtml(name)}`);
     return void tip(`${t("Organized religion")}: ${escapeHtml(name)}`);
   }
-  if (cells.state[cellId] && (Layers.isOn("provinces") || Layers.isOn("states"))) {
-    const stateId = cells.state[cellId];
-    const provinceId = cells.province[cellId];
-    const province = provinceId ? `${pack.provinces[provinceId].fullName}, ` : "";
-    return void tip(province + escapeHtml(ownerText(cellId) || pack.states[stateId].fullName || "")); // Fluoria: names a vassal's suzerain
-  }
   if (Layers.isOn("cultures") && cells.culture[cellId]) {
     const cultureId = cells.culture[cellId];
     const culture = pack.cultures[cultureId];
@@ -321,4 +316,5 @@ function showLayerTip(point: Point, cellId: number, gridCellId: number, isLand: 
   }
   if (Layers.isOn("cells")) return void tip(`${t("Cell")}: ${cellId} (${t("Grid")}: ${gridCellId})`);
   if (Layers.isOn("heightmap")) return void tip(`${t("Height")}: ${getFriendlyHeight(point, pack, grid)}`);
+  tip(cellLine(cellAtPoint(point[0], point[1]), gridCellId)); // Fluoria: one line about the place
 }

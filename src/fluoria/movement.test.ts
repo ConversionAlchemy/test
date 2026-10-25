@@ -6,6 +6,7 @@ function world(): void {
   const n = 12;
   globalThis.pack = {
     cells: {
+      i: Array.from({ length: n }, (_, i) => i),
       p: Array.from({ length: n }, (_, i) => [i * 30, 0]),
       c: Array.from({ length: n }, (_, i) => [i - 1, i + 1].filter(j => j >= 0 && j < n)),
       h: Array.from({ length: n }, (_, i) => (i < 10 ? 30 : 10)),
@@ -22,8 +23,8 @@ function world(): void {
       haven: []
     },
     routes: [
-      { i: 1, group: "roads" },
-      { i: 2, group: "paths" }
+      { i: 1, group: "roads", points: [0, 1, 2, 3, 4, 5].map(c => [c * 30, 0, c]) },
+      { i: 2, group: "paths", points: [5, 6, 7].map(c => [c * 30, 0, c]) }
     ]
   } as unknown as typeof pack;
 }
@@ -50,7 +51,7 @@ describe("movement", () => {
   });
 
   it("moves one cell off road", () => {
-    globalThis.pack.cells.routes = {};
+    globalThis.pack.routes = [];
     const reach = reachable({ n: 0, cell: 8 });
     expect([...reach.keys()].sort()).toEqual([7, 8, 9]);
     expect(cellPace(8)).toEqual({ cells: 1, road: null });
