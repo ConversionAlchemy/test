@@ -41,10 +41,77 @@ export interface RoadLine {
   line: Point[];
 }
 
+/**
+ * A sea lane as a run of neighbouring cells of Azgaar's even sea grid, so it snaps to sea cell centres like a road
+ * does to land cells. Gaps between its points are bridged across water
+ */
+export function seaLaneCells(route: (typeof pack.routes)[number]): number[] {
+  const usable = (g: number) => grid.cells.h[g] < 20;
+  const out: number[] = [];
+  for (const point of route.points ?? []) {
+    const g = Grid.findCell(point[0], point[1]);
+    const last = out.at(-1);
+    if (g === last) continue;
+    if (last === undefined || grid.cells.c[last].includes(g)) {
+      out.push(g);
+      continue;
+    }
+    out.push(...seaPath(last, g, usable).slice(1));
+  }
+  return out;
+}
+
+function seaPath(from: number, to: number, usable: (g: number) => boolean): number[] {
+  const previous = new Map<number, number>([[from, from]]);
+  let frontier = [from];
+  for (let step = 0; step < 30 && frontier.length && !previous.has(to); step++) {
+    const next: number[] = [];
+    for (const g of frontier)
+      for (const n of grid.cells.c[g]) {
+        if (previous.has(n) || (!usable(n) && n !== to)) continue;
+        previous.set(n, g);
+        next.push(n);
+      }
+    frontier = next;
+  }
+  if (!previous.has(to)) return [from, to];
+  const path = [to];
+  while (path[0] !== from) path.unshift(previous.get(path[0]) as number);
+  return path;
+}
+
+/** Steps of the sea grid that lie on a lane, as "a-b" keys both ways */
+export function laneSteps(): Set<string> {
+  const steps = new Set<string>();
+  for (const route of pack.routes ?? []) {
+    if (route.group !== "searoutes") continue;
+    const cells = seaLaneCells(route);
+    for (let k = 1; k < cells.length; k++) {
+      steps.add(`${cells[k - 1]}-${cells[k]}`);
+      steps.add(`${cells[k]}-${cells[k - 1]}`);
+    }
+  }
+  return steps;
+}
+
+const gridPoint = (g: number): Point => [grid.points[g][0], grid.points[g][1]];
+
 /** Every route as Fluoria draws it */
 export function roadLines(): RoadLine[] {
   const out: RoadLine[] = [];
   for (const route of pack.routes ?? []) {
+    if (route.group === "searoutes") {
+      const lane = seaLaneCells(route);
+      if (lane.length < 2) continue;
+      // ends at the ports themselves, the rest on sea cell centres
+      const nodes = lane.map(gridPoint);
+      const first = route.points[0];
+      const last = route.points.at(-1);
+      if (first && pack.cells.burg[first[2]]) nodes[0] = nodePoint(first[2]);
+      if (last && pack.cells.burg[last[2]]) nodes[nodes.length - 1] = nodePoint(last[2]);
+      out.push({ id: route.i, group: route.group, cells: lane, line: roundedLine(nodes) });
+      continue;
+    }
     const cells = routeCells(route);
     if (cells.length < 2) continue;
     out.push({ id: route.i, group: route.group, cells, line: roundedLine(cells.map(nodePoint)) });

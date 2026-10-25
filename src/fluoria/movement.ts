@@ -69,44 +69,6 @@ export function reachable(regiment: Pick<Regiment, "n" | "cell">): Map<number, n
   return reach;
 }
 
-/**
- * Whether a map point lies on a sea lane: within about one sea cell of a lane's line. Packed sea cells are huge
- * offshore, so asking which packed cell a lane crosses would put open water on the lane too
- */
-export function laneTest(): (x: number, y: number) => boolean {
-  const reach = grid.spacing * 0.75;
-  const size = grid.spacing * 2;
-  const buckets = new Map<string, [number, number, number, number][]>();
-  const add = (bx: number, by: number, seg: [number, number, number, number]) => {
-    const key = `${bx},${by}`;
-    const list = buckets.get(key) ?? [];
-    list.push(seg);
-    buckets.set(key, list);
-  };
-  for (const route of pack.routes ?? []) {
-    if (route.group !== "searoutes") continue;
-    const pts = route.points ?? [];
-    for (let k = 1; k < pts.length; k++) {
-      const seg: [number, number, number, number] = [pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1]];
-      const x0 = Math.floor((Math.min(seg[0], seg[2]) - reach) / size);
-      const x1 = Math.floor((Math.max(seg[0], seg[2]) + reach) / size);
-      const y0 = Math.floor((Math.min(seg[1], seg[3]) - reach) / size);
-      const y1 = Math.floor((Math.max(seg[1], seg[3]) + reach) / size);
-      for (let bx = x0; bx <= x1; bx++) for (let by = y0; by <= y1; by++) add(bx, by, seg);
-    }
-  }
-  return (x, y) => {
-    for (const [ax, ay, bx, by] of buckets.get(`${Math.floor(x / size)},${Math.floor(y / size)}`) ?? []) {
-      const dx = bx - ax;
-      const dy = by - ay;
-      const len = dx * dx + dy * dy;
-      const t = len ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
-      if (Math.hypot(x - (ax + t * dx), y - (ay + t * dy)) <= reach) return true;
-    }
-    return false;
-  };
-}
-
 /** A fleet moored at a port counts from its harbour; anyone stranded counts from the nearest cell they may use */
 function startCell(regiment: Pick<Regiment, "n" | "cell">): number {
   const { cells } = pack;
