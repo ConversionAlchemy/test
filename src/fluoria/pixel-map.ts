@@ -118,6 +118,7 @@ class PixelMap {
   private overlay = new Container();
   private cellLines = new Container();
   private landLines = new Graphics();
+  private seaLines = new Graphics();
   private hover = new Graphics();
   private roads = new Graphics();
   private roadEdit = new Graphics(); // road mode: the segment under the pointer, the road being drawn
@@ -150,7 +151,7 @@ class PixelMap {
     await this.app.init({ width: 1, height: 1, background: css(Palette.deep), antialias: false, resolution: 1 });
     this.host.append(this.app.canvas);
     for (const layer of this.layers) this.app.stage.addChild(layer);
-    this.cellLines.addChild(this.landLines);
+    this.cellLines.addChild(this.seaLines, this.landLines);
     this.overlay.addChild(
       this.cellLines,
       this.focusShade,
@@ -199,6 +200,7 @@ class PixelMap {
   /** The view changed: repaint every tile, keeping the old ones on screen until the new arrive */
   restyle(): void {
     this.look++;
+    this.cellLines.alpha = this.lineAlpha();
   }
 
   /** Follow Azgaar's zoom and pan, and keep the canvas over the SVG */
@@ -235,7 +237,7 @@ class PixelMap {
   dim(bright: ReadonlySet<number> | null, kind: "land" | "sea" = "land"): void {
     this.shade.clear();
     this.emphasis = Boolean(bright);
-    this.cellLines.alpha = bright ? 0.4 : 0.2;
+    this.cellLines.alpha = this.lineAlpha();
     this.sync();
     if (!bright || !this.model) return;
     const { land } = this.model;
@@ -451,14 +453,23 @@ class PixelMap {
   /** Every cell on the one even grid, land and sea alike */
   private drawCellLines(): void {
     this.landLines.clear();
+    this.seaLines.clear();
     for (let g = 0; g < grid.cells.i.length; g++) {
       const points = grid.cells.v[g].flatMap(v => grid.vertices.p[v]);
       if (points.length < 6) continue;
-      this.landLines.poly(points);
+      (grid.cells.h[g] >= 20 ? this.landLines : this.seaLines).poly(points);
     }
-    // about 1.6 screen pixels: clear enough for tactics, still quiet
-    this.landLines.stroke({ color: 0xf2efe6, width: 1.6 / (viewport.scale || 1), alpha: 1 });
-    this.cellLines.alpha = this.emphasis ? 0.4 : 0.2;
+    // about 1.6 screen pixels on land; at sea half as strong, so the water stays calm
+    const width = 1.6 / (viewport.scale || 1);
+    this.landLines.stroke({ color: 0xf2efe6, width, alpha: 1 });
+    this.seaLines.stroke({ color: 0xf2efe6, width, alpha: 0.5 });
+    this.cellLines.alpha = this.lineAlpha();
+  }
+
+  /** Cell lines: clearer with a unit picked; quieter in the military view, where units and borders lead */
+  private lineAlpha(): number {
+    if (this.emphasis) return 0.4;
+    return getMapView() === "military" ? 0.1 : 0.2;
   }
 
   /** The highest close-up level the zoom calls for */

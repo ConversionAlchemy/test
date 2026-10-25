@@ -23,6 +23,7 @@ const LINGER = 1000; // ms the panel waits after the pointer leaves
 
 let box: HTMLElement | null = null;
 let timer = 0;
+let held = false; // a row is being dragged out: the panel stays until the drag ends
 let dragging: ((row: PeekRow, event: DragEvent) => void) | null = null;
 let dropped: (() => void) | null = null;
 
@@ -58,6 +59,7 @@ function ensureBox(): HTMLElement {
   box.addEventListener("dragstart", event => {
     const row = (event.target as HTMLElement).closest<HTMLElement>(".flPeekRow[data-id]");
     if (!row || !dragging) return;
+    held = true;
     event.dataTransfer?.setData("text/plain", row.dataset.unit!);
     dragging(
       { state: +row.dataset.state!, id: +row.dataset.id!, unit: row.dataset.unit!, count: +row.dataset.count! },
@@ -65,6 +67,7 @@ function ensureBox(): HTMLElement {
     );
   });
   box.addEventListener("dragend", () => {
+    held = false;
     dropped?.();
     hidePeek();
   });
@@ -82,6 +85,23 @@ export function peek(anchor: Element, groups: PeekGroup[], withTotal = true, als
   const el = ensureBox();
   if (!el.isConnected) document.body.append(el);
   let total = 0;
+  if (list.length > 1) {
+    // a stack: one short line per group (its lead unit, name and troops), so the panel stays small
+    el.innerHTML = list
+      .map(g => {
+        const units = present(g.units).sort((a, b) => b.count - a.count);
+        const count = units.reduce((sum, u) => sum + u.count, 0);
+        total += count;
+        const kit = kitOf(units[0].unit);
+        const icon = kit ? `<img src="${iconUrl(kit, colourOf(g.state))}" alt="" />` : "<span></span>";
+        return `<div class="flPeekRow">${icon}<span>${escapeHtml(g.title)}</span><b>${short(count)}</b></div>`;
+      })
+      .join("");
+    if (withTotal)
+      el.insertAdjacentHTML("beforeend", `<div class="flPeekTotal"><span>Total</span><b>${short(total)}</b></div>`);
+    place(el, anchor, also);
+    return;
+  }
   el.innerHTML = list
     .map(g => {
       const lines = present(g.units)
@@ -99,8 +119,10 @@ export function peek(anchor: Element, groups: PeekGroup[], withTotal = true, als
       return `${list.length > 1 ? `<div class="flPeekTitle">${escapeHtml(g.title)}</div>` : ""}${lines}`;
     })
     .join("");
-  if (withTotal && list.length > 1)
-    el.insertAdjacentHTML("beforeend", `<div class="flPeekTotal"><span>Total</span><b>${short(total)}</b></div>`);
+  place(el, anchor, also);
+}
+
+function place(el: HTMLElement, anchor: Element, also?: Element | null): void {
   const r = anchor.getBoundingClientRect();
   const right = Math.max(r.right, also?.getBoundingClientRect().right ?? 0);
   const width = el.offsetWidth;
@@ -111,6 +133,7 @@ export function peek(anchor: Element, groups: PeekGroup[], withTotal = true, als
 
 /** Hide now, or after a moment unless the pointer comes back */
 export function hidePeek(delay = 0): void {
+  if (held) return;
   clearTimeout(timer);
   if (delay) timer = window.setTimeout(() => box?.remove(), delay);
   else box?.remove();

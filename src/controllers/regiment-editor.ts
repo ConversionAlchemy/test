@@ -215,6 +215,15 @@ function bindRegiments(): void {
       const g = (event.target as Element).closest<SVGGElement>("#armies > g > g");
       if (!g?.dataset.state) return;
       event.stopPropagation(); // not the map's double-click zoom
+      // an army standing in one of its own settlements opens there, folded out under the garrison
+      const r = regimentFrom(g);
+      const town = r ? pack.burgs[pack.cells.burg[mainCell(r.cell)]] : null;
+      if (r && town?.i && !town.removed && town.state === r.state && !event.shiftKey) {
+        openParts.add(`b${town.i}:${keyOf(r)}`);
+        openSettlement(town.i);
+        pick(r);
+        return;
+      }
       editRegiment(`#${g.id}`, event.shiftKey);
     });
   }
@@ -596,7 +605,7 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
   if (recruiting === burgId) wireRecruit(el, burg);
 }
 
-/** A settlement made bigger or smaller; a garrison that no longer fits sends the rest home to the capital */
+/** A settlement made bigger or smaller; a garrison that no longer fits marches its extra out as an army */
 function resize(burg: Burg, group: string): void {
   const names = options.map.burgs.groups.filter(g => !g.removed).map(g => g.name);
   if (names.includes(group)) Burgs.setGroup(burg.i, group);
@@ -610,15 +619,35 @@ function resize(burg: Burg, group: string): void {
     const row = kept.pop()!;
     extra[row.unit] = (extra[row.unit] ?? 0) + row.count;
   }
-  if (!Object.keys(extra).length) return;
-  for (const [unit, n] of Object.entries(extra)) {
-    garrison.u[unit] -= n;
-    if (garrison.u[unit] <= 0) delete garrison.u[unit];
+  if (Object.keys(extra).length) {
+    // one army per kind (land, sea, air); what can't stand there goes home
+    const byDomain = new Map<string, Record<string, number>>();
+    for (const [unit, n] of Object.entries(extra)) {
+      const d = domainOfUnit(unit);
+      byDomain.set(d, { ...(byDomain.get(d) ?? {}), [unit]: n });
+    }
+    let home = false;
+    for (const units of byDomain.values()) {
+      const made = hasRoom(burg.state!, burg.cell, slotsOf(units)) ? formArmy(burg, units) : "full";
+      if (typeof made === "string") {
+        for (const [unit, n] of Object.entries(units)) {
+          garrison.u[unit] -= n;
+          if (garrison.u[unit] <= 0) delete garrison.u[unit];
+        }
+        sendHome({ ...garrison, home: 0, garrison: 0 }, units);
+        home = true;
+      }
+    }
+    garrison.a = troopsOf(garrison);
+    tip(
+      home
+        ? t("The extra troops marched out; those with no room went home")
+        : t("The extra troops marched out as an army"),
+      false,
+      "info"
+    );
   }
-  sendHome({ ...garrison, home: 0, garrison: 0 }, extra);
-  garrison.a = troopsOf(garrison);
-  if (!cap) Military.remove(garrison.state, garrison.i);
-  tip(t("Troops that no longer fit went home to the capital"), false, "info");
+  if (!cap && !troopsOf(garrison)) Military.remove(garrison.state, garrison.i);
   Layers.draw("burgIcons", "labels");
 }
 

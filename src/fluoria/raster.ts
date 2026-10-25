@@ -59,6 +59,7 @@ export class PixelRaster {
   coastPx = 0;
   /** The atlas look: pale sea, a crisp dark coastline, no beaches */
   atlas = false;
+  dim = 0; // military view: the ground darkened under the nations' colours, borders and coasts kept bright
   /** State border width in game pixels */
   borderPx = 1;
   /** Optional second level of regions (provinces), outlined with a thin dashed line */
@@ -198,6 +199,11 @@ export class PixelRaster {
 
     let color = t === Terrain.River ? this.river(x, y) : isWater(t) ? this.water(x, y, t) : this.land(x, y, t);
     const i = this.at(x, y);
+    if (this.dim) {
+      color = mixP(color, C.ink, isWater(own) ? this.dim * 0.7 : this.dim);
+      // a pale edge where land meets the sea, so coasts read on the dark ground
+      if (!isWater(own) && this.distanceTo(x, y, false, 1) === 1) color = mixP(color, C.paper, 0.45);
+    }
     if (this.region && !isOpenWater(own)) color = this.political(x, y, color);
     if (this.coastPx && this.region && !isWater(own) && !this.atlas) {
       const band = this.bandColors[this.region[i]];

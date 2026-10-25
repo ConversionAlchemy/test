@@ -180,7 +180,9 @@ export function paintTile(model: WorldModel, job: TileJob): Uint32Array {
   const atlas = job.view !== "terrain" && !military;
   const fill = atlas && !job.outline;
   raster.atlas = atlas;
-  raster.tint = fill ? 0.8 : atlas ? 0 : military ? 0.45 : job.tint;
+  raster.tint = fill ? 0.8 : atlas ? 0 : military ? 0.4 : job.tint;
+  raster.dim = military ? 0.5 : 0; // darkened before the colours, so nations and borders stay bright
+  if (military) raster.bandPx = Math.max(raster.bandPx, job.bandPx + 1);
   raster.flatten = fill ? 0.92 : 0;
   if (atlas) {
     raster.bandPx = 0;
@@ -194,16 +196,7 @@ export function paintTile(model: WorldModel, job: TileJob): Uint32Array {
     const from = (cy + row) * width + cx;
     out.set(raster.pixels.subarray(from, from + w), row * w);
   }
-  if (military) for (let k = 0; k < out.length; k++) out[k] = darken(out[k], 0.5);
   return out;
-}
-
-/** A packed pixel (alpha in the top byte) with its colour scaled towards black */
-function darken(pixel: number, keep: number): number {
-  const r = (pixel & 255) * keep;
-  const g = ((pixel >>> 8) & 255) * keep;
-  const b = ((pixel >>> 16) & 255) * keep;
-  return ((pixel & 0xff000000) | (Math.round(b) << 16) | (Math.round(g) << 8) | Math.round(r)) >>> 0;
 }
 
 /** In a port cell, past a ragged line through its centre on the side facing the sea */
