@@ -35,7 +35,9 @@ export function occupy(state: number, cell: number): void {
 export function enemiesIn(state: number, cell: number): Regiment[] {
   const at = mainCell(cell);
   return living().flatMap(s =>
-    atWar(state, s.i) ? (s.military ?? []).filter(r => !r.hidden && mainCell(r.cell) === at && troopsOf(r)) : []
+    atWar(state, s.i)
+      ? (s.military ?? []).filter(r => (!r.hidden || r.garrison) && mainCell(r.cell) === at && troopsOf(r))
+      : []
   );
 }
 
@@ -73,6 +75,7 @@ export function blocked(regiment: Regiment): Set<number> {
 
 /** Where a beaten regiment falls back to: a free cell beside it, away from the winner, on friendly ground first */
 export function fallBack(loser: Regiment, from: [number, number]): number | null {
+  if (loser.garrison) return loser.cell; // a garrison holds its walls whatever happens
   const at = mainCell(loser.cell);
   const friendly = (cell: number) =>
     ["self", "ally", "vassal", "overlord"].includes(standing(loser.state, holderOf(cell)));
@@ -226,4 +229,45 @@ export function cellLoad(state: number, cell: number, leaving?: Regiment): { slo
 export function hasRoom(state: number, cell: number, slots: number, leaving?: Regiment, units = 1): boolean {
   const load = cellLoad(state, cell, leaving);
   return load.slots + slots <= CELL_SLOTS && load.units + units <= CELL_UNITS;
+}
+
+/** Older maps can hold more than a cell allows: the weakest extras walk to the nearest cells with room, once */
+export function spreadCrowds(): number {
+  let moved = 0;
+  const byCell = new Map<number, Regiment[]>();
+  for (const s of living())
+    for (const r of s.military ?? []) {
+      if (r.hidden) continue;
+      const at = mainCell(r.cell);
+      byCell.set(at, [...(byCell.get(at) ?? []), r]);
+    }
+  for (const [cell, here] of byCell) {
+    const weakestLast = [...here].sort((a, b) => slotsOf(b.u) - slotsOf(a.u));
+    for (const r of weakestLast.reverse()) {
+      const load = cellLoad(r.state, cell);
+      if (load.units <= CELL_UNITS && load.slots <= CELL_SLOTS) break;
+      const spot = nearestRoom(r, cell);
+      if (spot === null) continue;
+      moveToCell(r, spot);
+      moved++;
+    }
+  }
+  return moved;
+}
+
+function nearestRoom(r: Regiment, from: number): number | null {
+  const seen = new Set([from]);
+  let ring = [from];
+  for (let step = 0; step < 6 && ring.length; step++) {
+    const next: number[] = [];
+    for (const cell of ring)
+      for (const n of neighbours(cell)) {
+        if (seen.has(n)) continue;
+        seen.add(n);
+        next.push(n);
+        if (canStand(r, n) && !enemiesIn(r.state, n).length && hasRoom(r.state, n, slotsOf(r.u))) return n;
+      }
+    ring = next;
+  }
+  return null;
 }

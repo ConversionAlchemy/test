@@ -2,7 +2,7 @@
 // "Zundinar (10,489), Kiramunz, Skurnax, Tropical Rainforest, 72°F, 13 ft"
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
-import { convertTemperature, getHeight } from "@/utils/unitUtils";
+import { convertTemperature, getArea, getAreaUnit, getHeight } from "@/utils/unitUtils";
 import { focusedNation, STANDING_LABEL, standing } from "./nation";
 import { isPort } from "./one-grid";
 import { ownerText } from "./owners";
@@ -19,6 +19,18 @@ function laneCells(): Set<number> {
   for (const step of laneSteps()) for (const g of step.split("-")) cells.add(Number(g));
   lanes = { key, cells };
   return cells;
+}
+
+/** A grid cell's land size in the map's area unit */
+function cellArea(g: number): string {
+  const p = grid.cells.v[g].map(v => grid.vertices.p[v]);
+  let twice = 0;
+  for (let k = 0; k < p.length; k++) {
+    const [x1, y1] = p[k];
+    const [x2, y2] = p[(k + 1) % p.length];
+    twice += x1 * y2 - x2 * y1;
+  }
+  return `${Math.round(getArea(Math.abs(twice) / 2)).toLocaleString()} ${getAreaUnit()}`;
 }
 
 const join = (parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(", ");
@@ -67,7 +79,8 @@ export function cellLine(cell: number | undefined, g: number): string {
       !port && biome,
       !living && rural >= 1 && `${t("pop.")} ${people(rural)}`,
       temperature,
-      !port && getHeight(cells.h[at])
+      !port && getHeight(cells.h[at]),
+      cellArea(g)
     ])
   );
 }

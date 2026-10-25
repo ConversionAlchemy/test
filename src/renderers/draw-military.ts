@@ -11,7 +11,19 @@ import {
   troopsOf
 } from "@/fluoria/forces/forces";
 import { KIT } from "@/fluoria/forces/kit";
-import { CARD, type CardFace, type CardSize, cardUrl, frameUrl, STRIP, short, tabUrl } from "@/fluoria/forces/pixels";
+import {
+  CARD,
+  type CardFace,
+  type CardSize,
+  cardUrl,
+  frameUrl,
+  STRIP,
+  settlementCardUrl,
+  short,
+  tabUrl
+} from "@/fluoria/forces/pixels";
+import { GARRISON_SLOTS, sizeOf } from "@/fluoria/settlement-size";
+import { garrisonOf } from "@/fluoria/settlements";
 import type { Regiment } from "../generators/military-generator";
 import { rn } from "../utils";
 
@@ -160,6 +172,7 @@ export const drawMilitary = (): void => {
     const army = armyGroup(state.i);
     for (const regiment of visible) army.append(regimentGroup(regiment, state.i));
   }
+  drawSettlements(armies);
   TIME && console.timeEnd("drawMilitary");
 };
 
@@ -187,3 +200,39 @@ export const moveRegiment = (regiment: Regiment, x: number, y: number): void => 
     .transition(transition().duration(duration).ease(easeSinInOut) as never)
     .tween("move", () => (t: number) => placeRegiment(el, fromX + (x - fromX) * t, fromY + (y - fromY) * t));
 };
+
+/** Towns, cities and capitals carry a pale card of their garrison; it stays put, a click opens the settlement */
+export function drawSettlements(armies = document.getElementById("armies")): void {
+  if (!armies) return;
+  let layer = armies.querySelector<SVGGElement>(":scope > g#flSettlements");
+  if (!layer) {
+    layer = document.createElementNS(SVG, "g");
+    layer.id = "flSettlements";
+  }
+  armies.prepend(layer); // units stand above settlements
+  layer.replaceChildren();
+  for (const burg of pack.burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.state) continue;
+    const kind = sizeOf(burg);
+    if (!kind) continue;
+    const garrison = garrisonOf(burg);
+    const troops = garrison ? troopsOf(garrison) : 0;
+    const used = garrison ? slotsOf(garrison.u) : 0;
+    const cap = GARRISON_SLOTS[kind];
+    const g = document.createElementNS(SVG, "g");
+    g.dataset.burg = String(burg.i);
+    g.dataset.kind = kind;
+    if (!troops) g.dataset.empty = "1";
+    g.classList.add("flSettle");
+    for (const stage of ["far", "close"] as CardSize[]) {
+      const image = add(g, "image", stage === "far" ? "flFar" : "flClose");
+      image.setAttribute("href", settlementCardUrl(colourOf(burg.state), stage, kind, troops, used, cap));
+      image.setAttribute("preserveAspectRatio", "none");
+    }
+    const sum = add(g, "text", "flTotal");
+    sum.setAttribute("text-anchor", "middle");
+    sum.textContent = troops ? short(troops) : "";
+    placeRegiment(g, burg.x, burg.y);
+    layer.append(g);
+  }
+}

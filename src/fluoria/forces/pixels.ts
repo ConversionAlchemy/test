@@ -67,7 +67,8 @@ const DIGITS: Record<string, string[]> = {
   "9": ["###", "#.#", "###", "..#", "###"],
   K: ["#.#", "#.#", "##.", "#.#", "#.#"],
   M: ["#.#", "###", "###", "#.#", "#.#"],
-  ".": [".", ".", ".", ".", "#"]
+  ".": [".", ".", ".", ".", "#"],
+  "/": ["..#", "..#", ".#.", "#..", "#.."]
 };
 const textWidth = (text: string) => [...text].reduce((w, c) => w + (DIGITS[c]?.[0].length ?? 3) + 1, -1);
 
@@ -176,6 +177,43 @@ export function cardUrl(face: CardFace, size: CardSize): string {
   });
 }
 
+export type SettlementKind = "capital" | "city" | "town";
+
+// a town is a small dot, a city a large one, the capital a solid square
+const SETTLEMENT_SYMBOL: Record<SettlementKind, string[]> = {
+  town: [".###.", "#####", "#####", "#####", ".###."],
+  city: ["..###..", ".#####.", "#######", "#######", "#######", ".#####.", "..###.."],
+  capital: ["#######", "#######", "#######", "#######", "#######", "#######", "#######"]
+};
+
+/** A settlement's card: pale, its size's symbol; close in, troops at the top and slots used of its capacity */
+export function settlementCardUrl(
+  colour: string,
+  size: CardSize,
+  kind: SettlementKind,
+  troops: number,
+  used: number,
+  cap: number
+): string {
+  return cached(`s|${size}|${colour}|${kind}|${troops}|${used}|${cap}`, () => {
+    const n = CARD[size];
+    const p = new Pixels(n, n);
+    const fill = pale(colour);
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++) p.dot(x, y, x === 0 || y === 0 || x === n - 1 || y >= n - 3 ? "#000" : fill);
+    const bar = cap ? Math.round((used / cap) * (n - 2)) : 0;
+    for (let x = 1; x <= bar; x++) p.dot(x, n - 2, "#e8e5d9");
+    const symbol = SETTLEMENT_SYMBOL[kind];
+    const at = Math.floor((n - symbol.length) / 2);
+    p.art(symbol, at, size === "far" ? at - 1 : at, { "#": "#000" });
+    if (size === "far") return p.element;
+    const text = short(troops);
+    if (troops) p.text(text, n - 3 - textWidth(text), 2, "#000", false);
+    p.text(`${used}/${cap}`, 2, n - 9, "#000", false);
+    return p.element;
+  });
+}
+
 /** A white frame over a card's edge pixels: shows a card is selected */
 export function frameUrl(size: CardSize, lift: number): string {
   return cached(`f|${size}|${lift}`, () => {
@@ -187,6 +225,35 @@ export function frameUrl(size: CardSize, lift: number): string {
       p.dot(0, lift + k, "#fff");
       p.dot(n - 1, lift + k, "#fff");
     }
+    return p.element;
+  });
+}
+
+const STALL = [
+  ".................",
+  ".................",
+  "#################",
+  "#.#.#.#.#.#.#.#.#",
+  "#################",
+  ".#.#.#.#.#.#.#.#.",
+  ".................",
+  "..#...........#..",
+  "..#...........#..",
+  "..#..#######..#..",
+  "..#..#.....#..#..",
+  "..#..#.....#..#..",
+  "..#..#######..#..",
+  "..#...........#..",
+  "#################",
+  "#################",
+  "................."
+];
+
+/** A market stall, for the Market building */
+export function stallUrl(colour: string): string {
+  return cached(`stall|${colour}`, () => {
+    const p = new Pixels(17, 17);
+    p.art(STALL, 0, 0, { "#": colour });
     return p.element;
   });
 }

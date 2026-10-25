@@ -40,6 +40,8 @@ export interface Regiment {
   cargo?: Record<string, number>; // Fluoria: land units a transport carries
   full?: number; // Fluoria: power when last at full strength
   named?: boolean; // Fluoria: renamed by the user, so its name shows on the map
+  garrison?: number; // Fluoria: the settlement whose garrison this is (kept off the map)
+  home?: number; // Fluoria: the settlement its troops were raised from
 }
 
 interface Platoon {

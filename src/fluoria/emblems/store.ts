@@ -3,6 +3,7 @@ import { CustomIcons, IMAGE_FRAME } from "@/components/icons";
 import { Layers } from "@/components/layers";
 import { EmblemRenderer } from "@/renderers/emblems/renderer";
 import { fluoriaEmblems, frame, SIZE } from "./art";
+import { randomEmblem } from "./patterns";
 
 export const iconId = (stateId: number) => `custom-px-s${stateId}`;
 
@@ -58,14 +59,15 @@ export function setEmblem(stateId: number, px: string[], redraw = true): void {
   Layers.draw("emblems");
 }
 
-/** Every nation named like a Fluoria nation and still without pixel art gets its emblem */
+/** Every nation still without pixel art gets one, once: its Fluoria emblem by name, else one made from its colour */
 export function applyFluoriaEmblems(): number {
   const art = fluoriaEmblems();
   let applied = 0;
   for (const state of pack.states) {
-    if (!state.i || state.removed || CustomIcons.get(iconId(state.i))) continue;
-    const px = art.get(state.name.trim().toLowerCase());
-    if (!px) continue;
+    const own = state.coa && "icon" in state.coa && state.coa.icon === iconId(state.i);
+    if (!state.i || state.removed || (own && CustomIcons.get(iconId(state.i)))) continue;
+    const seed = state.i * 7919 + (Number(String(options.map.seed).slice(-6)) || 0);
+    const px = art.get(state.name.trim().toLowerCase()) ?? randomEmblem(state.color?.slice(0, 7) ?? "", seed);
     setEmblem(state.i, px, false);
     applied++;
   }

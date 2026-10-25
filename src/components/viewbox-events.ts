@@ -60,7 +60,7 @@ const GRAND_EDITORS: Record<string, Opener> = {
 };
 
 const GREAT_EDITORS: Record<string, Opener> = {
-  burgIcons: target => Controllers.BurgEditor.open(Number(target.dataset.id)),
+  burgIcons: target => Controllers.RegimentEditor.settlement(Number(target.dataset.id)), // Fluoria: the settlement folder
   markers: target => Controllers.MarkersEditor.open(undefined, target),
   ruler: () => Controllers.MeasurersEditor.open(),
   armies: (_target, parent) =>
@@ -88,7 +88,7 @@ export function openEditor(element: Element): boolean {
       const burgEditor = findEl("burgEditor");
       const isBurgEditorOpen = burgEditor?.dataset.burgId === String(id);
       if (isBurgEditorOpen) Controllers.LabelsEditor.open(type, id);
-      else Controllers.BurgEditor.open(id);
+      else Controllers.RegimentEditor.settlement(id);
     } else Controllers.LabelsEditor.open(type, id);
     return true;
   }

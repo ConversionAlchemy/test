@@ -31,6 +31,7 @@ export function raiseBeside(like: Regiment, units: Units, name: string): Regimen
 /** Move a slot's worth of troops out of a regiment into a new one of its own in a cell */
 export function splitOff(from: Regiment, list: List, unit: string, count: number, cell: number): Regiment | string {
   const made = raise(from.state, cell, {});
+  made.home = from.home ?? from.garrison;
   const why = shift(from, list, unit, count, made, "u");
   if (why) {
     Military.remove(made.state, made.i);
@@ -127,4 +128,35 @@ export function encampRefusal(regiment: Regiment): string {
       (state.military ?? []).some(other => close.has(mainCell(other.cell)))
   );
   return enemy ? "Can't encamp with an enemy beside you" : "";
+}
+
+/** Edit one slot row: another unit type (any tier) and how many; refused changes leave it as it was */
+export function changeRow(
+  regiment: Regiment,
+  list: List,
+  unit: string,
+  count: number,
+  next: string,
+  nextCount: number
+): string {
+  if (next === unit) return setRow(regiment, list, unit, count, nextCount);
+  const units = (list === "u" ? regiment.u : regiment.cargo) as Units | undefined;
+  if (!units) return "";
+  const before = { ...units };
+  const fullBefore = regiment.full;
+  setRow(regiment, list, unit, count, 0);
+  const n = Math.max(1, Math.min(Math.round(nextCount), perSlot(next)));
+  const why = refusal(regiment, list, next, n);
+  if (why) {
+    if (list === "u") regiment.u = before;
+    else regiment.cargo = before;
+    regiment.full = fullBefore;
+    regiment.a = troopsOf(regiment);
+    return why;
+  }
+  const into = (list === "u" ? regiment.u : regiment.cargo) as Units;
+  into[next] = (into[next] ?? 0) + n;
+  if (list === "u" && regiment.full !== undefined) regiment.full += powerOf({ [next]: n });
+  regiment.a = troopsOf(regiment);
+  return "";
 }

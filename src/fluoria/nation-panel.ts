@@ -3,6 +3,7 @@
 // While it is open the nation is in focus on the map
 import { confirmationDialog } from "@/components/dialog/dialog-helpers";
 import { Layers } from "@/components/layers";
+import { tip } from "@/components/tooltips";
 import { zoomTo } from "@/components/zoom";
 import { Controllers } from "@/controllers";
 import type { Regiment } from "@/generators/military-generator";
@@ -14,11 +15,13 @@ import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
 import { si } from "@/utils/unitUtils";
 import { openStudio } from "./emblems/studio";
-import { slotsOf } from "./forces/forces";
+import { cardPower, flagship, isTransport, kitOf, shift, troopsOf } from "./forces/forces";
+import { iconUrl } from "./forces/pixels";
 import { focusedNation, type Standing, setFocus, standing } from "./nation";
 import { cellCentre } from "./one-grid";
 import { cellsOfState } from "./owners";
 import { NATION_COLOURS } from "./palette";
+import { sendHome } from "./settlements";
 import { integrate, occupiedBy, tidyOccupations } from "./war";
 
 type Tab = "overview" | "economy" | "diplomacy" | "military" | "notes";
@@ -162,8 +165,8 @@ function render(): void {
   const burgs = pack.burgs.filter(b => b?.i && !b.removed && b.state === id);
   const provinces = (pack.provinces ?? []).filter(p => p && "i" in p && p.i && !p.removed && p.state === id);
   const regiments = state.military ?? [];
-  const army = regiments.filter(r => !r.n).reduce((sum, r) => sum + r.a, 0);
-  const fleets = regiments.filter(r => r.n).length;
+  const troops = regiments.reduce((sum, r) => sum + troopsOf(r), 0);
+  const power = regiments.reduce((sum, r) => sum + cardPower(r), 0);
 
   panel.classList.toggle("np-min", minimised);
   panel.innerHTML = /* html */ `
@@ -201,7 +204,7 @@ function render(): void {
       ${stat(t("Settlements"), String(burgs.length))}
       ${stat(t("Provinces"), String(provinces.length))}
       ${stat(t("Treasury"), money(state.treasury || 0), "gold")}
-      ${stat(t("Military"), `${si(army)} · ${fleets} ${t("fleets")}`, "wide", "military")}
+      ${stat(t("Military"), `${si(troops)} (${si(power)})`, "wide", "military")}
       ${stat(t("Vassals"), String(vassals(id).length))}
     </div>
     <nav class="np-tabs">
@@ -212,6 +215,7 @@ function render(): void {
       <button type="button" data-act="charts">▥ ${t("Charts")}</button>
       <button type="button" data-act="editor">⚙ ${t("Full editor")}</button>
     </footer>`;
+  wireMilitary();
 }
 
 const stat = (label: string, value: string, kind = "", open = "") =>
@@ -379,18 +383,147 @@ function deal(id: number, other: number, act: string): void {
   redraw();
 }
 
+// the Military tab is the game master's desk: every army and garrison, open to see and drag units between them
+const openArmies = new Set<string>();
+let armySort: "power" | "troops" | "name" = "power";
+let armyFilter = "all";
+const CATEGORIES: [string, string][] = [
+  ["all", "All"],
+  ["infantry", "Infantry"],
+  ["assault", "Assault"],
+  ["cavalry", "Cavalry"],
+  ["armour", "Armour"],
+  ["naval", "Ships"],
+  ["air", "Airships"]
+];
+
+const categoryOf = (unit: string) => {
+  const kit = kitOf(unit);
+  if (!kit) return "infantry";
+  return kit.domain === "land" ? kit.role : kit.domain;
+};
+
 function military(regiments: Regiment[]): string {
-  const row = (r: Regiment) => /* html */ `<div class="np-row">
-      <a data-regiment="${r.i}">${r.n ? "≋" : "⚔"} ${escapeHtml(r.name)}</a>
-      <span>${si(r.a)} · ${slotsOf(r.u)} ${t("slots")}</span>
-      <button type="button" data-locate="${r.i}" aria-label="${t("Locate")}">⌖</button>
-    </div>`;
+  const id = focusedNation();
+  const colour = pack.states[id]?.color?.slice(0, 7) ?? "#999999";
+  const matches = (r: Regiment) =>
+    armyFilter === "all" || Object.keys({ ...r.u, ...(r.cargo ?? {}) }).some(u => categoryOf(u) === armyFilter);
+  const sorted = (list: Regiment[]) =>
+    [...list].sort((a, b) =>
+      armySort === "name"
+        ? a.name.localeCompare(b.name)
+        : armySort === "troops"
+          ? b.a - a.a
+          : cardPower(b) - cardPower(a)
+    );
+  const unitRows = (r: Regiment) =>
+    Object.entries({ ...r.u, ...(r.cargo ?? {}) })
+      .filter(([, n]) => n > 0)
+      .map(([unit, n]) => {
+        const kit = kitOf(unit);
+        const icon = kit ? `<img src="${iconUrl(kit, colour)}" alt="" />` : "";
+        return `<div class="np-unit" draggable="true" data-from="${r.i}" data-unit="${escapeHtml(unit)}">${icon}<span>${escapeHtml(unit)}</span><b>${n.toLocaleString()}</b></div>`;
+      })
+      .join("");
+  const army = (r: Regiment) => {
+    const key = String(r.i);
+    const lead = kitOf(flagship(r) ?? "");
+    const icon = lead ? `<img src="${iconUrl(lead, colour)}" alt="" />` : "";
+    return /* html */ `<details class="np-army" data-army="${r.i}" ${openArmies.has(key) ? "open" : ""}>
+      <summary draggable="true" data-army-drag="${r.i}">${icon}
+        <input class="np-army-name" data-rename="${r.i}" value="${escapeHtml(r.name)}" spellcheck="false" />
+        <span class="np-army-size">${si(r.a)} (${cardPower(r)})</span>
+        <button type="button" data-locate="${r.i}" aria-label="${t("Locate")}" data-tip="${t("Locate")}">⌖</button>
+        <button type="button" data-release="${r.i}" aria-label="${t("Release")}" data-tip="${t("Release: troops go home")}">✕</button>
+      </summary>
+      <div class="np-army-units">${unitRows(r) || `<p class="np-empty">${t("No units")}</p>`}</div>
+    </details>`;
+  };
+  const armies = sorted(regiments.filter(r => !r.garrison && matches(r)));
+  const garrisons = sorted(regiments.filter(r => r.garrison && matches(r)));
   return /* html */ `
-    ${regiments.map(row).join("") || `<p class="np-empty">${t("No regiments")}</p>`}
+    <div class="np-tools">
+      <select data-army-filter>${CATEGORIES.map(([v, l]) => `<option value="${v}" ${v === armyFilter ? "selected" : ""}>${t(l)}</option>`).join("")}</select>
+      <select data-army-sort>${[
+        ["power", "Power"],
+        ["troops", "Troops"],
+        ["name", "Name"]
+      ]
+        .map(([v, l]) => `<option value="${v}" ${v === armySort ? "selected" : ""}>${t("Sort")}: ${t(l)}</option>`)
+        .join("")}</select>
+    </div>
+    <h3>${t("Armies")}</h3>
+    ${armies.map(army).join("") || `<p class="np-empty">${t("No armies")}</p>`}
+    <h3>${t("Garrisons")}</h3>
+    ${garrisons.map(army).join("") || `<p class="np-empty">${t("No garrisons")}</p>`}
     <div class="np-pair">
-      <button type="button" data-act="add-regiment">+ ${t("Add regiment")}</button>
-      <button type="button" data-act="military">${t("Military overview")}</button>
+      <button type="button" data-act="add-regiment">+ ${t("Add Army")}</button>
+      <button type="button" data-act="military">${t("Military Overview")}</button>
     </div>`;
+}
+
+/** The Military tab's dragging: units onto another army or garrison, armies into a new order */
+function wireMilitary(): void {
+  if (!panel || tab !== "military") return;
+  const id = focusedNation();
+  let carried: { from: number; unit: string } | { army: number } | null = null;
+  for (const d of panel.querySelectorAll<HTMLDetailsElement>("details.np-army"))
+    d.addEventListener("toggle", () => {
+      if (d.open) openArmies.add(d.dataset.army!);
+      else openArmies.delete(d.dataset.army!);
+    });
+  for (const row of panel.querySelectorAll<HTMLElement>(".np-unit"))
+    row.addEventListener("dragstart", event => {
+      carried = { from: Number(row.dataset.from), unit: row.dataset.unit! };
+      event.dataTransfer?.setData("text/plain", row.dataset.unit!);
+      event.stopPropagation();
+    });
+  for (const s of panel.querySelectorAll<HTMLElement>("summary[data-army-drag]"))
+    s.addEventListener("dragstart", event => {
+      carried = { army: Number(s.dataset.armyDrag) };
+      event.dataTransfer?.setData("text/plain", s.dataset.armyDrag!);
+    });
+  for (const d of panel.querySelectorAll<HTMLElement>("details.np-army")) {
+    d.addEventListener("dragover", event => {
+      if (!carried) return;
+      event.preventDefault();
+      d.classList.add("np-over");
+    });
+    d.addEventListener("dragleave", () => d.classList.remove("np-over"));
+    d.addEventListener("drop", event => {
+      event.preventDefault();
+      d.classList.remove("np-over");
+      const to = regimentOf(Number(d.dataset.army));
+      if (!carried || !to) return;
+      if ("army" in carried) {
+        const list = pack.states[id].military ?? [];
+        const moving = list.find(r => r.i === (carried as { army: number }).army);
+        if (moving && moving !== to) {
+          list.splice(list.indexOf(moving), 1);
+          list.splice(list.indexOf(to), 0, moving);
+        }
+      } else {
+        const from = regimentOf(carried.from);
+        if (from && from !== to) {
+          const list = from.u[carried.unit] ? "u" : "cargo";
+          const why = shift(
+            from,
+            list,
+            carried.unit,
+            (list === "u" ? from.u : (from.cargo ?? {}))[carried.unit] ?? 0,
+            to,
+            isTransport(to) ? "cargo" : "u"
+          );
+          if (why) tip(why, false, "error");
+          if (!troopsOf(from) && !isTransport(from) && !from.garrison) Military.remove(from.state, from.i);
+        }
+      }
+      carried = null;
+      drawMilitary();
+      Layers.draw("military");
+      render();
+    });
+  }
 }
 
 function notes(id: number): string {
@@ -440,12 +573,40 @@ function onClick(event: MouseEvent): void {
     if (centre) flyTo(centre[0], centre[1], 4);
     return;
   }
+  if (el.closest(".np-army-name")) {
+    event.preventDefault(); // typing a name, not folding the army
+    return;
+  }
+  const release = el.closest<HTMLElement>("[data-release]");
+  if (release) {
+    event.preventDefault();
+    const r = regimentOf(Number(release.dataset.release));
+    if (!r) return;
+    confirmationDialog({
+      title: t("Release"),
+      message: t("Release {{name}}? Its troops go home to the settlement they came from.", { name: r.name }),
+      confirm: t("Release"),
+      onConfirm: () => {
+        sendHome(r, { ...r.u, ...(r.cargo ?? {}) });
+        if (r.garrison) {
+          r.u = {};
+          r.a = 0;
+        } else Military.remove(r.state, r.i);
+        drawMilitary();
+        Layers.draw("military");
+        render();
+      }
+    });
+    return;
+  }
   const unit = el.closest<HTMLElement>("[data-regiment], [data-locate]");
   if (unit) {
+    if (unit.closest("summary")) event.preventDefault();
     const r = regimentOf(Number(unit.dataset.regiment ?? unit.dataset.locate));
     if (!r) return;
     flyTo(r.x, r.y, 6);
-    if (unit.dataset.regiment) Controllers.RegimentEditor.open(`#regiment${r.state}-${r.i}`);
+    if (r.garrison) Controllers.RegimentEditor.settlement(r.garrison);
+    else if (unit.dataset.regiment) Controllers.RegimentEditor.open(`#regiment${r.state}-${r.i}`);
     return;
   }
   const act = el.closest<HTMLElement>("[data-act]")?.dataset.act;
@@ -544,6 +705,20 @@ function onChange(event: Event): void {
   const other = el.closest<HTMLElement>("[data-deal]");
   if (other && el instanceof HTMLSelectElement) {
     if (el.value) deal(id, Number(other.dataset.deal), el.value);
+    return;
+  }
+  if (el instanceof HTMLInputElement && el.dataset.rename) {
+    const r = regimentOf(Number(el.dataset.rename));
+    if (r && el.value.trim()) {
+      Military.rename(r.state, r.i, el.value.trim());
+      drawMilitary();
+    }
+    return;
+  }
+  if (el instanceof HTMLSelectElement && (el.dataset.armyFilter !== undefined || el.dataset.armySort !== undefined)) {
+    if (el.dataset.armyFilter !== undefined) armyFilter = el.value;
+    else armySort = el.value as typeof armySort;
+    render();
     return;
   }
   const field = (el as HTMLElement).dataset?.field;

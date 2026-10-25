@@ -6,6 +6,8 @@ import { Layers } from "@/components/layers";
 import { tip } from "@/components/tooltips";
 import { kitOf, powerOf } from "@/fluoria/forces/forces";
 import { iconUrl } from "@/fluoria/forces/pixels";
+import { returnView } from "@/fluoria/map-view";
+import { standing } from "@/fluoria/nation";
 import { mainCell, neighbours } from "@/fluoria/one-grid";
 import { clearLosses, fallBack, moveToCell, type Surrender, surrender } from "@/fluoria/war";
 import { moveRegiment } from "@/renderers/draw-military";
@@ -68,6 +70,7 @@ function open(attacker: Regiment, defender: Regiment): void {
   addHeaders();
   addRegimentToSide("attackers", attacker);
   addRegimentToSide("defenders", defender);
+  joinNearby(attacker, defender);
   battle.place = definePlace();
   defineType();
   battle.name = defineBattleName();
@@ -83,6 +86,52 @@ function open(attacker: Regiment, defender: Regiment): void {
     position: { my: "center", at: "center", of: "#map" },
     close: cancelResults
   });
+  ensureEl("battleScreen").addEventListener("change", leaveBattle);
+}
+
+/** Fluoria: everyone in the two cells and the cells around them joins, each beside its friends */
+function joinNearby(attacker: Regiment, defender: Regiment): void {
+  const a = mainCell(attacker.cell);
+  const d = mainCell(defender.cell);
+  const zone = new Set([a, d, ...neighbours(a), ...neighbours(d)]);
+  const friend = (x: number, y: number) => ["self", "ally", "vassal", "overlord"].includes(standing(x, y));
+  for (const state of pack.states) {
+    if (!state.i || state.removed) continue;
+    for (const r of state.military ?? []) {
+      const there = mainCell(r.cell);
+      // garrisons fight only for their own settlement's cell
+      if (r === attacker || r === defender || !r.a || !zone.has(there)) continue;
+      if (r.hidden && !(r.garrison && (there === a || there === d))) continue;
+      const side = friend(r.state, attacker.state) ? "attackers" : friend(r.state, defender.state) ? "defenders" : null;
+      if (!side || (side === "attackers" && friend(r.state, defender.state))) continue;
+      r.px = r.x;
+      r.py = r.y;
+      addRegimentToSide(side, r);
+    }
+  }
+}
+
+/** Unticking a regiment before the first round sends it home from the battle */
+function leaveBattle(event: Event): void {
+  const box = event.target as HTMLInputElement;
+  const b = battle;
+  if (!b || !box.matches("input[data-leave]") || box.checked) return;
+  const side = box.dataset.side as Side;
+  const k = Number(box.dataset.leave);
+  if (b.iteration || k === 0) {
+    box.checked = true;
+    return;
+  }
+  const [r] = b[side].regiments.splice(k, 1);
+  b[side].distances.splice(k, 1);
+  if (r) {
+    delete r.casualties;
+    delete r.survivors;
+    delete r.px;
+    delete r.py;
+  }
+  renderSide(side);
+  calculateStrength(side);
 }
 
 function renderDialog(): void {
@@ -580,7 +629,13 @@ function renderSide(side: Side): void {
     })
     .join("");
   const nations = [...new Set(regiments.map(r => pack.states[r.state]?.name))].join(", ");
-  const names = regiments.map(r => escapeHtml(r.name)).join(", ");
+  const fixed = b.iteration > 0;
+  const names = regiments
+    .map(
+      (r, k) =>
+        `<label class="flJoin"><input type="checkbox" checked data-side="${side}" data-leave="${k}" ${k === 0 || fixed ? "disabled" : ""} />${escapeHtml(r.name)}</label>`
+    )
+    .join(" ");
   ensureEl(side === "attackers" ? "battleAttackers" : "battleDefenders").innerHTML = /* html */ `
     <caption>${escapeHtml(nations)} · ${names}</caption>
     <thead><tr><th></th><th>${t("Unit")}</th><th>${t("Start")}</th><th>${t("Lost")}</th><th>${t("Left")}</th></tr></thead>
@@ -1453,6 +1508,7 @@ function closeBattleScreen(): void {
 
 function cleanData(): void {
   customization = 0; // exit edit mode
+  returnView(); // back to the view the user had before attacking
 
   // clean temp data
   if (battle) {
