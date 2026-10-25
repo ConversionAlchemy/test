@@ -287,3 +287,27 @@ export function formArmy(burg: Burg, units: Units): Regiment | string {
 }
 
 export const regimentHome = (r: Regiment) => living(r.home ?? 0);
+
+/** Station a regiment's troops in a settlement's garrison: one of its own nation's, with room; ships need a harbour */
+export function station(r: Regiment, burg: Burg): string {
+  if (burg.state !== r.state) return "Only your own settlements take your troops";
+  if (!sizeOf(burg)) return "Only towns, cities and capitals keep a garrison";
+  if (slotsOf(r.cargo)) return "Unload the cargo first";
+  const units = Object.keys(r.u).filter(u => r.u[u] > 0);
+  if (units.some(u => domainOfUnit(u) === "naval") && !burg.port) return "Ships need a harbour";
+  if (room(burg) < slotsOf(r.u)) return `The garrison has room for ${room(burg)} slots`;
+  const garrison = ensureGarrison(burg);
+  if (!garrison) return "No garrison here";
+  for (const u of units) garrison.u[u] = (garrison.u[u] ?? 0) + r.u[u];
+  garrison.a = troopsOf(garrison);
+  Military.remove(r.state, r.i);
+  return "";
+}
+
+/** The settlement a map element stands for: its garrison count, its symbol or its name */
+export function burgOfElement(el: Element | null): Burg | null {
+  const own = el?.closest<SVGElement>(".flSettle, #burgIcons use[data-id], #labels text[data-label-type='burg']");
+  if (!own) return null;
+  const id = Number(own.dataset.burg ?? own.dataset.id);
+  return living(id);
+}

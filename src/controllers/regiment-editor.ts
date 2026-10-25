@@ -40,6 +40,7 @@ import {
   type Building,
   build,
   buildRefusal,
+  burgOfElement,
   demolish,
   ensureGarrison,
   formArmy,
@@ -55,6 +56,7 @@ import {
   recruitLimit,
   sendFunds,
   sendHome,
+  station,
   unitName
 } from "@/fluoria/settlements";
 import { hidePeek, peek, regimentGroup } from "@/fluoria/unit-peek";
@@ -170,15 +172,7 @@ function bindRegiments(): void {
     // hovering a card shows what's inside; a closed stack shows all of its units
     node.addEventListener("mouseover", event => {
       if ((event as MouseEvent).buttons) return;
-      const settle = (event.target as Element).closest<SVGGElement>(".flSettle");
-      if (settle) {
-        const burg = pack.burgs[Number(settle.dataset.burg)];
-        const garrison = burg && garrisonOf(burg);
-        const card = settle.querySelector(`image.${node.dataset.flStage === "far" ? "flFar" : "flClose"}`) ?? settle;
-        if (garrison) peek(card, [{ ...regimentGroup(garrison), title: burg.name ?? "" }]);
-        else hidePeek();
-        return;
-      }
+      if ((event.target as Element).closest(".flSettle")) return; // a settlement's own hover shows it
       const g = (event.target as Element).closest<SVGGElement>("#armies > g > g");
       const regiment = regimentFrom(g);
       if (!g || !regiment || (event.target as Element).closest(".flTab")) return hidePeek();
@@ -220,6 +214,31 @@ function bindRegiments(): void {
       editRegiment(`#${g.id}`, event.shiftKey);
     });
   }
+}
+
+/** The settlement under a screen point: its count, symbol or name */
+const settlementAt = (x: number, y: number) => {
+  for (const el of document.elementsFromPoint(x, y)) {
+    const burg = burgOfElement(el);
+    if (burg) return burg;
+  }
+  return null;
+};
+
+/** A regiment walks into its settlement's garrison, if it can reach it */
+function stationIn(r: Regiment, burg: Burg): void {
+  const there = mainCell(burg.cell);
+  if (mainCell(r.cell) !== there && !reachable(r).has(there)) {
+    report(t("Out of reach this move"));
+    return;
+  }
+  const why = station(r, burg);
+  if (why) {
+    report(why);
+    return;
+  }
+  tip(t("{{name}} joins the garrison of {{town}}", { name: r.name, town: burg.name ?? "" }), false, "success");
+  changed();
 }
 
 /** The front regiment of the open stack */
@@ -686,6 +705,7 @@ function closeEnough(from: Regiment, fromList: List, to: Regiment, toList: List)
   if (toList === "cargo") return canLoad(from, to) ? "" : t("Move beside the transport first");
   if (fromList === "cargo")
     return landingCells(from).includes(mainCell(to.cell)) ? "" : t("Land beside the transport first");
+  if (to.garrison && neighbours(mainCell(to.cell)).includes(mainCell(from.cell))) return "";
   return mainCell(from.cell) === mainCell(to.cell) ? "" : t("Both groups must stand in the same cell");
 }
 
@@ -701,8 +721,15 @@ function dropOnMap(event: DragEvent): void {
   const from = carried && regimentOf(carried.state, carried.id);
   if (!carried || !from) return;
   event.preventDefault();
-  const target = regimentAt(event.clientX, event.clientY);
   const row = carried;
+  const town = settlementAt(event.clientX, event.clientY);
+  if (town && town.state === from.state) {
+    carried = null;
+    const garrison = ensureGarrison(town);
+    if (garrison && garrison !== from) report(moveRow(from, row, garrison, "u"));
+    return;
+  }
+  const target = regimentAt(event.clientX, event.clientY);
   carried = null;
   if (target && target !== from) {
     report(moveRow(from, row, target, isTransport(target) && domainOfUnit(row.unit) === "land" ? "cargo" : "u"));
@@ -1014,6 +1041,12 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
   event.on("end", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
     if (!started) return;
     const source = dragEvent.sourceEvent as MouseEvent | undefined;
+    const town = source ? settlementAt(source.clientX, source.clientY) : null;
+    if (town && town.state === reg.state) {
+      placeRegiment(this, from[0], from[1]);
+      stationIn(reg, town);
+      return;
+    }
     const under = source ? regimentAt(source.clientX, source.clientY, reg) : undefined;
     if (under && under.state === reg.state) {
       placeRegiment(this, from[0], from[1]);
@@ -1060,6 +1093,22 @@ function changed(): void {
 }
 
 watchMap();
+watchSettlements();
+
+/** Hovering a settlement (its count, symbol or name) lists its garrison; the count above says how many */
+function watchSettlements(): void {
+  document.addEventListener("mouseover", event => {
+    if ((event as MouseEvent).buttons) return;
+    const burg = burgOfElement(event.target as Element);
+    if (!burg) return;
+    const garrison = garrisonOf(burg);
+    if (garrison && troopsOf(garrison)) peek(event.target as Element, [regimentGroup(garrison)], false);
+  });
+  document.addEventListener("mouseout", event => {
+    const from = burgOfElement(event.target as Element);
+    if (from && burgOfElement((event as MouseEvent).relatedTarget as Element | null) !== from) hidePeek();
+  });
+}
 
 export const RegimentEditor = {
   open: editRegiment,

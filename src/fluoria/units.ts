@@ -263,26 +263,21 @@ export function stackAll(): void {
 
 let unitCells = new Set<number>();
 
-/** A settlement's card steps aside, to the left, when units stand on it */
+/** A garrison's count rises above a unit card standing on its settlement */
 function laySettlements(): void {
   const size = styles.military.options.boxSize * 2 * unitScale;
   for (const g of document.querySelectorAll<SVGGElement>("#flSettlements > g")) {
     const burg = pack.burgs[Number(g.dataset.burg)];
     const shared = burg && unitCells.has(mainCell(burg.cell));
-    g.style.translate = shared ? `${-size * 1.1}px 0px` : "";
+    g.style.translate = shared ? `0px ${-size * 0.45}px` : "";
   }
 }
 
-/** A settlement's name steps below a card standing on it */
+/** A settlement's name steps below a unit card standing on it */
 export function nameLabels(): void {
-  const far = document.getElementById("armies")?.dataset.flStage === "far";
-  const cards = new Set<number>();
-  for (const g of document.querySelectorAll<SVGGElement>("#flSettlements > g"))
-    if (!(far && g.dataset.kind === "town" && g.dataset.empty)) cards.add(Number(g.dataset.burg));
   for (const burg of pack.burgs ?? []) {
     if (!burg?.i || burg.removed) continue;
-    const held = unitCells.has(mainCell(burg.cell)) || cards.has(burg.i);
-    document.getElementById(`burgLabel${burg.i}`)?.classList.toggle("fl-under", held);
+    document.getElementById(`burgLabel${burg.i}`)?.classList.toggle("fl-under", unitCells.has(mainCell(burg.cell)));
   }
 }
 
