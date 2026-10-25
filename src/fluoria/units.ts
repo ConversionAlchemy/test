@@ -4,8 +4,8 @@ import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
 import { cargo, carry, land, landingCells, load } from "./boarding";
 import { canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
-import { laneSteps } from "./road-geometry";
 import { dimPixelMap } from "./pixel-map-sync";
+import { laneSteps } from "./road-geometry";
 import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
 
 let range: Map<number, number> | null = null; // packed cells for armies, sea grid cells for fleets
