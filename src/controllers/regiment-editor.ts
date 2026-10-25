@@ -1,546 +1,588 @@
+// Fluoria's folder for a regiment: Azgaar's regiment dialog, its units shown as one row per slot up to the cap.
+// Rows drag between open folders, out onto the map to stand alone or join a regiment there, and into a transport.
+// A regiment dragged onto another on the map merges with it, or loads into it if it's a transport
 import { type D3DragEvent, drag, easeSinInOut, select, transition } from "d3";
-import {
-  closeDialogs,
-  confirmationDialog,
-  destroyDialog,
-  noteButton,
-  refreshEditors
-} from "@/components/dialog/dialog-helpers";
-import { Icons } from "@/components/icons";
+import { confirmationDialog, noteButton, refreshEditors } from "@/components/dialog/dialog-helpers";
 import { Layers } from "@/components/layers";
 import { clearMainTip, tip } from "@/components/tooltips";
 import { applyDefaultViewboxEvents } from "@/components/viewbox-events";
 import { Controllers } from "@/controllers";
-import { clearSelection, dragOver, dropAt, moved, selectRegiment } from "@/fluoria/units";
-import { Tags } from "@/generators/tags";
+import { canLoad, landingCells, load } from "@/fluoria/boarding";
+import { addSlot, disband, encampRefusal, merge, regimentOf, setRow, splitOff } from "@/fluoria/forces/army";
 import {
-  drawRegiment,
-  getRegimentWidth,
-  moveRegiment,
-  regimentIconBox,
-  updateRegimentIcon
-} from "@/renderers/draw-military";
-import { sentences, t } from "@/utils/i18n";
+  cardPower,
+  cargoSlots,
+  domainOf,
+  domainOfUnit,
+  encamp,
+  isGroup,
+  isTransport,
+  kitOf,
+  type List,
+  MAX_SLOTS,
+  mergeRefusal,
+  refusal,
+  rows,
+  shift,
+  slotsOf,
+  strength,
+  troopsOf
+} from "@/fluoria/forces/forces";
+import { KIT } from "@/fluoria/forces/kit";
+import { cardUrl, iconUrl, short } from "@/fluoria/forces/pixels";
+import { reachable } from "@/fluoria/movement";
+import { cellAtPoint, mainCell, neighbours } from "@/fluoria/one-grid";
+import { chooseLanding, clearSelection, dragOver, dropAt, moved, selectRegiment, stackAll } from "@/fluoria/units";
+import { placeRegiment } from "@/renderers/draw-military";
+import { t } from "@/utils/i18n";
+import { escapeHtml } from "@/utils/stringUtils";
 import type { Regiment } from "../generators/military-generator";
-import { capitalize, ensureEl, findEl, getPointer, rn, speak } from "../utils";
+import { ensureEl, getPointer } from "../utils";
 
-let selectedRegiment: SVGGElement | null = null;
+const folders = new Map<string, HTMLElement>(); // open folders by "state-id"
+let picked: Regiment | null = null; // the one whose reach is shown
+let mode: "attack" | "merge" | "add" | null = null;
+
+const keyOf = (r: Pick<Regiment, "state" | "i">) => `${r.state}-${r.i}`;
+const elementOf = (r: Pick<Regiment, "state" | "i">) =>
+  document.getElementById(`regiment${r.state}-${r.i}`) as SVGGElement | null;
+const regimentFrom = (el: Element | null): Regiment | undefined => {
+  const g = el?.closest<SVGGElement>("#armies > g > g");
+  return g ? regimentOf(+g.dataset.state!, +g.dataset.id!) : undefined;
+};
+const colourOf = (state: number) => {
+  const colour = pack.states[state]?.color;
+  return colour && colour[0] === "#" && colour.length >= 7 ? colour.slice(0, 7) : "#999999";
+};
 
 function editRegiment(selector: string): void {
   if (customization) return;
-  closeDialogs(".stable");
   Layers.show("military");
-
-  bindRegiments();
-  selectedRegiment = document.querySelector<SVGGElement>(selector);
-  if (!selectedRegiment) return;
-  if (!pack.states[+selectedRegiment.dataset.state!]) return;
-  const regiment = getRegiment();
+  const regiment = regimentFrom(document.querySelector(selector));
   if (!regiment) return;
+  bindRegiments();
+  openFolder(regiment);
+  pick(regiment);
+}
 
-  renderDialog();
-  updateRegimentData(regiment);
-  selectRegiment(regiment); // Fluoria: march orders will replace the base, and boxes don't rotate
-
-  $("#regimentEditor").dialog({
-    title: t("Edit Regiment"),
-    resizable: false,
-    close: closeEditor,
-    position: { my: "left top", at: "left+10 top+10", of: "#map" }
-  });
+/** The regiment whose reach the map shows; the rest of the units step back */
+function pick(regiment: Regiment | null): void {
+  picked = regiment;
+  const armies = document.getElementById("armies");
+  for (const el of armies?.querySelectorAll(".fl-selected") ?? []) el.classList.remove("fl-selected");
+  armies?.classList.toggle("fl-picked", Boolean(regiment));
+  if (!regiment) {
+    clearSelection();
+    return;
+  }
+  elementOf(regiment)?.classList.add("fl-selected");
+  selectRegiment(regiment);
 }
 
 function bindRegiments(): void {
   const armies = select<SVGGElement, unknown>("#armies");
   armies.selectAll(":scope > g").classed("draggable", true);
-  armies.selectAll<SVGGElement, unknown>(":scope > g > g").call(drag<SVGGElement, unknown>().on("drag", dragRegiment));
+  armies.selectAll<SVGGElement, unknown>(":scope > g > g").call(drag<SVGGElement, unknown>().on("start", dragRegiment));
 }
 
-function renderDialog(): void {
-  destroyDialog("regimentEditor");
-  const editorHtml = /* html */ `<div id="regimentEditor" class="dialog">
-    <div id="regimentBody" style="padding-bottom: 0.3em">
-      <div style="padding-bottom: 0.2em">
-        <button id="regimentType" data-tip="${sentences(t("Regiment type (land or naval)"), t("Click to change"))}"></button>
-        <input
-          id="regimentName"
-          data-tip="${t("Type to rename")}"
-          autocorrect="off"
-          spellcheck="false"
-          style="width: 13em"
-        />
-        <span
-          id="regimentNameSpeak"
-          data-tip="${sentences(t("Speak the name"), t("You can change voice and language in options"))}"
-          class="speaker"
-          >🔊</span
-        >
-        <i id="regimentNameRestore" data-tip="${t("Reset to default")}" class="icon-ccw pointer"></i>
-      </div>
-      <div data-tip="${t("Regiment icon")}" style="display: flex; align-items: center">
-        <div class="label">${t("Icon")}:</div>
-        <div id="regimentIcon" translate="no" style="font-size: 1.5em; width: 3.7em; display: flex"></div>
-        <button id="regimentIconChange" style="padding: 0; width: 4.5em">${t("Change")}</button>
-      </div>
-      <div data-tip="${t("Regiment tags (comma-separated)")}">
-        <div class="label">${t("Tags")}:</div>
-        <input
-          id="regimentTags"
-          placeholder="${t("Tags")}"
-          autocorrect="off"
-          spellcheck="false"
-          style="width: 13em"
-        />
-      </div>
-      <div id="regimentComposition" class="table"></div>
-    </div>
-    <div id="regimentBottom">
-      <button id="regimentAttack" data-tip="${t("Attack foreign regiment")}" class="icon-button-melee"></button>
-      <button id="regimentAdd" data-tip="${t("Create a new regiment or fleet")}" class="icon-user-plus"></button>
-      <button id="regimentSplit" data-tip="${t("Split regiment into 2 separate ones")}" class="icon-half"></button>
-      <button
-        id="regimentAttach"
-        data-tip="${t("Attach regiment to another one (include this regiment to another one)")}"
-        class="icon-attach"
-      ></button>
-      <button id="regimentToggleVisibility" data-tip="${t("Toggle regiment visibility on the map")}" class="icon-eye"></button>
-      <button id="regimentRegenerateLegend" data-tip="${t("Regenerate legend for this regiment")}" class="icon-retweet"></button>
-      ${noteButton("regimentLegend", t("Edit free text notes (legend)"))}
-      <button
-        id="regimentRemove"
-        data-tip="${t("Remove")}"
-        data-shortcut="Delete"
-        class="icon-trash fastDelete"
-      ></button>
-    </div>
-  </div>`;
+// --- the folder
 
-  ensureEl("dialogs").insertAdjacentHTML("beforeend", editorHtml);
+function openFolder(regiment: Regiment): void {
+  const key = keyOf(regiment);
+  const existing = folders.get(key);
+  if (existing) {
+    render(existing, regiment);
+    $(existing).dialog("moveToTop");
+    return;
+  }
+  const el = document.createElement("div");
+  el.id = `flFolder${key}`;
+  el.className = "dialog flFolder";
+  ensureEl("dialogs").append(el);
+  folders.set(key, el);
+  render(el, regiment);
+  const offset = (folders.size - 1) * 24;
+  $(el).dialog({
+    title: regiment.name,
+    resizable: false,
+    width: "20em",
+    position: { my: "left top", at: `left+${10 + offset} top+${10 + offset}`, of: "#map" },
+    close: () => closeFolder(key),
+    focus: () => {
+      const r = regimentOf(regiment.state, regiment.i);
+      if (r && picked !== r) pick(r);
+    }
+  });
+}
 
-  ensureEl("regimentNameRestore").addEventListener("click", restoreName);
-  ensureEl("regimentNameSpeak").addEventListener("click", () =>
-    speak(ensureEl<HTMLInputElement>("regimentName").value)
+function closeFolder(key: string): void {
+  const el = folders.get(key);
+  folders.delete(key);
+  if (el) {
+    $(el).dialog("destroy");
+    el.remove();
+  }
+  if (picked && keyOf(picked) === key) {
+    const next = [...folders.keys()].map(k => regimentOf(...(k.split("-").map(Number) as [number, number])));
+    pick(next.find(Boolean) ?? null);
+  }
+  if (!folders.size) unbind();
+}
+
+function unbind(): void {
+  setMode(null);
+  pick(null);
+  select<SVGGElement, unknown>("#debug").selectAll("*").remove();
+  const armies = select<SVGGElement, unknown>("#armies");
+  armies.selectAll(":scope > g").classed("draggable", false);
+  armies.selectAll<SVGGElement, unknown>("g>g").on(".drag", null);
+}
+
+const slotRow = (list: List, unit: string, count: number, state: number) => {
+  const kit = kitOf(unit) ?? KIT[0];
+  return `<div class="flSlot" draggable="true" data-list="${list}" data-unit="${escapeHtml(unit)}" data-count="${count}">
+    <img src="${iconUrl(kit, colourOf(state))}" alt="" /><span class="flSlotName">${escapeHtml(unit)}</span>
+    <span class="flSlotCount" data-tip="${t("Double-click to change")}">${count.toLocaleString()}</span></div>`;
+};
+const emptyRow = (list: List) =>
+  `<div class="flSlot flEmpty" data-list="${list}" data-tip="${t("Click to add a unit, or drop one here")}"></div>`;
+
+function render(el: HTMLElement, regiment: Regiment): void {
+  const transport = isTransport(regiment);
+  const kit = kitOf(rows(regiment.u)[0]?.unit ?? "") ?? KIT[0];
+  const face = {
+    unit: kitOf(transport ? Object.keys(regiment.u)[0] : (rows(regiment.u)[0]?.unit ?? "")) ?? kit,
+    colour: colourOf(regiment.state),
+    power: cardPower(regiment),
+    troops: transport ? troopsOf({ u: regiment.cargo ?? {} }) : troopsOf(regiment),
+    slots: transport ? slotsOf(regiment.cargo) : slotsOf(regiment.u),
+    strength: strength(regiment)
+  };
+  const art = isGroup(regiment) ? cardUrl(face) : iconUrl(face.unit, face.colour);
+  const list: List = transport ? "cargo" : "u";
+  const items = rows(transport ? regiment.cargo : regiment.u);
+  const cap = transport ? cargoSlots(regiment) : MAX_SLOTS;
+  const filled = items.map(row => slotRow(list, row.unit, row.count, regiment.state)).join("");
+  const empty = Array.from({ length: Math.max(0, cap - items.length) }, () => emptyRow(list)).join("");
+  const own = transport ? Object.keys(regiment.u)[0] : "";
+
+  el.innerHTML = /* html */ `
+    <div class="flFolderHead">
+      <img class="flFolderArt" src="${art}" alt="" />
+      <div>
+        <input class="flFolderName" value="${escapeHtml(regiment.name)}" data-tip="${t("Type to rename")}" spellcheck="false" />
+        <div class="flFolderSub">${t("Power")} ${short(face.power)} · ${short(face.troops)} ${t("troops")}</div>
+        <div class="flFolderSub">${transport ? `${escapeHtml(own)} · ${t("cargo")}` : t("Slots")} ${items.length}/${cap}</div>
+      </div>
+    </div>
+    <div class="flSlots" data-list="${list}">${filled}${empty}</div>
+    <div class="flFolderBottom">
+      <button data-act="attack" data-tip="${t("Attack a regiment next to this one")}" class="icon-button-melee"></button>
+      ${transport ? "" : `<button data-act="merge" data-tip="${t("Merge into another group: click it on the map, or drag this one onto it")}" class="icon-attach"></button>`}
+      ${
+        transport
+          ? `<button data-act="unload" data-tip="${t("Unload all cargo onto the coast beside it")}" class="icon-button-landing"></button>`
+          : `<button data-act="disband" data-tip="${t("Disband: every slot stands on its own in this cell")}" class="icon-object-ungroup"></button>`
+      }
+      <button data-act="encamp" data-tip="${t("Encamp: rest and repair, the strength bar refills (no new troops)")}" class="icon-campground"></button>
+      <button data-act="add" data-tip="${t("Raise a new group: click on the map")}" class="icon-user-plus"></button>
+      ${noteButton(`flFolderNote${keyOf(regiment)}`, t("Edit free text notes (legend)"))}
+      <button data-act="delete" data-tip="${t("Delete the group and all its units")}" class="icon-trash"></button>
+    </div>`;
+
+  for (const button of el.querySelectorAll<HTMLButtonElement>(".flFolderBottom button[data-act]"))
+    button.classList.toggle("pressed", button.dataset.act === mode && picked === regiment);
+  el.querySelector<HTMLInputElement>(".flFolderName")!.addEventListener("change", function () {
+    if (!this.value.trim()) return;
+    Military.rename(regiment.state, regiment.i, this.value);
+    $(el).dialog("option", "title", regiment.name);
+    changed();
+  });
+  el.querySelector(".flFolderBottom")!.addEventListener("click", event => {
+    const act = (event.target as HTMLElement).closest<HTMLElement>("[data-act]")?.dataset.act;
+    if (act) action(act, regiment);
+  });
+  el.querySelector(`#flFolderNote${keyOf(regiment)}`)?.addEventListener(
+    "click",
+    () => void Controllers.NotesEditor.open({ type: "regiment", id: regiment.state, sub: regiment.i })
   );
-  ensureEl("regimentType").addEventListener("click", changeType);
-  ensureEl("regimentName").addEventListener("change", changeName);
-  ensureEl("regimentIconChange").addEventListener("click", changeIcon);
-  ensureEl("regimentTags").addEventListener("change", changeTags);
-  ensureEl("regimentAttack").addEventListener("click", toggleAttack);
-  ensureEl("regimentToggleVisibility").addEventListener("click", toggleVisibility);
-  ensureEl("regimentRegenerateLegend").addEventListener("click", regenerateLegend);
-  ensureEl("regimentLegend").addEventListener("click", editLegend);
-  ensureEl("regimentSplit").addEventListener("click", splitRegiment);
-  ensureEl("regimentAdd").addEventListener("click", toggleAdd);
-  ensureEl("regimentAttach").addEventListener("click", toggleAttach);
-  ensureEl("regimentRemove").addEventListener("click", removeRegiment);
+  wireSlots(el, regiment);
 }
 
-function getRegiment(): Regiment | undefined {
-  if (!selectedRegiment) return undefined;
-  return pack.states[+selectedRegiment.dataset.state!]?.military?.find(r => r.i === +selectedRegiment!.dataset.id!);
+// --- dragging rows
+
+interface Carried {
+  state: number;
+  id: number;
+  list: List;
+  unit: string;
+  count: number;
 }
+let carried: Carried | null = null;
 
-function updateRegimentData(regiment: Regiment): void {
-  ensureEl("regimentType").className = regiment.n ? "icon-anchor" : "icon-users";
-  ensureEl<HTMLInputElement>("regimentName").value = regiment.name;
-  ensureEl("regimentIcon").innerHTML = Icons.html(regiment.icon ?? "");
-  ensureEl<HTMLInputElement>("regimentTags").value = Tags.format(regiment.tags);
-  ensureEl("regimentToggleVisibility").className = regiment.hidden ? "icon-eye-off" : "icon-eye";
-
-  const composition = ensureEl("regimentComposition");
-  composition.innerHTML = options.map.military.units
-    .map(u => {
-      return `<div data-tip="${t("{{unit}} number. Input to change", { unit: capitalize(u.name) })}">
-        <div class="label">${capitalize(u.name)}:</div>
-        <input data-u="${u.name}" type="number" min=0 step=1 value="${regiment.u[u.name] || 0}">
-        <i>${u.type}</i></div>`;
-    })
-    .join("");
-
-  composition.querySelectorAll("input").forEach(el => {
-    el.addEventListener("change", changeUnit);
-  });
-}
-
-function toggleVisibility(): void {
-  const reg = getRegiment();
-  if (!reg) return;
-  reg.hidden = !reg.hidden;
-  ensureEl("regimentToggleVisibility").className = reg.hidden ? "icon-eye-off" : "icon-eye";
-  Layers.draw("military");
-  bindRegiments(); // the redraw replaced the regiment nodes
-  selectedRegiment = findEl<SVGGElement>(selectedRegiment!.id) ?? selectedRegiment; // a hidden one is not drawn
-  refreshEditors();
-}
-
-function updateRegimentElement(reg: Regiment, el: SVGGElement): void {
-  const size = styles.military.options.boxSize;
-  const showNames = styles.military.options.showNames;
-  const w = getRegimentWidth(reg);
-  const h = size * 2;
-  const x = rn(reg.x - w / 2, 2);
-  const y = rn(reg.y - size, 2);
-  const rects = el.querySelectorAll("rect");
-  const baseRect = rects[0];
-  const iconRect = rects[1];
-  const totalText = el.querySelector<SVGTextElement>("text.regimentTotal") || el.querySelectorAll("text")[0];
-  const use = el.querySelector<SVGUseElement>(".regimentIcon")!;
-
-  baseRect.setAttribute("x", String(x));
-  baseRect.setAttribute("y", String(y));
-  baseRect.setAttribute("width", String(w));
-  baseRect.setAttribute("height", String(h));
-
-  if (totalText) {
-    totalText.setAttribute("x", String(reg.x));
-    totalText.setAttribute("y", String(reg.y));
-    totalText.textContent = String(Military.getTotal(reg));
-  }
-
-  iconRect.setAttribute("x", String(x - h));
-  iconRect.setAttribute("y", String(y));
-  iconRect.setAttribute("width", String(h));
-  iconRect.setAttribute("height", String(h));
-
-  updateRegimentIcon(use, reg);
-
-  let nameText = el.querySelector<SVGTextElement>("text.regimentName");
-  if (!showNames) {
-    nameText?.remove();
-  } else {
-    if (!nameText) {
-      nameText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      nameText.setAttribute("class", "regimentName");
-      nameText.setAttribute("text-rendering", "optimizeSpeed");
-      el.appendChild(nameText);
-    }
-    nameText.setAttribute("x", String(rn(reg.x - size, 2)));
-    nameText.setAttribute("y", String(rn(reg.y + size * 2.3, 2)));
-    nameText.setAttribute("font-size", `${rn(size * 1.6, 2)}px`);
-    nameText.textContent = reg.name;
-  }
-
-  const rotationControl = select<SVGGElement, unknown>("#debug").select("#rotationControl");
-  if (rotationControl.size()) {
-    rotationControl.attr("cx", x + w).attr("cy", reg.y);
-  }
-}
-
-function changeType(): void {
-  const reg = getRegiment();
-  if (!reg || !selectedRegiment) return;
-  Military.setNaval(reg.state, reg.i, !reg.n);
-  ensureEl("regimentType").className = reg.n ? "icon-anchor" : "icon-users";
-  updateRegimentElement(reg, selectedRegiment);
-}
-
-function changeName(this: HTMLInputElement): void {
-  const reg = getRegiment();
-  if (!reg || !selectedRegiment) return;
-  if (!this.value.trim()) return;
-  Military.rename(reg.state, reg.i, this.value);
-  selectedRegiment.dataset.name = reg.name;
-  updateRegimentElement(reg, selectedRegiment);
-}
-
-function changeTags(this: HTMLInputElement): void {
-  const reg = getRegiment();
-  if (!reg) return;
-  Tags.set(reg, this.value);
-  this.value = Tags.format(reg.tags);
-}
-
-function restoreName(): void {
-  const reg = getRegiment();
-  if (!reg || !selectedRegiment) return;
-  const regs = pack.states[+selectedRegiment.dataset.state!].military!;
-  Military.rename(reg.state, reg.i, Military.getName(reg, regs));
-  selectedRegiment.dataset.name = ensureEl<HTMLInputElement>("regimentName").value = reg.name;
-  updateRegimentElement(reg, selectedRegiment);
-}
-
-function changeIcon(): void {
-  const regiment = getRegiment();
-  if (!regiment || !selectedRegiment) return;
-
-  Controllers.IconPicker.open({
-    current: regiment.icon ?? "",
-    live: true,
-    onPick: icon => {
-      if (icon) Military.setIcon(regiment.state, regiment.i, icon);
-      else regiment.icon = icon; // cancelling restores a regiment that had no icon
-      ensureEl("regimentIcon").innerHTML = Icons.html(icon);
-      updateRegimentIcon(selectedRegiment!.querySelector<SVGUseElement>(".regimentIcon")!, regiment);
-    }
-  });
-}
-
-function changeUnit(this: HTMLInputElement): void {
-  const u = this.dataset.u!;
-  const reg = getRegiment();
-  if (!reg || !selectedRegiment) return;
-  const count = (value: number) => Math.max(0, Math.round(value || 0)); // older maps may hold fractional troops
-  const units = Object.fromEntries(Object.entries(reg.u).map(([name, value]) => [name, count(value)]));
-  Military.setUnits(reg.state, reg.i, { ...units, [u]: count(+this.value) });
-  updateRegimentElement(reg, selectedRegiment);
-
-  refreshEditors();
-}
-
-function splitRegiment(): void {
-  const reg = getRegiment();
-  if (!reg || !selectedRegiment) return;
-  const state = +selectedRegiment.dataset.state!;
-  let newId: number;
-  try {
-    newId = Military.split(state, reg.i);
-  } catch {
-    tip(t("Not enough forces to split"), false, "error");
-    return;
-  }
-
-  ensureEl("regimentComposition")
-    .querySelectorAll<HTMLInputElement>("input")
-    .forEach(el => {
-      el.value = String(reg.u[el.dataset.u!] || 0);
+function wireSlots(el: HTMLElement, regiment: Regiment): void {
+  const box = el.querySelector<HTMLElement>(".flSlots")!;
+  for (const row of box.querySelectorAll<HTMLElement>(".flSlot:not(.flEmpty)")) {
+    row.addEventListener("dragstart", event => {
+      carried = {
+        state: regiment.state,
+        id: regiment.i,
+        list: row.dataset.list as List,
+        unit: row.dataset.unit!,
+        count: +row.dataset.count!
+      };
+      event.dataTransfer?.setData("text/plain", row.dataset.unit!);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
     });
-  updateRegimentElement(reg, selectedRegiment);
-  drawRegiment(pack.states[state].military!.find(r => r.i === newId)!, state); // draw new reg below
-
-  refreshEditors();
+    row.addEventListener("dragend", () => {
+      carried = null;
+    });
+    row.querySelector(".flSlotCount")?.addEventListener("dblclick", () => editCount(row, regiment));
+  }
+  for (const row of box.querySelectorAll<HTMLElement>(".flEmpty"))
+    row.addEventListener("click", () => chooseUnit(row, regiment, row.dataset.list as List));
+  box.addEventListener("dragover", event => {
+    if (!carried) return;
+    event.preventDefault();
+    box.classList.add("flOver");
+  });
+  box.addEventListener("dragleave", () => box.classList.remove("flOver"));
+  box.addEventListener("drop", event => {
+    event.preventDefault();
+    box.classList.remove("flOver");
+    const from = carried && regimentOf(carried.state, carried.id);
+    if (!carried || !from) return;
+    report(moveRow(from, carried, regiment, box.dataset.list as List), box);
+  });
 }
 
-function toggleAdd(): void {
-  const button = ensureEl("regimentAdd");
-  button.classList.toggle("pressed");
-  if (button.classList.contains("pressed")) {
-    select<SVGGElement, unknown>("#viewbox").style("cursor", "crosshair").on("click", addRegimentOnClick);
-    tip(t("Click on map to create new regiment or fleet"), true);
-  } else {
-    clearMainTip();
+/** Move a dragged row into another regiment, if they stand close enough */
+function moveRow(from: Regiment, row: Carried, to: Regiment, list: List): string {
+  if (from === to && row.list === list) return "";
+  if (from.state !== to.state) return t("Only a nation's own groups trade units");
+  const why = closeEnough(from, row.list, to, list);
+  if (why) return why;
+  const result = shift(from, row.list, row.unit, row.count, to, list);
+  if (!result) {
+    if (!troopsOf(from) && !isTransport(from)) Military.remove(from.state, from.i);
+    changed();
+  }
+  return result;
+}
+
+function closeEnough(from: Regiment, fromList: List, to: Regiment, toList: List): string {
+  if (toList === "cargo") return canLoad(from, to) ? "" : t("Move beside the transport first");
+  if (fromList === "cargo")
+    return landingCells(from).includes(mainCell(to.cell)) ? "" : t("Land beside the transport first");
+  return mainCell(from.cell) === mainCell(to.cell) ? "" : t("Both groups must stand in the same cell");
+}
+
+function report(why: string, el?: Element | null): void {
+  if (!why) return;
+  tip(why, false, "error");
+  el?.classList.add("flRefused");
+  setTimeout(() => el?.classList.remove("flRefused"), 400);
+}
+
+/** A row dropped on the map: into a regiment under the pointer, or standing alone in the cell */
+function dropOnMap(event: DragEvent): void {
+  const from = carried && regimentOf(carried.state, carried.id);
+  if (!carried || !from) return;
+  event.preventDefault();
+  const target = regimentFrom(event.target as Element);
+  const row = carried;
+  carried = null;
+  if (target && target !== from) {
+    report(moveRow(from, row, target, isTransport(target) && domainOfUnit(row.unit) === "land" ? "cargo" : "u"));
+    return;
+  }
+  const point = mapPoint(event.clientX, event.clientY);
+  const cell = point && cellAtPoint(point[0], point[1]);
+  if (cell === undefined || cell === null) return;
+  const fits =
+    row.list === "cargo"
+      ? landingCells(from).includes(cell)
+      : mainCell(cell) === mainCell(from.cell) || (from.n ? false : reachable(from).has(cell));
+  if (!fits) {
+    report(row.list === "cargo" ? t("Unload onto the coast beside the transport") : t("Out of reach this move"));
+    return;
+  }
+  const made = splitOff(from, row.list, row.unit, row.count, cell);
+  if (typeof made === "string") {
+    report(made);
+    return;
+  }
+  if (mainCell(cell) === mainCell(from.cell)) {
+    made.x = from.x;
+    made.y = from.y;
+  }
+  changed();
+}
+
+function mapPoint(x: number, y: number): [number, number] | null {
+  const viewbox = document.getElementById("viewbox") as SVGGraphicsElement | null;
+  const matrix = viewbox?.getScreenCTM()?.inverse();
+  if (!matrix) return null;
+  const point = new DOMPoint(x, y).matrixTransform(matrix);
+  return [point.x, point.y];
+}
+
+function watchMap(): void {
+  const map = document.getElementById("map");
+  if (!map || map.dataset.flFolders) return;
+  map.dataset.flFolders = "1";
+  map.addEventListener("dragover", event => {
+    if (carried) event.preventDefault();
+  });
+  map.addEventListener("drop", dropOnMap);
+}
+
+// --- editing slots in place
+
+function chooseUnit(row: HTMLElement, regiment: Regiment, list: List): void {
+  if (row.querySelector("select")) return;
+  const domain = list === "cargo" ? "land" : troopsOf(regiment) ? domainOf(regiment) : null;
+  const choices = KIT.filter(
+    unit => (domain ? unit.domain === domain : true) && (list === "u" || unit.role !== "transport")
+  )
+    .map(unitName)
+    .filter(name => !refusal(regiment, list, name, 1));
+  if (!choices.length) {
+    report(t("No unit fits here"), row);
+    return;
+  }
+  const picker = document.createElement("select");
+  picker.innerHTML = `<option value="">${t("Add a unit")}…</option>${choices
+    .map(name => `<option>${escapeHtml(name)}</option>`)
+    .join("")}`;
+  row.append(picker);
+  picker.focus();
+  picker.addEventListener("change", () => {
+    if (picker.value) report(addSlot(regiment, list, picker.value), row);
+    changed();
+  });
+  picker.addEventListener("blur", () => picker.remove());
+}
+
+const unitName = (unit: (typeof KIT)[number]) =>
+  options.map.military.units.find(u => u.fl === unit.id)?.name ?? unit.name;
+
+function editCount(row: HTMLElement, regiment: Regiment): void {
+  const span = row.querySelector<HTMLElement>(".flSlotCount");
+  if (!span || span.querySelector("input")) return;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = "0";
+  input.value = row.dataset.count!;
+  span.replaceChildren(input);
+  input.focus();
+  input.select();
+  const done = () => {
+    report(setRow(regiment, row.dataset.list as List, row.dataset.unit!, +row.dataset.count!, +input.value));
+    if (!troopsOf(regiment) && !isTransport(regiment)) Military.remove(regiment.state, regiment.i);
+    changed();
+  };
+  input.addEventListener("change", done);
+  input.addEventListener("blur", () => changed());
+  input.addEventListener("keydown", event => {
+    if (event.key === "Enter") input.blur();
+  });
+}
+
+// --- buttons
+
+function action(act: string, regiment: Regiment): void {
+  pick(regiment);
+  if (act === "attack" || act === "merge" || act === "add") {
+    setMode(mode === act ? null : act);
+    return;
+  }
+  if (act === "disband") {
+    disband(regiment);
+    changed();
+    return;
+  }
+  if (act === "unload") {
+    if (!slotsOf(regiment.cargo)) {
+      report(t("Nothing aboard"));
+      return;
+    }
+    if (!landingCells(regiment).length) {
+      report(t("No coast in reach"));
+      return;
+    }
+    chooseLanding(regiment, changed);
+    return;
+  }
+  if (act === "encamp") {
+    const why = encampRefusal(regiment);
+    if (why) {
+      report(why);
+      return;
+    }
+    encamp(regiment);
+    tip(t("{{name}} rests and repairs", { name: regiment.name }), false, "success");
+    changed();
+    return;
+  }
+  if (act === "delete")
+    confirmationDialog({
+      title: t("Delete"),
+      message: t("Delete {{name}} and all its units?", { name: regiment.name }),
+      confirm: t("Delete"),
+      onConfirm: () => {
+        Military.remove(regiment.state, regiment.i);
+        changed();
+      }
+    });
+}
+
+function setMode(next: typeof mode): void {
+  mode = next;
+  for (const el of folders.values())
+    for (const button of el.querySelectorAll<HTMLElement>("[data-act]"))
+      button.classList.toggle("pressed", button.dataset.act === mode);
+  clearMainTip();
+  if (!mode) {
     applyDefaultViewboxEvents();
+    return;
+  }
+  const message = {
+    attack: t("Click a regiment next to this one to attack it"),
+    merge: t("Click a group to merge this one into it"),
+    add: t("Click on the map to raise a new group")
+  }[mode];
+  tip(message, true);
+  select<SVGGElement, unknown>("#viewbox").style("cursor", "crosshair").on("click", onModeClick);
+}
+
+function onModeClick(this: SVGGElement, event: MouseEvent): void {
+  const self = picked;
+  if (!self) {
+    setMode(null);
+    return;
+  }
+  if (mode === "add") {
+    const [x, y] = getPointer(event, this);
+    const cell = cellAtPoint(x, y);
+    if (cell === undefined) return;
+    const id = Military.add(self.state, ...([x, y] as [number, number]));
+    setMode(null);
+    changed();
+    const made = regimentOf(self.state, id);
+    if (made) {
+      openFolder(made);
+      pick(made);
+    }
+    return;
+  }
+  const target = regimentFrom(event.target as Element);
+  if (!target || target === self) {
+    report(t("Click another group"));
+    return;
+  }
+  if (mode === "merge") {
+    setMode(null);
+    joinOnMap(self, target);
+    return;
+  }
+  if (mode === "attack") {
+    setMode(null);
+    attack(self, target);
   }
 }
 
-function addRegimentOnClick(this: SVGGElement, event: MouseEvent): void {
-  if (!selectedRegiment) return;
-  const [x, y] = getPointer(event, this);
-  if (Pack.findCell(x, y) === undefined) return;
-  const state = +selectedRegiment.dataset.state!;
-  const i = Military.add(state, x, y);
-  drawRegiment(pack.states[state].military!.find(r => r.i === i)!, state);
-
-  refreshEditors();
-  toggleAdd();
+/** Merge into a group, or load into a transport, after walking there if it's within reach */
+function joinOnMap(self: Regiment, target: Regiment): void {
+  if (isTransport(target) && !isTransport(self)) {
+    report(load(self, target));
+    changed();
+    return;
+  }
+  const why = mergeRefusal(self, target);
+  if (why) {
+    report(why);
+    return;
+  }
+  const same = mainCell(self.cell) === mainCell(target.cell);
+  if (!same && !reachable(self).has(mainCell(target.cell))) {
+    report(t("Out of reach this move"));
+    return;
+  }
+  report(merge(self, target));
+  changed();
+  openFolder(target);
+  pick(target);
 }
 
-function toggleAttack(): void {
-  const button = ensureEl("regimentAttack");
-  button.classList.toggle("pressed");
-  if (button.classList.contains("pressed")) {
-    select<SVGGElement, unknown>("#viewbox").style("cursor", "crosshair").on("click", attackRegimentOnClick);
-    tip(t("Click on another regiment to initiate battle"), true);
-    select<SVGGElement, unknown>("#armies").selectAll(":scope > g").classed("draggable", false);
-  } else {
-    clearMainTip();
-    select<SVGGElement, unknown>("#armies").selectAll(":scope > g").classed("draggable", true);
-    applyDefaultViewboxEvents();
-  }
-}
-
-async function attackRegimentOnClick(this: SVGGElement, event: MouseEvent): Promise<void> {
-  if (!selectedRegiment) return;
-  const target = event.target as HTMLElement;
-  const regSelected = target.parentElement!;
-  const army = regSelected.parentElement;
-  const oldState = +selectedRegiment.dataset.state!;
-  const newState = +regSelected.dataset.state!;
-
-  if (army?.parentElement?.id !== "armies") {
-    tip(t("Please click on a regiment to attack"), false, "error");
+function attack(attacker: Regiment, defender: Regiment): void {
+  if (attacker.state === defender.state) {
+    report(t("Cannot attack fraternal regiment"));
     return;
   }
-  if ((regSelected as Node) === (selectedRegiment as Node)) {
-    tip(t("Regiment cannot attack itself"), false, "error");
+  if (!attacker.a || !defender.a) {
+    report(t("Regiment has no troops to battle"));
     return;
   }
-  if (oldState === newState) {
-    tip(t("Cannot attack fraternal regiment"), false, "error");
+  const at = mainCell(attacker.cell);
+  const there = mainCell(defender.cell);
+  if (at !== there && !neighbours(at).includes(there)) {
+    report(t("Attack only a regiment in a cell next to this one"));
     return;
   }
-
-  const attacker = getRegiment();
-  const defender = pack.states[+regSelected.dataset.state!].military!.find(r => r.i === +regSelected.dataset.id!);
-  if (!attacker || !defender || !attacker.a || !defender.a) {
-    tip(t("Regiment has no troops to battle"), false, "error");
-    return;
-  }
-
-  // save initial position to temp attribute
   attacker.px = attacker.x;
   attacker.py = attacker.y;
   defender.px = defender.x;
   defender.py = defender.y;
-
-  // move attacker to defender
-  moveRegiment(attacker, defender.x, defender.y - 8);
-
-  // draw battle icon
-  const attackTransition = transition().delay(300).duration(700).ease(easeSinInOut);
-  select<SVGSVGElement, unknown>("#map")
-    .append("text")
-    .attr("text-rendering", "optimizeSpeed")
-    .attr("x", window.innerWidth / 2)
-    .attr("y", window.innerHeight / 2)
-    .text("⚔️")
-    .attr("font-size", 0)
-    .attr("opacity", 1)
-    .style("dominant-baseline", "central")
-    .style("text-anchor", "middle")
-    .transition(attackTransition)
-    .attr("font-size", 1000)
-    .attr("opacity", 0.2)
-    .on("end", () => Controllers.BattleScreen.open(attacker, defender))
-    .remove();
-
-  clearMainTip();
-  $("#regimentEditor").dialog("close");
+  const el = elementOf(attacker);
+  if (el)
+    select(el)
+      .transition(transition().duration(500).ease(easeSinInOut) as never)
+      .tween(
+        "charge",
+        () => (k: number) =>
+          placeRegiment(
+            el,
+            attacker.x + (defender.x - attacker.x) * k * 0.8,
+            attacker.y + (defender.y - attacker.y) * k * 0.8
+          )
+      )
+      .on("end", () => Controllers.BattleScreen.open(attacker, defender));
+  for (const key of [...folders.keys()]) closeFolder(key);
 }
 
-function toggleAttach(): void {
-  const button = ensureEl("regimentAttach");
-  button.classList.toggle("pressed");
-  if (button.classList.contains("pressed")) {
-    select<SVGGElement, unknown>("#viewbox").style("cursor", "crosshair").on("click", attachRegimentOnClick);
-    tip(t("Click on another regiment to unite both regiments. The current regiment will be removed"), true);
-    select<SVGGElement, unknown>("#armies").selectAll(":scope > g").classed("draggable", false);
-  } else {
-    clearMainTip();
-    select<SVGGElement, unknown>("#armies").selectAll(":scope > g").classed("draggable", true);
-    applyDefaultViewboxEvents();
-  }
-}
-
-function attachRegimentOnClick(this: SVGGElement, event: MouseEvent): void {
-  if (!selectedRegiment) return;
-  const target = event.target as HTMLElement;
-  const regSelected = target.parentElement!;
-  const army = regSelected.parentElement;
-  const newState = +regSelected.dataset.state!;
-
-  if (army?.parentElement?.id !== "armies") {
-    tip(t("Please click on a regiment"), false, "error");
-    return;
-  }
-  if ((regSelected as Node) === (selectedRegiment as Node)) {
-    tip(t("Cannot attach regiment to itself. Please click on another regiment"), false, "error");
-    return;
-  }
-
-  const reg = getRegiment(); // reg to be attached
-  if (!reg) return;
-  const sel = pack.states[newState].military!.find(r => r.i === +regSelected.dataset.id!);
-  if (!sel) return;
-
-  Military.attach(+selectedRegiment.dataset.state!, reg.i, newState, sel.i);
-  regSelected.querySelector("text")!.innerHTML = String(Military.getTotal(sel)); // update selected reg total text
-  selectedRegiment.remove();
-
-  refreshEditors();
-  $("#regimentEditor").dialog("close");
-  Controllers.RegimentEditor.open(`#${regSelected.id}`);
-}
-
-function regenerateLegend(): void {
-  if (!selectedRegiment) return;
-  const s = pack.states[+selectedRegiment.dataset.state!];
-  const reg = getRegiment();
-  if (reg) Military.generateNote(reg, s);
-}
-
-function editLegend(): void {
-  const reg = getRegiment();
-  if (!reg || !selectedRegiment) return;
-  void Controllers.NotesEditor.open({ type: "regiment", id: reg.state, sub: reg.i });
-}
-
-function removeRegiment(): void {
-  confirmationDialog({
-    title: t("Remove"),
-    message: t("Are you sure you want to remove the regiment?"),
-    confirm: t("Remove"),
-    onConfirm: () => {
-      if (!selectedRegiment) return;
-      const reg = getRegiment();
-      if (!reg) return;
-      Military.remove(+selectedRegiment.dataset.state!, reg.i);
-      selectedRegiment.remove();
-
-      refreshEditors();
-      $("#regimentEditor").dialog("close");
-    }
-  });
-}
+// --- dragging a regiment on the map
 
 function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown, unknown>): void {
+  const reg = regimentFrom(this);
+  if (!reg) return;
   select(this).raise();
   select(this.parentNode as Element).raise();
-
-  const reg = pack.states[+this.dataset.state!].military!.find(r => r.i === +this.dataset.id!);
-  if (!reg) return;
-  const size = styles.military.options.boxSize;
-  const w = getRegimentWidth(reg);
-  const h = size * 2;
-
-  const baseRect = this.querySelector("rect")!;
-  const text = this.querySelector<SVGTextElement>("text.regimentTotal") || this.querySelector("text")!;
-  const nameText = this.querySelector<SVGTextElement>("text.regimentName");
-  const iconRect = this.querySelectorAll("rect")[1];
-  const icon = this.querySelector(".regimentIcon")!;
-
-  const self = selectedRegiment === this;
-  const baseLine = select<SVGGElement, unknown>("#viewbox").select("g#regimentBase > line");
-  const rotationControl = select<SVGGElement, unknown>("#debug").select("#rotationControl");
-
-  const place = (x: number, y: number) => {
-    const x1 = rn(x - w / 2, 2);
-    const y1 = rn(y - size, 2);
-    this.setAttribute("transform-origin", `${x}px ${y}px`);
-    baseRect.setAttribute("x", String(x1));
-    baseRect.setAttribute("y", String(y1));
-    text.setAttribute("x", String(x));
-    text.setAttribute("y", String(y));
-    if (nameText) {
-      nameText.setAttribute("x", String(rn(x - size, 2)));
-      nameText.setAttribute("y", String(rn(y + size * 2.3, 2)));
-    }
-    iconRect.setAttribute("x", String(x1 - h));
-    iconRect.setAttribute("y", String(y1));
-    const box = regimentIconBox(x1, y1, h, reg.icon);
-    icon.setAttribute("x", String(box.x));
-    icon.setAttribute("y", String(box.y));
-    if (self) {
-      baseLine.attr("x2", x).attr("y2", y);
-      rotationControl
-        .attr("cx", x1 + w)
-        .attr("cy", y)
-        .attr("transform-origin", `${x}px ${y}px`);
-    }
-  };
-
-  // Fluoria: the box follows the pointer, but the move only stands on a cell within reach
+  pick(reg);
   const from = [reg.x, reg.y] as const;
   this.style.translate = "";
   event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
     const { x, y } = dragEvent;
     if (!isInMap(x, y)) return;
-    place(x, y);
+    placeRegiment(this, x, y);
     dragOver(reg, x, y);
   });
   event.on("end", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
+    const source = dragEvent.sourceEvent as MouseEvent | undefined;
+    const under = source
+      ? document
+          .elementsFromPoint(source.clientX, source.clientY)
+          .map(el => regimentFrom(el))
+          .find(r => r && r !== reg)
+      : undefined;
+    if (under && under.state === reg.state) {
+      placeRegiment(this, from[0], from[1]);
+      joinOnMap(reg, under);
+      return;
+    }
     const spot = dropAt(reg, dragEvent.x, dragEvent.y) ?? from;
     Military.move(reg.state, reg.i, spot[0], spot[1]);
-    place(reg.x, reg.y);
+    placeRegiment(this, reg.x, reg.y);
     moved(reg);
   });
 }
@@ -548,20 +590,21 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
 const isInMap = (x: number, y: number) =>
   x >= 0 && y >= 0 && x <= options.map.graph.width && y <= options.map.graph.height;
 
-function closeEditor(): void {
-  clearSelection();
-  select<SVGGElement, unknown>("#debug").selectAll("*").remove();
-  select<SVGGElement, unknown>("#viewbox").selectAll("g#regimentBase").remove();
-  const armiesSel = select<SVGGElement, unknown>("#armies");
-  armiesSel.selectAll(":scope > g").classed("draggable", false);
-  armiesSel.selectAll<SVGGElement, unknown>("g>g").call(drag<SVGGElement, unknown>().on("drag", null));
-  ensureEl("regimentAdd").classList.remove("pressed");
-  ensureEl("regimentAttack").classList.remove("pressed");
-  ensureEl("regimentAttach").classList.remove("pressed");
-  applyDefaultViewboxEvents();
-  selectedRegiment = null;
-  $("#regimentEditor").dialog("destroy");
-  ensureEl("regimentEditor").remove();
+/** After any change: redraw, rebind, refresh the open folders and the other editors */
+function changed(): void {
+  Layers.draw("military");
+  stackAll();
+  bindRegiments();
+  for (const [key, el] of [...folders]) {
+    const r = regimentOf(...(key.split("-").map(Number) as [number, number]));
+    if (!r) closeFolder(key);
+    else render(el, r);
+  }
+  if (picked && !regimentOf(picked.state, picked.i)) pick(null);
+  else pick(picked);
+  refreshEditors();
 }
+
+watchMap();
 
 export const RegimentEditor = { open: editRegiment };

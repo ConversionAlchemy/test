@@ -387,26 +387,43 @@ input[type="range"] {
   box-shadow: inset 0 -2px 0 var(--fl-accent);
 }
 
-/* Regiments keep about the same size on screen at every zoom; names only close in */
+/* Regiments keep about the same size on screen at every zoom: a silhouette far out, the icon, then the card */
 #armies > g > g {
   scale: var(--fl-unit, 1);
 }
 
+#armies image {
+  image-rendering: pixelated;
+}
+
+#armies > g > g > image,
 #armies[data-fl-names="0"] .regimentName {
   display: none;
 }
 
-/* far out, each regiment is a dot of its state's colour */
-#armies[data-fl-far="1"] > g > g > :is(rect:first-of-type, text, use, .flMore, .flCargo) {
-  display: none;
+#armies[data-fl-stage="far"] > g > g > .flDot,
+#armies[data-fl-stage="mid"] > g > g > .flIcon,
+#armies[data-fl-stage="close"] > g > g:not(.fl-group) > .flIcon,
+#armies[data-fl-stage="close"] > g > g.fl-group > .flCard {
+  display: inline;
 }
 
-#armies[data-fl-far="1"] > g > g > rect[fill="currentColor"] {
-  fill: inherit;
-  stroke: #1b1b1e;
-  stroke-width: 0.12em;
-  rx: 50%;
-  ry: 50%;
+#armies .regimentName {
+  fill: #ffffff;
+  font-family: "VT323", monospace;
+  text-shadow: 0.06em 0.06em 0 #000000;
+  pointer-events: none;
+}
+
+/* hover: lighter, lifted, a hard shadow; no easing */
+#armies:not([data-fl-stage="far"]) > g > g:hover > image {
+  filter: brightness(1.15) drop-shadow(calc(var(--fl-lift) * 1.6) calc(var(--fl-lift) * 1.6) 0 #000000);
+  translate: calc(var(--fl-lift) * -1) calc(var(--fl-lift) * -1);
+}
+
+/* with a group open, the rest of the map's units step back */
+#armies.fl-picked > g > g:not(.fl-selected) {
+  filter: grayscale(1) opacity(0.55);
 }
 
 /* Cell card */
@@ -939,4 +956,97 @@ body.fl-atlas #coordinates text {
 
 #flNation .np-foot button {
   flex: 1;
+}
+
+/* Regiment folder: one row per slot, empty slots up to the cap */
+.flFolder {
+  padding: 0.3em 0.2em 0 !important;
+}
+
+.flFolderHead {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  padding-bottom: 0.3em;
+}
+
+.flFolderArt {
+  width: 3em;
+  height: 3em;
+  image-rendering: pixelated;
+  flex: none;
+}
+
+.flFolderName {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.flFolderSub {
+  color: var(--fl-dim);
+}
+
+.flSlots {
+  max-height: 19.5em;
+  overflow-y: auto;
+  scrollbar-color: var(--fl-line) transparent;
+}
+
+.flSlot {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  height: 2em;
+  padding: 0 0.3em;
+  margin-bottom: 0.15em;
+  border: 1px solid #000000;
+  background: var(--fl-field);
+  cursor: grab;
+}
+
+.flSlot:hover {
+  background: #2c2c31;
+}
+
+.flSlot img {
+  width: 1.4em;
+  height: 1.4em;
+  image-rendering: pixelated;
+}
+
+.flSlotName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flSlotCount input {
+  width: 4.5em;
+}
+
+.flSlot.flEmpty {
+  background: transparent;
+  border: 1px dashed var(--fl-line);
+  cursor: pointer;
+}
+
+.flSlot.flEmpty select {
+  width: 100%;
+}
+
+.flSlots.flOver,
+.flRefused {
+  outline: 1px solid #ffffff;
+  outline-offset: -1px;
+}
+
+.flRefused {
+  outline-color: #ff2a1a;
+}
+
+.flFolderBottom {
+  display: flex;
+  gap: 0.2em;
+  padding: 0.3em 0;
 }

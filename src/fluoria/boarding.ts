@@ -1,108 +1,58 @@
-// Troops aboard ships. A fleet carries as many soldiers as its ships' crews; boarding troops leave the map and travel
-// with the fleet, and land again on a land cell next to it. Aboard is a `carrier` on the regiment, saved with the map
+// Loading land units onto transports. Ships load at the coast or in a port, airships on any land cell beside them.
+// Cargo lives in the transport (`cargo`), so it moves with it and is lost with it
 import type { Regiment } from "@/generators/military-generator";
+import { disband, loadAll } from "./forces/army";
+import { domainOf, isTransport, troopsOf } from "./forces/forces";
 import { cellCentre, isPort, mainCell, neighbours } from "./one-grid";
 
 const isWater = (cell: number) => pack.cells.h[cell] < 20;
 
-const regimentOf = ([state, id]: [number, number]) =>
-  pack.states[state]?.removed ? undefined : pack.states[state]?.military?.find(r => r.i === id);
-
-/** Soldiers a fleet can carry: ships times crew, from Azgaar's unit types */
-export function capacity(fleet: Regiment): number {
-  const types = options.map.military.units;
-  let total = 0;
-  for (const [name, count] of Object.entries(fleet.u)) {
-    const type = types.find(unit => unit.name === name);
-    if (type?.type === "naval") total += count * (type.crew || 0);
-  }
-  return total;
-}
-
-export function cargo(fleet: Regiment): Regiment[] {
-  return pack.states.flatMap(state =>
-    state.i && !state.removed
-      ? (state.military ?? []).filter(r => r.carrier?.[0] === fleet.state && r.carrier?.[1] === fleet.i)
-      : []
-  );
-}
-
-export const load = (fleet: Regiment) => cargo(fleet).reduce((sum, r) => sum + r.a, 0);
-export const space = (fleet: Regiment) => Math.max(0, capacity(fleet) - load(fleet));
-
-// how far from a fleet's point a shore cell counts as next to it: a little over one even sea cell
+// how far from a ship's point a shore cell counts as next to it: a little over one even sea cell
 const reachOf = () => grid.spacing * 1.6;
-const near = (cell: number, fleet: Regiment) => {
+const near = (cell: number, ship: Regiment) => {
   const [x, y] = cellCentre(cell);
-  return Math.hypot(x - fleet.x, y - fleet.y) <= reachOf();
+  return Math.hypot(x - ship.x, y - ship.y) <= reachOf();
 };
 
-/** A fleet is within reach of troops on the shore beside it, or in the port it lies off */
-export function canBoard(army: Regiment, fleet: Regiment): boolean {
-  if (army.n || !fleet.n || army.carrier || army === fleet) return false;
+/** Whether an army standing where it is can step aboard a transport */
+export function canLoad(army: Regiment, transport: Regiment): boolean {
+  if (army === transport || army.state !== transport.state || !isTransport(transport)) return false;
+  if (isTransport(army) || !troopsOf(army) || domainOf(army) !== "land") return false;
   const at = mainCell(army.cell);
-  const docked = mainCell(fleet.cell) === at && isPort(at); // moored in the port the troops stand in
-  const next =
-    docked || near(at, fleet) || neighbours(at).includes(fleet.cell) || pack.cells.haven?.[at] === fleet.cell;
-  return next && (isWater(fleet.cell) || isPort(fleet.cell)) && space(fleet) > 0;
-}
-
-/** Fleets an army could board where it stands */
-export function fleetsFor(army: Regiment): Regiment[] {
-  return pack.states.flatMap(state =>
-    state.i && !state.removed ? (state.military ?? []).filter(fleet => canBoard(army, fleet)) : []
-  );
-}
-
-/** Put the army aboard, as much as fits; troops that don't fit stay ashore as their own regiment */
-export function board(army: Regiment, fleet: Regiment): Regiment {
-  const free = space(fleet);
-  let boarding = army;
-  if (army.a > free) {
-    const share = free / army.a;
-    const aboard = Object.fromEntries(Object.entries(army.u).map(([unit, n]) => [unit, Math.floor(n * share)]));
-    const ashore = Object.fromEntries(Object.entries(army.u).map(([unit, n]) => [unit, n - aboard[unit]]));
-    const id = Military.add(army.state, army.x, army.y);
-    Military.setUnits(army.state, id, aboard);
-    Military.setIcon(army.state, id, army.icon);
-    Military.rename(army.state, id, army.name);
-    Military.setUnits(army.state, army.i, ashore);
-    boarding = pack.states[army.state].military!.find(r => r.i === id)!;
+  if (domainOf(transport) === "air") {
+    const there = mainCell(transport.cell);
+    return !isWater(at) && (there === at || neighbours(at).includes(there));
   }
-  boarding.carrier = [fleet.state, fleet.i];
-  boarding.hidden = true;
-  follow(boarding, fleet);
-  return boarding;
+  const docked = mainCell(transport.cell) === at && isPort(at);
+  const beside =
+    near(at, transport) || neighbours(at).includes(transport.cell) || pack.cells.haven?.[at] === transport.cell;
+  return docked || (beside && (isWater(transport.cell) || isPort(transport.cell)));
 }
 
-/** Land cells the fleet's troops may step onto */
-export function landingCells(fleet: Regiment): number[] {
-  const at = mainCell(fleet.cell);
+/** Transports an army could load onto where it stands */
+export function transportsFor(army: Regiment): Regiment[] {
+  return (pack.states[army.state]?.military ?? []).filter(other => canLoad(army, other));
+}
+
+/** Load a whole army; returns why not, or "" */
+export function load(army: Regiment, transport: Regiment): string {
+  if (!canLoad(army, transport))
+    return domainOf(transport) === "air" ? "Move beside the airship first" : "Move to the coast beside the ship first";
+  return loadAll(army, transport);
+}
+
+/** Land cells a transport's cargo may step onto */
+export function landingCells(transport: Regiment): number[] {
+  const at = mainCell(transport.cell);
+  if (domainOf(transport) === "air") return [at, ...neighbours(at)].filter(cell => !isWater(cell));
   const out = new Set(neighbours(at).filter(cell => !isWater(cell)));
   if (isPort(at)) out.add(at);
   for (const water of [at, ...neighbours(at)])
-    for (const cell of neighbours(water)) if (!isWater(cell) && near(cell, fleet)) out.add(cell);
+    for (const cell of neighbours(water)) if (!isWater(cell) && near(cell, transport)) out.add(cell);
   return [...out];
 }
 
-export function land(regiment: Regiment, cell: number): void {
-  const [x, y] = cellCentre(cell);
-  regiment.carrier = undefined;
-  regiment.hidden = false;
-  regiment.cell = cell;
-  Military.move(regiment.state, regiment.i, x, y);
+/** Put all cargo ashore in a cell; each slot stands on its own */
+export function unload(transport: Regiment, cell: number): Regiment[] {
+  return landingCells(transport).includes(cell) ? disband(transport, cell) : [];
 }
-
-/** Troops aboard travel with their fleet */
-export function carry(fleet: Regiment): void {
-  for (const regiment of cargo(fleet)) follow(regiment, fleet);
-}
-
-function follow(regiment: Regiment, fleet: Regiment): void {
-  regiment.cell = fleet.cell;
-  regiment.x = fleet.x;
-  regiment.y = fleet.y;
-}
-
-/** The fleet a regiment is aboard, if any */
-export const carrierOf = (regiment: Regiment) => (regiment.carrier ? regimentOf(regiment.carrier) : undefined);
