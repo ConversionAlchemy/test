@@ -30,7 +30,7 @@ function world(): void {
 }
 
 const army = (state: number, cell: number, i = 0) =>
-  ({ i, state, cell, x: cell * 10, y: 0, n: 0, a: 500, u: { Riflemen: 500 }, name: "Host" }) as unknown as Regiment;
+  ({ i, state, cell, x: cell * 10, y: 0, n: 0, a: 60, u: { Riflemen: 60 }, name: "Host" }) as unknown as Regiment;
 
 describe("war", () => {
   beforeEach(world);
@@ -63,10 +63,10 @@ describe("war", () => {
     expect(pack.states[1].occupied).toEqual([]);
   });
 
-  it("holds at most 12 slots of a nation and its friends in a cell", () => {
-    pack.states[1].military = [{ ...army(1, 1), u: { Riflemen: 5000 } }];
+  it("holds at most 4 chips in a cell, every nation's together", () => {
+    pack.states[1].military = [{ ...army(1, 1), u: { Riflemen: 120 } }];
     expect(hasRoom(1, 1, 2)).toBe(true);
     expect(hasRoom(1, 1, 3)).toBe(false);
-    expect(hasRoom(2, 1, 12)).toBe(true); // an enemy's units aren't counted against it
+    expect(hasRoom(2, 1, 3)).toBe(false); // another nation's units count too
   });
 });

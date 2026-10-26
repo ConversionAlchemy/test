@@ -213,33 +213,26 @@ export function tidyOccupations(): void {
     if (s.occupied) s.occupied = s.occupied.filter(cell => pack.cells.state[cell] !== s.i && pack.cells.h[cell] >= 20);
 }
 
-/** Slots a cell holds at most, counting a nation's units with its allies', vassals' and overlord's */
-export const CELL_SLOTS = 12;
+/** Chips a cell holds at most, all nations together; cargo and garrisons don't count */
+export const CELL_SLOTS = 4;
 
-const friendly = (a: number, b: number) => ["self", "ally", "vassal", "overlord"].includes(standing(a, b));
-
-/** Units in a cell at most, whatever their size, so a stack opens into one short row */
-export const CELL_UNITS = 4;
-
-/** Slots and units friendly to `state` already standing in a cell; a transport is 1 slot, its cargo nothing */
-export function cellLoad(state: number, cell: number, leaving?: Regiment): { slots: number; units: number } {
+/** Chips already standing in a cell; a transport is one chip, its cargo nothing */
+export function cellLoad(_state: number, cell: number, leaving?: Regiment): { slots: number; units: number } {
   const at = cell < 0 ? cell : mainCell(cell);
   let slots = 0;
   let units = 0;
   for (const s of living())
-    if (friendly(state, s.i))
-      for (const r of s.military ?? [])
-        if (r !== leaving && !r.hidden && placeOf(r) === at) {
-          slots += slotsOf(r.u);
-          units++;
-        }
+    for (const r of s.military ?? [])
+      if (r !== leaving && !r.hidden && placeOf(r) === at) {
+        slots += slotsOf(r.u);
+        units++;
+      }
   return { slots, units };
 }
 
-/** Whether `slots` more, in `units` more units, fit in a cell for `state` */
-export function hasRoom(state: number, cell: number, slots: number, leaving?: Regiment, units = 1): boolean {
-  const load = cellLoad(state, cell, leaving);
-  return load.slots + slots <= CELL_SLOTS && load.units + units <= CELL_UNITS;
+/** Whether `slots` more chips fit in a cell */
+export function hasRoom(state: number, cell: number, slots: number, leaving?: Regiment, _units = 1): boolean {
+  return cellLoad(state, cell, leaving).slots + slots <= CELL_SLOTS;
 }
 
 /** Older maps can hold more than a cell allows: the weakest extras walk to the nearest cells with room, once */
@@ -256,7 +249,7 @@ export function spreadCrowds(): number {
     const weakestLast = [...here].sort((a, b) => slotsOf(b.u) - slotsOf(a.u));
     for (const r of weakestLast.reverse()) {
       const load = cellLoad(r.state, cell);
-      if (load.units <= CELL_UNITS && load.slots <= CELL_SLOTS) break;
+      if (load.slots <= CELL_SLOTS) break;
       if (cell < 0) {
         const g = nearestSea(r, -1 - cell);
         if (g === null) continue;

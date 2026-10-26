@@ -31,9 +31,10 @@ describe("settlements", () => {
     expect(garrisonSlots(2)).toBe(12);
   });
 
-  it("prices units per slot by tier: 500 riflemen of tier 1 cost 20", () => {
-    expect(priceOf(kit("land_infantry_t1"), 500)).toBe(20);
-    expect(priceOf(kit("air_combat_t1"), 12)).toBe(780);
+  it("prices units per chip by tier: a chip of 80 Homeguard costs 20, of 25 Commandos 200", () => {
+    expect(priceOf(kit("land_infantry_t1"), 80)).toBe(20);
+    expect(priceOf(kit("land_assault_t3"), 25)).toBe(200);
+    expect(priceOf(kit("air_combat_t1"), 3)).toBe(300);
   });
 
   it("builds only where it fits, and pays from the settlement", () => {

@@ -467,7 +467,7 @@ class MilitaryModule {
       s.military = createRegiments(s.temp.platoons, s);
       delete s.temp; // do not store temp data
     });
-    normalise(raiseBeside); // Fluoria: every regiment within 12 slots, one domain, a transport on its own
+    normalise(raiseBeside); // Fluoria: every regiment within 4 chips, one domain, a transport on its own
   }
 
   /** Fluoria: the 39 kit unit types */

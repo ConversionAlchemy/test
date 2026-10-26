@@ -9,7 +9,7 @@ import { drawSettlements } from "@/renderers/draw-military";
 import { ensureHitLayer, NATION_ZOOM } from "./cell-card";
 import { applyFluoriaEmblems, enrichPlainEmblems } from "./emblems/store";
 import { raiseBeside } from "./forces/army";
-import { convertUnitTypes, normalise } from "./forces/forces";
+import { convertToChips, convertUnitTypes, normalise } from "./forces/forces";
 import { applyLabelZoom } from "./label-zoom";
 import { getMapView, onMapView } from "./map-view";
 import { setFocus, simplifyDiplomacy } from "./nation";
@@ -24,7 +24,7 @@ import {
   setPixelMapSync
 } from "./pixel-map-sync";
 import { collectSeas } from "./sea-names";
-import { foldCapitalPurses, garrisonLoners } from "./settlements";
+import { evictNonInfantry, foldCapitalPurses, garrisonLoners } from "./settlements";
 import { applyUnitZoom, nameLabels, snapAll, snapMarkers, stackAll } from "./units";
 import { spreadCrowds } from "./war";
 
@@ -104,8 +104,10 @@ window.addEventListener("map:generated", () => {
   const { moved, clashes } = foldMap();
   const relations = simplifyDiplomacy();
   const converted = convertUnitTypes(emoji => Icons.glyph(emoji));
+  const chips = convertToChips(emoji => Icons.glyph(emoji));
   const split = normalise(raiseBeside);
   const garrisoned = garrisonLoners();
+  const evicted = evictNonInfantry();
   foldCapitalPurses();
   const spread = spreadCrowds();
   const emblems = applyFluoriaEmblems();
@@ -118,8 +120,10 @@ window.addEventListener("map:generated", () => {
     clashes.length ? `Left in place (their cell already has a settlement): ${clashes.join(", ")}.` : "",
     relations ? `${relations} relations set to neutral (friendly, suspicious, rival or unknown).` : "",
     converted ? "Military units converted to the Fluoria unit types." : "",
-    split ? `${split} groups split off to keep every army within 12 slots.` : "",
+    chips ? `${chips} groups converted to the new unit sizes, one chip per old slot.` : "",
+    split ? `${split} groups split off to keep every group within 4 units.` : "",
     garrisoned ? `${garrisoned} lone units stationed in nearby garrisons.` : "",
+    evicted ? `${evicted} ships, airships and other non-infantry units stepped out of garrisons onto the map.` : "",
     spread ? `${spread} units moved to nearby cells to keep every cell within 4 units.` : "",
     emblems ? `${emblems} nations given their Fluoria emblem.` : ""
   ].filter(Boolean);
