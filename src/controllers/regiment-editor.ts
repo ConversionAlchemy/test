@@ -23,14 +23,16 @@ import {
   type List,
   MAX_SLOTS,
   mergeRefusal,
+  perSlot as perChip,
   refusal,
   rows,
   shift,
   slotsOf,
+  strength,
   troopsOf
 } from "@/fluoria/forces/forces";
 import { KIT } from "@/fluoria/forces/kit";
-import { buttonUrl, CHIP, columnUrl, iconUrl, short, stallUrl } from "@/fluoria/forces/pixels";
+import { artUrl, buttonUrl, iconUrl, short, stallUrl } from "@/fluoria/forces/pixels";
 import { borrowView, returnView } from "@/fluoria/map-view";
 import { canStand, reachable } from "@/fluoria/movement";
 import { openNation } from "@/fluoria/nation-panel";
@@ -70,22 +72,21 @@ import {
   upgradeCost,
   upgradeRefusal
 } from "@/fluoria/settlements";
-import { hidePeek, LINGER, onPeekDrag, peek, regimentGroup } from "@/fluoria/unit-peek";
+import { hidePeek, LINGER, onPeekDrag, peek, regimentGroup, unitTip } from "@/fluoria/unit-peek";
 import {
   cellOf,
   chooseLanding,
   clearSelection,
   dragOver,
   dropAt,
+  lightBay,
   moved,
-  openWhileDragging,
   selectRegiment,
-  stackAll,
-  toggleOpen
+  stackAll
 } from "@/fluoria/units";
 import { atWar, enemiesIn, hasRoom } from "@/fluoria/war";
 import { goodIconLines } from "@/renderers/draw-goods";
-import { chipOf, columnOf, paintColumn, placeRegiment } from "@/renderers/draw-military";
+import { artOf, chipOf, labelOf, paintColumn, placeRegiment } from "@/renderers/draw-military";
 import { EmblemRenderer } from "@/renderers/emblems/renderer";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
@@ -187,25 +188,28 @@ function bindRegiments(): void {
   const node = armies.node();
   if (node && !node.dataset.flDouble) {
     node.dataset.flDouble = "1";
-    // a transport's arrow opens and shuts its hold, and never starts a drag
-    for (const type of ["pointerdown", "mousedown", "touchstart"])
-      node.addEventListener(
-        type,
-        event => {
-          hidePeek();
-          if ((event.target as Element).closest(".flFold")) event.stopPropagation(); // the drag never sees it
-        },
-        true
-      );
-    // far out, hovering a cell's summary lists what's in it; close in, the column shows it already
-    node.addEventListener("mouseover", event => {
-      if ((event as MouseEvent).buttons) return;
-      if ((event.target as Element).closest(".flSettle")) return; // a settlement's own hover shows it
-      const g = (event.target as Element).closest<SVGGElement>("#armies > g > g");
+    for (const type of ["pointerdown", "mousedown", "touchstart"]) node.addEventListener(type, () => hidePeek(), true);
+    // close in, a unit's card (a transport's: the cargo card under the pointer) tells what it is; far out, a nation's
+    // chip lists its units
+    node.addEventListener("mousemove", event => {
+      const mouse = event as MouseEvent;
+      if (mouse.buttons) return;
+      if ((mouse.target as Element).closest(".flSettle")) return; // a settlement's own hover shows it
+      const g = (mouse.target as Element).closest<SVGGElement>("#armies > g > g");
       const regiment = regimentFrom(g);
-      if (!g || !regiment || node.dataset.flStage !== "far") return hidePeek(LINGER);
-      const mine = cellOf(regiment).filter(r => r.state === regiment.state);
-      peek(g.querySelector("image.flFar:not(.flPick)") ?? g, mine.map(regimentGroup), true);
+      if (!g || !regiment) return hidePeek(LINGER);
+      if (node.dataset.flStage === "far") {
+        if (isTransport(regiment)) return hidePeek();
+        const mine = cellOf(regiment).filter(r => r.state === regiment.state && !isTransport(r));
+        peek(g.querySelector("image.flFar:not(.flPick)") ?? g, mine.map(regimentGroup), true);
+        return;
+      }
+      const part = partAt(g, mouse.clientX, mouse.clientY);
+      if (!part) return hidePeek();
+      const row = rows(part.list === "cargo" ? regiment.cargo : regiment.u)[part.index];
+      if (!row) return hidePeek();
+      const full = part.list === "cargo" ? Math.min(1, row.count / perChip(row.unit)) : strength(regiment);
+      unitTip(mouse.clientX, mouse.clientY, unitLine(regiment, part.list, row.unit, row.count, full));
     });
     node.addEventListener("mouseout", event => {
       const to = (event as MouseEvent).relatedTarget as Element | null;
@@ -220,13 +224,6 @@ function bindRegiments(): void {
           openSettlement(Number(settle.dataset.burg), event.shiftKey);
           return;
         }
-        const fold = (event.target as Element).closest(".flFold");
-        if (!fold) return;
-        event.stopPropagation();
-        const regiment = regimentFrom(fold);
-        if (!regiment) return;
-        toggleOpen(regiment);
-        bindRegiments();
       },
       true
     );
@@ -365,7 +362,8 @@ const emptyRow = (list: List) => `<div class="flSlot flEmpty" data-list="${list}
 
 function render(el: HTMLElement, regiment: Regiment): void {
   const transport = isTransport(regiment);
-  const art = columnUrl(columnOf(regiment));
+  const face = artOf(regiment);
+  const art = face ? artUrl(face) : "";
   const list: List = transport ? "cargo" : "u";
   const items = rows(transport ? regiment.cargo : regiment.u);
   const cap = transport ? cargoSlots(regiment) : MAX_SLOTS;
@@ -1032,6 +1030,12 @@ function dropRowsAt(clientX: number, clientY: number): void {
   const point = mapPoint(clientX, clientY);
   const cell = point && cellAtPoint(point[0], point[1]);
   if (cell === undefined || cell === null || !dropSet.has(mainCell(cell))) {
+    if (cell !== undefined && cell !== null && mainCell(cell) !== mainCell(from.cell))
+      report(
+        rowsCarried[0].list === "cargo"
+          ? t("Unload onto the shore beside the transport, in a cell with room")
+          : t("Out of reach, or that cell is full")
+      );
     pick(picked);
     changed();
     return;
@@ -1404,14 +1408,45 @@ function attack(attacker: Regiment, defender: Regiment): boolean {
 
 // --- dragging a regiment on the map
 
-/** Which row of a regiment's column a screen point is on */
-function rowAt(g: SVGGElement, clientY: number): { kind: string; index: number } | null {
+/** What of a regiment's card a screen point is on: a cargo card in a transport's bay, or the unit itself */
+function partAt(g: SVGGElement, clientX: number, clientY: number): { list: List; index: number } | null {
   const image = g.querySelector<SVGImageElement>("image.flClose:not(.flPick)");
   if (!image || !g.dataset.layout) return null;
   const rect = image.getBoundingClientRect();
-  const layout = JSON.parse(g.dataset.layout) as { h: number; rows: { y: number; kind: string; index: number }[] };
+  const layout = JSON.parse(g.dataset.layout) as {
+    w: number;
+    h: number;
+    bays: { x: number; y: number; w: number; h: number }[];
+  };
+  const x = ((clientX - rect.left) / rect.width) * layout.w;
   const y = ((clientY - rect.top) / rect.height) * layout.h;
-  return layout.rows.find(row => y >= row.y - 0.5 && y < row.y + CHIP.h + 0.5) ?? null;
+  const regiment = regimentFrom(g);
+  if (!regiment) return null;
+  const bay = layout.bays.findIndex(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
+  if (bay >= 0) return bay < rows(regiment.cargo).length ? { list: "cargo", index: bay } : null;
+  return isTransport(regiment) ? null : { list: "u", index: 0 }; // a transport's hull tells nothing
+}
+
+/** A unit's tooltip: name, type, tier, troops, health */
+function unitLine(regiment: Regiment, list: List, unit: string, count: number, full: number): string {
+  const kit = kitOf(unit);
+  const name = list === "u" ? labelOf(regiment) : kit ? (kit.domain === "land" ? unit : (kit.nickname ?? unit)) : unit;
+  const type = kit ? t(kit.role[0].toUpperCase() + kit.role.slice(1)) : "";
+  const tier = kit ? `${t("Tier")} ${kit.tier}` : "";
+  const troops = kit && kit.domain === "land" ? ` · ${short(count)} ${t("troops")}` : "";
+  return `<b>${escapeHtml(name)}</b><br>${[type, tier].filter(Boolean).join(" · ")}${troops} · ${Math.round(full * 100)}%`;
+}
+
+/** While a land unit is carried over its nation's transport with room, light the bay it would take */
+function lightUnder(reg: Regiment, units: Record<string, number>, clientX: number, clientY: number): void {
+  const under = regimentAt(clientX, clientY, reg);
+  const boards =
+    under &&
+    under !== reg &&
+    isTransport(under) &&
+    under.state === reg.state &&
+    Object.keys(units).every(u => domainOfUnit(u) === "land");
+  lightBay(boards && rows(under.cargo).length < cargoSlots(under) ? under : null);
 }
 
 /** Drag a unit: close in, the chip under the pointer goes on its own (Shift: the whole group); far out, the cell's
@@ -1421,12 +1456,10 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
   if (!reg || mode) return; // in a mode, a click picks a target instead
   const source = event.sourceEvent as MouseEvent;
   const far = document.getElementById("armies")?.dataset.flStage === "far";
-  const row = far ? null : rowAt(this, source.clientY);
-  const list: List | null = row?.kind === "cargo" ? "cargo" : row?.kind === "chip" ? "u" : null;
-  const own = list === "cargo" ? rows(reg.cargo) : rows(reg.u);
-  if (row?.kind === "empty") return;
-  if (list && !source.shiftKey && (list === "cargo" || own.length > 1)) {
-    dragChip(this, reg, list, row!.index, event);
+  const part = far ? null : partAt(this, source.clientX, source.clientY);
+  const own = part?.list === "cargo" ? rows(reg.cargo) : rows(reg.u);
+  if (part && !source.shiftKey && (part.list === "cargo" || own.length > 1)) {
+    dragChip(this, reg, part.list, part.index, event);
     return;
   }
   // far out the nation's part of the cell moves together; close in, every chosen unit moves with the one dragged
@@ -1457,9 +1490,12 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
       (dragEvent.sourceEvent as MouseEvent).clientY
     );
     markSymbol(town && town.state === reg.state && allGarrisonable(reg.u) ? town : null);
+    const mouse = dragEvent.sourceEvent as MouseEvent;
+    if (!isTransport(reg)) lightUnder(reg, reg.u, mouse.clientX, mouse.clientY);
   });
   event.on("end", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
     markSymbol(null);
+    lightBay(null);
     if (!started) return;
     const end = dragEvent.sourceEvent as MouseEvent | undefined;
     const town = end ? settlementAt(end.clientX, end.clientY) : null;
@@ -1483,7 +1519,10 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
       attack(reg, foe);
       return;
     }
-    const spot = dropAt(reg, dragEvent.x, dragEvent.y) ?? from;
+    const reached = dropAt(reg, dragEvent.x, dragEvent.y);
+    if (!reached && cell !== undefined && mainCell(cell) !== mainCell(reg.cell))
+      report(t("Out of reach, or that cell is full"));
+    const spot = reached ?? from;
     Military.move(reg.state, reg.i, spot[0], spot[1]);
     placeRegiment(this, reg.x, reg.y);
     // the rest of the cell's group follows where it can reach
@@ -1521,14 +1560,8 @@ function dragChip(
       g.classList.add("fl-lifting");
       carried = { state: reg.state, id: reg.i, list, unit: row.unit, count: row.count };
       showDrop(dropCells(reg, list, { [row.unit]: row.count }));
-      // the transports this unit could board stand open while it's carried
-      if (domainOfUnit(row.unit) === "land")
-        openWhileDragging(
-          (pack.states[reg.state]?.military ?? []).filter(
-            t => isTransport(t) && t !== reg && canLoad({ ...reg, u: { [row.unit]: row.count } }, t)
-          )
-        );
     }
+    lightUnder(reg, { [row.unit]: row.count }, mouse.clientX, mouse.clientY);
     placeRegiment(ghost, x, y);
     const cell = cellAtPoint(x, y);
     highlightCell(cell !== undefined && dropSet.has(mainCell(cell)) ? cell : null);
@@ -1540,7 +1573,7 @@ function dragChip(
     const mouse = dragEvent.sourceEvent as MouseEvent;
     ghost.remove();
     g.classList.remove("fl-lifting");
-    openWhileDragging([]);
+    lightBay(null);
     dropRowsAt(mouse.clientX, mouse.clientY);
   });
 }

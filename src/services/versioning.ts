@@ -181,7 +181,7 @@ function showUpdateWindow(storedVersion: string | null): void {
 }
 
 declare const __FL_COMMIT__: string;
-const FL_PASS = 22;
+const FL_PASS = 23;
 
 function announceVersion(): void {
   if (parseMapVersion(VERSION) !== VERSION) alert("versioning: Invalid format or parsing function");
