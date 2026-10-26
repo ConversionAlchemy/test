@@ -24,7 +24,7 @@ import {
   setPixelMapSync
 } from "./pixel-map-sync";
 import { collectSeas } from "./sea-names";
-import { evictNonInfantry, foldCapitalPurses, garrisonLoners } from "./settlements";
+import { evictNonInfantry, foldCapitalPurses, garrisonLoners, seedManpower } from "./settlements";
 import { applyUnitZoom, nameLabels, snapAll, snapMarkers, stackAll } from "./units";
 import { spreadCrowds } from "./war";
 
@@ -109,6 +109,7 @@ window.addEventListener("map:generated", () => {
   const garrisoned = garrisonLoners();
   const evicted = evictNonInfantry();
   foldCapitalPurses();
+  seedManpower(); // sizes and classes made explicit, manpower given
   const spread = spreadCrowds();
   const emblems = applyFluoriaEmblems();
   void enrichPlainEmblems();

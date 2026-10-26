@@ -21,8 +21,8 @@ import { focusedNation, type Standing, setFocus, standing } from "./nation";
 import { cellCentre } from "./one-grid";
 import { cellsOfState } from "./owners";
 import { NATION_COLOURS } from "./palette";
-import { openSendFunds } from "./send-funds";
-import { nationMoney, sendHome, setNationMoney } from "./settlements";
+import { purseBlocks, wirePurse } from "./purse";
+import { capitalOf, sendHome } from "./settlements";
 import { integrate, occupiedBy, tidyOccupations } from "./war";
 
 type Tab = "overview" | "economy" | "diplomacy" | "military" | "notes";
@@ -204,10 +204,10 @@ function render(): void {
       ${stat(t("Area"), `${cellsOfState(id)} ${t("cells")}`)}
       ${stat(t("Settlements"), String(burgs.length))}
       ${stat(t("Provinces"), String(provinces.length))}
-      ${stat(t("Treasury"), `${money(nationMoney(id))} <button type="button" class="np-send" data-act="send-funds" data-tip="${t("Send Funds")}">→</button>`, "gold")}
       ${stat(t("Military"), `${si(troops)} (${si(power)})`, "wide", "military")}
       ${stat(t("Vassals"), String(vassals(id).length))}
     </div>
+    ${capitalOf(id) ? `<div class="np-purse">${purseBlocks(capitalOf(id)!, false)}</div>` : ""}
     <nav class="np-tabs">
       ${TABS.map(([key, label]) => `<button type="button" data-tab="${key}" class="${key === tab ? "on" : ""}">${label}</button>`).join("")}
     </nav>
@@ -216,6 +216,8 @@ function render(): void {
       <button type="button" data-act="charts">▥ ${t("Charts")}</button>
       <button type="button" data-act="editor">⚙ ${t("Full editor")}</button>
     </footer>`;
+  const seat = capitalOf(id);
+  if (seat) wirePurse(panel, seat, render, why => tip(why, false, "error"));
   wireMilitary();
 }
 
@@ -280,7 +282,6 @@ function economy(id: number): string {
   const rules = state.tariffs?.length ?? 0;
   return /* html */ `
     <div class="np-form">
-      <label>${t("Treasury")}<input type="number" step="1" data-field="treasury" value="${Math.round(nationMoney(id))}" /></label>
       <label>${t("Sales tax")}<input type="number" min="0" max="1" step="0.01" data-field="salesTax" value="${state.salesTax ?? 0}" /></label>
       <label>${t("Poll tax")}<input type="number" min="0" step="0.01" data-field="pollTax" value="${state.pollTax ?? 0}" /></label>
     </div>
@@ -386,6 +387,7 @@ function deal(id: number, other: number, act: string): void {
 
 // the Military tab is the game master's desk: every army and garrison, open to see and drag units between them
 const openArmies = new Set<string>();
+const folded = new Set<string>(); // the Military tab's sections folded shut
 let armySort: "power" | "troops" | "name" = "power";
 let armyFilter = "all";
 const CATEGORIES: [string, string][] = [
@@ -453,10 +455,10 @@ function military(regiments: Regiment[]): string {
         .map(([v, l]) => `<option value="${v}" ${v === armySort ? "selected" : ""}>${t("Sort")}: ${t(l)}</option>`)
         .join("")}</select>
     </div>
-    <h3>${t("Armies")}</h3>
-    ${armies.map(army).join("") || `<p class="np-empty">${t("No armies")}</p>`}
-    <h3>${t("Garrisons")}</h3>
-    ${garrisons.map(army).join("") || `<p class="np-empty">${t("No garrisons")}</p>`}
+    <details class="np-fold" data-fold="armies" ${folded.has("armies") ? "" : "open"}><summary>${t("Armies")} (${armies.length})</summary>
+    ${armies.map(army).join("") || `<p class="np-empty">${t("No armies")}</p>`}</details>
+    <details class="np-fold" data-fold="garrisons" ${folded.has("garrisons") ? "" : "open"}><summary>${t("Garrisons")} (${garrisons.length})</summary>
+    ${garrisons.map(army).join("") || `<p class="np-empty">${t("No garrisons")}</p>`}</details>
     <div class="np-pair">
       <button type="button" data-act="add-regiment">+ ${t("Add Army")}</button>
       <button type="button" data-act="military">${t("Military Overview")}</button>
@@ -468,6 +470,11 @@ function wireMilitary(): void {
   if (!panel || tab !== "military") return;
   const id = focusedNation();
   let carried: { from: number; unit: string } | { army: number } | null = null;
+  for (const d of panel.querySelectorAll<HTMLDetailsElement>("details.np-fold"))
+    d.addEventListener("toggle", () => {
+      if (d.open) folded.delete(d.dataset.fold!);
+      else folded.add(d.dataset.fold!);
+    });
   for (const d of panel.querySelectorAll<HTMLDetailsElement>("details.np-army"))
     d.addEventListener("toggle", () => {
       if (d.open) openArmies.add(d.dataset.army!);
@@ -618,9 +625,6 @@ function onClick(event: MouseEvent): void {
     case "close":
       closeNation();
       return;
-    case "send-funds":
-      openSendFunds(id, undefined, render);
-      return;
     case "minimise":
       minimised = !minimised;
       remember();
@@ -740,7 +744,6 @@ function onChange(event: Event): void {
     States.recolor(id, el.value);
     Layers.draw("states", "borders", "labels");
   }
-  if (field === "treasury") setNationMoney(id, Number(el.value) || 0);
   if (field === "salesTax" || field === "pollTax") {
     const sales = field === "salesTax" ? Number(el.value) : (state.salesTax ?? 0);
     const poll = field === "pollTax" ? Number(el.value) : (state.pollTax ?? 0);
