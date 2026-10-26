@@ -301,6 +301,11 @@ class PixelMap {
       if (points.length >= 6) g.poly(points);
     }
     if (edit.cells?.length) g.fill({ color: 0xffffff, alpha: 0.14 });
+    if (edit.hover && edit.hover.length >= 2) {
+      g.moveTo(edit.hover[0][0], edit.hover[0][1]);
+      for (let n = 1; n < edit.hover.length; n++) g.lineTo(edit.hover[n][0], edit.hover[n][1]);
+      g.stroke({ color: 0xffffff, width: 5 / k, cap: "round", join: "round", alpha: 0.35 });
+    }
     for (const [line, color] of [
       [edit.segment, 0xf2c94c],
       [edit.drawing, edit.invalid ? 0xe05a4a : 0xffffff]

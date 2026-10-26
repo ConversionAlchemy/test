@@ -3,7 +3,7 @@
 import type { Burg } from "@/generators/burgs-generator";
 import type { Regiment } from "@/generators/military-generator";
 import { raise } from "./forces/army";
-import { domainOfUnit, isTransport, kitOf, mergeInto, slotsOf, troopsOf, type Units } from "./forces/forces";
+import { domainOfUnit, isTransport, kitOf, rows, slotsOf, troopsOf, type Units } from "./forces/forces";
 import { KIT, type KitUnit, slotSize } from "./forces/kit";
 import { cellCentre, mainCell, neighbours } from "./one-grid";
 import { garrisonSlots, MAX_TIER, type Size, sizeOf } from "./settlement-size";
@@ -374,28 +374,23 @@ function mapRoom(burg: Burg, kit: KitUnit): number {
   return free;
 }
 
-/** Units standing on the map at a settlement, joining its own group there when they can */
+/** Units standing on the map at a settlement, one chip each */
 export function standAt(burg: Burg, units: Units): Regiment | string {
   const [first] = Object.keys(units);
   const naval = domainOfUnit(first) === "naval";
   if (naval && !burg.port) return "Ships need a harbour";
-  const made = raise(burg.state!, burg.cell, { ...units });
-  made.home = burg.i;
-  made.n = naval ? 1 : 0;
-  [made.x, made.y] = standPoint(burg, naval);
-  if (!hasRoom(made.state, placeOf(made), slotsOf(made.u), made)) {
-    Military.remove(made.state, made.i);
-    return "No room on the map there: 4 units a cell";
-  }
-  const here = placeOf(made);
-  const mate = pack.states[made.state].military?.find(
-    r => r !== made && !r.hidden && placeOf(r) === here && !isTransport(r) && !isTransport(made)
-  );
-  if (mate && !mergeInto(made, mate)) {
-    Military.remove(made.state, made.i);
-    return mate;
-  }
-  return made;
+  const [x, y] = standPoint(burg, naval);
+  const at = placeOf({ n: naval ? 1 : 0, cell: burg.cell, x, y });
+  const chips = rows(units);
+  if (!hasRoom(burg.state ?? 0, at, chips.length)) return "No room on the map there: 4 units a cell";
+  const made = chips.map(row => {
+    const r = raise(burg.state!, burg.cell, { [row.unit]: row.count });
+    r.home = burg.i;
+    r.n = naval ? 1 : 0;
+    [r.x, r.y] = [x, y];
+    return r;
+  });
+  return made[0];
 }
 
 /** Older maps kept ships, airships and other units in garrisons: they step out onto the map, once */
@@ -410,11 +405,13 @@ export function evictNonInfantry(): number {
       for (const u of out) {
         const n = g.u[u];
         delete g.u[u];
-        const made = raise(state.i, burg.cell, { [u]: n });
-        made.home = burg.i;
-        made.n = domainOfUnit(u) === "naval" ? 1 : 0;
-        [made.x, made.y] = standPoint(burg, made.n === 1);
-        moved++;
+        for (const row of rows({ [u]: n })) {
+          const made = raise(state.i, burg.cell, { [u]: row.count });
+          made.home = burg.i;
+          made.n = domainOfUnit(u) === "naval" ? 1 : 0;
+          [made.x, made.y] = standPoint(burg, made.n === 1);
+          moved++;
+        }
       }
       g.a = troopsOf(g);
     }
@@ -422,35 +419,25 @@ export function evictNonInfantry(): number {
   return moved;
 }
 
-/** Form an army from garrison units: they stand on the settlement's cell as a regiment of their own */
-export function formArmy(burg: Burg, units: Units): Regiment | string {
+/** March garrison units out: each chip stands on the settlement's cell as a unit of its own */
+export function formArmy(burg: Burg, units: Units): Regiment[] | string {
   const garrison = garrisonOf(burg);
   if (!garrison) return "No garrison here";
-  const domains = new Set(Object.keys(units).map(domainOfUnit));
-  if (domains.size > 1) return "An army is one kind: land, sea or air";
-  const [domain] = domains;
-  if (domain === "naval" && !burg.port) return "Ships leave from a harbour";
-  const made = raise(burg.state!, burg.cell, {});
-  made.home = garrison.home ?? burg.i;
-  for (const [u, n] of Object.entries(units)) {
-    const take = Math.min(n, garrison.u[u] ?? 0);
+  const made: Regiment[] = [];
+  for (const row of rows(units)) {
+    const take = Math.min(row.count, garrison.u[row.unit] ?? 0);
     if (take <= 0) continue;
-    garrison.u[u] -= take;
-    if (!garrison.u[u]) delete garrison.u[u];
-    made.u[u] = (made.u[u] ?? 0) + take;
+    garrison.u[row.unit] -= take;
+    if (!garrison.u[row.unit]) delete garrison.u[row.unit];
+    const r = raise(burg.state!, burg.cell, { [row.unit]: take });
+    r.home = garrison.home ?? burg.i;
+    r.n = 0;
+    r.x = burg.x;
+    r.y = burg.y;
+    made.push(r);
   }
   garrison.a = troopsOf(garrison);
-  made.a = troopsOf(made);
-  made.n = domain === "naval" ? 1 : 0;
-  if (domain === "naval" && pack.cells.haven?.[burg.cell]) {
-    const [x, y] = cellCentre(pack.cells.haven[burg.cell]);
-    made.x = (burg.x + x) / 2;
-    made.y = (burg.y + y) / 2;
-  } else {
-    made.x = burg.x;
-    made.y = burg.y;
-  }
-  return made;
+  return made.length ? made : "Nothing to march out";
 }
 
 export const regimentHome = (r: Regiment) => living(r.home ?? 0);

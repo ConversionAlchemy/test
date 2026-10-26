@@ -6,8 +6,8 @@ import type { MilitaryUnit } from "@/types/Military";
 import { garrisonSlots } from "../settlement-size";
 import { type Domain, type KitUnit, kitUnit, kitUnits, oldSlotSize, slotSize } from "./kit";
 
-/** Chips a cell holds, all nations together; a nation's units in a cell are one group, so a group holds as many */
-export const MAX_SLOTS = 4;
+/** One unit is one chip: a group holds one slot; a cell holds 4 of them (war.ts) */
+export const MAX_SLOTS = 1;
 export const CARGO_SLOTS = [0, 4, 4, 4]; // a transport's tier buys power and protection, not room
 
 export type Units = Record<string, number>;
@@ -137,7 +137,7 @@ export function refusal(to: Regiment, list: List, unit: string, n: number): stri
   if (troopsOf(to) && domain !== domainOf(to)) return `${capitalise(domain)} units can't join a ${domainOf(to)} group`;
   const after = { ...to.u };
   add(after, unit, n);
-  return slotsOf(after) > MAX_SLOTS ? `Won't fit: ${slotsOf(after)} slots, the cap is ${MAX_SLOTS}` : "";
+  return slotsOf(after) > MAX_SLOTS ? "A unit is one chip: this one is full" : "";
 }
 
 const capitalise = (text: string) => text[0].toUpperCase() + text.slice(1);
@@ -176,7 +176,7 @@ export function mergeRefusal(from: Regiment, into: Regiment): string {
     return `A ${domainOf(from)} group can't merge with a ${domainOf(into)} group`;
   const after = { ...into.u };
   for (const [unit, n] of present(from.u)) add(after, unit, n);
-  return slotsOf(after) > MAX_SLOTS ? `Too big: ${slotsOf(after)} slots, the cap is ${MAX_SLOTS}` : "";
+  return slotsOf(after) > MAX_SLOTS ? "Too big: a unit is one chip" : "";
 }
 
 /** Move everything from one regiment into another; the emptied one is for the caller to remove */

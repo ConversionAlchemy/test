@@ -121,7 +121,7 @@ window.addEventListener("map:generated", () => {
     relations ? `${relations} relations set to neutral (friendly, suspicious, rival or unknown).` : "",
     converted ? "Military units converted to the Fluoria unit types." : "",
     chips ? `${chips} groups converted to the new unit sizes, one chip per old slot.` : "",
-    split ? `${split} groups split off to keep every group within 4 units.` : "",
+    split ? `${split} units split off so every chip stands on its own.` : "",
     garrisoned ? `${garrisoned} lone units stationed in nearby garrisons.` : "",
     evicted ? `${evicted} ships, airships and other non-infantry units stepped out of garrisons onto the map.` : "",
     spread ? `${spread} units moved to nearby cells to keep every cell within 4 units.` : "",

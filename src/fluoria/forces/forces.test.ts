@@ -66,19 +66,18 @@ describe("power and strength", () => {
 });
 
 describe("moving troops", () => {
-  it("keeps each side's strength when a chip moves", () => {
-    const a = regiment({ Homeguard: 160 }, { full: 400 });
-    const b = regiment({ Homeguard: 80 }, { i: 1 });
-    expect(shift(a, "u", "Homeguard", 80, b, "u")).toBe("");
-    expect(a.u.Homeguard).toBe(80);
-    expect(b.u.Homeguard).toBe(160);
+  it("keeps each side's strength when troops move", () => {
+    const a = regiment({ Homeguard: 80 }, { full: 200 });
+    const b = regiment({ Homeguard: 40 }, { i: 1 });
+    expect(shift(a, "u", "Homeguard", 40, b, "u")).toBe("");
+    expect(a.u.Homeguard).toBe(40);
+    expect(b.u.Homeguard).toBe(80);
     expect(strength(a)).toBeCloseTo(0.5);
-    expect(b.full).toBeCloseTo(300);
+    expect(b.full).toBeCloseTo(150);
   });
 
-  it("refuses a fifth chip, ships in an army, naval cargo and anything but infantry in a garrison", () => {
-    const army = regiment({ Homeguard: 320 });
-    expect(refusal(army, "u", "Homeguard", 1)).toMatch(/cap is 4/);
+  it("keeps a unit to one chip, and refuses ships in an army, naval cargo and anything but infantry in a garrison", () => {
+    expect(refusal(regiment({ Homeguard: 80 }), "u", "Homeguard", 1)).toMatch(/one chip/);
     expect(refusal(regiment({ Riflemen: 60 }), "u", "Frigate", 1)).toMatch(/can't join/);
     expect(refusal(regiment({ Troopship: 1 }), "cargo", "Frigate", 1)).toMatch(/land units/);
     expect(refusal(regiment({}, { garrison: 3 }), "u", "Gunship", 1)).toMatch(/Only infantry/);
@@ -91,24 +90,25 @@ describe("moving troops", () => {
     expect(shift(army, "u", "Riflemen", 60, ship, "cargo")).toMatch(/Won't fit/);
   });
 
-  it("merges two armies of one domain within the cap", () => {
-    const a = regiment({ Riflemen: 120 });
-    const b = regiment({ Riflemen: 60, "Mounted rifles": 30 }, { i: 1 });
+  it("tops up a unit from another of its kind, within one chip", () => {
+    const a = regiment({ Riflemen: 30 });
+    const b = regiment({ Riflemen: 30 }, { i: 1 });
     expect(mergeInto(a, b)).toBe("");
-    expect(b.u.Riflemen).toBe(180);
+    expect(b.u.Riflemen).toBe(60);
     expect(a.a).toBe(0);
-    expect(mergeInto(regiment({ Frigate: 1 }), b)).toMatch(/naval group/);
+    expect(mergeInto(regiment({ Riflemen: 10 }), b)).toMatch(/one chip/);
+    expect(mergeInto(regiment({ Frigate: 1 }), regiment({ Riflemen: 10 }, { i: 2 }))).toMatch(/naval group/);
   });
 });
 
 describe("conversion", () => {
-  it("turns old unit types into kit types, a chip per old slot, and splits groups of more than 4", () => {
+  it("turns old unit types into kit types, a chip per old slot, each chip a unit of its own", () => {
     options.map.military.units = [
       { icon: "", name: "militia", rural: 0, urban: 0, crew: 1, power: 1, type: "ranged", separate: 1 },
       { icon: "", name: "navy", rural: 0, urban: 0, crew: 100, power: 50, type: "naval", separate: 1 }
     ];
     const big = regiment({ militia: 1500 }, { name: "Northern Host" });
-    const fleet = regiment({ navy: 6 }, { i: 1, name: "1st Fleet", n: 1 });
+    const fleet = regiment({ navy: 3 }, { i: 1, name: "1st Fleet", n: 1 });
     pack.states[1].military = [big, fleet];
     expect(convertUnitTypes(glyph)).toBe(true);
     expect(big.u).toEqual({ Homeguard: 240 }); // 3 old slots of 500, 3 chips of 80
@@ -120,10 +120,15 @@ describe("conversion", () => {
       made.push(r);
       return r;
     });
-    expect(added).toBe(1);
-    expect(big.u).toEqual({ Homeguard: 240 });
-    expect(fleet.u).toEqual({ Gunboat: 4 });
-    expect(made.map(r => [r.name, r.u])).toEqual([["1st Fleet II", { Gunboat: 2 }]]);
+    expect(added).toBe(4);
+    expect(big.u).toEqual({ Homeguard: 80 });
+    expect(fleet.u).toEqual({ Gunboat: 1 });
+    expect(made.map(r => [r.name, r.u])).toEqual([
+      ["Northern Host II", { Homeguard: 80 }],
+      ["Northern Host III", { Homeguard: 80 }],
+      ["1st Fleet II", { Gunboat: 1 }],
+      ["1st Fleet III", { Gunboat: 1 }]
+    ]);
     expect(convertUnitTypes(glyph)).toBe(false);
   });
 

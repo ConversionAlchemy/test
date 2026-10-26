@@ -62,7 +62,8 @@ const DIGITS: Record<string, string[]> = {
   K: ["#.#", "#.#", "##.", "#.#", "#.#"],
   M: ["#.#", "###", "###", "#.#", "#.#"],
   ".": [".", ".", ".", ".", "#"],
-  "/": ["..#", "..#", ".#.", "#..", "#.."]
+  "/": ["..#", "..#", ".#.", "#..", "#.."],
+  x: ["...", "#.#", ".#.", "#.#", "..."]
 };
 
 class Pixels {
@@ -154,10 +155,11 @@ export function iconUrl(unit: KitUnit, colour: string, mode: IconMode = "icon"):
   });
 }
 
-// --- chips: a unit as a rectangle with its icon, tier dots, power grade and count; the right corner cut shows the kind
-// (air: top, ship: bottom). A column of chips is one image; a transport adds layers on top and opens into slots
+// --- chips: a unit as a rectangle with its icon, power grade and count, its tier as pips on its left edge; the right
+// corner cut shows the kind (air: top, ship: bottom). Stacked chips share an edge. A transport adds layers on top
+// and opens into slots; far out a cell is one chip with its strongest unit's icon and how many units it stands for
 
-export const CHIP = { w: 69, h: 21, gap: 1, cut: 6, layer: 2 } as const;
+export const CHIP = { w: 62, h: 21, gap: -1, cut: 6, layer: 2, pip: 3 } as const;
 export type ChipKind = "land" | "air" | "naval";
 
 export interface ChipFace {
@@ -167,14 +169,13 @@ export interface ChipFace {
   grade: number; // 1–9, 0 for none
   count: number;
   strength: number; // 0–1
-  dots?: number; // tier dots, 0 to hide
 }
 
 export interface ChipColumn {
   chips: ChipFace[];
   kind: ChipKind;
   carrier?: { open: boolean; slots: ChipFace[]; room: number }; // a transport: its cargo and room
-  summary?: { units: KitUnit[]; colour: string; grade: number; count: number; behind: number }; // far out, a cell
+  summary?: { lead: KitUnit; units: number; colour: string; grade: number; count: number }; // far out, a cell
 }
 
 /** Rows of a column image, top down: where each chip sits, in art pixels */
@@ -199,14 +200,41 @@ const onEdge = (x: number, y: number, w: number, h: number, kind: ChipKind) =>
   cutAway(x + 1, y, w, h, kind) ||
   cutAway(x, y + (kind === "air" ? -1 : 1), w, h, kind);
 
-/** The 17×17 icon shrunk to 8×8, nearest pixel, for a summary's 2×2 grid */
-const mini = (unit: KitUnit) =>
-  Array.from({ length: 8 }, (_, y) =>
-    Array.from(
-      { length: 8 },
-      (_, x) => unit.pixels[Math.min(16, Math.round(y * 2.15))]?.[Math.min(16, Math.round(x * 2.15))] ?? "."
-    ).join("")
-  );
+const plain = new Map<string, string[]>();
+/** A unit's icon without the tier marks under it (the pips show the tier), centred again */
+function plainPixels(unit: KitUnit): string[] {
+  let rows = plain.get(unit.id);
+  if (rows) return rows;
+  const marks = unit.pixels.findIndex(row => row.includes("W"));
+  const bare = (row?: string) => Boolean(row && /^[.#]+$/.test(row) && row.includes("###"));
+  const drop = new Set<number>();
+  if (marks >= 0) {
+    drop.add(marks);
+    if (bare(unit.pixels[marks - 1])) drop.add(marks - 1);
+    if (bare(unit.pixels[marks + 1])) drop.add(marks + 1);
+  }
+  const kept = unit.pixels.filter((_, k) => !drop.has(k));
+  const used = kept.map(row => row.replaceAll(".", "").length > 0);
+  const first = used.indexOf(true);
+  const last = used.lastIndexOf(true);
+  const art = first < 0 ? kept : kept.slice(first, last + 1);
+  const pad = Math.floor((17 - art.length) / 2);
+  const blank = ".".repeat(17);
+  rows = [...Array(pad).fill(blank), ...art, ...Array(17 - pad - art.length).fill(blank)];
+  plain.set(unit.id, rows);
+  return rows;
+}
+
+/** Tier pips hugging a chip's left edge, sharing its outline */
+function drawPips(p: Pixels, x0: number, y0: number, n: number): void {
+  const top = y0 + Math.round((CHIP.h - (n * 3 + 1)) / 2);
+  for (let k = 0; k < n; k++)
+    for (let y = 0; y < 4; y++)
+      for (let x = 0; x < 4; x++) {
+        const edge = x === 0 || y === 0 || x === 3 || y === 3;
+        p.dot(x0 - 3 + x, top + k * 3 + y, edge ? "#000" : "#fff");
+      }
+}
 
 function drawChip(p: Pixels, x0: number, y0: number, w: number, kind: ChipKind, face: ChipFace, frame = false): void {
   const h = CHIP.h;
@@ -223,16 +251,11 @@ function drawChip(p: Pixels, x0: number, y0: number, w: number, kind: ChipKind, 
       else p.dot(x0 + x, y0 + y, x <= 19 ? shade(face.colour, 0.78) : face.colour);
     }
   if (frame) return;
-  p.art(face.unit.pixels, x0 + 2, y0 + 2, { "#": "#000", R: "#fff", W: "#fff" });
-  const dots = face.dots ?? face.unit.tier;
-  const top = y0 + Math.round((h - (dots * 5 - 1)) / 2);
-  for (let k = 0; k < dots; k++)
-    for (let y = 0; y < 4; y++)
-      for (let x = 0; x < 4; x++)
-        p.dot(x0 + 21 + x, top + k * 5 + y, x === 0 || y === 0 || x === 3 || y === 3 ? "#000" : "#fff");
+  drawPips(p, x0, y0, face.unit.tier);
+  p.art(plainPixels(face.unit), x0 + 2, y0 + 2, { "#": "#000", R: "#fff", W: "#fff" });
   const text = ink(face.colour);
-  if (face.grade) p.bigText(String(face.grade), x0 + 27, y0 + 5, "#fff", "#000");
-  p.bigText(short(face.count), x0 + 39, y0 + 5, text, text === "#fff" ? "#000" : null);
+  if (face.grade) p.bigText(String(face.grade), x0 + 22, y0 + 5, "#fff", "#000");
+  p.bigText(short(face.count), x0 + 31, y0 + 5, text, text === "#fff" ? "#000" : null);
   if (face.strength < 0.995) {
     const left = 20;
     const bar = Math.round(face.strength * (w - left - 2 - CHIP.cut));
@@ -257,52 +280,60 @@ function drawSummary(
       } else p.dot(x0 + x, y0 + y, edge ? "#000" : x <= 19 ? shade(s.colour, 0.78) : s.colour);
     }
   if (frame) return;
-  for (const [k, unit] of s.units.slice(0, 4).entries())
-    p.art(mini(unit), x0 + 2 + (k % 2) * 9, y0 + 2 + Math.floor(k / 2) * 9, { "#": "#000", R: "#fff", W: "#fff" });
+  p.art(plainPixels(s.lead), x0 + 2, y0 + 2, { "#": "#000", R: "#fff", W: "#fff" });
+  if (s.units > 1) {
+    // how many units it stands for, as a badge in the icon's corner
+    const label = `x${Math.min(s.units, 9)}`;
+    for (let y = 12; y <= 19; y++) for (let x = 10; x <= 19; x++) p.dot(x0 + x, y0 + y, "#000");
+    p.text(label, x0 + 11, y0 + 13, "#fff", false);
+  }
   const text = ink(s.colour);
-  if (s.grade) p.bigText(String(s.grade), x0 + 23, y0 + 5, "#fff", "#000");
-  p.bigText(short(s.count), x0 + 34, y0 + 5, text, text === "#fff" ? "#000" : null);
+  if (s.grade) p.bigText(String(s.grade), x0 + 22, y0 + 5, "#fff", "#000");
+  p.bigText(short(s.count), x0 + 31, y0 + 5, text, text === "#fff" ? "#000" : null);
 }
 
-/** The layout of a column: chips one under another; a transport's layers on top, its slots below when open */
+/** The layout of a column: chips one under another, sharing edges; a transport's layers on top, its hold below */
 export function chipLayout(col: ChipColumn): ChipLayout {
-  const { h, gap, layer } = CHIP;
+  const { h, gap, layer, pip } = CHIP;
+  const width = pip + CHIP.w;
   const rows: ChipLayout["rows"] = [];
   if (col.summary) {
-    return { width: CHIP.w, height: h + col.summary.behind * layer, rows: [{ y: 0, kind: "chip", index: 0 }] };
+    const behind = Math.max(0, col.summary.units - 1);
+    return { width, height: h + behind * layer, rows: [{ y: 0, kind: "chip", index: 0 }] };
   }
   if (col.carrier) {
     const lift = col.carrier.open ? 0 : 2 * layer;
     rows.push({ y: lift, kind: "head", index: 0 });
-    if (!col.carrier.open) return { width: CHIP.w, height: lift + h, rows };
-    let y = h + 2;
+    if (!col.carrier.open) return { width, height: lift + h, rows };
+    let y = h + 1;
     for (let k = 0; k < col.carrier.room; k++) {
       rows.push({ y, kind: k < col.carrier.slots.length ? "cargo" : "empty", index: k });
       y += h + gap;
     }
-    return { width: CHIP.w, height: y + 4, rows };
+    return { width, height: y + 4, rows };
   }
   for (let k = 0; k < col.chips.length; k++) rows.push({ y: k * (h + gap), kind: "chip", index: k });
-  return { width: CHIP.w, height: Math.max(h, col.chips.length * (h + gap) - gap), rows };
+  return { width, height: Math.max(h, col.chips.length * (h + gap) - gap), rows };
 }
 
 const faceKey = (f: ChipFace) =>
-  `${f.unit.id}|${f.colour}|${f.band ?? ""}|${f.grade}|${f.count}|${Math.round(f.strength * 20)}|${f.dots ?? ""}`;
+  `${f.unit.id}|${f.colour}|${f.band ?? ""}|${f.grade}|${f.count}|${Math.round(f.strength * 20)}`;
 
 /** A column of chips as one image, or its white frame (selection) */
 export function columnUrl(col: ChipColumn, frame = false): string {
-  const key = `col|${frame}|${col.kind}|${col.chips.map(faceKey).join(";")}|${col.carrier ? `${col.carrier.open}|${col.carrier.room}|${col.carrier.slots.map(faceKey).join(";")}` : ""}|${col.summary ? `${col.summary.units.map(u => u.id).join(",")}|${col.summary.colour}|${col.summary.grade}|${col.summary.count}|${col.summary.behind}` : ""}`;
+  const key = `col|${frame}|${col.kind}|${col.chips.map(faceKey).join(";")}|${col.carrier ? `${col.carrier.open}|${col.carrier.room}|${col.carrier.slots.map(faceKey).join(";")}` : ""}|${col.summary ? `${col.summary.lead.id}|${col.summary.units}|${col.summary.colour}|${col.summary.grade}|${col.summary.count}` : ""}`;
   return cached(key, () => {
     const layout = chipLayout(col);
     const p = new Pixels(layout.width, layout.height);
     const w = CHIP.w;
+    const x0 = CHIP.pip;
     if (col.summary) {
-      drawSummary(p, 0, 0, w, col.summary, frame);
+      drawSummary(p, x0, 0, w, col.summary, frame);
       if (!frame)
-        for (let k = 0; k < col.summary.behind; k++)
+        for (let k = 0; k < col.summary.units - 1; k++)
           for (let x = 2; x < w - 2; x++) {
-            p.dot(x, CHIP.h + k * CHIP.layer, shade(col.summary.colour, 0.85));
-            p.dot(x, CHIP.h + k * CHIP.layer + 1, "#000");
+            p.dot(x0 + x, CHIP.h + k * CHIP.layer, shade(col.summary.colour, 0.85));
+            p.dot(x0 + x, CHIP.h + k * CHIP.layer + 1, "#000");
           }
       return p.element;
     }
@@ -311,8 +342,8 @@ export function columnUrl(col: ChipColumn, frame = false): string {
       if (!col.carrier.open && !frame)
         for (let k = 0; k < 2; k++)
           for (let x = 2; x < w - 2 - (col.kind === "air" ? CHIP.cut : 0); x++) {
-            p.dot(x, k * CHIP.layer, "#000");
-            p.dot(x, k * CHIP.layer + 1, shade(head.colour, 0.85));
+            p.dot(x0 + x, k * CHIP.layer, "#000");
+            p.dot(x0 + x, k * CHIP.layer + 1, shade(head.colour, 0.85));
           }
       const top = col.carrier.open ? 0 : 2 * CHIP.layer;
       if (col.carrier.open && !frame) {
@@ -323,27 +354,27 @@ export function columnUrl(col: ChipColumn, frame = false): string {
             if (col.kind === "naval" && cutAway(x, y - (bodyH - CHIP.h), w, CHIP.h, "naval") && y >= bodyH - CHIP.h)
               continue;
             const edge = x === 0 || x === w - 1 || y === bodyH - 1;
-            p.dot(x, y, edge ? "#000" : x <= 1 || x >= w - 2 || y >= bodyH - 3 ? head.colour : "#1c1f1c");
+            p.dot(x0 + x, y, edge ? "#000" : x <= 1 || x >= w - 2 || y >= bodyH - 3 ? head.colour : "#1c1f1c");
           }
       }
-      drawChip(p, 0, top, w, col.kind, head, frame);
+      drawChip(p, x0, top, w, col.kind, head, frame);
       if (!frame) {
         // the fold arrow: down when shut, up when open
-        const ax = w - 7;
+        const ax = x0 + w - 7;
         const ay = top + 8;
         for (let r = 0; r < 3; r++)
           for (let x = r; x < 5 - r; x++) p.dot(ax + x, col.carrier.open ? ay + 2 - r : ay + r, "#000");
       }
       if (col.carrier.open && !frame)
         for (const row of layout.rows) {
-          if (row.kind === "cargo") drawChip(p, 2, row.y, w - 4, "land", col.carrier.slots[row.index]);
+          if (row.kind === "cargo") drawChip(p, x0 + 2, row.y, w - 4, "land", col.carrier.slots[row.index]);
           else if (row.kind === "empty")
             for (let y = 1; y < CHIP.h - 1; y++)
-              for (let x = 3; x < w - 3; x++) p.dot(x, row.y + y, (x + y) % 2 ? "#2c322c" : "#262b26");
+              for (let x = 3; x < w - 3; x++) p.dot(x0 + x, row.y + y, (x + y) % 2 ? "#2c322c" : "#262b26");
         }
       return p.element;
     }
-    for (const row of layout.rows) drawChip(p, 0, row.y, w, col.kind, col.chips[row.index], frame);
+    for (const row of layout.rows) drawChip(p, x0, row.y, w, col.kind, col.chips[row.index], frame);
     return p.element;
   });
 }
