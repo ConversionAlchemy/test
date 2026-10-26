@@ -7,6 +7,7 @@ import { Icons } from "@/components/icons";
 import { Layers } from "@/components/layers";
 import { clearMainTip, tip } from "@/components/tooltips";
 import { applyDefaultViewboxEvents } from "@/components/viewbox-events";
+import { viewport } from "@/components/viewport";
 import { zoomTo } from "@/components/zoom";
 import { Controllers } from "@/controllers";
 import { canLoad, landingCells, load } from "@/fluoria/boarding";
@@ -38,34 +39,43 @@ import { canStand, reachable } from "@/fluoria/movement";
 import { openNation } from "@/fluoria/nation-panel";
 import { cellAtPoint, mainCell, neighbours } from "@/fluoria/one-grid";
 import { dimPixelMap, highlightCell } from "@/fluoria/pixel-map-sync";
-import { openSendFunds } from "@/fluoria/send-funds";
-import { GARRISON_SLOTS, garrisonSlots, sizeOf } from "@/fluoria/settlement-size";
+import { purseBlocks, wirePurse } from "@/fluoria/purse";
 import {
-  BUILDING_ORDER,
-  BUILDINGS,
-  type Building,
-  build,
-  buildRefusal,
+  GARRISON_SLOTS,
+  garrisonSlots,
+  RANK_NAME,
+  RANKS,
+  type Rank,
+  rankOf,
+  resizeCost,
+  type Size,
+  sizeOf
+} from "@/fluoria/settlement-size";
+import {
   burgOfElement,
+  CLASS_ORDER,
+  CLASSES,
   categoryOf,
-  demolish,
+  classOf,
+  classRefusal,
   ensureGarrison,
   formArmy,
   garrisonable,
   garrisonOf,
-  hasBuilding,
   isCapital,
-  nationMoney,
+  manpowerGain,
   nextTier,
   peopleFor,
-  peopleOf,
   perSlot,
   priceOf,
   recruit,
   recruitable,
   recruitLimit,
+  resizeRefusal,
+  resizeTo,
+  type SettlementClass,
   sendHome,
-  setNationMoney,
+  setClass,
   station,
   unitName,
   upgrade,
@@ -85,6 +95,7 @@ import {
   stackAll
 } from "@/fluoria/units";
 import { atWar, enemiesIn, hasRoom } from "@/fluoria/war";
+import { Notes } from "@/generators/notes";
 import { goodIconLines } from "@/renderers/draw-goods";
 import { artOf, chipOf, labelOf, paintColumn, placeRegiment } from "@/renderers/draw-military";
 import { EmblemRenderer } from "@/renderers/emblems/renderer";
@@ -305,7 +316,7 @@ function openFolder(regiment: Regiment, beside = false): void {
   });
 }
 
-/** A settlement's folder: who holds it, its buildings, goods and garrison; recruiting and money live here */
+/** A settlement's panel, replacing any open folder; with Shift, beside it */
 function openSettlement(burgId: number, beside = false): void {
   hidePeek();
   const burg = pack.burgs[burgId];
@@ -319,18 +330,50 @@ function openSettlement(burgId: number, beside = false): void {
     return;
   }
   const el = document.createElement("div");
-  el.id = `flSettlement${burgId}`;
-  el.className = "dialog flFolder";
+  el.className = "dialog flFolder flSettlement";
+  el.dataset.key = key;
   ensureEl("dialogs").append(el);
   folders.set(key, el);
   renderSettlement(el, burgId);
   $(el).dialog({
-    title: burg.name ?? "",
+    title: t("Settlement"),
     resizable: false,
-    width: "22em",
+    width: "24em",
     position: { my: "left top", at: "left+10 top+10", of: "#map" },
-    close: () => closeFolder(key)
+    close: () => closeFolder(el.dataset.key!)
   });
+  // ◀ ▶ step through the nation's settlements in the same panel
+  const bar = $(el).dialog("widget").find(".ui-dialog-titlebar")[0];
+  const title = bar?.querySelector(".ui-dialog-title");
+  if (title)
+    for (const [dir, label] of [
+      [-1, "◀"],
+      [1, "▶"]
+    ] as const) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "flStep";
+      button.textContent = label;
+      button.addEventListener("click", () => stepSettlement(el, dir));
+      if (dir < 0) title.before(button);
+      else title.after(button);
+    }
+}
+
+/** The panel moves to the nation's previous or next settlement */
+function stepSettlement(el: HTMLElement, dir: number): void {
+  const from = Number(el.dataset.key?.slice(1));
+  const list = settlementsOf(pack.burgs[from]?.state ?? 0);
+  if (list.length < 2) return;
+  const to = list[(list.indexOf(from) + dir + list.length) % list.length];
+  if (folders.has(`b${to}`)) return;
+  folders.delete(`b${from}`);
+  folders.set(`b${to}`, el);
+  el.dataset.key = `b${to}`;
+  recruiting = null;
+  renderSettlement(el, to);
+  const burg = pack.burgs[to];
+  zoomTo(burg.x, burg.y, Math.max(viewport.scale || 1, 4), 600);
 }
 
 function closeFolder(key: string, letGo = true): void {
@@ -492,21 +535,25 @@ function pickNation(done: (state: number) => void): void {
   document.addEventListener("keyup", onKey, true);
 }
 
-// --- settlements
+// --- settlements: a panel like the nation's: who and what it is, its money, manpower and forces, in tabs
 
-const SIZE_NAME: Record<string, string> = { town: "Town", city: "City", capital: "Capital" };
-const BUILDING_ICON: Record<Building, string> = {
+const CLASS_ICON: Record<SettlementClass, string> = {
   barracks: "land_infantry_t2",
+  armoury: "land_armour_t1",
   harbour: "naval_combat_t1",
-  depot: "land_armour_t1",
   airbase: "air_combat_t1",
   market: ""
 };
 let recruiting: number | null = null; // the settlement whose recruit form is open
+type SettleTab = "military" | "economy" | "notes";
+let settleTab: SettleTab = "military";
+let settleFilter = "all";
+let settleSort: "power" | "troops" | "name" = "power";
+let renamingBurg = 0;
 
-function buildingIcon(b: Building, on: boolean): string {
-  const colour = on ? "#ffffff" : "#5c5c5c";
-  const kit = KIT.find(k => k.id === BUILDING_ICON[b]);
+function classIcon(c: SettlementClass, on: boolean): string {
+  const colour = on ? "#ffffff" : "#8a8a8a";
+  const kit = KIT.find(k => k.id === CLASS_ICON[c]);
   return kit ? iconUrl(kit, colour, "silhouette") : stallUrl(colour);
 }
 
@@ -550,121 +597,218 @@ function partFolder(key: string, r: Regiment, title: string, cap: number, open: 
   </details>`;
 }
 
+const SETTLE_FILTERS: [string, string][] = [
+  ["all", "All"],
+  ["infantry", "Infantry"],
+  ["assault", "Assault"],
+  ["cavalry", "Cavalry"],
+  ["armour", "Armour"],
+  ["naval", "Ships"],
+  ["air", "Airships"]
+];
+
+const unitCategory = (unit: string) => {
+  const kit = kitOf(unit);
+  return !kit ? "infantry" : kit.domain === "land" ? kit.role : kit.domain;
+};
+
+/** The nation's settlements in panel order, for ◀ ▶ */
+function settlementsOf(state: number): number[] {
+  return pack.burgs
+    .filter(b => b?.i && !b.removed && b.state === state)
+    .sort(
+      (a, b) =>
+        Number(isCapital(b)) - Number(isCapital(a)) ||
+        RANKS.indexOf(rankOf(b)) - RANKS.indexOf(rankOf(a)) ||
+        (a.name ?? "").localeCompare(b.name ?? "")
+    )
+    .map(b => b.i);
+}
+
+function settlementMilitary(burg: Burg, garrison: Regiment | null, here: Regiment[]): string {
+  const id = burg.i;
+  const matches = (r: Regiment) =>
+    settleFilter === "all" || Object.keys(r.u).some(u => unitCategory(u) === settleFilter);
+  const sorted = here
+    .filter(matches)
+    .sort((a, b) =>
+      settleSort === "name"
+        ? a.name.localeCompare(b.name)
+        : settleSort === "troops"
+          ? troopsOf(b) - troopsOf(a)
+          : cardPower(b) - cardPower(a)
+    );
+  const gKey = `b${id}:g`;
+  const aKey = `b${id}:a`;
+  if (!openParts.has(`${gKey}:seen`)) {
+    openParts.add(`${gKey}:seen`);
+    openParts.add(`${gKey}:s`); // both sections and the garrison open by default
+    openParts.add(`${aKey}:s`);
+    openParts.add(gKey);
+  }
+  const cap = sizeOf(burg) ? GARRISON_SLOTS[sizeOf(burg)!] : 0;
+  return /* html */ `
+    <div class="flTools">
+      <select data-settle-filter>${SETTLE_FILTERS.map(([v, l]) => `<option value="${v}" ${v === settleFilter ? "selected" : ""}>${t(l)}</option>`).join("")}</select>
+      <select data-settle-sort>${[
+        ["power", "Power"],
+        ["troops", "Troops"],
+        ["name", "Name"]
+      ]
+        .map(([v, l]) => `<option value="${v}" ${v === settleSort ? "selected" : ""}>${t("Sort")}: ${t(l)}</option>`)
+        .join("")}</select>
+    </div>
+    ${
+      garrison && matches(garrison)
+        ? `<details class="flSection" data-part="${gKey}:s" ${openParts.has(`${gKey}:s`) ? "open" : ""}><summary>${t("Garrison")}</summary>${partFolder(gKey, garrison, garrison.name, cap, openParts.has(gKey), id)}</details>`
+        : ""
+    }
+    <details class="flSection" data-part="${aKey}:s" ${openParts.has(`${aKey}:s`) ? "open" : ""}><summary>${t("Armies")} (${sorted.length})</summary>
+      ${sorted.map(r => partFolder(`b${id}:${keyOf(r)}`, r, r.name, MAX_SLOTS, openParts.has(`b${id}:${keyOf(r)}`))).join("") || `<div class="flFolderSub">${t("No armies")}</div>`}
+    </details>`;
+}
+
+function settlementEconomy(burg: Burg): string {
+  const current = classOf(burg);
+  const button = (c: SettlementClass | null) => {
+    const on = current === c;
+    const name = c ? t(CLASSES[c].name) : t("None");
+    const why = on ? "" : classRefusal(burg, c);
+    const price = c ? ` · §${CLASSES[c].cost}` : "";
+    const tipText = c
+      ? `${name} · ${t(CLASSES[c].unlocks)}${price}${why ? ` · ${t(why)}` : ""}`
+      : `${name}${why ? ` · ${t(why)}` : ""}`;
+    const art = c ? `<img src="${classIcon(c, on)}" alt="" />` : "<span>–</span>";
+    return `<button type="button" class="flClass${on ? " on" : ""}${why ? " off" : ""}" data-class="${c ?? ""}" data-tip="${tipText}">${art}</button>`;
+  };
+  return /* html */ `
+    <div class="flFolderSub">${t("Class")}: <b>${current ? t(CLASSES[current].name) : t("None")}</b>${sizeOf(burg) ? "" : ` · ${t("Grow it into a town to give it a class")}`}</div>
+    <div class="flClasses">${[null, ...CLASS_ORDER].map(button).join("")}</div>
+    <div class="flFolderSub">${t("Goods")}</div>
+    <div class="flGoods">${goodsOf(burg) || `<span class="flFolderSub">${t("None")}</span>`}</div>`;
+}
+
 function renderSettlement(el: HTMLElement, burgId: number): void {
   const burg = pack.burgs[burgId];
   if (!burg?.i || burg.removed) return;
   const size = sizeOf(burg);
+  const rank = rankOf(burg);
   const garrison = size ? ensureGarrison(burg) : null;
   const state = burg.state ?? 0;
   if (state) void EmblemRenderer.trigger(`stateCOA${state}`, pack.states[state].coa);
-  const cap = size ? GARRISON_SLOTS[size] : 0;
-  const capitalOfNation = size === "capital" && pack.states[state]?.capital === burg.i;
-  const sizePick =
-    size === "capital"
-      ? `<span class="flFolderSub">${t("Capital")} (12 ${t("Slots")})</span>`
-      : `<select class="flSize">${(["village", "town", "city"] as const)
-          .map(g => {
-            const label = g === "village" ? t("Village") : `${SIZE_NAME[g]} (${GARRISON_SLOTS[g]} ${t("Slots")})`;
-            const on = (size ?? "village") === g;
-            return `<option value="${g}" ${on ? "selected" : ""}>${label}</option>`;
-          })
-          .join("")}</select>`;
-  // the capital's money is the nation's treasury: one figure
-  const moneyValue = capitalOfNation ? nationMoney(state) : (burg.treasury ?? 0);
-  const money = /* html */ `<span class="flGold">§</span><input class="flInline flGold" data-money="${capitalOfNation ? "nation" : "own"}" type="number" value="${Math.floor(moneyValue)}" data-tip="${capitalOfNation ? t("The nation's treasury") : t("This settlement's treasury")}" />
-    ${size ? px("funds", "send", t("Send Funds")) : ""}`;
-  const buildings = size
-    ? BUILDING_ORDER.map(b => {
-        const on = hasBuilding(burg, b);
-        const why = on ? t("Built") : buildRefusal(burg, b) || `§${BUILDINGS[b].cost}`;
-        return `<button type="button" class="flBuilding${on ? " on" : ""}" data-build="${b}" data-tip="${t(BUILDINGS[b].name)} · ${t(BUILDINGS[b].unlocks)} · ${why}"><img src="${buildingIcon(b, on)}" alt="" /></button>`;
-      }).join("")
-    : "";
+  const capital = isCapital(burg);
+  const sizePick = `<select class="flSize" data-tip="${t("Size: growing costs money, shrinking gives half back")}">${RANKS.map(
+    r => {
+      const cost = resizeCost(rank, r);
+      const label = r === rank ? t(RANK_NAME[r]) : `${t(RANK_NAME[r])} (${cost > 0 ? `§${cost}` : `+§${-cost}`})`;
+      return `<option value="${r}" ${r === rank ? "selected" : ""} ${capital && r !== "citadel" ? "disabled" : ""}>${label}</option>`;
+    }
+  ).join("")}</select>`;
+  const star =
+    rank === "citadel" && state
+      ? `<button type="button" class="flPx flStar${capital ? " on" : ""}" data-act="capital" data-tip="${capital ? t("The capital") : t("Make it the capital")}"><img src="${buttonUrl("star", capital ? "#ffd34d" : "#7a7a7a")}" alt="" /></button>`
+      : "";
   const here = (pack.states[state]?.military ?? []).filter(
     r => !r.hidden && !r.garrison && mainCell(r.cell) === mainCell(burg.cell)
   );
-  const gKey = `b${burgId}:g`;
-  if (!openParts.has(`${gKey}:seen`)) {
-    openParts.add(`${gKey}:seen`);
-    openParts.add(gKey); // the garrison opens by default
-  }
+  const garrisonTroops = garrison ? troopsOf(garrison) : 0;
+  const armyTroops = here.reduce((sum, r) => sum + troopsOf(r), 0);
+  const nation = pack.states[state];
+  const name =
+    renamingBurg === burgId
+      ? `<input class="flFolderName" value="${escapeHtml(burg.name ?? "")}" spellcheck="false" />`
+      : `<b class="flSettleName">${escapeHtml(burg.name ?? "")}</b><button type="button" class="flEdit" data-act="rename" data-tip="${t("Rename")}">✎</button>`;
+  const tabs: [SettleTab, string][] = [
+    ["military", t("Military")],
+    ["economy", t("Economy")],
+    ["notes", t("Notes")]
+  ];
+  const note = Notes.get({ type: "burg", id: burgId }) ?? "";
+  const body =
+    settleTab === "economy"
+      ? settlementEconomy(burg)
+      : settleTab === "notes"
+        ? `<div class="flNote" contenteditable="true" data-burg-note="${burgId}">${note}</div>`
+        : settlementMilitary(burg, garrison, here);
 
   el.innerHTML = /* html */ `
     <div class="flFolderHead">
       <svg class="flFolderArt flNationLink" viewBox="0 0 200 200" data-tip="${t("Open the nation")}"><use href="#stateCOA${state}"></use></svg>
       <div>
-        <input class="flFolderName" value="${escapeHtml(burg.name ?? "")}" data-tip="${t("Type to rename")}" spellcheck="false" />
-        <div class="flFolderSub">${sizePick}</div>
-        <div class="flFolderSub flMoneyLine">${t("Pop")} <input class="flInline" data-pop type="number" value="${peopleOf(burg)}" /> · ${money}</div>
+        <div class="flNameLine">${name}</div>
+        <div class="flFolderSub">${state ? `<a class="flNationLink">${escapeHtml(nation?.name ?? "")}</a>` : t("Neutral")}</div>
+        <div class="flFolderSub flSizeLine">${sizePick}${star}${px("lock", burg.lock ? "locked" : "unlocked", burg.lock ? t("Unlock") : t("Lock"))}</div>
       </div>
     </div>
-    <div class="flSettleRow"><div class="flBuildings">${buildings}</div><div class="flGoods">${goodsOf(burg)}</div></div>
-    ${garrison ? `<div class="flPartHead">${t("Garrison")}</div>${partFolder(gKey, garrison, garrison.name, cap, openParts.has(gKey), burgId)}` : ""}
-    ${here.length ? `<div class="flPartHead">${t("Armies Here")}</div>${here.map(r => partFolder(`b${burgId}:${keyOf(r)}`, r, r.name, MAX_SLOTS, openParts.has(`b${burgId}:${keyOf(r)}`))).join("")}` : ""}
-    ${recruiting === burgId && size ? recruitForm(burg) : ""}
-    <div class="flFolderBottom">
-      ${size ? px("recruit", "recruit", t("Recruit")) : ""}
-      ${size ? px("form", "form", t("Form Army: the garrison marches out as a group (or drag rows onto the map)")) : ""}
-      ${px("locate", "locate", t("Locate"))}
-      ${px("", "notes", t("Notes"), `flSettleNote${burgId}`)}
-      ${px("lock", burg.lock ? "locked" : "unlocked", burg.lock ? t("Unlock") : t("Lock"))}
+    ${purseBlocks(burg)}
+    <div class="flPurse"><div class="flPurseHead">${t("Military")}<span class="flSummary">${t("Garrison")} ${short(garrisonTroops)} · ${t("Armies")} ${short(armyTroops)}</span></div></div>
+    <nav class="flTabs">${tabs.map(([key, label]) => `<button type="button" data-settle-tab="${key}" class="${key === settleTab ? "on" : ""}">${label}</button>`).join("")}</nav>
+    <div class="flTabBody">${body}</div>
+    ${recruiting === burgId ? recruitForm(burg) : ""}
+    <div class="flFolderBottom flSplit">
+      ${px("recruit", "recruit", t("Recruit"))}
       ${px("remove", "delete", t("Delete"))}
     </div>`;
   el.querySelector('[data-act="recruit"]')?.classList.toggle("pressed", recruiting === burgId);
+  wirePurse(el, burg, changed, (why, at) => report(why, at));
 
-  el.querySelector<HTMLInputElement>(".flFolderName")!.addEventListener("change", function () {
-    if (!this.value.trim()) return;
-    Burgs.rename(burgId, this.value.trim());
-    $(el).dialog("option", "title", burg.name);
-    Layers.draw("labels");
-  });
-  el.querySelector<HTMLSelectElement>(".flSize")?.addEventListener("change", function () {
-    resize(burg, this.value);
-    changed();
-  });
-  el.querySelector<HTMLInputElement>("[data-pop]")?.addEventListener("change", function () {
-    Burgs.setPopulation(burgId, Math.max(0, Math.round(+this.value || 0)));
-    changed();
-  });
-  for (const input of el.querySelectorAll<HTMLInputElement>("[data-money]"))
-    input.addEventListener("change", () => {
-      const amount = Math.max(0, Math.round(+input.value || 0));
-      if (input.dataset.money === "nation") setNationMoney(state, amount);
-      else Burgs.setTreasury(burgId, amount);
-      changed();
-    });
-  el.querySelector(".flMoneyLine")?.addEventListener("click", event => {
-    if ((event.target as HTMLElement).closest('[data-act="funds"]')) settlementAction("funds", burg, el);
-  });
-  el.querySelector(".flNationLink")?.addEventListener("click", () => {
-    if (state) openNation(state);
-  });
-  el.querySelector(".flBuildings")?.addEventListener("click", event => {
-    const b = (event.target as HTMLElement).closest<HTMLElement>("[data-build]")?.dataset.build as Building | undefined;
-    if (!b) return;
-    if (!hasBuilding(burg, b)) {
-      report(build(burg, b), el.querySelector(`[data-build="${b}"]`));
-      changed();
-      return;
-    }
-    confirmationDialog({
-      title: t("Demolish"),
-      message: t("Tear down the {{building}}? Half its cost comes back.", { building: t(BUILDINGS[b].name) }),
-      confirm: t("Demolish"),
-      onConfirm: () => {
-        demolish(burg, b);
-        changed();
+  const nameInput = el.querySelector<HTMLInputElement>("input.flFolderName");
+  if (nameInput) {
+    nameInput.focus();
+    nameInput.select();
+    const done = () => {
+      renamingBurg = 0;
+      if (nameInput.value.trim()) {
+        Burgs.rename(burgId, nameInput.value.trim());
+        Layers.draw("labels");
+      }
+      renderSettlement(el, burgId);
+    };
+    nameInput.addEventListener("change", done);
+    nameInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") nameInput.blur();
+      if (event.key === "Escape") {
+        renamingBurg = 0;
+        renderSettlement(el, burgId);
       }
     });
+  }
+  el.querySelector<HTMLSelectElement>(".flSize")?.addEventListener("change", function () {
+    askResize(burg, this.value as Rank, el);
   });
-  el.querySelector(".flFolderBottom")!.addEventListener("click", event => {
-    const act = (event.target as HTMLElement).closest<HTMLElement>("[data-act]")?.dataset.act;
-    if (act) settlementAction(act, burg, el);
+  for (const link of el.querySelectorAll(".flNationLink"))
+    link.addEventListener("click", () => {
+      if (state) openNation(state);
+    });
+  el.querySelector(".flTabs")?.addEventListener("click", event => {
+    const tab = (event.target as HTMLElement).closest<HTMLElement>("[data-settle-tab]")?.dataset.settleTab;
+    if (!tab) return;
+    settleTab = tab as SettleTab;
+    renderSettlement(el, burgId);
   });
-  el.querySelector(`#flSettleNote${burgId}`)?.addEventListener(
-    "click",
-    () => void Controllers.NotesEditor.open({ type: "burg", id: burgId })
-  );
+  el.querySelector<HTMLSelectElement>("[data-settle-filter]")?.addEventListener("change", function () {
+    settleFilter = this.value;
+    renderSettlement(el, burgId);
+  });
+  el.querySelector<HTMLSelectElement>("[data-settle-sort]")?.addEventListener("change", function () {
+    settleSort = this.value as typeof settleSort;
+    renderSettlement(el, burgId);
+  });
+  el.querySelector(".flClasses")?.addEventListener("click", event => {
+    const button = (event.target as HTMLElement).closest<HTMLElement>("[data-class]");
+    if (!button) return;
+    askClass(burg, (button.dataset.class || null) as SettlementClass | null, button);
+  });
+  el.querySelector<HTMLElement>("[data-burg-note]")?.addEventListener("input", function () {
+    Notes.set({ type: "burg", id: burgId }, this.innerHTML.trim());
+  });
+  for (const button of el.querySelectorAll<HTMLElement>(".flFolderHead [data-act], .flFolderBottom [data-act]"))
+    button.addEventListener("click", () => settlementAction(button.dataset.act!, burg, el));
+  for (const section of el.querySelectorAll<HTMLDetailsElement>("details.flSection"))
+    section.addEventListener("toggle", () => {
+      if (section.open) openParts.add(section.dataset.part!);
+      else openParts.delete(section.dataset.part!);
+    });
   for (const part of el.querySelectorAll<HTMLDetailsElement>("details.flPart")) {
     const r = regimentOf(+part.dataset.state!, +part.dataset.id!);
     if (!r) continue;
@@ -700,13 +844,73 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
   if (recruiting === burgId) wireRecruit(el, burg);
 }
 
+/** Change size after a confirm that says what it costs and what it does to manpower and the garrison */
+function askResize(burg: Burg, to: Rank, el: HTMLElement): void {
+  const from = rankOf(burg);
+  const why = resizeRefusal(burg, to);
+  if (why) {
+    report(t(why), el.querySelector(".flSize"));
+    renderSettlement(el, burg.i);
+    return;
+  }
+  const cost = resizeCost(from, to);
+  const gain = manpowerGain(burg, to);
+  const lines = [
+    cost > 0 ? t("Costs §{{n}}", { n: cost }) : t("Gives §{{n}} back", { n: -cost }),
+    gain ? t("+{{n}} manpower", { n: gain }) : "",
+    RANKS.indexOf(to) < RANKS.indexOf(from)
+      ? to === "village"
+        ? t("The garrison marches out and the class is given up")
+        : t("The garrison holds {{n}} slots; the rest march out", { n: GARRISON_SLOTS[to as Size] })
+      : ""
+  ].filter(Boolean);
+  confirmationDialog({
+    title: t(RANK_NAME[to]),
+    message: `${t("Make {{name}} a {{size}}?", { name: burg.name ?? "", size: t(RANK_NAME[to]).toLowerCase() })}<br>${lines.join("<br>")}`,
+    confirm: t("Confirm"),
+    onConfirm: () => {
+      resize(burg, to);
+      changed();
+    },
+    onCancel: () => renderSettlement(el, burg.i)
+  });
+}
+
+/** Change class after a confirm with its price */
+function askClass(burg: Burg, c: SettlementClass | null, button: Element): void {
+  if (classOf(burg) === c) return;
+  const why = classRefusal(burg, c);
+  if (why) {
+    report(t(why), button);
+    return;
+  }
+  const old = classOf(burg);
+  const back = old ? Math.round(CLASSES[old].cost / 2) : 0;
+  const lines = [c ? t("Costs §{{n}}", { n: CLASSES[c].cost }) : "", back ? t("Gives §{{n}} back", { n: back }) : ""];
+  confirmationDialog({
+    title: c ? t(CLASSES[c].name) : t("No class"),
+    message: `${c ? t("Make {{name}} a {{class}}?", { name: burg.name ?? "", class: t(CLASSES[c].name) }) : t("Give up {{name}}'s class?", { name: burg.name ?? "" })}<br>${lines.filter(Boolean).join("<br>")}`,
+    confirm: t("Confirm"),
+    onConfirm: () => {
+      report(t(setClass(burg, c)), button);
+      Layers.draw("burgIcons");
+      changed();
+    }
+  });
+}
+
 /** A settlement made bigger or smaller; a garrison that no longer fits marches its extra out as an army */
-function resize(burg: Burg, group: string): void {
-  const names = options.map.burgs.groups.filter(g => !g.removed).map(g => g.name);
-  if (names.includes(group)) Burgs.setGroup(burg.i, group);
-  else burg.group = group;
+function resize(burg: Burg, to: Rank): void {
+  const why = resizeTo(burg, to);
+  if (why) {
+    report(t(why));
+    return;
+  }
   const garrison = garrisonOf(burg);
-  if (!garrison) return;
+  if (!garrison) {
+    Layers.draw("burgIcons", "labels");
+    return;
+  }
   const cap = garrisonSlots(burg.i);
   const extra: Record<string, number> = {};
   const kept = rows(garrison.u);
@@ -715,29 +919,19 @@ function resize(burg: Burg, group: string): void {
     extra[row.unit] = (extra[row.unit] ?? 0) + row.count;
   }
   if (Object.keys(extra).length) {
-    // one army per kind (land, sea, air); what can't stand there goes home
-    const byDomain = new Map<string, Record<string, number>>();
-    for (const [unit, n] of Object.entries(extra)) {
-      const d = domainOfUnit(unit);
-      byDomain.set(d, { ...(byDomain.get(d) ?? {}), [unit]: n });
-    }
-    let home = false;
-    for (const units of byDomain.values()) {
-      const made = hasRoom(burg.state!, burg.cell, slotsOf(units)) ? formArmy(burg, units) : "full";
-      if (typeof made === "string") {
-        for (const [unit, n] of Object.entries(units)) {
-          garrison.u[unit] -= n;
-          if (garrison.u[unit] <= 0) delete garrison.u[unit];
-        }
-        sendHome({ ...garrison, home: 0, garrison: 0 }, units);
-        home = true;
+    const made = hasRoom(burg.state!, burg.cell, rows(extra).length) ? formArmy(burg, extra) : "full";
+    if (typeof made === "string") {
+      for (const [unit, n] of Object.entries(extra)) {
+        garrison.u[unit] -= n;
+        if (garrison.u[unit] <= 0) delete garrison.u[unit];
       }
+      sendHome({ ...garrison, home: 0, garrison: 0 }, extra);
     }
     garrison.a = troopsOf(garrison);
     tip(
-      home
-        ? t("The extra troops marched out; those with no room went home")
-        : t("The extra troops marched out as an army"),
+      typeof made === "string"
+        ? t("The extra troops went home: no room on the map")
+        : t("The extra troops marched out"),
       false,
       "info"
     );
@@ -749,7 +943,7 @@ function resize(burg: Burg, group: string): void {
 function recruitForm(burg: Burg): string {
   const options = recruitable(burg);
   if (!options.length)
-    return `<div class="flRecruit flFolderSub">${t("Build a Barracks, Harbour, Armour Depot or Airbase to recruit here")}</div>`;
+    return `<div class="flRecruit flFolderSub">${t("Nothing to raise: it needs manpower, or a class")}</div>`;
   return /* html */ `<div class="flRecruit">
     <select class="flRecruitUnit">${[...new Set(options.map(categoryOf))]
       .map(
@@ -777,7 +971,7 @@ function wireRecruit(el: HTMLElement, burg: Burg): void {
     count.max = String(limit);
     if (reset || +count.value > limit) count.value = String(Math.min(perSlot(k), limit));
     const n = Math.max(0, +count.value || 0);
-    cost.textContent = `${t("Cost")}: ${peopleFor(unitName(k), n).toLocaleString()} ${t("People")} · §${priceOf(k, n).toLocaleString()} · ${t("Up To")} ${limit.toLocaleString()}`;
+    cost.textContent = `${t("Cost")}: ${peopleFor(unitName(k), n).toLocaleString()} ${t("Manpower")} · §${priceOf(k, n).toLocaleString()} · ${t("Up To")} ${limit.toLocaleString()}`;
   };
   update(true);
   unit.addEventListener("change", () => update(true));
@@ -803,30 +997,26 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
     renderSettlement(el, burg.i);
     return;
   }
-  if (act === "form") {
-    const garrison = garrisonOf(burg);
-    let room = 0;
-    while (room < 4 && hasRoom(burg.state!, burg.cell, room + 1)) room++;
-    const units = garrison ? marchOut(garrison.u, room) : {};
-    if (!Object.keys(units).length) {
-      report(garrison && troopsOf(garrison) ? t("That cell is full: 4 units") : t("The garrison is empty"));
-      return;
-    }
-    const made = formArmy(burg, units);
-    if (typeof made === "string") {
-      report(made);
-      return;
-    }
-    changed();
-    pick(made[0]);
+  if (act === "rename") {
+    renamingBurg = burg.i;
+    renderSettlement(el, burg.i);
     return;
   }
-  if (act === "funds") {
-    openSendFunds(burg.state ?? 0, isCapital(burg) ? undefined : burg.i, changed);
-    return;
-  }
-  if (act === "locate") {
-    zoomTo(burg.x, burg.y, 6, 900);
+  if (act === "capital") {
+    if (isCapital(burg) || !burg.state) return;
+    confirmationDialog({
+      title: t("Capital"),
+      message: t("Make {{name}} the capital of {{state}}? The treasury moves with it.", {
+        name: burg.name ?? "",
+        state: pack.states[burg.state].name
+      }),
+      confirm: t("Confirm"),
+      onConfirm: () => {
+        Burgs.setCapital(burg.i);
+        Layers.draw("burgIcons", "labels");
+        changed();
+      }
+    });
     return;
   }
   if (act === "lock") {
@@ -834,7 +1024,11 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
     renderSettlement(el, burg.i);
     return;
   }
-  if (act === "remove")
+  if (act === "remove") {
+    if (isCapital(burg)) {
+      report(t("Move the capital first"));
+      return;
+    }
     confirmationDialog({
       title: t("Delete"),
       message: t("Delete {{name}}? Its garrison goes to the capital.", { name: burg.name }),
@@ -851,6 +1045,7 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
         changed();
       }
     });
+  }
 }
 
 /** The garrison's chips of its first kind, as many as the cell has room for: what Form Army marches out */
@@ -1643,7 +1838,11 @@ export const RegimentEditor = {
   click: clickRegiment,
   bind: bindRegiments,
   clear: clearAll,
-  settlement: openSettlement
+  settlement: openSettlement,
+  recruit: (burgId: number) => {
+    recruiting = burgId;
+    openSettlement(burgId);
+  }
 };
 
 window.addEventListener("fl:clear", clearAll);

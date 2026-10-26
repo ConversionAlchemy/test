@@ -1342,24 +1342,6 @@ details.flPart .flSlots { padding: 0 4px 4px 22px; box-sizing: border-box; }
 .ui-dialog .ui-dialog-buttonpane button { background: #4a4a4a; color: #e8e5d9; border: 1px solid #2a2a2a; }
 .ui-dialog .ui-dialog-buttonpane button:hover { background: #5c5c5c; }
 
-/* Send Funds, laid out like Azgaar's dialogs */
-#flSendFunds { font-size: 1em; }
-#flSendFunds .flSendGrid { display: grid; grid-template-columns: 5em 1fr 2em 5em; gap: 6px; align-items: center; padding: 0.5em 0.2em 0.2em; }
-#flSendFunds .flSendLabel { color: var(--fl-dim); }
-#flSendFunds select, #flSendFunds input { width: 100%; box-sizing: border-box; }
-#flSendFunds .flSendPick { padding: 0; height: 1.6em; cursor: pointer; }
-#flSendFunds .flSendPick.pressed { background: #e8e5d9; color: #111; }
-#flSendFunds .flCoin { color: #e3c66b; white-space: nowrap; }
-#flSendFunds .flSendError { color: #e86a5c; min-height: 1.1em; padding: 0 0.2em; }
-#flSendFunds .flSendButtons { display: flex; gap: 4px; padding: 0.2em 0.2em 0.5em; }
-#flSendFunds .flSendButtons button { padding: 2px 18px; cursor: pointer; }
-#flSendFunds .flSendRow button { flex: none; }
-#flSendFunds .flSendLog { border-top: 1px solid #000; padding-top: 0.3em; }
-#flSendFunds .flSendRow { display: flex; align-items: center; gap: 6px; color: var(--fl-dim); padding: 2px 0.2em; }
-#flSendFunds .flSendRow > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#flSendFunds { overflow-x: hidden; }
-#flSendFunds .flSendRow > :last-child { margin-left: auto; }
-#flSendFunds .flSendRow button { cursor: pointer; padding: 0 6px; }
 .ui-dialog.flFaded { opacity: 0.4; pointer-events: none; } /* clicks go through to the map while picking */
 body.flPicking #map, body.flPicking #map * { cursor: crosshair !important; }
 #flNation .np-send { margin-left: 4px; padding: 0 5px; font-size: 0.9em; cursor: pointer; }
@@ -1379,3 +1361,62 @@ body.flPicking #map, body.flPicking #map * { cursor: crosshair !important; }
   white-space: nowrap;
   min-width: 0;
 }
+
+/* Settlement panel: like the nation's, money and manpower as boxes with ▲▼ drawing on the line below */
+.flSettlement .flNameLine { display: flex; align-items: center; gap: 4px; }
+.flSettlement .flSettleName { font-size: 1.15em; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flEdit { padding: 0 4px; background: none; border: 0; color: var(--fl-dim); cursor: pointer; }
+.flEdit:hover { color: #fff; }
+.flSizeLine { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+.flSizeLine select { flex: 1; min-width: 0; }
+.flSizeLine .flPx, .flSettlement .flStar { display: inline-grid; place-items: center; width: 24px; height: 22px; padding: 0; background: #4a4a4a; border: 1px solid #2a2a2a; cursor: pointer; }
+.flSizeLine .flPx img { width: 18px; height: 18px; }
+.flPurse { border-top: 1px solid var(--fl-line); padding: 3px 0; }
+.flPurseHead { display: flex; align-items: center; gap: 6px; color: #fff; }
+.flPurseHead > .flBox, .flPurseHead > .flSummary { margin-left: auto; }
+.flSummary { color: var(--fl-dim); }
+.flPurseLine { display: flex; align-items: center; gap: 6px; color: var(--fl-dim); padding: 1px 0 1px 0.8em; }
+.flPurseLine > span:not(.flPicker):not(.flBox) { margin-left: auto; color: #e3c66b; white-space: nowrap; }
+.flPurseLine > .flBox { margin-left: 4px; }
+.flBox { display: inline-flex; align-items: stretch; }
+.flBox input { width: 5.5em; text-align: right; }
+.flSteps { display: inline-flex; flex-direction: column; }
+.flSteps button { padding: 0 4px; font-size: 0.6em; line-height: 1.1; background: #4a4a4a; color: #e8e5d9; border: 1px solid #2a2a2a; cursor: pointer; }
+.flSteps button:hover { background: #5c5c5c; }
+.flPicker { position: relative; min-width: 0; }
+.flPickOpen { max-width: 11em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #333; color: #e8e5d9; border: 1px solid #2a2a2a; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+.flPickList { display: none; position: absolute; z-index: 5; left: 0; top: 100%; min-width: 13em; max-height: 16em; overflow-y: auto; background: #232323; border: 1px solid #000; box-shadow: 0 3px 10px #0008; }
+.flPicker.on .flPickList { display: block; }
+.flPickItem { display: flex; align-items: center; gap: 4px; width: 100%; padding: 2px 6px; background: none; border: 0; color: #e8e5d9; text-align: left; cursor: pointer; }
+.flPickItem i { margin-left: auto; color: var(--fl-dim); font-style: normal; }
+.flPickItem:hover:not(:disabled) { background: #3a3a3a; }
+.flPickItem:disabled { color: #6c6c6c; cursor: default; }
+.flPickGroup { padding: 3px 6px 1px; color: var(--fl-dim); font-size: 0.85em; }
+.flPickEmblem { width: 14px; height: 14px; flex: none; image-rendering: pixelated; }
+.flTabs { display: flex; gap: 2px; border-top: 1px solid var(--fl-line); padding-top: 3px; }
+.flTabs button { flex: 1; background: #333; color: var(--fl-dim); border: 1px solid #2a2a2a; cursor: pointer; }
+.flTabs button.on { background: #4a4a4a; color: #fff; }
+.flTabBody { padding: 3px 0; min-height: 4em; }
+.flTools { display: flex; gap: 4px; padding-bottom: 3px; }
+.flTools select { flex: 1; min-width: 0; }
+.flSection > summary { color: #fff; cursor: pointer; padding: 2px 0; }
+.flClasses { display: flex; gap: 3px; padding: 3px 0 6px; }
+.flClass { display: inline-grid; place-items: center; width: 34px; height: 30px; padding: 0; background: #333; border: 1px solid #2a2a2a; color: #8a8a8a; cursor: pointer; }
+.flClass.on { background: #5c5c5c; border-color: #e8e5d9; color: #fff; }
+.flClass.off { opacity: 0.5; }
+.flClass img { width: 22px; height: 22px; image-rendering: pixelated; }
+.flNote { min-height: 5em; padding: 4px; background: #1b1b1b; border: 1px solid #333; }
+.flFolderBottom.flSplit { justify-content: space-between; }
+.ui-dialog-titlebar .flStep { padding: 0 5px; margin-right: 4px; background: none; border: 0; color: #e8e5d9; cursor: pointer; float: left; }
+.ui-dialog-titlebar .flStep + .ui-dialog-title { float: left; width: auto; }
+.ui-dialog-titlebar .ui-dialog-title + .flStep { margin-left: 4px; }
+#flNation .np-purse { padding: 0 0.8em; font-size: 0.85em; }
+#flNation .np-purse .flSteps button { padding: 0 4px; font-size: 0.6em; line-height: 1.1; }
+#flNation .np-purse input { padding: 1px 3px; }
+#flNation .np-purse .flPickOpen, #flNation .np-purse .flPickItem { padding: 1px 6px; }
+#flNation .np-fold > summary { cursor: pointer; color: #fff; padding: 4px 0 2px; font-weight: bold; }
+
+/* the right-click bar */
+#contextMenu.flBar { position: fixed; z-index: 100000; display: flex; gap: 2px; padding: 3px; background: #232323; border: 1px solid #000; box-shadow: 0 3px 10px #0008; }
+#contextMenu.flBar .flPx { display: inline-grid; place-items: center; width: 32px; height: 28px; padding: 0; background: #4a4a4a; border: 1px solid #2a2a2a; cursor: pointer; }
+#contextMenu.flBar .flPx:hover, #contextMenu.flBar .flPx:focus-visible { background: #5c5c5c; outline: none; }

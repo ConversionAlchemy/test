@@ -1,32 +1,39 @@
-// Settlements as Fluoria uses them: a garrison kept off the map, buildings that unlock recruiting, and money.
-// A garrison is a hidden regiment tied to its settlement; buildings are Azgaar's own feature toggles, renamed
+// Settlements as Fluoria uses them: a garrison kept off the map, one class that sets what it raises, money and
+// manpower. A garrison is a hidden regiment tied to its settlement
 import type { Burg } from "@/generators/burgs-generator";
 import type { Regiment } from "@/generators/military-generator";
 import { raise } from "./forces/army";
 import { domainOfUnit, isTransport, kitOf, rows, slotsOf, troopsOf, type Units } from "./forces/forces";
 import { KIT, type KitUnit, slotSize } from "./forces/kit";
 import { cellCentre, mainCell, neighbours } from "./one-grid";
-import { garrisonSlots, MAX_TIER, type Size, sizeOf } from "./settlement-size";
+import {
+  garrisonSlots,
+  MANPOWER_LEVEL,
+  MAX_TIER,
+  RANKS,
+  type Rank,
+  rankOf,
+  resizeCost,
+  sizeOf
+} from "./settlement-size";
 import { hasRoom, placeOf } from "./war";
 
-export type Building = "barracks" | "harbour" | "depot" | "airbase" | "market";
+export type SettlementClass = "barracks" | "armoury" | "harbour" | "airbase" | "market";
 
-interface BuildingInfo {
+interface ClassInfo {
   name: string;
-  field: "citadel" | "port" | "temple" | "shanty" | "plaza"; // the Azgaar toggle it lives in
   cost: number;
   unlocks: string;
-  needs?: Size[]; // sizes allowed to build it
 }
 
-export const BUILDINGS: Record<Building, BuildingInfo> = {
-  barracks: { name: "Barracks", field: "citadel", cost: 250, unlocks: "Infantry, Assault, Cavalry" },
-  harbour: { name: "Harbour", field: "port", cost: 500, unlocks: "Ships" },
-  depot: { name: "Armour Depot", field: "temple", cost: 450, unlocks: "Armour", needs: ["city", "capital"] },
-  airbase: { name: "Airbase", field: "shanty", cost: 800, unlocks: "Airships", needs: ["city", "capital"] },
-  market: { name: "Market", field: "plaza", cost: 150, unlocks: "+10% Income" }
+export const CLASSES: Record<SettlementClass, ClassInfo> = {
+  barracks: { name: "Barracks", cost: 250, unlocks: "Infantry, Assault, Cavalry" },
+  armoury: { name: "Armoury", cost: 450, unlocks: "Armour" },
+  harbour: { name: "Harbour", cost: 500, unlocks: "Ships" },
+  airbase: { name: "Airbase", cost: 800, unlocks: "Airships" },
+  market: { name: "Market", cost: 150, unlocks: "Trade" }
 };
-export const BUILDING_ORDER: Building[] = ["barracks", "harbour", "depot", "airbase", "market"];
+export const CLASS_ORDER: SettlementClass[] = ["barracks", "armoury", "harbour", "airbase", "market"];
 
 /** Price of one chip by tier: elites cost far more than their numbers suggest */
 const SLOT_PRICE: Record<string, [number, number, number]> = {
@@ -53,54 +60,157 @@ const living = (burgId: number) => {
 export const perSlot = (kit: KitUnit) => slotSize(kit);
 export const unitName = (kit: KitUnit) => options.map.military.units.find(u => u.fl === kit.id)?.name ?? kit.name;
 
-// --- buildings
+// --- class: one per settlement, town or larger; changing it costs the new one's price, half the old one's back
 
-export const hasBuilding = (burg: Burg, b: Building) => Boolean(burg[BUILDINGS[b].field]);
+export const classOf = (burg: Burg): SettlementClass | null => burg.flClass ?? null;
 
 const coastal = (burg: Burg) => (pack.cells.haven?.[burg.cell] ?? 0) > 0 && pack.cells.t[burg.cell] === 1;
 
-/** Why a building can't go up here, or "" */
-export function buildRefusal(burg: Burg, b: Building): string {
-  const size = sizeOf(burg);
-  if (!size) return "Only towns, cities and capitals build";
-  const info = BUILDINGS[b];
-  if (hasBuilding(burg, b)) return "Already built";
-  if (b === "harbour" && !coastal(burg)) return "Coastal Only";
-  if (info.needs && !info.needs.includes(size)) return "City Or Larger";
-  if (funds(burg) < info.cost) return `Needs §${info.cost}`;
+/** Why a settlement can't take a class, or "" */
+export function classRefusal(burg: Burg, c: SettlementClass | null): string {
+  if (classOf(burg) === c) return "";
+  if (c && !sizeOf(burg)) return "Grow it into a town first";
+  if (c === "harbour" && !coastal(burg)) return "Coastal Only";
+  const cost = c ? CLASSES[c].cost : 0;
+  const back = burg.flClass ? Math.round(CLASSES[burg.flClass].cost / 2) : 0;
+  if (funds(burg) + back < cost) return `Needs §${cost}`;
   return "";
 }
 
-export function build(burg: Burg, b: Building): string {
-  const why = buildRefusal(burg, b);
-  if (why) return why;
-  spend(burg, BUILDINGS[b].cost);
-  setBuilding(burg, b, true);
-  return "";
-}
-
-/** Tear a building down: half its cost comes back */
-export function demolish(burg: Burg, b: Building): void {
-  if (!hasBuilding(burg, b)) return;
-  setBuilding(burg, b, false);
-  burg.treasury = (burg.treasury ?? 0) + Math.round(BUILDINGS[b].cost / 2);
-}
-
-function setBuilding(burg: Burg, b: Building, on: boolean): void {
-  if (b === "harbour") {
+/** Give a settlement a class (or none) */
+export function setClass(burg: Burg, c: SettlementClass | null): string {
+  const why = classRefusal(burg, c);
+  if (why || classOf(burg) === c) return why;
+  if (burg.flClass) receive(burg, Math.round(CLASSES[burg.flClass].cost / 2));
+  if (c) spend(burg, CLASSES[c].cost);
+  if (c) burg.flClass = c;
+  else delete burg.flClass;
+  if (c === "harbour") {
     const haven = pack.cells.haven?.[burg.cell];
-    burg.port = on && haven ? pack.cells.f[haven] : 0;
-    return;
+    if (haven && !burg.port) burg.port = pack.cells.f[haven];
   }
-  burg[BUILDINGS[b].field] = on ? 1 : 0;
+  return "";
 }
 
-/** Older maps: Azgaar's toggles become buildings where they fit, once; capitals get barracks */
-function fitBuildings(burg: Burg): void {
-  const size = sizeOf(burg);
-  if (size === "capital") burg.citadel = 1;
-  for (const b of ["depot", "airbase"] as const)
-    if (hasBuilding(burg, b) && (!size || !BUILDINGS[b].needs?.includes(size))) setBuilding(burg, b, false);
+/** Older maps: the class their old buildings point to, and their size made explicit; once */
+function fitClass(burg: Burg): void {
+  if (!burg.flSize) burg.flSize = rankOf(burg);
+  if (burg.flClass !== undefined || !sizeOf(burg)) return;
+  const c: SettlementClass | null = burg.shanty
+    ? "airbase"
+    : burg.temple
+      ? "armoury"
+      : burg.citadel
+        ? "barracks"
+        : burg.port
+          ? "harbour"
+          : burg.plaza
+            ? "market"
+            : null;
+  if (c) burg.flClass = c;
+}
+
+// --- size: growing costs money and, the first time, tops up manpower; shrinking gives half back
+
+/** Why a settlement can't be resized, or "" */
+export function resizeRefusal(burg: Burg, to: Rank): string {
+  const from = rankOf(burg);
+  if (from === to) return "";
+  if (isCapital(burg) && to !== "citadel") return "Move the capital first";
+  const cost = resizeCost(from, to);
+  if (cost > 0 && funds(burg) < cost) return `Needs §${cost}`;
+  return "";
+}
+
+/** The manpower a resize would add: only the first time a settlement reaches a size */
+export function manpowerGain(burg: Burg, to: Rank): number {
+  const index = RANKS.indexOf(to);
+  if (index <= (burg.flReached ?? RANKS.indexOf(rankOf(burg)))) return 0;
+  return Math.max(0, MANPOWER_LEVEL[to] - manpowerOf(burg));
+}
+
+/** Resize a settlement; a village gives up its class (half its price back) */
+export function resizeTo(burg: Burg, to: Rank): string {
+  const why = resizeRefusal(burg, to);
+  if (why) return why;
+  const from = rankOf(burg);
+  if (from === to) return "";
+  const cost = resizeCost(from, to);
+  const gain = manpowerGain(burg, to);
+  if (cost > 0) spend(burg, cost);
+  else receive(burg, -cost);
+  burg.manpower = manpowerOf(burg) + gain;
+  burg.flReached = Math.max(burg.flReached ?? 0, RANKS.indexOf(to));
+  burg.flSize = to;
+  const groups = options.map.burgs.groups.filter(g => !g.removed).map(g => g.name);
+  const group = to === "citadel" ? "city" : to;
+  if (!burg.capital && groups.includes(group)) Burgs.setGroup(burg.i, group);
+  if (to === "village" && burg.flClass) {
+    receive(burg, Math.round(CLASSES[burg.flClass].cost / 2));
+    delete burg.flClass;
+  }
+  return "";
+}
+
+// --- manpower: the people a settlement raises troops from
+
+export const manpowerOf = (burg: Burg) => Math.max(0, Math.round(burg.manpower ?? MANPOWER_LEVEL[rankOf(burg)]));
+
+/** Once on load: every settlement gets its size's manpower and keeps a note of the size it has reached */
+export function seedManpower(): void {
+  for (const burg of pack.burgs ?? []) {
+    if (!burg?.i || burg.removed) continue;
+    fitClass(burg);
+    if (burg.manpower === undefined) burg.manpower = MANPOWER_LEVEL[rankOf(burg)];
+    if (burg.flReached === undefined) burg.flReached = RANKS.indexOf(rankOf(burg));
+  }
+}
+
+/** Men from one settlement to another of the same nation, free */
+export function moveManpower(from: Burg, to: Burg, men: number): string {
+  const n = Math.round(men);
+  if (n <= 0) return "";
+  if (from.i === to.i) return "Choose another settlement";
+  if (manpowerOf(from) < n) return "Not enough manpower";
+  from.manpower = manpowerOf(from) - n;
+  to.manpower = manpowerOf(to) + n;
+  return "";
+}
+
+/** Mercenaries from the Goldbank, paid from the settlement's money */
+export const MERCENARY_PRICE = 2;
+export function hireMercenaries(burg: Burg, men: number): string {
+  const n = Math.round(men);
+  if (n <= 0) return "";
+  if (funds(burg) < n * MERCENARY_PRICE) return `Needs §${n * MERCENARY_PRICE}`;
+  spend(burg, n * MERCENARY_PRICE);
+  burg.manpower = manpowerOf(burg) + n;
+  return "";
+}
+
+/** Let men go: they leave the settlement */
+export function releaseManpower(burg: Burg, men: number): void {
+  burg.manpower = Math.max(0, manpowerOf(burg) - Math.round(men));
+}
+
+// --- the Goldbank: lends to any nation from what it has left
+
+export const BANK_CAPITAL = 100000;
+export const bankFunds = () =>
+  BANK_CAPITAL - (pack.states ?? []).reduce((sum, s) => sum + (s.i && !s.removed ? (s.loan ?? 0) : 0), 0);
+
+/** Borrow (positive) or repay (negative) through a settlement: the money comes to or goes from it */
+export function borrow(burg: Burg, amount: number): string {
+  const state = pack.states[burg.state ?? 0];
+  if (!state?.i) return "Only a nation borrows";
+  const n = Math.round(amount);
+  if (n > 0 && bankFunds() < n) return "The Goldbank hasn't that much";
+  if (n < 0 && (state.loan ?? 0) < -n) return "Nothing more to repay";
+  if (n < 0 && funds(burg) < -n) return "Not enough funds";
+  state.loan = (state.loan ?? 0) + n;
+  if (n > 0) receive(burg, n);
+  else spend(burg, -n);
+  return "";
 }
 
 // --- money: a capital's money is its nation's treasury; other settlements keep their own
@@ -145,6 +255,9 @@ function receive(burg: Burg, amount: number): void {
   else burg.treasury = (burg.treasury ?? 0) + amount;
 }
 
+/** A nation's capital, if it stands */
+export const capitalOf = (stateId: number): Burg | null => living(pack.states[stateId]?.capital ?? 0);
+
 /** Money from one settlement to another; to a capital it joins that nation's treasury */
 export function transfer(from: Burg, to: Burg, amount: number): string {
   const sum = Math.round(amount);
@@ -176,13 +289,11 @@ export function foldCapitalPurses(): void {
 
 // --- people
 
-const PEOPLE = () => options.map.units.population.scale * options.map.units.population.urbanization.rate;
-export const peopleOf = (burg: Burg) => Math.round((burg.population ?? 0) * PEOPLE());
 const crewOf = (unit: string) => options.map.military.units.find(u => u.name === unit)?.crew ?? 1;
 export const peopleFor = (unit: string, count: number) => Math.round(count * crewOf(unit));
 
 function takePeople(burg: Burg, people: number): void {
-  burg.population = Math.max(0, (burg.population ?? 0) - people / PEOPLE());
+  burg.manpower = Math.max(0, manpowerOf(burg) - people);
 }
 
 /** Troops released go home: to the settlement they were raised in, else the nation's capital */
@@ -190,7 +301,7 @@ export function sendHome(regiment: Regiment, units: Units = regiment.u): void {
   const home = living(regiment.home ?? regiment.garrison ?? 0) ?? living(pack.states[regiment.state]?.capital ?? 0);
   if (!home) return;
   const people = Object.entries(units).reduce((sum, [unit, n]) => sum + peopleFor(unit, n), 0);
-  home.population = (home.population ?? 0) + people / PEOPLE();
+  home.manpower = manpowerOf(home) + people;
 }
 
 // --- the garrison
@@ -214,16 +325,29 @@ export function ensureGarrison(burg: Burg): Regiment | null {
   return made;
 }
 
-const builds = (burg: Burg, k: KitUnit) => {
-  if (k.domain === "land") return k.role === "armour" ? hasBuilding(burg, "depot") : hasBuilding(burg, "barracks");
-  if (k.domain === "naval") return hasBuilding(burg, "harbour");
-  return hasBuilding(burg, "airbase");
+/** Whether a settlement's class raises a unit, at any tier */
+const raises = (burg: Burg, k: KitUnit) => {
+  switch (classOf(burg)) {
+    case "barracks":
+      return k.domain === "land" && k.role !== "armour";
+    case "armoury":
+      return k.domain === "land" && k.role === "armour";
+    case "harbour":
+      return k.domain === "naval";
+    case "airbase":
+      return k.domain === "air";
+    default:
+      return false;
+  }
 };
 
-/** Units a settlement may raise: always tier 1, of the kinds its buildings allow; higher tiers come by upgrading */
+const HOMEGUARD = "land_infantry_t1";
+
+/** Units a settlement may raise: its class's, up to its size's tier; Homeguard anywhere with manpower */
 export function recruitable(burg: Burg): KitUnit[] {
-  if (!sizeOf(burg)) return [];
-  return KIT.filter(k => k.tier === 1 && builds(burg, k));
+  const size = sizeOf(burg);
+  const top = size ? MAX_TIER[size] : 0;
+  return KIT.filter(k => (k.tier <= top && raises(burg, k)) || k.id === HOMEGUARD);
 }
 
 /** The category a unit is listed under */
@@ -253,9 +377,9 @@ export function upgradeRefusal(burg: Burg, k: KitUnit, count: number): string {
   const next = nextTier(k);
   const size = sizeOf(burg);
   if (!next) return "Already the highest tier";
-  if (!size) return "Upgrade in a town, city or capital";
-  if (next.tier > MAX_TIER[size]) return next.tier === 3 ? "Tier 3 needs the capital" : "Tier 2 needs a city";
-  if (!builds(burg, next)) return "Needs its building here";
+  if (!size) return "Upgrade in a town, city or citadel";
+  if (next.tier > MAX_TIER[size]) return next.tier === 3 ? "Tier 3 needs a citadel" : "Tier 2 needs a city";
+  if (!raises(burg, next)) return "Its class doesn't raise that";
   if (funds(burg) < upgradeCost(k, count)) return `Needs §${upgradeCost(k, count)}`;
   return "";
 }
@@ -283,11 +407,11 @@ export function priceOf(kit: KitUnit, count: number): number {
   return Math.ceil((per * count) / perSlot(kit));
 }
 
-/** The most of a unit this settlement can raise now: its slots, people and money */
+/** The most of a unit this settlement can raise now: its slots, manpower and money */
 export function recruitLimit(burg: Burg, kit: KitUnit): number {
   const name = unitName(kit);
-  const free = (garrisonable(name) ? room(burg) : mapRoom(burg, kit)) * perSlot(kit);
-  const byPeople = Math.floor(peopleOf(burg) / Math.max(1, crewOf(name)));
+  const free = (garrisonable(name) && sizeOf(burg) ? room(burg) : mapRoom(burg, kit)) * perSlot(kit);
+  const byPeople = Math.floor(manpowerOf(burg) / Math.max(1, crewOf(name)));
   const per = priceOf(kit, perSlot(kit)) / perSlot(kit);
   const byMoney = per > 0 ? Math.floor(funds(burg) / per) : free;
   return Math.max(0, Math.min(free, byPeople, byMoney));
@@ -298,9 +422,9 @@ export function recruit(burg: Burg, kit: KitUnit, count: number): string {
   if (!recruitable(burg).includes(kit)) return "This settlement can't raise that unit";
   const n = Math.round(count);
   if (n <= 0) return "Enter an amount";
-  if (n > recruitLimit(burg, kit)) return "Not enough room, people or money";
+  if (n > recruitLimit(burg, kit)) return "Not enough room, manpower or money";
   const name = unitName(kit);
-  if (!garrisonable(name)) {
+  if (!garrisonable(name) || !sizeOf(burg)) {
     // only infantry garrisons: anything else stands on the map at the settlement
     const made = standAt(burg, { [name]: n });
     if (typeof made === "string") return made;
@@ -321,7 +445,6 @@ export function recruit(burg: Burg, kit: KitUnit, count: number): string {
 /** Older maps: lone units in or beside a town of their own nation go into its garrison, once */
 export function garrisonLoners(): number {
   if (pack.states.some(s => s.military?.some(r => r.garrison))) return 0; // done before
-  for (const burg of pack.burgs) if (burg?.i && !burg.removed) fitBuildings(burg);
   let moved = 0;
   const towns = pack.burgs.filter(b => b?.i && !b.removed && b.state && sizeOf(b));
   const near = new Map<number, Burg[]>();
@@ -445,7 +568,7 @@ export const regimentHome = (r: Regiment) => living(r.home ?? 0);
 /** Station a regiment's troops in a settlement's garrison: one of its own nation's, with room; ships need a harbour */
 export function station(r: Regiment, burg: Burg): string {
   if (burg.state !== r.state) return "Only your own settlements take your troops";
-  if (!sizeOf(burg)) return "Only towns, cities and capitals keep a garrison";
+  if (!sizeOf(burg)) return "Only towns, cities and citadels keep a garrison";
   if (slotsOf(r.cargo)) return "Unload the cargo first";
   const units = Object.keys(r.u).filter(u => r.u[u] > 0);
   if (units.some(u => !garrisonable(u))) return "Only infantry garrisons a settlement";
