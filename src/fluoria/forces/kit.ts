@@ -28,14 +28,25 @@ export const KIT = data as KitUnit[];
 const byId = new Map(KIT.map(unit => [unit.id, unit]));
 export const kitUnit = (id: string | undefined) => (id ? byId.get(id) : undefined);
 
-/** Troops one slot holds: people for infantry, riders, vehicles; one ship or airship */
-export const SLOT_SIZE: Partial<Record<Role, number>> = { infantry: 500, assault: 500, cavalry: 250, armour: 10 };
+/** Troops one chip holds by tier: fewer but stronger as the tier rises; vehicles; one ship or airship */
+export const SLOT_SIZE: Partial<Record<Role, [number, number, number]>> = {
+  infantry: [80, 60, 40],
+  assault: [50, 40, 25],
+  cavalry: [40, 30, 20],
+  armour: [4, 2, 1]
+};
 
-/** Card power of one full slot by tier, transports the weakest; a unit's Azgaar power is this over the slot, ×100 */
+/** Power of one full chip by tier, transports the weakest; a unit's Azgaar power is this over the chip, ×100 */
 const SLOT_POWER: Record<Domain, Partial<Record<Role, [number, number, number]>>> = {
-  land: { infantry: [8, 12, 16], assault: [10, 14, 20], cavalry: [9, 13, 18], armour: [15, 24, 36] },
-  naval: { trade: [7, 11, 16], scout: [10, 16, 24], combat: [14, 22, 34], transport: [6, 10, 15] },
-  air: { trade: [7, 11, 16], scout: [10, 16, 24], combat: [16, 25, 38], bomber: [18, 28, 42], transport: [6, 10, 15] }
+  land: { infantry: [100, 160, 260], assault: [120, 200, 340], cavalry: [120, 200, 340], armour: [180, 300, 500] },
+  naval: { trade: [60, 100, 160], scout: [80, 140, 220], combat: [200, 340, 560], transport: [60, 100, 160] },
+  air: {
+    trade: [60, 100, 160],
+    scout: [80, 140, 220],
+    combat: [220, 370, 600],
+    bomber: [250, 420, 680],
+    transport: [60, 100, 160]
+  }
 };
 
 const AZGAAR_TYPE: Partial<Record<Role, string>> = {
@@ -62,7 +73,11 @@ const RAISED: Record<string, [number, number]> = {
 /** Airships end a move within this many cells of a settlement of their own nation or an ally */
 export const AIR_RANGE = 10;
 
-export const slotSize = (unit: KitUnit) => SLOT_SIZE[unit.role] ?? 1;
+export const slotSize = (unit: KitUnit) => SLOT_SIZE[unit.role]?.[unit.tier - 1] ?? 1;
+
+/** Troops a slot held before chips, any tier: maps saved then are converted slot for slot */
+export const OLD_SLOT_SIZE: Partial<Record<Role, number>> = { infantry: 500, assault: 500, cavalry: 250, armour: 10 };
+export const oldSlotSize = (unit: KitUnit) => OLD_SLOT_SIZE[unit.role] ?? 1;
 
 export function movePerTurn(unit: KitUnit): number {
   if (unit.domain === "air") return 5 + unit.tier;
@@ -80,8 +95,8 @@ export function unitName(unit: KitUnit): string {
 export function kitUnits(glyph: (emoji: string) => string): MilitaryUnit[] {
   const icon = { land: "⚔️", naval: "🌊", air: "🎈" };
   return KIT.map(unit => {
-    const [rural, urban] = RAISED[unit.id] ?? [0, 0];
     const size = slotSize(unit);
+    const [rural, urban] = (RAISED[unit.id] ?? [0, 0]).map(share => (share * size) / oldSlotSize(unit)); // as many chips as slots before
     return {
       icon: glyph(icon[unit.domain]),
       name: unitName(unit),

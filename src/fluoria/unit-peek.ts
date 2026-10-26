@@ -19,7 +19,7 @@ export interface PeekRow {
   count: number;
 }
 
-export const LINGER = 300; // ms the panel waits after the pointer leaves, just long enough to reach it
+export const LINGER = 200; // ms the panel waits after the pointer leaves, just long enough to reach it
 
 let box: HTMLElement | null = null;
 let timer = 0;

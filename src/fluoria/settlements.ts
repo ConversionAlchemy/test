@@ -3,10 +3,11 @@
 import type { Burg } from "@/generators/burgs-generator";
 import type { Regiment } from "@/generators/military-generator";
 import { raise } from "./forces/army";
-import { domainOfUnit, isTransport, slotsOf, troopsOf, type Units } from "./forces/forces";
-import { KIT, type KitUnit, SLOT_SIZE } from "./forces/kit";
+import { domainOfUnit, isTransport, kitOf, mergeInto, slotsOf, troopsOf, type Units } from "./forces/forces";
+import { KIT, type KitUnit, slotSize } from "./forces/kit";
 import { cellCentre, mainCell, neighbours } from "./one-grid";
 import { garrisonSlots, MAX_TIER, type Size, sizeOf } from "./settlement-size";
+import { hasRoom, placeOf } from "./war";
 
 export type Building = "barracks" | "harbour" | "depot" | "airbase" | "market";
 
@@ -27,21 +28,21 @@ export const BUILDINGS: Record<Building, BuildingInfo> = {
 };
 export const BUILDING_ORDER: Building[] = ["barracks", "harbour", "depot", "airbase", "market"];
 
-/** Price of one full slot by tier: land ×2.5, sea ×3, air ×4 of its card power, in steps of 5 */
+/** Price of one chip by tier: elites cost far more than their numbers suggest */
 const SLOT_PRICE: Record<string, [number, number, number]> = {
-  "land:infantry": [20, 30, 40],
-  "land:assault": [25, 35, 50],
-  "land:cavalry": [25, 35, 45],
-  "land:armour": [40, 60, 90],
-  "naval:trade": [20, 35, 50],
-  "naval:scout": [30, 50, 70],
-  "naval:combat": [40, 65, 100],
-  "naval:transport": [20, 30, 45],
-  "air:trade": [30, 45, 65],
-  "air:scout": [40, 65, 95],
-  "air:combat": [65, 100, 150],
-  "air:bomber": [70, 110, 170],
-  "air:transport": [25, 40, 60]
+  "land:infantry": [20, 60, 150],
+  "land:assault": [30, 80, 200],
+  "land:cavalry": [30, 80, 200],
+  "land:armour": [60, 160, 400],
+  "naval:trade": [30, 80, 200],
+  "naval:scout": [40, 100, 250],
+  "naval:combat": [80, 200, 500],
+  "naval:transport": [40, 100, 250],
+  "air:trade": [40, 100, 250],
+  "air:scout": [50, 130, 300],
+  "air:combat": [100, 250, 600],
+  "air:bomber": [120, 300, 700],
+  "air:transport": [50, 120, 300]
 };
 
 const living = (burgId: number) => {
@@ -49,7 +50,7 @@ const living = (burgId: number) => {
   return burg?.i && !burg.removed ? burg : null;
 };
 
-export const perSlot = (kit: KitUnit) => SLOT_SIZE[kit.role] ?? 1;
+export const perSlot = (kit: KitUnit) => slotSize(kit);
 export const unitName = (kit: KitUnit) => options.map.military.units.find(u => u.fl === kit.id)?.name ?? kit.name;
 
 // --- buildings
@@ -284,10 +285,8 @@ export function priceOf(kit: KitUnit, count: number): number {
 
 /** The most of a unit this settlement can raise now: its slots, people and money */
 export function recruitLimit(burg: Burg, kit: KitUnit): number {
-  const garrison = garrisonOf(burg);
-  const used = garrison ? slotsOf(garrison.u) : 0;
-  const free = Math.max(0, garrisonSlots(burg.i) - used) * perSlot(kit);
   const name = unitName(kit);
+  const free = (garrisonable(name) ? room(burg) : mapRoom(burg, kit)) * perSlot(kit);
   const byPeople = Math.floor(peopleOf(burg) / Math.max(1, crewOf(name)));
   const per = priceOf(kit, perSlot(kit)) / perSlot(kit);
   const byMoney = per > 0 ? Math.floor(funds(burg) / per) : free;
@@ -300,9 +299,17 @@ export function recruit(burg: Burg, kit: KitUnit, count: number): string {
   const n = Math.round(count);
   if (n <= 0) return "Enter an amount";
   if (n > recruitLimit(burg, kit)) return "Not enough room, people or money";
+  const name = unitName(kit);
+  if (!garrisonable(name)) {
+    // only infantry garrisons: anything else stands on the map at the settlement
+    const made = standAt(burg, { [name]: n });
+    if (typeof made === "string") return made;
+    takePeople(burg, peopleFor(name, n));
+    spend(burg, priceOf(kit, n));
+    return "";
+  }
   const garrison = ensureGarrison(burg);
   if (!garrison) return "No garrison here";
-  const name = unitName(kit);
   takePeople(burg, peopleFor(name, n));
   spend(burg, priceOf(kit, n));
   garrison.u[name] = (garrison.u[name] ?? 0) + n;
@@ -326,7 +333,7 @@ export function garrisonLoners(): number {
     for (const r of [...(state.military ?? [])]) {
       if (r.hidden || r.garrison || slotsOf(r.u) > 1 || (isTransport(r) && slotsOf(r.cargo))) continue;
       const unit = Object.keys(r.u).find(u => r.u[u] > 0);
-      if (!unit) continue;
+      if (!unit || !garrisonable(unit)) continue;
       const sea = domainOfUnit(unit) === "naval";
       const burg = (near.get(mainCell(r.cell)) ?? []).find(
         b => b.state === r.state && (!sea || b.port) && room(b) >= slotsOf(r.u)
@@ -344,6 +351,76 @@ export function garrisonLoners(): number {
 }
 
 const room = (burg: Burg) => garrisonSlots(burg.i) - slotsOf(garrisonOf(burg)?.u);
+
+/** Only infantry is kept inside a settlement; everything else stands on the map */
+export const garrisonable = (unit: string) => kitOf(unit)?.role === "infantry";
+
+/** Where a settlement's units stand on the map: its centre, or for ships halfway to its harbour water */
+function standPoint(burg: Burg, naval: boolean): [number, number] {
+  const haven = pack.cells.haven?.[burg.cell];
+  if (!naval || !haven) return [burg.x, burg.y];
+  const [x, y] = cellCentre(haven);
+  return [(burg.x + x) / 2, (burg.y + y) / 2];
+}
+
+/** Chips free on the map where a settlement's new units of this kind would stand */
+function mapRoom(burg: Burg, kit: KitUnit): number {
+  const naval = kit.domain === "naval";
+  if (naval && !burg.port) return 0;
+  const [x, y] = standPoint(burg, naval);
+  const at = placeOf({ n: naval ? 1 : 0, cell: burg.cell, x, y });
+  let free = 0;
+  while (free < 4 && hasRoom(burg.state ?? 0, at, free + 1)) free++;
+  return free;
+}
+
+/** Units standing on the map at a settlement, joining its own group there when they can */
+export function standAt(burg: Burg, units: Units): Regiment | string {
+  const [first] = Object.keys(units);
+  const naval = domainOfUnit(first) === "naval";
+  if (naval && !burg.port) return "Ships need a harbour";
+  const made = raise(burg.state!, burg.cell, { ...units });
+  made.home = burg.i;
+  made.n = naval ? 1 : 0;
+  [made.x, made.y] = standPoint(burg, naval);
+  if (!hasRoom(made.state, placeOf(made), slotsOf(made.u), made)) {
+    Military.remove(made.state, made.i);
+    return "No room on the map there: 4 units a cell";
+  }
+  const here = placeOf(made);
+  const mate = pack.states[made.state].military?.find(
+    r => r !== made && !r.hidden && placeOf(r) === here && !isTransport(r) && !isTransport(made)
+  );
+  if (mate && !mergeInto(made, mate)) {
+    Military.remove(made.state, made.i);
+    return mate;
+  }
+  return made;
+}
+
+/** Older maps kept ships, airships and other units in garrisons: they step out onto the map, once */
+export function evictNonInfantry(): number {
+  let moved = 0;
+  for (const state of pack.states ?? []) {
+    if (!state?.i || state.removed) continue;
+    for (const g of [...(state.military ?? [])]) {
+      const burg = g.garrison ? living(g.garrison) : null;
+      if (!burg) continue;
+      const out = Object.keys(g.u).filter(u => g.u[u] > 0 && !garrisonable(u));
+      for (const u of out) {
+        const n = g.u[u];
+        delete g.u[u];
+        const made = raise(state.i, burg.cell, { [u]: n });
+        made.home = burg.i;
+        made.n = domainOfUnit(u) === "naval" ? 1 : 0;
+        [made.x, made.y] = standPoint(burg, made.n === 1);
+        moved++;
+      }
+      g.a = troopsOf(g);
+    }
+  }
+  return moved;
+}
 
 /** Form an army from garrison units: they stand on the settlement's cell as a regiment of their own */
 export function formArmy(burg: Burg, units: Units): Regiment | string {
@@ -384,7 +461,7 @@ export function station(r: Regiment, burg: Burg): string {
   if (!sizeOf(burg)) return "Only towns, cities and capitals keep a garrison";
   if (slotsOf(r.cargo)) return "Unload the cargo first";
   const units = Object.keys(r.u).filter(u => r.u[u] > 0);
-  if (units.some(u => domainOfUnit(u) === "naval") && !burg.port) return "Ships need a harbour";
+  if (units.some(u => !garrisonable(u))) return "Only infantry garrisons a settlement";
   if (room(burg) < slotsOf(r.u)) return `The garrison has room for ${room(burg)} slots`;
   const garrison = ensureGarrison(burg);
   if (!garrison) return "No garrison here";

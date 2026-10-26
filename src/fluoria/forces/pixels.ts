@@ -1,12 +1,7 @@
-// Unit art as pixels, numbers included: the 17×17 icon, the far card (23×23: icon only) and the close card (29×29:
-// power, troops and slots in a 3×5 pixel font). A single unit's card is pale; a stack adds a 2-pixel strip per unit
-// behind the front one
+// Unit art as pixels, numbers included: the 17×17 icon, and the chips units are drawn as (a 3×5 pixel font, doubled)
 import type { KitUnit } from "./kit";
 
 const SCALE = 4; // canvas pixels per art pixel
-export const CARD = { far: 23, close: 29 } as const;
-export type CardSize = keyof typeof CARD;
-export const STRIP = 2; // art pixels per unit behind the front card
 
 export type IconMode = "icon" | "silhouette" | "white";
 
@@ -15,7 +10,6 @@ const rgb = (hex: string): [number, number, number] => {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
 const css = (channels: number[]) => `rgb(${channels.map(Math.round).join(",")})`;
-const tint = (hex: string, a: number) => css(rgb(hex).map(v => v + (255 - v) * a));
 const shade = (hex: string, a: number) => css(rgb(hex).map(v => v * a));
 const hexOf = (channels: number[]) => `#${channels.map(v => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
 /** A single unit's card colour: the nation colour halfway to white */
@@ -70,7 +64,6 @@ const DIGITS: Record<string, string[]> = {
   ".": [".", ".", ".", ".", "#"],
   "/": ["..#", "..#", ".#.", "#..", "#.."]
 };
-const textWidth = (text: string) => [...text].reduce((w, c) => w + (DIGITS[c]?.[0].length ?? 3) + 1, -1);
 
 class Pixels {
   readonly element = document.createElement("canvas");
@@ -105,6 +98,37 @@ class Pixels {
       x += glyph[0].length + 1;
     }
   }
+  /** Digits at twice the size, with an outline when asked */
+  bigText(value: string, x0: number, y0: number, colour: string, outline: string | null): void {
+    const cells: [number, number][] = [];
+    let x = x0;
+    for (const c of value) {
+      const glyph = DIGITS[c];
+      if (!glyph) continue;
+      glyph.forEach((row, y) => {
+        for (let k = 0; k < row.length; k++)
+          if (row[k] === "#")
+            for (const [dx, dy] of [
+              [0, 0],
+              [1, 0],
+              [0, 1],
+              [1, 1]
+            ])
+              cells.push([x + k * 2 + dx, y0 + y * 2 + dy]);
+      });
+      x += (glyph[0].length + 1) * 2;
+    }
+    if (outline)
+      for (const [cx, cy] of cells)
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1]
+        ])
+          this.dot(cx + dx, cy + dy, outline);
+    for (const [cx, cy] of cells) this.dot(cx, cy, colour);
+  }
 }
 
 const cache = new Map<string, string>();
@@ -130,71 +154,196 @@ export function iconUrl(unit: KitUnit, colour: string, mode: IconMode = "icon"):
   });
 }
 
-export interface CardFace {
+// --- chips: a unit as a rectangle with its icon, tier dots, power grade and count; the right corner cut shows the kind
+// (air: top, ship: bottom). A column of chips is one image; a transport adds layers on top and opens into slots
+
+export const CHIP = { w: 69, h: 21, gap: 1, cut: 6, layer: 2 } as const;
+export type ChipKind = "land" | "air" | "naval";
+
+export interface ChipFace {
   unit: KitUnit;
-  colour: string; // the nation's
-  single: boolean; // one slot on its own: pale
-  power: number;
-  troops: number;
-  slots: number;
-  strength: number;
-  behind?: string[]; // colours of the cards stacked behind, front to back
-  band?: string; // the nation it now serves, when it came from another: a band across the top
+  colour: string;
+  band?: string; // serving another nation: its colour across the top
+  grade: number; // 1–9, 0 for none
+  count: number;
+  strength: number; // 0–1
+  dots?: number; // tier dots, 0 to hide
 }
 
-/** A card, with a strip on top for each unit behind it */
-export function cardUrl(face: CardFace, size: CardSize): string {
-  const step = Math.round(face.strength * 10) / 10;
-  const behind = face.behind ?? [];
-  const key = `c|${size}|${face.unit.id}|${face.colour}|${face.single}|${face.power}|${face.troops}|${face.slots}|${step}|${behind.join(",")}|${face.band ?? ""}`;
-  return cached(key, () => {
-    const n = CARD[size];
-    const lift = behind.length * STRIP;
-    const p = new Pixels(n, n + lift);
-    behind.forEach((colour, k) => {
-      for (let x = 0; x < n; x++) {
-        p.dot(x, k * STRIP, "#000");
-        p.dot(x, k * STRIP + 1, x === 0 || x === n - 1 ? "#000" : shade(colour, 0.85));
+export interface ChipColumn {
+  chips: ChipFace[];
+  kind: ChipKind;
+  carrier?: { open: boolean; slots: ChipFace[]; room: number }; // a transport: its cargo and room
+  summary?: { units: KitUnit[]; colour: string; grade: number; count: number; behind: number }; // far out, a cell
+}
+
+/** Rows of a column image, top down: where each chip sits, in art pixels */
+export interface ChipLayout {
+  width: number;
+  height: number;
+  rows: { y: number; kind: "chip" | "cargo" | "empty" | "head"; index: number }[];
+}
+
+/** Whether a pixel lies outside a chip's cut corner */
+function cutAway(x: number, y: number, w: number, h: number, kind: ChipKind): boolean {
+  const c = CHIP.cut;
+  if (kind === "air") return x > w - 1 - c + y; // top right
+  if (kind === "naval") return x > w - 1 - c + (h - 1 - y); // bottom right
+  return false;
+}
+const onEdge = (x: number, y: number, w: number, h: number, kind: ChipKind) =>
+  x === 0 ||
+  y === 0 ||
+  y === h - 1 ||
+  x === w - 1 ||
+  cutAway(x + 1, y, w, h, kind) ||
+  cutAway(x, y + (kind === "air" ? -1 : 1), w, h, kind);
+
+/** The 17×17 icon shrunk to 8×8, nearest pixel, for a summary's 2×2 grid */
+const mini = (unit: KitUnit) =>
+  Array.from({ length: 8 }, (_, y) =>
+    Array.from(
+      { length: 8 },
+      (_, x) => unit.pixels[Math.min(16, Math.round(y * 2.15))]?.[Math.min(16, Math.round(x * 2.15))] ?? "."
+    ).join("")
+  );
+
+function drawChip(p: Pixels, x0: number, y0: number, w: number, kind: ChipKind, face: ChipFace, frame = false): void {
+  const h = CHIP.h;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (cutAway(x, y, w, h, kind)) continue;
+      const edge = onEdge(x, y, w, h, kind);
+      if (frame) {
+        if (edge) p.dot(x0 + x, y0 + y, "#fff");
+        continue;
       }
-    });
-    const fill = face.single ? pale(face.colour) : face.colour;
-    for (let y = 0; y < n; y++)
-      for (let x = 0; x < n; x++) p.dot(x, lift + y, x === 0 || y === 0 || x === n - 1 || y >= n - 3 ? "#000" : fill);
-    // assigned from another nation: its new nation's colour across the top, under the numbers
-    const bandRows = face.band ? (size === "far" ? 3 : 8) : 0;
-    for (let y = 1; y <= bandRows; y++) for (let x = 1; x < n - 1; x++) p.dot(x, lift + y, face.band!);
-    if (bandRows) for (let x = 1; x < n - 1; x++) p.dot(x, lift + bandRows + 1, "#000");
-    const bar = Math.round(step * (n - 2));
-    for (let x = 1; x <= bar; x++) p.dot(x, lift + n - 2, barColour(step));
-    const icon = { "#": "#000", R: "#fff", W: "#fff" };
-    if (size === "far") {
-      p.art(face.unit.pixels, 3, lift + 2, icon, lift + n - 3);
+      if (edge) p.dot(x0 + x, y0 + y, "#000");
+      else if (face.band && y <= 3) p.dot(x0 + x, y0 + y, face.band);
+      else p.dot(x0 + x, y0 + y, x <= 19 ? shade(face.colour, 0.78) : face.colour);
+    }
+  if (frame) return;
+  p.art(face.unit.pixels, x0 + 2, y0 + 2, { "#": "#000", R: "#fff", W: "#fff" });
+  const dots = face.dots ?? face.unit.tier;
+  const top = y0 + Math.round((h - (dots * 5 - 1)) / 2);
+  for (let k = 0; k < dots; k++)
+    for (let y = 0; y < 4; y++)
+      for (let x = 0; x < 4; x++)
+        p.dot(x0 + 21 + x, top + k * 5 + y, x === 0 || y === 0 || x === 3 || y === 3 ? "#000" : "#fff");
+  const text = ink(face.colour);
+  if (face.grade) p.bigText(String(face.grade), x0 + 27, y0 + 5, "#fff", "#000");
+  p.bigText(short(face.count), x0 + 39, y0 + 5, text, text === "#fff" ? "#000" : null);
+  if (face.strength < 0.995) {
+    const left = 20;
+    const bar = Math.round(face.strength * (w - left - 2 - CHIP.cut));
+    for (let x = 0; x < bar; x++) p.dot(x0 + left + x, y0 + h - 2, barColour(face.strength));
+  }
+}
+
+function drawSummary(
+  p: Pixels,
+  x0: number,
+  y0: number,
+  w: number,
+  s: NonNullable<ChipColumn["summary"]>,
+  frame = false
+): void {
+  const h = CHIP.h;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const edge = x === 0 || y === 0 || y === h - 1 || x === w - 1;
+      if (frame) {
+        if (edge) p.dot(x0 + x, y0 + y, "#fff");
+      } else p.dot(x0 + x, y0 + y, edge ? "#000" : x <= 19 ? shade(s.colour, 0.78) : s.colour);
+    }
+  if (frame) return;
+  for (const [k, unit] of s.units.slice(0, 4).entries())
+    p.art(mini(unit), x0 + 2 + (k % 2) * 9, y0 + 2 + Math.floor(k / 2) * 9, { "#": "#000", R: "#fff", W: "#fff" });
+  const text = ink(s.colour);
+  if (s.grade) p.bigText(String(s.grade), x0 + 23, y0 + 5, "#fff", "#000");
+  p.bigText(short(s.count), x0 + 34, y0 + 5, text, text === "#fff" ? "#000" : null);
+}
+
+/** The layout of a column: chips one under another; a transport's layers on top, its slots below when open */
+export function chipLayout(col: ChipColumn): ChipLayout {
+  const { h, gap, layer } = CHIP;
+  const rows: ChipLayout["rows"] = [];
+  if (col.summary) {
+    return { width: CHIP.w, height: h + col.summary.behind * layer, rows: [{ y: 0, kind: "chip", index: 0 }] };
+  }
+  if (col.carrier) {
+    const lift = col.carrier.open ? 0 : 2 * layer;
+    rows.push({ y: lift, kind: "head", index: 0 });
+    if (!col.carrier.open) return { width: CHIP.w, height: lift + h, rows };
+    let y = h + 2;
+    for (let k = 0; k < col.carrier.room; k++) {
+      rows.push({ y, kind: k < col.carrier.slots.length ? "cargo" : "empty", index: k });
+      y += h + gap;
+    }
+    return { width: CHIP.w, height: y + 4, rows };
+  }
+  for (let k = 0; k < col.chips.length; k++) rows.push({ y: k * (h + gap), kind: "chip", index: k });
+  return { width: CHIP.w, height: Math.max(h, col.chips.length * (h + gap) - gap), rows };
+}
+
+const faceKey = (f: ChipFace) =>
+  `${f.unit.id}|${f.colour}|${f.band ?? ""}|${f.grade}|${f.count}|${Math.round(f.strength * 20)}|${f.dots ?? ""}`;
+
+/** A column of chips as one image, or its white frame (selection) */
+export function columnUrl(col: ChipColumn, frame = false): string {
+  const key = `col|${frame}|${col.kind}|${col.chips.map(faceKey).join(";")}|${col.carrier ? `${col.carrier.open}|${col.carrier.room}|${col.carrier.slots.map(faceKey).join(";")}` : ""}|${col.summary ? `${col.summary.units.map(u => u.id).join(",")}|${col.summary.colour}|${col.summary.grade}|${col.summary.count}|${col.summary.behind}` : ""}`;
+  return cached(key, () => {
+    const layout = chipLayout(col);
+    const p = new Pixels(layout.width, layout.height);
+    const w = CHIP.w;
+    if (col.summary) {
+      drawSummary(p, 0, 0, w, col.summary, frame);
+      if (!frame)
+        for (let k = 0; k < col.summary.behind; k++)
+          for (let x = 2; x < w - 2; x++) {
+            p.dot(x, CHIP.h + k * CHIP.layer, shade(col.summary.colour, 0.85));
+            p.dot(x, CHIP.h + k * CHIP.layer + 1, "#000");
+          }
       return p.element;
     }
-    p.art(face.unit.pixels, 6, lift + 8, icon, lift + n - 3);
-    const text = ink(fill);
-    const top = face.band ?? fill; // the numbers along the top sit on the band when there is one
-    const topInk = ink(top);
-    const power = short(face.power);
-    const troops = short(face.troops);
-    p.text(power, 2, lift + 2, face.band ? topInk : tint(fill, 0.6), face.band ? topInk === "#fff" : true);
-    p.text(troops, n - 3 - textWidth(troops), lift + 2, topInk, topInk === "#fff");
-    p.text(String(face.slots), 2, lift + 20, text, text === "#fff");
-    return p.element;
-  });
-}
-
-/** A white frame over a card's edge pixels: shows a card is selected */
-export function frameUrl(size: CardSize, lift: number): string {
-  return cached(`f|${size}|${lift}`, () => {
-    const n = CARD[size];
-    const p = new Pixels(n, n + lift);
-    for (let k = 0; k < n; k++) {
-      p.dot(k, lift, "#fff");
-      p.dot(k, lift + n - 1, "#fff");
-      p.dot(0, lift + k, "#fff");
-      p.dot(n - 1, lift + k, "#fff");
+    if (col.carrier) {
+      const head = col.chips[0];
+      if (!col.carrier.open && !frame)
+        for (let k = 0; k < 2; k++)
+          for (let x = 2; x < w - 2 - (col.kind === "air" ? CHIP.cut : 0); x++) {
+            p.dot(x, k * CHIP.layer, "#000");
+            p.dot(x, k * CHIP.layer + 1, shade(head.colour, 0.85));
+          }
+      const top = col.carrier.open ? 0 : 2 * CHIP.layer;
+      if (col.carrier.open && !frame) {
+        // the hold: the transport's colour around dark wells, the cut corner kept at the bottom for ships
+        const bodyH = layout.height;
+        for (let y = CHIP.h; y < bodyH; y++)
+          for (let x = 0; x < w; x++) {
+            if (col.kind === "naval" && cutAway(x, y - (bodyH - CHIP.h), w, CHIP.h, "naval") && y >= bodyH - CHIP.h)
+              continue;
+            const edge = x === 0 || x === w - 1 || y === bodyH - 1;
+            p.dot(x, y, edge ? "#000" : x <= 1 || x >= w - 2 || y >= bodyH - 3 ? head.colour : "#1c1f1c");
+          }
+      }
+      drawChip(p, 0, top, w, col.kind, head, frame);
+      if (!frame) {
+        // the fold arrow: down when shut, up when open
+        const ax = w - 7;
+        const ay = top + 8;
+        for (let r = 0; r < 3; r++)
+          for (let x = r; x < 5 - r; x++) p.dot(ax + x, col.carrier.open ? ay + 2 - r : ay + r, "#000");
+      }
+      if (col.carrier.open && !frame)
+        for (const row of layout.rows) {
+          if (row.kind === "cargo") drawChip(p, 2, row.y, w - 4, "land", col.carrier.slots[row.index]);
+          else if (row.kind === "empty")
+            for (let y = 1; y < CHIP.h - 1; y++)
+              for (let x = 3; x < w - 3; x++) p.dot(x, row.y + y, (x + y) % 2 ? "#2c322c" : "#262b26");
+        }
+      return p.element;
     }
+    for (const row of layout.rows) drawChip(p, 0, row.y, w, col.kind, col.chips[row.index], frame);
     return p.element;
   });
 }
@@ -419,32 +568,6 @@ export function buttonUrl(name: string, colour = "#e8e5d9"): string {
   return cached(`b|${name}|${colour}`, () => {
     const p = new Pixels(11, 11);
     p.art(BUTTONS[name] ?? BUTTONS.notes, 0, 0, { "#": colour });
-    return p.element;
-  });
-}
-
-/** The tab beside a stack that opens it */
-export function tabUrl(): string {
-  return cached("tab", () => {
-    const p = new Pixels(7, 11);
-    p.art(
-      [
-        "#......",
-        "##.....",
-        "#W#....",
-        "#WW#...",
-        "#WWW#..",
-        "#WWWW#.",
-        "#WWW#..",
-        "#WW#...",
-        "#W#....",
-        "##.....",
-        "#......"
-      ],
-      0,
-      0,
-      { "#": "#000", W: "#fff" }
-    );
     return p.element;
   });
 }

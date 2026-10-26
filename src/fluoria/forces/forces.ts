@@ -4,10 +4,11 @@
 import type { Regiment } from "@/generators/military-generator";
 import type { MilitaryUnit } from "@/types/Military";
 import { garrisonSlots } from "../settlement-size";
-import { type Domain, type KitUnit, kitUnit, kitUnits, SLOT_SIZE, slotSize } from "./kit";
+import { type Domain, type KitUnit, kitUnit, kitUnits, oldSlotSize, slotSize } from "./kit";
 
-export const MAX_SLOTS = 12;
-export const CARGO_SLOTS = [0, 4, 8, 12];
+/** Chips a cell holds, all nations together; a nation's units in a cell are one group, so a group holds as many */
+export const MAX_SLOTS = 4;
+export const CARGO_SLOTS = [0, 4, 4, 4]; // a transport's tier buys power and protection, not room
 
 export type Units = Record<string, number>;
 
@@ -23,7 +24,7 @@ export function domainOfUnit(name: string): Domain {
 
 export function perSlot(name: string): number {
   const kit = kitOf(name);
-  return unitType(name)?.slot ?? (kit ? slotSize(kit) : (SLOT_SIZE.infantry ?? 500));
+  return unitType(name)?.slot ?? (kit ? slotSize(kit) : 80);
 }
 
 const present = (units: Units | undefined) => Object.entries(units ?? {}).filter(([, n]) => n > 0);
@@ -125,7 +126,7 @@ export function refusal(to: Regiment, list: List, unit: string, n: number): stri
     return slotsOf(after) > room ? `Won't fit: needs ${slotsOf(after)} of ${room} slots` : "";
   }
   if (to.garrison) {
-    // a garrison holds any kind of unit, up to its settlement's slots
+    if (kitOf(unit)?.role !== "infantry") return "Only infantry garrisons a settlement";
     const after = { ...to.u };
     add(after, unit, n);
     const room = garrisonSlots(to.garrison);
@@ -231,9 +232,16 @@ export function convertUnitTypes(glyph: (emoji: string) => string): boolean {
         ? nameOf(unit.fl)
         : nameOf(RENAMED[unit.name.toLowerCase()] ?? BY_TYPE[unit.type] ?? "land_infantry_t1")
     );
+  const shrink = (name: string) => {
+    const k = kitUnit(kit.find(u => u.name === name)?.fl);
+    return k ? slotSize(k) / oldSlotSize(k) : 1; // counts were in men per old slot
+  };
   const convert = (units: Units | undefined) => {
     const out: Units = {};
-    for (const [name, n] of present(units)) add(out, target.get(name) ?? nameOf("land_infantry_t1"), Math.round(n));
+    for (const [name, n] of present(units)) {
+      const to = target.get(name) ?? nameOf("land_infantry_t1");
+      add(out, to, Math.max(1, Math.round(n * shrink(to))));
+    }
     return out;
   };
   options.map.military.units = kit;
@@ -246,10 +254,38 @@ export function convertUnitTypes(glyph: (emoji: string) => string): boolean {
   return true;
 }
 
+/** Maps saved before chips: each old slot becomes one chip of the same unit, strength kept. Returns groups changed */
+export function convertToChips(glyph: (emoji: string) => string): number {
+  const before = options.map.military.units;
+  const ratio = new Map<string, number>();
+  for (const unit of before) {
+    const kit = kitUnit(unit.fl);
+    if (!kit || unit.slot === slotSize(kit)) continue;
+    ratio.set(unit.name, slotSize(kit) / (unit.slot ?? oldSlotSize(kit)));
+  }
+  if (!ratio.size) return 0;
+  const scale = (units: Units | undefined) => {
+    const out: Units = {};
+    for (const [name, n] of present(units)) out[name] = Math.max(1, Math.round(n * (ratio.get(name) ?? 1)));
+    return out;
+  };
+  options.map.military.units = kitUnits(glyph);
+  let changed = 0;
+  for (const state of pack.states ?? [])
+    for (const regiment of state?.military ?? []) {
+      regiment.u = scale(regiment.u);
+      if (regiment.cargo) regiment.cargo = scale(regiment.cargo);
+      regiment.a = troopsOf(regiment);
+      regiment.full = undefined; // power is measured afresh
+      changed++;
+    }
+  return changed;
+}
+
 const ROMAN = ["", "", " II", " III", " IV", " V", " VI", " VII", " VIII", " IX", " X"];
 
 /**
- * Every regiment within the rules: one domain, a transport on its own, at most 12 slots, a full strength.
+ * Every regiment within the rules: one domain, a transport on its own, at most 4 chips, a full strength.
  * New regiments are made through `raise`, which returns the new one. Returns how many were split off
  */
 export function normalise(raise: (like: Regiment, units: Units, name: string) => Regiment): number {

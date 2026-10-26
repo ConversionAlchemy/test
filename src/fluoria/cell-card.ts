@@ -155,6 +155,9 @@ export function groundClick(event: MouseEvent): void {
     return;
   }
   clearScreen();
+  // a click anywhere in a settlement's cell opens the settlement
+  const burg = cell === undefined ? null : pack.burgs[pack.cells.burg[cell]];
+  if (burg?.i && !burg.removed) void Controllers.RegimentEditor.settlement(burg.i);
 }
 
 /** Close whatever is open over the map: the cell card, the nation panel, menus, a selected unit */
