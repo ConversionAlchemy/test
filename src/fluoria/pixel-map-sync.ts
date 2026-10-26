@@ -49,6 +49,7 @@ export function highlightNation(state: number): void {
 export interface RoadEdit {
   nodes?: [number, number][] | null; // given only when they change; null clears them
   segment?: [number, number][];
+  hover?: [number, number][]; // the segment under the pointer, brightened
   drawing?: [number, number][];
   cells?: number[];
   invalid?: boolean;

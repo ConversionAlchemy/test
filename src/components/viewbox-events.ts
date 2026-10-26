@@ -3,7 +3,9 @@ import { drag, select } from "d3";
 import { Controllers } from "@/controllers";
 import { groundClick, hoverAt, leave, zoomedOut } from "@/fluoria/cell-card";
 import { openNation } from "@/fluoria/nation-panel";
-import { roadUnder } from "@/fluoria/road-geometry";
+import { showRoadEdit } from "@/fluoria/pixel-map-sync";
+import { nodePoint, roadUnder } from "@/fluoria/road-geometry";
+import { roadModeOn } from "@/fluoria/road-mode";
 import type { LabelType } from "@/generators/labels-generator";
 import { dragLegendBox } from "@/renderers/draw-legend";
 import { findEl } from "@/utils";
@@ -25,7 +27,10 @@ export function applyDefaultViewboxEvents(): void {
 
   // Fluoria: the pixel map has no svg under bare ground, so the map itself hears hover and clicks there
   select<SVGSVGElement, unknown>("#map")
-    .on("mousemove.fluoria", (event: MouseEvent) => hoverAt(event))
+    .on("mousemove.fluoria", (event: MouseEvent) => {
+      hoverAt(event);
+      roadHover(event);
+    })
     .on("mouseleave.fluoria", leave)
     .on("click.fluoria", (event: MouseEvent) => {
       if ((event.target as Element)?.id !== "map" || options.map.viewOnly || customization) return;
@@ -101,11 +106,24 @@ export function openEditor(element: Element): boolean {
 function onClick(event: MouseEvent): void {
   if (!event?.target || options.map.viewOnly) return;
   if (openEditor(event.target as Element) || customization) return;
-  // Fluoria: roads are clicked where they're drawn, not where Azgaar's hidden curve runs
-  const road = zoomedOut() ? null : roadUnder(event); // zoomed out a click is for the nation
+  groundClick(event); // Fluoria: a road isn't edited by a click; it lights up on hover, Edit is on its right-click
+}
 
-  if (road) return void Controllers.RouteEditor.open(`route${road.id}`);
-  groundClick(event);
+let litRoad = "";
+
+/** The road segment under the pointer brightens, like a unit card does */
+function roadHover(event: MouseEvent): void {
+  const menu = document.getElementById("contextMenu"); // it lights its own road
+  if (event.buttons || roadModeOn() || zoomedOut() || menu) {
+    if (litRoad && !roadModeOn() && !menu) showRoadEdit(null);
+    litRoad = "";
+    return;
+  }
+  const road = roadUnder(event, 5);
+  const key = road ? `${road.a}-${road.b}` : "";
+  if (key === litRoad) return;
+  litRoad = key;
+  showRoadEdit(road ? { hover: [nodePoint(road.a), nodePoint(road.b)] } : null);
 }
 
 /** Right-click on the map belongs to the context menu; Shift+right-click keeps the browser's own */

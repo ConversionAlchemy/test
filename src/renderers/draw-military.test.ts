@@ -55,13 +55,13 @@ test("the first chip is centred on the regiment, the rest below; only a name of 
   const column = document.querySelector(".flClose")!;
   const u = 10 / 21;
   const [x, y, width, height] = ["x", "y", "width", "height"].map(name => Number(column.getAttribute(name)));
-  expect(x).toBeCloseTo(50 - (69 * u) / 2, 1);
+  expect(x).toBeCloseTo(50 - (65 * u) / 2, 1);
   expect(y).toBeCloseTo(45, 1);
-  expect(width).toBeCloseTo(69 * u, 1);
-  expect(height).toBeCloseTo(43 * u, 1);
+  expect(width).toBeCloseTo(65 * u, 1);
+  expect(height).toBeCloseTo(41 * u, 1);
   expect(document.querySelector(".regimentName")?.textContent).toBe("1st Royal Army");
   moveRegiment(army, 60, 50);
   await vi.waitFor(() =>
-    expect(Number(document.querySelector(".flClose")!.getAttribute("x"))).toBeCloseTo(60 - (69 * u) / 2, 1)
+    expect(Number(document.querySelector(".flClose")!.getAttribute("x"))).toBeCloseTo(60 - (65 * u) / 2, 1)
   );
 });

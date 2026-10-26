@@ -11,6 +11,7 @@ import {
   strength,
   troopsOf
 } from "@/fluoria/forces/forces";
+import { KIT } from "@/fluoria/forces/kit";
 import {
   CHIP,
   type ChipColumn,
@@ -69,13 +70,14 @@ export function columnOf(regiment: Regiment, open = false, summary?: Regiment[])
   const kind = kindOf(regiment);
   const full = strength(regiment);
   if (summary) {
-    const units = summary.flatMap(r => facesOf(r.u, colour, band)).map(f => f.unit);
+    const faces = summary.flatMap(r => facesOf(r.u, colour, band));
+    const lead = faces.reduce((best, f) => (f.grade > best.grade ? f : best), faces[0]);
     const count = summary.reduce((sum, r) => sum + troopsOf(r) + troopsOf({ u: r.cargo ?? {} }), 0);
     const power = summary.reduce((sum, r) => sum + powerOf(r.u) + powerOf(r.cargo), 0);
     return {
       chips: [],
       kind: "land",
-      summary: { units, colour, grade: gradeOf(power), count, behind: Math.max(0, units.length - 1) }
+      summary: { lead: lead?.unit ?? KIT[0], units: faces.length, colour, grade: gradeOf(power), count }
     };
   }
   if (isTransport(regiment)) {

@@ -83,7 +83,7 @@ import {
   stackAll,
   toggleOpen
 } from "@/fluoria/units";
-import { atWar, enemiesIn, hasRoom, placeOf } from "@/fluoria/war";
+import { atWar, enemiesIn, hasRoom } from "@/fluoria/war";
 import { goodIconLines } from "@/renderers/draw-goods";
 import { chipOf, columnOf, paintColumn, placeRegiment } from "@/renderers/draw-military";
 import { EmblemRenderer } from "@/renderers/emblems/renderer";
@@ -126,7 +126,8 @@ function editRegiment(selector: string, beside = false): void {
   pick(regiment);
 }
 
-/** A single click picks a unit, with Shift added to the choice; in a settlement's cell it opens the settlement too */
+/** A click picks a unit; Shift adds it to the chosen ones, Ctrl or Cmd chooses its whole column; in a settlement's cell
+ * it opens the settlement too */
 function clickRegiment(selector: string, shift = false): void {
   if (customization) return;
   const regiment = regimentFrom(document.querySelector(selector));
@@ -135,6 +136,12 @@ function clickRegiment(selector: string, shift = false): void {
   if (mode) return; // the mode's own click handles it
   if (shift) {
     elementOf(regiment)?.classList.toggle("fl-chosen");
+    return;
+  }
+  const event = window.event as MouseEvent | undefined;
+  if (event?.ctrlKey || event?.metaKey) {
+    // the whole column of the nation's units in this cell
+    for (const r of cellOf(regiment)) if (r.state === regiment.state) elementOf(r)?.classList.add("fl-chosen");
     return;
   }
   const town = settlementIn(regiment.cell);
@@ -800,14 +807,11 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
   }
   if (act === "form") {
     const garrison = garrisonOf(burg);
-    const units = garrison ? marchOut(garrison.u) : {};
-    const why = !Object.keys(units).length
-      ? t("The garrison is empty")
-      : hasRoom(burg.state!, burg.cell, slotsOf(units))
-        ? ""
-        : t("That cell is full: 4 units");
-    if (why) {
-      report(why);
+    let room = 0;
+    while (room < 4 && hasRoom(burg.state!, burg.cell, room + 1)) room++;
+    const units = garrison ? marchOut(garrison.u, room) : {};
+    if (!Object.keys(units).length) {
+      report(garrison && troopsOf(garrison) ? t("That cell is full: 4 units") : t("The garrison is empty"));
       return;
     }
     const made = formArmy(burg, units);
@@ -815,9 +819,8 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
       report(made);
       return;
     }
-    const group = regroup(made);
     changed();
-    pick(group);
+    pick(made[0]);
     return;
   }
   if (act === "funds") {
@@ -852,13 +855,12 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
     });
 }
 
-/** The first kind of unit in a garrison, up to a group of 4: what Form Army marches out */
-function marchOut(units: Record<string, number>): Record<string, number> {
+/** The garrison's chips of its first kind, as many as the cell has room for: what Form Army marches out */
+function marchOut(units: Record<string, number>, room: number): Record<string, number> {
   const out: Record<string, number> = {};
   const first = Object.keys(units).find(u => units[u] > 0);
   if (!first) return out;
   const domain = domainOfUnit(first);
-  let room = MAX_SLOTS;
   for (const row of rows(units)) {
     if (domainOfUnit(row.unit) !== domain || room <= 0) continue;
     if (kitOf(row.unit)?.role === "transport") continue;
@@ -1034,50 +1036,17 @@ function dropRowsAt(clientX: number, clientY: number): void {
     changed();
     return;
   }
-  // the nation's own group in that cell takes them; otherwise the first row stands as a new group and the rest join it
-  const mate = groupIn(from, mainCell(cell));
-  if (mate) {
-    report(
-      rowsCarried
-        .map(r => (mate === from && r.list === "u" ? "" : shift(from, r.list, r.unit, r.count, mate, "u")))
-        .find(Boolean) ?? ""
-    );
-    if (!troopsOf(from) && !isTransport(from) && !from.garrison) Military.remove(from.state, from.i);
-    changed();
-    return;
+  // each chip stands as a unit of its own
+  for (const r of rowsCarried) {
+    const made = splitOff(from, r.list, r.unit, r.count, cell);
+    if (typeof made === "string") {
+      report(made);
+      break;
+    }
+    if (mainCell(cell) === mainCell(from.cell)) [made.x, made.y] = [from.x, from.y];
   }
-  const [first, ...rest] = rowsCarried;
-  const made = splitOff(from, first.list, first.unit, first.count, cell);
-  if (typeof made === "string") {
-    report(made);
-    return;
-  }
-  for (const r of rest) shift(from, r.list, r.unit, r.count, made, "u");
   if (!troopsOf(from) && !isTransport(from) && !from.garrison) Military.remove(from.state, from.i);
-  if (mainCell(cell) === mainCell(from.cell)) {
-    made.x = from.x;
-    made.y = from.y;
-  }
   changed();
-}
-
-/** A nation's group of the same kind standing in a cell, that more units can join */
-function groupIn(like: Regiment, cell: number): Regiment | undefined {
-  const domain = domainOf(like);
-  return pack.states[like.state]?.military?.find(
-    r => !r.hidden && !isTransport(r) && mainCell(r.cell) === cell && troopsOf(r) && domainOf(r) === domain
-  );
-}
-
-/** After a move, a regiment joins its nation's group of the same kind in the cell, room allowing */
-function regroup(r: Regiment): Regiment {
-  if (isTransport(r) || r.hidden) return r;
-  const mate = pack.states[r.state]?.military?.find(
-    o => o !== r && !o.hidden && !isTransport(o) && placeOf(o) === placeOf(r) && domainOf(o) === domainOf(r)
-  );
-  if (!mate || mergeRefusal(r, mate)) return r;
-  merge(r, mate);
-  return mate;
 }
 
 /** Light a settlement symbol while carried infantry could go inside it */
@@ -1107,7 +1076,7 @@ function carryArmy(r: Regiment | null): void {
 function dropArmy(army: Regiment, clientX: number, clientY: number): void {
   if (army.garrison) {
     const burg = pack.burgs[army.garrison];
-    const units = marchOut(army.u);
+    const units = marchOut(army.u, 4);
     if (!burg || !Object.keys(units).length) {
       report(t("The garrison is empty"));
       return;
@@ -1118,7 +1087,7 @@ function dropArmy(army: Regiment, clientX: number, clientY: number): void {
       report(made);
       return;
     }
-    if (!landArmy(made, clientX, clientY)) station(made, burg); // nowhere to go: back inside
+    for (const r of made) if (!landArmy(r, clientX, clientY)) station(r, burg); // nowhere to go: back inside
     changed();
     return;
   }
@@ -1151,7 +1120,7 @@ function landArmy(reg: Regiment, clientX: number, clientY: number): boolean {
     return false;
   }
   Military.move(reg.state, reg.i, spot[0], spot[1]);
-  moved(regroup(reg));
+  moved(reg);
   return true;
 }
 
@@ -1460,7 +1429,15 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
     dragChip(this, reg, list, row!.index, event);
     return;
   }
-  const group = far ? cellOf(reg).filter(r => r.state === reg.state) : [reg];
+  // far out the nation's part of the cell moves together; close in, every chosen unit moves with the one dragged
+  const chosen = [...document.querySelectorAll<SVGGElement>("#armies .fl-chosen")]
+    .map(el => regimentFrom(el))
+    .filter((r): r is Regiment => Boolean(r) && r!.state === reg.state);
+  const group = far
+    ? cellOf(reg).filter(r => r.state === reg.state)
+    : chosen.includes(reg)
+      ? [reg, ...chosen.filter(r => r !== reg)]
+      : [reg];
   const from = [reg.x, reg.y] as const;
   let started = false;
   event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
@@ -1516,9 +1493,7 @@ function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown
       const there = dropAt(other, dragEvent.x, dragEvent.y);
       if (there) Military.move(other.state, other.i, there[0], there[1]);
     }
-    const kept = regroup(reg);
-    for (const other of group) if (other !== reg && regimentOf(other.state, other.i)) regroup(other);
-    moved(kept);
+    moved(reg);
     changed();
   });
 }
