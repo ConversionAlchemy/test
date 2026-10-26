@@ -49,6 +49,10 @@ export interface Burg {
   production?: ProductionRecord[]; // per-burg production/trade records from the last production run
   product?: number; // gross product from the last production run
   treasury?: number; // accumulated cash balance
+  flSize?: "village" | "town" | "city" | "citadel"; // Fluoria: its size
+  flClass?: "barracks" | "armoury" | "harbour" | "airbase" | "market"; // Fluoria: what it raises
+  flReached?: number; // Fluoria: the largest size it has been, by rank index
+  manpower?: number; // Fluoria: people it can raise troops from
   market?: number;
   label?: Label;
   note?: string;

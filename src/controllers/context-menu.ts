@@ -4,6 +4,7 @@ import { type EntityRef, MapEntities } from "@/components/map-entities";
 import { revealEntity } from "@/components/reveal";
 import { openEditor } from "@/components/viewbox-events";
 import { Controllers } from "@/controllers";
+import { buttonUrl } from "@/fluoria/forces/pixels";
 import { actionsFor, type MenuAction } from "@/fluoria/menu-actions";
 import { cellAtPoint } from "@/fluoria/one-grid";
 import { showRoadEdit } from "@/fluoria/pixel-map-sync";
@@ -97,6 +98,23 @@ class ContextMenuController {
     const root = document.createElement("div");
     root.id = "contextMenu";
     root.setAttribute("role", "menu");
+    // Fluoria: a bar of pixel buttons for the thing under the pointer, and nothing else
+    if (this.actions.length && this.actions.every(action => action.icon)) {
+      root.className = "flBar";
+      root.innerHTML = this.actions
+        .map(
+          (action, index) =>
+            /* html */ `<button type="button" role="menuitem" class="flPx" data-action="fl" data-fl="${index}" data-tip="${escapeHtml(action.label)}" aria-label="${escapeHtml(action.label)}"><img src="${buttonUrl(action.icon!)}" alt="" /></button>`
+        )
+        .join("");
+      this.rows = [];
+      document.body.append(root);
+      const { width, height } = root.getBoundingClientRect();
+      root.style.left = `${Math.max(4, Math.min(clientX, window.innerWidth - width - 4))}px`;
+      root.style.top = `${Math.max(4, Math.min(clientY, window.innerHeight - height - 4))}px`;
+      this.root = root;
+      return;
+    }
 
     const rows = this.rows.map(({ ref, element }, index) => {
       const { kind, icon } = MapEntities.getDisplay(ref);

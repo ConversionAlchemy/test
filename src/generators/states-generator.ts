@@ -72,6 +72,7 @@ export interface State {
   salesTax: number;
   pollTax: number;
   treasury: number;
+  loan?: number; // Fluoria: owed to the Goldbank
   tariffs?: TariffRule[];
   label?: Label;
   note?: string;

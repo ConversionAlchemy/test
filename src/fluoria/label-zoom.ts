@@ -2,6 +2,8 @@
 // kind looks, and which give way where they overlap. Labels and icons stay Azgaar's; this styles and gates them
 import { viewport } from "@/components/viewport";
 import { cellsOfState, stateInk, TINY_FROM, TINY_STATE } from "./owners";
+import { type Size, sizeOf } from "./settlement-size";
+import { CLASS_ORDER, classOf, isCapital, type SettlementClass } from "./settlements";
 
 const SMALL_STATE = 8; // cells under which a nation is named by its city once zoomed in
 
@@ -90,25 +92,53 @@ ${Object.entries(TIERS)
   .join("\n")}
 `;
 
-// atlas symbols in a 1×1 box centred on the settlement; ports are the hollow form of their size
+// atlas symbols in a 1×1 box centred on the settlement: a village a black dot; towns, cities and citadels white squares
+// growing in size, each with its class's pixel glyph; the capital a square in the road red
 const DARK = "#26262b";
 const LIGHT = "#f4f1e8";
+const CAPITAL_RED = "#a83424";
+const HALF: Record<Size | "capital", number> = { town: 0.24, city: 0.32, citadel: 0.4, capital: 0.42 };
+const GLYPHS: Record<SettlementClass, string[]> = {
+  barracks: ["#...#", ".#.#.", "..#..", ".#.#.", "#...#"],
+  armoury: [".###.", "#...#", "#...#", "#...#", ".###."],
+  harbour: ["..#..", "#####", "..#..", "#.#.#", ".###."],
+  airbase: ["..#..", "#####", "..#..", "..#..", ".###."],
+  market: [".####", "#....", ".###.", "....#", "####."]
+};
+
+function glyph(c: SettlementClass, half: number, ink: string): string {
+  const px = (half * 2 * 0.6) / 5;
+  const x0 = -2.5 * px;
+  return GLYPHS[c]
+    .flatMap((row, y) =>
+      [...row].map((cell, x) =>
+        cell === "#"
+          ? `<rect x="${(x0 + x * px).toFixed(3)}" y="${(x0 + y * px).toFixed(3)}" width="${(px + 0.002).toFixed(3)}" height="${(px + 0.002).toFixed(3)}" fill="${ink}" stroke="none"/>`
+          : ""
+      )
+    )
+    .join("");
+}
+
 // every paint property is set on the shapes, so nothing leaks in from the group styles Azgaar puts on the icons
-const SYMBOLS = `
-<symbol id="fl-capital" viewBox="-0.5 -0.5 1 1" overflow="visible">
-  <rect x="-0.42" y="-0.42" width="0.84" height="0.84" fill="${LIGHT}" stroke="${DARK}" stroke-width="0.12"/>
-  <circle r="0.17" fill="${DARK}" stroke="none"/>
-</symbol>
-<symbol id="fl-regional" viewBox="-0.5 -0.5 1 1" overflow="visible">
-  <rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="${LIGHT}" stroke="${DARK}" stroke-width="0.12"/>
-</symbol>
-<symbol id="fl-city" viewBox="-0.5 -0.5 1 1" overflow="visible"><circle r="0.32" fill="${DARK}" stroke="${LIGHT}" stroke-width="0.09"/></symbol>
-<symbol id="fl-town" viewBox="-0.5 -0.5 1 1" overflow="visible"><circle r="0.23" fill="${DARK}" stroke="${LIGHT}" stroke-width="0.08"/></symbol>
-<symbol id="fl-village" viewBox="-0.5 -0.5 1 1" overflow="visible"><circle r="0.14" fill="${DARK}" stroke="${LIGHT}" stroke-width="0.06"/></symbol>
-<symbol id="fl-city-port" viewBox="-0.5 -0.5 1 1" overflow="visible"><circle r="0.29" fill="${LIGHT}" stroke="${DARK}" stroke-width="0.12"/></symbol>
-<symbol id="fl-town-port" viewBox="-0.5 -0.5 1 1" overflow="visible"><circle r="0.21" fill="${LIGHT}" stroke="${DARK}" stroke-width="0.1"/></symbol>
-<symbol id="fl-village-port" viewBox="-0.5 -0.5 1 1" overflow="visible"><circle r="0.13" fill="${LIGHT}" stroke="${DARK}" stroke-width="0.07"/></symbol>
-`;
+function symbol(id: string, half: number, fill: string, c: SettlementClass | null, ink: string): string {
+  return `<symbol id="fl-${id}" viewBox="-0.5 -0.5 1 1" overflow="visible"><rect x="${-half}" y="${-half}" width="${half * 2}" height="${half * 2}" fill="${fill}" stroke="${DARK}" stroke-width="0.09"/>${c ? glyph(c, half, ink) : ""}</symbol>`;
+}
+
+const SYMBOLS = [
+  `<symbol id="fl-village" viewBox="-0.5 -0.5 1 1" overflow="visible"><circle r="0.13" fill="${DARK}" stroke="${LIGHT}" stroke-width="0.05"/></symbol>`,
+  ...(["town", "city", "citadel", "capital"] as const).flatMap(size =>
+    [null, ...CLASS_ORDER].map(c =>
+      symbol(
+        c ? `${size}-${c}` : size,
+        HALF[size],
+        size === "capital" ? CAPITAL_RED : LIGHT,
+        c,
+        size === "capital" ? LIGHT : DARK
+      )
+    )
+  )
+].join("\n");
 
 let styled = false;
 let watched: Element | null = null;
@@ -121,7 +151,8 @@ function install(): void {
     style.textContent = STYLE;
     document.head.append(style);
   }
-  if (!document.getElementById("fl-capital")) {
+  if (!document.getElementById("fl-capital-market")) {
+    for (const old of document.querySelectorAll("#map symbol[id^='fl-']")) old.remove();
     const defs = document.querySelector("#map defs") ?? document.querySelector("#map");
     defs?.insertAdjacentHTML("beforeend", SYMBOLS);
   }
@@ -167,24 +198,22 @@ export function applyLabelZoom(scale = viewport.scale): void {
   scheduleDeclutter();
 }
 
-/** Every settlement icon becomes the atlas symbol for its rank, whichever icon its group was given */
+/** Every settlement icon becomes the atlas symbol for its size and class, whichever icon its group was given */
 function restyleIcons(): void {
-  const regional = new Set<number>();
-  for (const province of pack.provinces ?? [])
-    if (province && "burg" in province && province.burg) regional.add(province.burg);
   for (const use of document.querySelectorAll<SVGUseElement>('#burgIcons g[data-group="icons"] > use')) {
     const burg = pack.burgs[Number(use.dataset.id)];
     if (!burg) continue;
-    const href = `#fl-${symbolFor(burg, regional)}`;
+    const href = `#fl-${symbolFor(burg)}`;
     if (use.getAttribute("href") !== href) use.setAttribute("href", href);
   }
 }
 
-function symbolFor(burg: (typeof pack.burgs)[number], regional: Set<number>): string {
-  if (burg.capital) return "capital";
-  if (regional.has(burg.i)) return "regional";
-  const size = burg.group === "city" ? "city" : burg.group === "town" ? "town" : "village";
-  return burg.port ? `${size}-port` : size;
+function symbolFor(burg: (typeof pack.burgs)[number]): string {
+  const size = sizeOf(burg);
+  if (!size) return "village";
+  const c = classOf(burg);
+  const base = isCapital(burg) ? "capital" : size;
+  return c ? `${base}-${c}` : base;
 }
 
 let declutterTimer = 0;

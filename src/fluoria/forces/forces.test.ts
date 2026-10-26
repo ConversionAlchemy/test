@@ -43,9 +43,9 @@ describe("slots", () => {
     ]);
   });
 
-  it("gives every transport 4 cargo slots: its tier buys power, not room", () => {
-    expect(cargoSlots(regiment({ "Troop barge": 1 }))).toBe(4);
-    expect(cargoSlots(regiment({ Troopship: 1 }))).toBe(4);
+  it("gives a transport 2, 3 or 4 bays by tier", () => {
+    expect(cargoSlots(regiment({ "Troop barge": 1 }))).toBe(2);
+    expect(cargoSlots(regiment({ Troopship: 1 }))).toBe(3);
     expect(cargoSlots(regiment({ "Strategic transport": 1 }))).toBe(4);
   });
 });
@@ -83,8 +83,8 @@ describe("moving troops", () => {
     expect(refusal(regiment({}, { garrison: 3 }), "u", "Gunship", 1)).toMatch(/Only infantry/);
   });
 
-  it("loads cargo up to the transport's 4 slots", () => {
-    const ship = regiment({ "Troop barge": 1 });
+  it("loads cargo up to the transport's bays", () => {
+    const ship = regiment({ "Strategic transport": 1 });
     const army = regiment({ Riflemen: 300 }, { i: 1 });
     expect(shift(army, "u", "Riflemen", 240, ship, "cargo")).toBe("");
     expect(shift(army, "u", "Riflemen", 60, ship, "cargo")).toMatch(/Won't fit/);

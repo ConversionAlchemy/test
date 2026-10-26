@@ -9,8 +9,6 @@ const rgb = (hex: string): [number, number, number] => {
   const n = Number.parseInt(hex.replace("#", "").padEnd(6, "0").slice(0, 6), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
-const css = (channels: number[]) => `rgb(${channels.map(Math.round).join(",")})`;
-const shade = (hex: string, a: number) => css(rgb(hex).map(v => v * a));
 const hexOf = (channels: number[]) => `#${channels.map(v => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
 /** A single unit's card colour: the nation colour halfway to white */
 export const pale = (hex: string) => hexOf(rgb(hex).map(v => v + (255 - v) * 0.5));
@@ -155,226 +153,407 @@ export function iconUrl(unit: KitUnit, colour: string, mode: IconMode = "icon"):
   });
 }
 
-// --- chips: a unit as a rectangle with its icon, power grade and count, its tier as pips on its left edge; the right
-// corner cut shows the kind (air: top, ship: bottom). Stacked chips share an edge. A transport adds layers on top
-// and opens into slots; far out a cell is one chip with its strongest unit's icon and how many units it stands for
+// --- unit cards: land units stand as vertical cards, air and naval units lie as horizontal cards whose right end shows
+// their role; each carries its role's symbol, its power grade and its tier as bars, with a thin health bar beneath.
+// A transport is a hull wrapped round a hold of 2–4 bays, its cargo's cards inside. Far out a nation's units in a cell
+// fold into one plain chip of symbols, and a transport into its outline with its cargo's symbols in the bays
 
-export const CHIP = { w: 62, h: 21, gap: -1, cut: 6, layer: 2, pip: 3 } as const;
-export type ChipKind = "land" | "air" | "naval";
+export type CardKind = "land" | "air" | "naval";
+export type RoleShape = "flat" | "arrow" | "swept" | "reverse" | "bow" | "rake" | "blunt";
 
-export interface ChipFace {
+/** Art sizes, in art pixels */
+export const CARD = { landW: 19, landH: 33, w: 50, h: 21, end: 10, bayGap: 1, front: 20, bar: 2 } as const;
+
+export interface CardFace {
   unit: KitUnit;
   colour: string;
   band?: string; // serving another nation: its colour across the top
   grade: number; // 1–9, 0 for none
-  count: number;
   strength: number; // 0–1
 }
 
-export interface ChipColumn {
-  chips: ChipFace[];
-  kind: ChipKind;
-  carrier?: { open: boolean; slots: ChipFace[]; room: number }; // a transport: its cargo and room
-  summary?: { lead: KitUnit; units: number; colour: string; grade: number; count: number }; // far out, a cell
-}
+export type UnitArt =
+  | { type: "card"; face: CardFace }
+  | { type: "transport"; face: CardFace; cargo: CardFace[]; room: number; lit?: number }
+  | { type: "far"; colour: string; kind: CardKind; roles: KitUnit["role"][] }
+  | { type: "farTransport"; face: CardFace; cargo: KitUnit["role"][]; room: number };
 
-/** Rows of a column image, top down: where each chip sits, in art pixels */
-export interface ChipLayout {
+/** Where things sit in an art image: its size, the card's middle (what stands on the regiment's point), the bays */
+export interface ArtLayout {
   width: number;
   height: number;
-  rows: { y: number; kind: "chip" | "cargo" | "empty" | "head"; index: number }[];
+  middle: number;
+  bays: { x: number; y: number; w: number; h: number }[];
 }
 
-/** Whether a pixel lies outside a chip's cut corner */
-function cutAway(x: number, y: number, w: number, h: number, kind: ChipKind): boolean {
-  const c = CHIP.cut;
-  if (kind === "air") return x > w - 1 - c + y; // top right
-  if (kind === "naval") return x > w - 1 - c + (h - 1 - y); // bottom right
-  return false;
-}
-const onEdge = (x: number, y: number, w: number, h: number, kind: ChipKind) =>
-  x === 0 ||
-  y === 0 ||
-  y === h - 1 ||
-  x === w - 1 ||
-  cutAway(x + 1, y, w, h, kind) ||
-  cutAway(x, y + (kind === "air" ? -1 : 1), w, h, kind);
+const GLYPHS: Record<KitUnit["role"], string[]> = {
+  infantry: [
+    "##.......##",
+    "###.....###",
+    ".###...###.",
+    "..###.###..",
+    "...#####...",
+    "....###....",
+    "...#####...",
+    "..###.###..",
+    ".###...###.",
+    "###.....###",
+    "##.......##"
+  ],
+  assault: [
+    "##.......##",
+    "###.....###",
+    ".###...###.",
+    "..#######..",
+    "...#####...",
+    "...#####...",
+    "...#####...",
+    "..#######..",
+    ".###...###.",
+    "###.....###",
+    "##.......##"
+  ],
+  cavalry: [
+    "##.......##",
+    "##.......##",
+    "##.......##",
+    "##.......##",
+    "##.......##",
+    "##.......##",
+    "###.....###",
+    ".###...###.",
+    "..#######..",
+    "...#####...",
+    "..........."
+  ],
+  armour: [
+    "...........",
+    "..#######..",
+    ".#########.",
+    "###.....###",
+    "##.......##",
+    "##.......##",
+    "##.......##",
+    "###.....###",
+    ".#########.",
+    "..#######..",
+    "..........."
+  ],
+  scout: [
+    ".........##",
+    ".......###.",
+    ".....###...",
+    "...###.....",
+    ".###.......",
+    "##.........",
+    ".###.......",
+    "...###.....",
+    ".....###...",
+    ".......###.",
+    ".........##"
+  ],
+  combat: [
+    "....###....",
+    "....###....",
+    "....###....",
+    "....###....",
+    "###########",
+    "###########",
+    "###########",
+    "....###....",
+    "....###....",
+    "....###....",
+    "....###...."
+  ],
+  bomber: [
+    "....###....",
+    ".....#.....",
+    "...#####...",
+    "..#######..",
+    ".#########.",
+    ".#########.",
+    ".#########.",
+    ".#########.",
+    "..#######..",
+    "...#####...",
+    "..........."
+  ],
+  trade: [
+    "###########",
+    "#....#....#",
+    "#....#....#",
+    "#....#....#",
+    "###########",
+    "#....#....#",
+    "#....#....#",
+    "#....#....#",
+    "#....#....#",
+    "###########",
+    "..........."
+  ],
+  transport: [
+    "##.......##",
+    "##.......##",
+    "##.......##",
+    "##..###..##",
+    "##..###..##",
+    "##.......##",
+    "###########",
+    "###########",
+    "...........",
+    "...........",
+    "..........."
+  ]
+};
 
-const plain = new Map<string, string[]>();
-/** A unit's icon without the tier marks under it (the pips show the tier), centred again */
-function plainPixels(unit: KitUnit): string[] {
-  let rows = plain.get(unit.id);
-  if (rows) return rows;
-  const marks = unit.pixels.findIndex(row => row.includes("W"));
-  const bare = (row?: string) => Boolean(row && /^[.#]+$/.test(row) && row.includes("###"));
-  const drop = new Set<number>();
-  if (marks >= 0) {
-    drop.add(marks);
-    if (bare(unit.pixels[marks - 1])) drop.add(marks - 1);
-    if (bare(unit.pixels[marks + 1])) drop.add(marks + 1);
+/** The right end a unit's card takes, by its domain and role */
+export function shapeOf(unit: KitUnit): RoleShape {
+  if (unit.domain === "land") return "flat";
+  if (unit.role === "trade") return "blunt";
+  if (unit.domain === "air") return unit.role === "scout" ? "arrow" : unit.role === "bomber" ? "reverse" : "swept";
+  return unit.role === "scout" ? "bow" : "rake";
+}
+
+/** The last pixel inside a horizontal card on row y */
+function rightEdge(shape: RoleShape, w: number, h: number, y: number): number {
+  const e = CARD.end;
+  const c = (h - 1) / 2;
+  const last = w - 1;
+  switch (shape) {
+    case "arrow":
+      return Math.round(last - (e * Math.abs(y - c)) / c);
+    case "swept":
+      return Math.round(last - e + (e * y) / (h - 1));
+    case "reverse":
+    case "rake":
+      return Math.round(last - (e * y) / (h - 1));
+    case "bow":
+      return y <= c ? Math.round(last - e * 0.5 * ((c - y) / c) ** 2) : Math.round(last - (e * 0.8 * (y - c)) / c);
+    case "blunt":
+      return y < e / 2 ? Math.round(last - (e / 2 - y)) : last;
+    default:
+      return last;
   }
-  const kept = unit.pixels.filter((_, k) => !drop.has(k));
-  const used = kept.map(row => row.replaceAll(".", "").length > 0);
-  const first = used.indexOf(true);
-  const last = used.lastIndexOf(true);
-  const art = first < 0 ? kept : kept.slice(first, last + 1);
-  const pad = Math.floor((17 - art.length) / 2);
-  const blank = ".".repeat(17);
-  rows = [...Array(pad).fill(blank), ...art, ...Array(17 - pad - art.length).fill(blank)];
-  plain.set(unit.id, rows);
-  return rows;
 }
 
-/** Tier pips hugging a chip's left edge, sharing its outline */
-function drawPips(p: Pixels, x0: number, y0: number, n: number): void {
-  const top = y0 + Math.round((CHIP.h - (n * 3 + 1)) / 2);
-  for (let k = 0; k < n; k++)
-    for (let y = 0; y < 4; y++)
-      for (let x = 0; x < 4; x++) {
-        const edge = x === 0 || y === 0 || x === 3 || y === 3;
-        p.dot(x0 - 3 + x, top + k * 3 + y, edge ? "#000" : "#fff");
-      }
-}
-
-function drawChip(p: Pixels, x0: number, y0: number, w: number, kind: ChipKind, face: ChipFace, frame = false): void {
-  const h = CHIP.h;
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++) {
-      if (cutAway(x, y, w, h, kind)) continue;
-      const edge = onEdge(x, y, w, h, kind);
-      if (frame) {
-        if (edge) p.dot(x0 + x, y0 + y, "#fff");
-        continue;
-      }
-      if (edge) p.dot(x0 + x, y0 + y, "#000");
-      else if (face.band && y <= 3) p.dot(x0 + x, y0 + y, face.band);
-      else p.dot(x0 + x, y0 + y, x <= 19 ? shade(face.colour, 0.78) : face.colour);
-    }
-  if (frame) return;
-  drawPips(p, x0, y0, face.unit.tier);
-  p.art(plainPixels(face.unit), x0 + 2, y0 + 2, { "#": "#000", R: "#fff", W: "#fff" });
-  const text = ink(face.colour);
-  if (face.grade) p.bigText(String(face.grade), x0 + 22, y0 + 5, "#fff", "#000");
-  p.bigText(short(face.count), x0 + 31, y0 + 5, text, text === "#fff" ? "#000" : null);
-  if (face.strength < 0.995) {
-    const left = 20;
-    const bar = Math.round(face.strength * (w - left - 2 - CHIP.cut));
-    for (let x = 0; x < bar; x++) p.dot(x0 + left + x, y0 + h - 2, barColour(face.strength));
-  }
-}
-
-function drawSummary(
+/** Fill a shape given by a test, its edge in black (white when it's the selection frame) */
+function fillShape(
   p: Pixels,
   x0: number,
   y0: number,
   w: number,
-  s: NonNullable<ChipColumn["summary"]>,
-  frame = false
+  h: number,
+  inside: (x: number, y: number) => boolean,
+  fill: (x: number, y: number) => string,
+  frame: boolean
 ): void {
-  const h = CHIP.h;
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
-      const edge = x === 0 || y === 0 || y === h - 1 || x === w - 1;
+      if (!inside(x, y)) continue;
+      const edge = !inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1);
       if (frame) {
         if (edge) p.dot(x0 + x, y0 + y, "#fff");
-      } else p.dot(x0 + x, y0 + y, edge ? "#000" : x <= 19 ? shade(s.colour, 0.78) : s.colour);
+      } else p.dot(x0 + x, y0 + y, edge ? "#000" : fill(x, y));
     }
+}
+
+const inBox = (w: number, h: number) => (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h;
+const glyph = (p: Pixels, role: KitUnit["role"], x: number, y: number) => p.art(GLYPHS[role], x, y, { "#": "#000" });
+const tintOf = (hex: string, a: number) => hexOf(rgb(hex).map(v => v + (255 - v) * a));
+const faceFill = (face: CardFace) => (_x: number, y: number) => (face.band && y <= 3 ? face.band : face.colour);
+
+function healthBar(p: Pixels, cx: number, y: number, w: number, strength: number): void {
+  const left = Math.round(cx - w / 2);
+  const lit = Math.round(w * Math.max(0, Math.min(1, strength)));
+  for (let x = 0; x < w; x++) p.dot(left + x, y, x < lit ? barColour(strength) : "#1d3a2f");
+}
+
+/** A land unit standing up: symbol, grade, tier bars at its foot */
+function drawLand(p: Pixels, x0: number, y0: number, face: CardFace, frame: boolean, bar = true): void {
+  const { landW: w, landH: h } = CARD;
+  fillShape(p, x0, y0, w, h, inBox(w, h), faceFill(face), frame);
   if (frame) return;
-  p.art(plainPixels(s.lead), x0 + 2, y0 + 2, { "#": "#000", R: "#fff", W: "#fff" });
-  if (s.units > 1) {
-    // how many units it stands for, as a badge in the icon's corner
-    const label = `x${Math.min(s.units, 9)}`;
-    for (let y = 12; y <= 19; y++) for (let x = 10; x <= 19; x++) p.dot(x0 + x, y0 + y, "#000");
-    p.text(label, x0 + 11, y0 + 13, "#fff", false);
-  }
-  const text = ink(s.colour);
-  if (s.grade) p.bigText(String(s.grade), x0 + 22, y0 + 5, "#fff", "#000");
-  p.bigText(short(s.count), x0 + 31, y0 + 5, text, text === "#fff" ? "#000" : null);
+  glyph(p, face.unit.role, x0 + 4, y0 + 3);
+  if (face.grade) p.bigText(String(face.grade), x0 + 7, y0 + 16, "#000", null);
+  for (let k = 0; k < face.unit.tier; k++) for (let x = 0; x < 9; x++) p.dot(x0 + 5 + x, y0 + h - 3 - k * 2, "#000");
+  if (bar) healthBar(p, x0 + w / 2, y0 + h + 1, 11, face.strength);
 }
 
-/** The layout of a column: chips one under another, sharing edges; a transport's layers on top, its hold below */
-export function chipLayout(col: ChipColumn): ChipLayout {
-  const { h, gap, layer, pip } = CHIP;
-  const width = pip + CHIP.w;
-  const rows: ChipLayout["rows"] = [];
-  if (col.summary) {
-    const behind = Math.max(0, col.summary.units - 1);
-    return { width, height: h + behind * layer, rows: [{ y: 0, kind: "chip", index: 0 }] };
-  }
-  if (col.carrier) {
-    const lift = col.carrier.open ? 0 : 2 * layer;
-    rows.push({ y: lift, kind: "head", index: 0 });
-    if (!col.carrier.open) return { width, height: lift + h, rows };
-    let y = h + 1;
-    for (let k = 0; k < col.carrier.room; k++) {
-      rows.push({ y, kind: k < col.carrier.slots.length ? "cargo" : "empty", index: k });
-      y += h + gap;
+/** An aircraft or ship lying down: symbol, grade, tier bars before its shaped end */
+function drawFlat(p: Pixels, x0: number, y0: number, face: CardFace, frame: boolean): void {
+  const { w, h } = CARD;
+  const shape = shapeOf(face.unit);
+  fillShape(p, x0, y0, w, h, (x, y) => inBox(w, h)(x, y) && x <= rightEdge(shape, w, h, y), faceFill(face), frame);
+  if (frame) return;
+  glyph(p, face.unit.role, x0 + 4, y0 + 5);
+  if (face.grade) p.bigText(String(face.grade), x0 + 19, y0 + 5, "#000", null);
+  let edge: number = w;
+  for (let y = 5; y <= 15; y++) edge = Math.min(edge, rightEdge(shape, w, h, y));
+  for (let k = 0; k < face.unit.tier; k++)
+    for (let y = 6; y <= 14; y++) for (let t = 0; t < 2; t++) p.dot(x0 + edge - 3 - k * 3 - t, y0 + y, "#000");
+  healthBar(p, x0 + w / 2, y0 + h + 1, 18, face.strength);
+}
+
+/** A transport's measurements: its hold's bays, the front beyond them */
+function transportSize(room: number, far: boolean) {
+  const bayW = far ? 13 : CARD.landW;
+  const bayH = far ? 13 : CARD.landH;
+  const holdW = room * bayW + (room + 1) * CARD.bayGap;
+  const front = far ? 12 : CARD.front;
+  const w = 2 + holdW + 1 + front;
+  const h = 2 + bayH + 2 + 2;
+  return { bayW, bayH, holdW, front, w, h };
+}
+
+function drawTransport(
+  p: Pixels,
+  face: CardFace,
+  room: number,
+  frame: boolean,
+  inner: (k: number, x: number, y: number) => void,
+  far: boolean,
+  lit?: number
+): ArtLayout["bays"] {
+  const { bayW, bayH, holdW, front, w, h } = transportSize(room, far);
+  const air = face.unit.domain === "air";
+  const r = (h - 1) / 2;
+  const frontX = 2 + holdW + 1;
+  const inside = (x: number, y: number) => {
+    if (!inBox(w, h)(x, y)) return false;
+    if (x < frontX) return true;
+    if (air) {
+      const nose = w - 1 - r;
+      return x <= nose || (x - nose) ** 2 + (y - r) ** 2 <= r * r;
     }
-    return { width, height: y + 4, rows };
+    return x <= Math.round(w - 1 - (front * 0.55 * y) / (h - 1));
+  };
+  fillShape(p, 0, 0, w, h, inside, faceFill(face), frame);
+  const bays: ArtLayout["bays"] = [];
+  for (let k = 0; k < room; k++)
+    bays.push({ x: 2 + CARD.bayGap + k * (bayW + CARD.bayGap), y: 2 + 1, w: bayW, h: bayH });
+  if (frame) return bays;
+  // the hold: a lighter well framed in black, a faint divider between bays
+  const well = tintOf(face.colour, 0.45);
+  const divider = tintOf(face.colour, 0.2);
+  for (let y = 2; y < 2 + bayH + 2; y++)
+    for (let x = 2; x <= 2 + holdW - 1; x++) {
+      const rim = y === 2 || y === 2 + bayH + 1 || x === 2 || x === 2 + holdW - 1;
+      p.dot(x, y, rim ? "#000" : well);
+    }
+  for (let k = 1; k < room; k++) {
+    const x = 2 + k * (bayW + CARD.bayGap);
+    for (let y = 4; y < 2 + bayH; y++) p.dot(x, y, divider);
   }
-  for (let k = 0; k < col.chips.length; k++) rows.push({ y: k * (h + gap), kind: "chip", index: k });
-  return { width, height: Math.max(h, col.chips.length * (h + gap) - gap), rows };
+  for (const [k, bay] of bays.entries()) {
+    if (k === lit)
+      for (let y = 0; y < bay.h; y++) for (let x = 0; x < bay.w; x++) p.dot(bay.x + x, bay.y + y, "#ffffff");
+    inner(k, bay.x, bay.y);
+  }
+  // the front: grade and tier bars
+  const cx = frontX + Math.round(front * (air ? 0.32 : 0.28));
+  if (face.grade) p.bigText(String(face.grade), cx - 3, far ? 3 : 8, "#000", null);
+  if (!far)
+    for (let k = 0; k < face.unit.tier; k++)
+      for (let y = 0; y < 7; y++) for (let t = 0; t < 2; t++) p.dot(cx - 3 + k * 3 + t, 22 + y, "#000");
+  return bays;
 }
 
-const faceKey = (f: ChipFace) =>
-  `${f.unit.id}|${f.colour}|${f.band ?? ""}|${f.grade}|${f.count}|${Math.round(f.strength * 20)}`;
+/** An art's layout, without drawing it */
+export function artLayout(art: UnitArt): ArtLayout {
+  switch (art.type) {
+    case "card":
+      return art.face.unit.domain === "land"
+        ? { width: CARD.landW, height: CARD.landH + 2, middle: CARD.landH / 2, bays: [] }
+        : { width: CARD.w, height: CARD.h + 2, middle: CARD.h / 2, bays: [] };
+    case "transport":
+    case "farTransport": {
+      const far = art.type === "farTransport";
+      const { bayW, bayH, w, h } = transportSize(art.room, far);
+      const bays = Array.from({ length: art.room }, (_, k) => ({
+        x: 2 + CARD.bayGap + k * (bayW + CARD.bayGap),
+        y: 3,
+        w: bayW,
+        h: bayH
+      }));
+      return { width: w, height: h + (far ? 0 : 2), middle: h / 2, bays };
+    }
+    case "far": {
+      const w = 4 + art.roles.length * 13 + (art.kind === "land" ? 0 : CARD.end);
+      return { width: Math.max(17, w), height: 15, middle: 7, bays: [] };
+    }
+  }
+}
 
-/** A column of chips as one image, or its white frame (selection) */
-export function columnUrl(col: ChipColumn, frame = false): string {
-  const key = `col|${frame}|${col.kind}|${col.chips.map(faceKey).join(";")}|${col.carrier ? `${col.carrier.open}|${col.carrier.room}|${col.carrier.slots.map(faceKey).join(";")}` : ""}|${col.summary ? `${col.summary.lead.id}|${col.summary.units}|${col.summary.colour}|${col.summary.grade}|${col.summary.count}` : ""}`;
-  return cached(key, () => {
-    const layout = chipLayout(col);
+const faceKey = (f: CardFace) => `${f.unit.id}|${f.colour}|${f.band ?? ""}|${f.grade}|${Math.round(f.strength * 20)}`;
+
+const artKey = (art: UnitArt): string => {
+  switch (art.type) {
+    case "card":
+      return `c|${faceKey(art.face)}`;
+    case "transport":
+      return `t|${faceKey(art.face)}|${art.room}|${art.lit ?? ""}|${art.cargo.map(faceKey).join(";")}`;
+    case "far":
+      return `f|${art.colour}|${art.kind}|${art.roles.join(",")}`;
+    case "farTransport":
+      return `ft|${faceKey(art.face)}|${art.room}|${art.cargo.join(",")}`;
+  }
+};
+
+/** A unit's art as an image, or its white outline (the selection frame) */
+export function artUrl(art: UnitArt, frame = false): string {
+  return cached(`art|${frame}|${artKey(art)}`, () => {
+    const layout = artLayout(art);
     const p = new Pixels(layout.width, layout.height);
-    const w = CHIP.w;
-    const x0 = CHIP.pip;
-    if (col.summary) {
-      drawSummary(p, x0, 0, w, col.summary, frame);
-      if (!frame)
-        for (let k = 0; k < col.summary.units - 1; k++)
-          for (let x = 2; x < w - 2; x++) {
-            p.dot(x0 + x, CHIP.h + k * CHIP.layer, shade(col.summary.colour, 0.85));
-            p.dot(x0 + x, CHIP.h + k * CHIP.layer + 1, "#000");
-          }
-      return p.element;
-    }
-    if (col.carrier) {
-      const head = col.chips[0];
-      if (!col.carrier.open && !frame)
-        for (let k = 0; k < 2; k++)
-          for (let x = 2; x < w - 2 - (col.kind === "air" ? CHIP.cut : 0); x++) {
-            p.dot(x0 + x, k * CHIP.layer, "#000");
-            p.dot(x0 + x, k * CHIP.layer + 1, shade(head.colour, 0.85));
-          }
-      const top = col.carrier.open ? 0 : 2 * CHIP.layer;
-      if (col.carrier.open && !frame) {
-        // the hold: the transport's colour around dark wells, the cut corner kept at the bottom for ships
-        const bodyH = layout.height;
-        for (let y = CHIP.h; y < bodyH; y++)
-          for (let x = 0; x < w; x++) {
-            if (col.kind === "naval" && cutAway(x, y - (bodyH - CHIP.h), w, CHIP.h, "naval") && y >= bodyH - CHIP.h)
-              continue;
-            const edge = x === 0 || x === w - 1 || y === bodyH - 1;
-            p.dot(x0 + x, y, edge ? "#000" : x <= 1 || x >= w - 2 || y >= bodyH - 3 ? head.colour : "#1c1f1c");
-          }
-      }
-      drawChip(p, x0, top, w, col.kind, head, frame);
-      if (!frame) {
-        // the fold arrow: down when shut, up when open
-        const ax = x0 + w - 7;
-        const ay = top + 8;
-        for (let r = 0; r < 3; r++)
-          for (let x = r; x < 5 - r; x++) p.dot(ax + x, col.carrier.open ? ay + 2 - r : ay + r, "#000");
-      }
-      if (col.carrier.open && !frame)
-        for (const row of layout.rows) {
-          if (row.kind === "cargo") drawChip(p, x0 + 2, row.y, w - 4, "land", col.carrier.slots[row.index]);
-          else if (row.kind === "empty")
-            for (let y = 1; y < CHIP.h - 1; y++)
-              for (let x = 3; x < w - 3; x++) p.dot(x0 + x, row.y + y, (x + y) % 2 ? "#2c322c" : "#262b26");
+    switch (art.type) {
+      case "card":
+        if (art.face.unit.domain === "land") drawLand(p, 0, 0, art.face, frame);
+        else drawFlat(p, 0, 0, art.face, frame);
+        break;
+      case "transport": {
+        drawTransport(
+          p,
+          art.face,
+          art.room,
+          frame,
+          (k, x, y) => art.cargo[k] && drawLand(p, x, y, art.cargo[k], false, false),
+          false,
+          art.lit
+        );
+        if (!frame) {
+          const { w, h } = transportSize(art.room, false);
+          healthBar(p, w / 2, h + 1, Math.round(w * 0.35), art.face.strength);
         }
-      return p.element;
+        break;
+      }
+      case "farTransport":
+        drawTransport(
+          p,
+          art.face,
+          art.room,
+          frame,
+          (k, x, y) => art.cargo[k] && glyph(p, art.cargo[k], x + 1, y + 1),
+          true
+        );
+        break;
+      case "far": {
+        const w = layout.width;
+        const h = layout.height;
+        const shape: RoleShape = art.kind === "land" ? "flat" : art.kind === "air" ? "swept" : "rake";
+        const edge = (y: number) => (shape === "flat" ? w - 1 : Math.round(rightEdge(shape, w, h * 1.4, y * 1.4)));
+        fillShape(
+          p,
+          0,
+          0,
+          w,
+          h,
+          (x, y) => inBox(w, h)(x, y) && x <= edge(y),
+          () => art.colour,
+          frame
+        );
+        if (!frame) for (const [k, role] of art.roles.entries()) glyph(p, role, 3 + k * 13, 2);
+        break;
+      }
     }
-    for (const row of layout.rows) drawChip(p, x0, row.y, w, col.kind, col.chips[row.index], frame);
     return p.element;
   });
 }
@@ -410,6 +589,97 @@ export function stallUrl(colour: string): string {
 
 // 11×11 button icons, one colour, drawn like the buildings
 const BUTTONS: Record<string, string[]> = {
+  open: [
+    "...........",
+    "#####......",
+    "#...#######",
+    "#.........#",
+    "#.........#",
+    "#.........#",
+    "#.........#",
+    "#.........#",
+    "###########",
+    "...........",
+    "..........."
+  ],
+  army: [
+    "....#......",
+    "....##.....",
+    "....###....",
+    "....#......",
+    "....#......",
+    "....#....#.",
+    "..#####..#.",
+    "..#####.###",
+    "..#####..#.",
+    "..#####..#.",
+    "..........."
+  ],
+  marker: [
+    "...#####...",
+    "..#######..",
+    ".###...###.",
+    ".##.....##.",
+    ".###...###.",
+    "..#######..",
+    "...#####...",
+    "....###....",
+    "....###....",
+    ".....#.....",
+    "..........."
+  ],
+  measure: [
+    "...........",
+    "...........",
+    "###########",
+    "#.#.#.#.#.#",
+    "#.#.#.#.#.#",
+    "#.........#",
+    "###########",
+    "...........",
+    "...........",
+    "...........",
+    "..........."
+  ],
+  nation: [
+    "#..........",
+    "#######....",
+    "#######....",
+    "#######....",
+    "#######....",
+    "#..........",
+    "#..........",
+    "#..........",
+    "#..........",
+    "#..........",
+    "..........."
+  ],
+  route: [
+    "........##.",
+    ".......#...",
+    "......#....",
+    ".....#.....",
+    "....#......",
+    "...#.......",
+    "...#.......",
+    "....#......",
+    ".....#.....",
+    "......##...",
+    "........###"
+  ],
+  star: [
+    ".....#.....",
+    ".....#.....",
+    "....###....",
+    "###########",
+    ".#########.",
+    "..#######..",
+    "...#####...",
+    "..###.###..",
+    "..##...##..",
+    ".#.......#.",
+    "..........."
+  ],
   recruit: [
     "...###.....",
     "..#####....",

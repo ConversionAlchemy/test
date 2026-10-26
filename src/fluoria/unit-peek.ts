@@ -105,6 +105,7 @@ export function peek(
   }
   const el = ensureBox();
   if (!el.isConnected) document.body.append(el);
+  el.classList.remove("flTip");
   let total = 0;
   if (list.length > 1) {
     // a stack: one short line per group (its lead unit, name and troops), so the panel stays small
@@ -157,6 +158,17 @@ function place(el: HTMLElement, anchor: Element, also?: Element | null, above = 
   const left = right + 8 + width > window.innerWidth ? r.left - 8 - width : right + 8;
   el.style.left = `${Math.max(4, left)}px`;
   el.style.top = `${Math.max(4, Math.min(window.innerHeight - el.offsetHeight - 4, r.top))}px`;
+}
+
+/** A small tooltip by the pointer for one unit */
+export function unitTip(clientX: number, clientY: number, html: string): void {
+  clearTimeout(timer);
+  const el = ensureBox();
+  if (!el.isConnected) document.body.append(el);
+  el.classList.add("flTip");
+  el.innerHTML = html;
+  el.style.left = `${Math.max(4, Math.min(window.innerWidth - el.offsetWidth - 4, clientX + 14))}px`;
+  el.style.top = `${Math.max(4, clientY - el.offsetHeight - 10)}px`;
 }
 
 /** Hide now, or after a moment unless the pointer comes back */
