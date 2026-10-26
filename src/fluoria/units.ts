@@ -5,8 +5,8 @@ import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
 import { paintRegiment } from "@/renderers/draw-military";
 import { landingCells, unload } from "./boarding";
-import { cardPower, domainOf, isTransport, rows, slotsOf, troopsOf } from "./forces/forces";
-import { CHIP } from "./forces/pixels";
+import { cardPower, domainOf, isTransport, kitOf, rows, slotsOf, troopsOf } from "./forces/forces";
+import { CARD } from "./forces/pixels";
 import { airReach, canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
 import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./one-grid";
 import { dimPixelMap } from "./pixel-map-sync";
@@ -234,33 +234,42 @@ function outline(cell: number | null, sea = false): void {
     .attr("pointer-events", "none");
 }
 
-// --- cells: everything standing in a cell is one column of chips, transports on top, then air, land and ships; far out
-// each nation's part of a cell folds into one summary chip. Transports open into their hold with the arrow
+// --- cells: aircraft, ships and transports lie stacked on top, land units stand in a row beneath, all above a
+// settlement's symbol; transports first, then the highest tier. Far out each nation's part folds into one chip
 
 let cells: Regiment[][] = [];
-const held = new Set<string>(); // transports opened with their arrow
-let passing = new Set<string>(); // transports opened while a unit is dragged past
+let lit: { key: string; bay: number } | null = null; // the transport bay a carried unit would board
 const keyOf = (r: Regiment) => `${r.state}-${r.i}`;
 
-export const isOpen = (r: Regiment) => held.has(keyOf(r)) || passing.has(keyOf(r));
-
-/** The arrow on a transport: open its hold until closed again */
-export function toggleOpen(r: Regiment): void {
-  const key = keyOf(r);
-  if (held.has(key)) held.delete(key);
-  else held.add(key);
-  stackAll();
+/** Light the bay a carried unit would take in a transport, or none */
+export function lightBay(transport: Regiment | null): void {
+  const next = transport ? { key: keyOf(transport), bay: rows(transport.cargo).length } : null;
+  if (next?.key === lit?.key) return;
+  const was = lit;
+  lit = next;
+  for (const key of [was?.key, next?.key]) {
+    const r = key && cells.flat().find(o => keyOf(o) === key);
+    if (r) repaint(r);
+  }
 }
 
-/** While a unit is dragged, the transports it could board stand open; they shut again when the drag ends */
-export function openWhileDragging(transports: Regiment[]): void {
-  passing = new Set(transports.map(keyOf));
-  stackAll();
+const tierOf = (r: Regiment) => kitOf(rows(r.u)[0]?.unit ?? "")?.tier ?? 0;
+const flat = (r: Regiment) => isTransport(r) || domainOf(r) !== "land";
+const ORDER = (a: Regiment, b: Regiment) =>
+  Number(isTransport(b)) - Number(isTransport(a)) || tierOf(b) - tierOf(a) || cardPower(b) - cardPower(a);
+
+function repaint(r: Regiment): void {
+  const el = elementOf(r);
+  const cell = cells.find(c => c.includes(r));
+  if (!el || !cell) return;
+  const mine = cell.filter(o => o.state === r.state);
+  const lead = isTransport(r) || mine.find(o => !isTransport(o)) === r;
+  paintRegiment(el, r, lit?.key === keyOf(r) ? lit.bay : undefined, lead ? mine : undefined);
+  el.classList.toggle("fl-farhide", !lead);
+  el.classList.toggle("fl-lone", cell.length === 1);
 }
 
-const ORDER = (r: Regiment) => (isTransport(r) ? 0 : ({ air: 1, land: 2, naval: 3 } as const)[domainOf(r)]);
-
-/** Lay out every cell as one column */
+/** Lay out every cell */
 export function stackAll(): void {
   const armies = document.getElementById("armies");
   if (!armies) return;
@@ -275,50 +284,55 @@ export function stackAll(): void {
   }
   cells = [...byCell.values()];
   for (const cell of cells) {
-    cell.sort((a, b) => ORDER(a) - ORDER(b) || cardPower(b) - cardPower(a));
-    const leads = new Set<number>();
-    for (const r of cell) {
-      const el = elementOf(r);
-      if (!el) continue;
-      const lead = !leads.has(r.state);
-      leads.add(r.state);
-      const mine = cell.filter(o => o.state === r.state);
-      paintRegiment(el, r, isOpen(r), lead ? mine : undefined);
-      el.classList.toggle("fl-farhide", !lead);
-    }
+    cell.sort(ORDER);
+    for (const r of cell) repaint(r);
   }
   layCells();
   nameLabels();
 }
 
-/** Each regiment's place in its cell's column, for the zoom showing */
+const GAP = 1; // art pixels between cards
+const sizeOf = (el: SVGGElement | null, far: boolean) => {
+  const image = el?.querySelector<SVGImageElement>(far ? "image.flFar" : "image.flClose");
+  return { w: Number(image?.dataset.w ?? 0), h: Number(image?.dataset.h ?? 0), mid: Number(image?.dataset.mid ?? 0) };
+};
+
+/** Each regiment's place in its cell, for the zoom showing: offsets of its card's middle from the cell's point */
 function layCells(): void {
   const armies = document.getElementById("armies");
   if (!armies || !styles?.military) return;
   const far = armies.dataset.flStage === "far";
-  const u = ((styles.military.options.boxSize * 2) / CHIP.h) * unitScale; // map units per art pixel, as drawn
+  const u = ((styles.military.options.boxSize * 2) / CARD.h) * unitScale; // map units per art pixel, as drawn
   for (const cell of cells) {
     const parts = cell.filter(r => !far || !elementOf(r)?.classList.contains("fl-farhide"));
-    const heights = parts.map(r => {
-      const el = elementOf(r)?.querySelector<SVGImageElement>(far ? "image.flFar" : "image.flClose");
-      if (!el) return 0;
-      // an open transport lays over what stands below it instead of pushing it down
-      return isOpen(r) && !far ? CHIP.h : Number(el.dataset.h);
-    });
-    const total = heights.reduce((sum, h) => sum + h, 0) + CHIP.gap * Math.max(0, parts.length - 1);
+    const spots: { r: Regiment; x: number; y: number }[] = [];
+    let y = 0;
+    const stack = far ? parts : parts.filter(flat);
+    for (const r of stack) {
+      const { h, mid } = sizeOf(elementOf(r), far);
+      spots.push({ r, x: 0, y: y + mid });
+      y += h + GAP;
+    }
+    const row = far ? [] : parts.filter(r => !flat(r));
+    if (row.length) {
+      const sizes = row.map(r => sizeOf(elementOf(r), false));
+      const width = sizes.reduce((sum, s) => sum + s.w, 0) + GAP * 2 * (row.length - 1);
+      let x = -width / 2;
+      const tallest = Math.max(...sizes.map(s => s.h));
+      row.forEach((r, k) => {
+        spots.push({ r, x: x + sizes[k].w / 2, y: y + sizes[k].mid });
+        x += sizes[k].w + GAP * 2;
+      });
+      y += tallest + GAP;
+    }
+    const total = y - GAP;
     const first = parts[0];
     const burg = first && !first.n ? pack.cells.burg[mainCell(first.cell)] : 0;
-    const top = burg ? -total - CHIP.h * 0.45 : -total / 2; // above a settlement's symbol, else centred
-    let y = top;
-    parts.forEach((r, k) => {
+    const top = burg ? -total - CARD.h * 0.45 : -total / 2; // above a settlement's symbol, else centred
+    for (const { r, x, y } of spots) {
       const el = elementOf(r);
-      if (!el) return;
-      const image = el.querySelector<SVGImageElement>(far ? "image.flFar" : "image.flClose");
-      const head = Number(image?.dataset.head ?? 0);
-      el.style.translate = `0px ${(y + head + CHIP.h / 2) * u}px`;
-      y += heights[k] + CHIP.gap;
-    });
-    for (const r of cell) if (isOpen(r)) elementOf(r)?.parentNode?.appendChild(elementOf(r)!); // an open hold on top
+      if (el) el.style.translate = `${x * u}px ${(top + y) * u}px`;
+    }
   }
 }
 
@@ -330,7 +344,7 @@ export function nameLabels(): void {
   }
 }
 
-/** Regiments sharing a regiment's cell, itself included, in column order */
+/** Regiments sharing a regiment's cell, itself included, in layout order */
 export const cellOf = (regiment: Regiment): Regiment[] => cells.find(cell => cell.includes(regiment)) ?? [regiment];
 
 const elementOf = (regiment: Regiment) =>

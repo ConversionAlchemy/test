@@ -8,7 +8,7 @@ import { type Domain, type KitUnit, kitUnit, kitUnits, oldSlotSize, slotSize } f
 
 /** One unit is one chip: a group holds one slot; a cell holds 4 of them (war.ts) */
 export const MAX_SLOTS = 1;
-export const CARGO_SLOTS = [0, 4, 4, 4]; // a transport's tier buys power and protection, not room
+export const CARGO_SLOTS = [0, 2, 3, 4]; // bays by tier: a bigger transport carries more
 
 export type Units = Record<string, number>;
 

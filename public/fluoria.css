@@ -378,8 +378,13 @@ input[type="range"] {
 }
 
 #armies :is(.flFar, .flClose),
-#armies[data-fl-names="0"] .regimentName {
+#armies .regimentName {
   display: none;
+}
+
+/* a unit's name shows above it only when it stands alone in its cell, close in */
+#armies[data-fl-stage="close"] > g > g.fl-lone > .regimentName {
+  display: inline;
 }
 
 #armies[data-fl-stage="far"] .flFar,
@@ -403,9 +408,9 @@ input[type="range"] {
   filter: brightness(1.2);
 }
 
-/* with a unit picked, the rest step back; chosen ones (Shift-click) are outlined */
-#armies.fl-picked > g > g:not(.fl-selected, .fl-chosen) {
-  filter: grayscale(1) opacity(0.55);
+/* with a unit picked, the rest darken (transports never); chosen ones (Shift-click) are outlined in white */
+#armies.fl-picked > g > g:not(.fl-selected, .fl-chosen, .fl-carrier) {
+  filter: brightness(0.5);
 }
 
 #armies image.flPick {
@@ -417,13 +422,9 @@ input[type="range"] {
   visibility: visible;
 }
 
-/* a transport's fold arrow; a chip being carried leaves a faint copy behind */
-#armies .flFold {
-  cursor: pointer;
-}
-
-#armies .fl-lifting > image {
-  opacity: 0.45;
+/* a unit being carried leaves a darkened copy behind */
+#armies .fl-lifting:not(.fl-carrier) > image {
+  filter: brightness(0.5);
 }
 
 #flChipGhost {
@@ -814,12 +815,14 @@ body.fl-atlas #coordinates text {
   color: var(--fl-dim, #bcb9ad);
   font-size: 18px;
   white-space: nowrap;
+  min-width: 0;
 }
 
 #flNation .np-stat strong {
   font-weight: 400;
   font-size: 19px;
   white-space: nowrap;
+  min-width: 0;
 }
 
 #flNation .np-stat.gold strong {
@@ -902,6 +905,7 @@ body.fl-atlas #coordinates text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 #flNation a.np-row {
@@ -1366,3 +1370,12 @@ body.flPicking #map, body.flPicking #map * { cursor: crosshair !important; }
 .flNationLine { display: flex; align-items: center; gap: 4px; }
 .flNationLine .flAssign { flex: 1; min-width: 0; font: inherit; }
 .flNationLine .flAssignPick { padding: 0 5px; cursor: pointer; }
+
+/* one unit's tooltip */
+#flPeek.flTip {
+  pointer-events: none;
+  padding: 3px 6px;
+  line-height: 1.3;
+  white-space: nowrap;
+  min-width: 0;
+}
