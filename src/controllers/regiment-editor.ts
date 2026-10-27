@@ -35,9 +35,9 @@ import { buttonUrl, iconUrl, short, stallUrl } from "@/fluoria/forces/pixels";
 import { borrowView, returnView } from "@/fluoria/map-view";
 
 import { openNation } from "@/fluoria/nation-panel";
-import { numberField, wireField } from "@/fluoria/number-field";
+import { escapeTaken, numberField, wireField } from "@/fluoria/number-field";
 import { cellAtPoint, mainCell, neighbours as neighbourCells } from "@/fluoria/one-grid";
-import { order, undoOrder } from "@/fluoria/orders";
+import { forgetOrders, order, undoOrder } from "@/fluoria/orders";
 import { purseBlocks, wirePurse } from "@/fluoria/purse";
 import {
   GARRISON_SLOTS,
@@ -814,6 +814,7 @@ function askResize(burg: Burg, to: Rank, el: HTMLElement): void {
     confirm: t("Confirm"),
     onConfirm: () => {
       resize(burg, to);
+      forgetOrders(); // a settlement's size isn't undone: nothing before it is either
       play("build");
       changed();
     },
@@ -838,6 +839,7 @@ function askClass(burg: Burg, c: SettlementClass | null, button: Element): void 
     confirm: t("Confirm"),
     onConfirm: () => {
       const why = setClass(burg, c);
+      if (!why) forgetOrders();
       if (why) report(t(why), button);
       else play("build");
       Layers.draw("burgIcons");
@@ -932,7 +934,7 @@ function wireRecruit(el: HTMLElement, burg: Burg): void {
         cost.textContent = costLine(n);
         return "";
       },
-      apply: n => recruit(burg, kit(), n),
+      apply: n => order("Recruit", () => recruit(burg, kit(), n)),
       done: why => {
         if (why) {
           report(why, field);
@@ -975,6 +977,7 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
       confirm: t("Confirm"),
       onConfirm: () => {
         Burgs.setCapital(burg.i);
+        forgetOrders();
         Layers.draw("burgIcons", "labels");
         changed();
       }
@@ -1002,6 +1005,7 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
           Military.remove(garrison.state, garrison.i);
         }
         Burgs.remove(burg.i);
+        forgetOrders();
         closeFolder(`b${burg.i}`);
         Layers.draw("burgIcons", "labels");
         changed();
@@ -1444,7 +1448,12 @@ window.addEventListener("fl:clear", clearAll);
 document.addEventListener(
   "keyup",
   event => {
-    if (event.key === "Escape" && !(event.target as HTMLElement)?.closest?.("input, textarea, select")) clearAll();
+    if (
+      event.key === "Escape" &&
+      !escapeTaken() &&
+      !(event.target as HTMLElement)?.closest?.("input, textarea, select")
+    )
+      clearAll();
   },
   true
 );

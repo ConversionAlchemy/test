@@ -1,13 +1,12 @@
 // Every change to the forces runs as an order: all of it happens or none of it does, and the last few can be undone
-// with Ctrl+Z. An order snapshots what moving units can touch: each nation's regiments and occupied cells, and
-// settlements' manpower (troops sent home). Restoring keeps each regiment the same object, so nothing holding one
-// goes stale
+// with Ctrl+Z. An order snapshots what it can touch: each nation's regiments, occupied cells, treasury and loan, and
+// each settlement's manpower and money. Restoring keeps each regiment the same object, so nothing holding one goes stale
 import type { Regiment } from "@/generators/military-generator";
 
 interface Snapshot {
   label: string;
-  states: { refs: Regiment[]; copies: Regiment[]; occupied?: number[] }[];
-  manpower: (number | undefined)[];
+  states: { refs: Regiment[]; copies: Regiment[]; occupied?: number[]; treasury?: number; loan?: number }[];
+  burgs: { manpower?: number; treasury?: number }[];
 }
 
 const DEPTH = 20;
@@ -19,9 +18,11 @@ function snapshot(label: string): Snapshot {
     states: pack.states.map(s => ({
       refs: [...(s.military ?? [])],
       copies: structuredClone(s.military ?? []),
-      occupied: s.occupied ? [...s.occupied] : undefined
+      occupied: s.occupied ? [...s.occupied] : undefined,
+      treasury: s.treasury,
+      loan: s.loan
     })),
-    manpower: pack.burgs.map(b => b?.manpower)
+    burgs: pack.burgs.map(b => ({ manpower: b?.manpower, treasury: b?.treasury }))
   };
 }
 
@@ -34,10 +35,14 @@ function restore(shot: Snapshot): void {
       return Object.assign(regiment, structuredClone(saved.copies[k]));
     });
     state.occupied = saved.occupied ? [...saved.occupied] : undefined;
+    state.treasury = saved.treasury ?? 0;
+    state.loan = saved.loan;
   });
-  shot.manpower.forEach((n, i) => {
+  shot.burgs.forEach((saved, i) => {
     const burg = pack.burgs[i];
-    if (burg && n !== undefined) burg.manpower = n;
+    if (!burg) return;
+    burg.manpower = saved.manpower;
+    burg.treasury = saved.treasury;
   });
 }
 

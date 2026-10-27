@@ -1,5 +1,6 @@
 import { hideOptions } from "@/components/options/options-panel";
 import { Controllers } from "@/controllers";
+import { escapeTaken } from "@/fluoria/number-field";
 import { roadModeOn, setRoadMode } from "@/fluoria/road-mode";
 import { Services } from "@/services";
 import { toggleSaveReminder } from "@/services/autosave";
@@ -52,7 +53,7 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (code === "F6") Services.Save.toStorage();
   else if (code === "F9") Services.Load.quickLoad();
   else if (code === "Tab") toggleOptions(event);
-  else if (code === "Escape") {
+  else if (code === "Escape" && !escapeTaken()) {
     closeDialogs();
     hideOptions();
   } else if (code === "Delete") removeElementOnKey();

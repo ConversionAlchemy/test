@@ -29,6 +29,7 @@ import {
   typeOf
 } from "./forces/forces";
 import { canStand } from "./movement";
+import { takeEscape } from "./number-field";
 import { cellAtPoint, mainCell, neighbours } from "./one-grid";
 import { order, rehearse } from "./orders";
 import { garrisonSlots } from "./settlement-size";
@@ -69,6 +70,7 @@ interface Plan {
   sound?: Sound;
   label?: string; // the order's name, for undo
   apply?: () => string; // the change, "" or why not
+  orderless?: boolean; // nothing changes now: only what follows (a battle, a chooser)
   after?: () => void; // what follows a change: a battle, a chooser
   mark?: () => () => void; // light the target; returns how to unlight it
 }
@@ -172,6 +174,7 @@ function unitsPlan(d: Drag, at: Under): Plan {
       note: `${t("Attack")} ${nameOf(target)}`,
       label: "Attack",
       apply: () => "",
+      orderless: true,
       after: () => hooks?.attack(lead, target),
       mark: markRegiment(target, false)
     };
@@ -304,6 +307,7 @@ function movePlan(d: Drag, regs: Regiment[], point: [number, number], cell: numb
       note: `${t("Attack")} ${nameOf(foe)}`,
       label: "Attack",
       apply: () => "",
+      orderless: true,
       after: () => hooks?.attack(lead, foe),
       mark: markCell(lead, x, y, false)
     };
@@ -314,6 +318,7 @@ function movePlan(d: Drag, regs: Regiment[], point: [number, number], cell: numb
       cursor: "in",
       note: t("Choose who lands here"),
       apply: () => "",
+      orderless: true,
       after: () => hooks?.land(lead, mainCell(cell)),
       mark: markCell(lead, x, y, false)
     };
@@ -630,6 +635,11 @@ function end(commit: boolean): void {
     hooks?.changed();
     return;
   }
+  if (plan.orderless) {
+    hooks?.changed();
+    plan.after?.();
+    return;
+  }
   const why = order(plan.label ?? "Move", plan.apply);
   if (why) {
     play("refuse");
@@ -667,6 +677,7 @@ export function pressed(event: PointerEvent, payload: () => Payload | null): voi
   const key = (e: KeyboardEvent) => {
     if (e.key !== "Escape" || !drag) return;
     e.stopImmediatePropagation();
+    takeEscape();
     stop();
     end(false);
   };

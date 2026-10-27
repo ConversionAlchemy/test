@@ -7,6 +7,7 @@ import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
 import { standing } from "./nation";
 import { numberField, wireField } from "./number-field";
+import { order } from "./orders";
 import { RANKS, rankOf } from "./settlement-size";
 import {
   bankFunds,
@@ -272,14 +273,18 @@ function wireBlocks(root: HTMLElement, burg: Burg): void {
     wireField(field, {
       current: () => figure(burg, name),
       preview: next => previewOf(burg, name, next),
-      apply: next => apply(burg, name, next - figure(burg, name)),
+      apply: next =>
+        order(name === "men" || name === "hire" || name === "lend" ? "Manpower" : "Treasury", () =>
+          apply(burg, name, next - figure(burg, name))
+        ),
       done: (why, el) => {
-        if (why) refuseWith(t(why), el);
-        else {
-          const big = Math.abs(figure(burg, name)) >= 100;
-          play(SOUND[name] === "coin" && big ? "pouch" : SOUND[name]);
-          window.dispatchEvent(new Event("fl:money"));
+        if (why) {
+          refuseWith(t(why), el); // the figure stays to be changed, or put back with Escape
+          return;
         }
+        const big = Math.abs(figure(burg, name)) >= 100;
+        play(SOUND[name] === "coin" && big ? "pouch" : SOUND[name]);
+        window.dispatchEvent(new Event("fl:money"));
         refreshPurses();
       }
     });

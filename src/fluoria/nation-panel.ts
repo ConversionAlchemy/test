@@ -19,6 +19,7 @@ import { openStudio } from "./emblems/studio";
 import { cardUrl } from "./forces/cards";
 import { cardPower, cargoSlots, flagship, kitOf, troopsOf } from "./forces/forces";
 import { focusedNation, type Standing, setFocus, standing } from "./nation";
+import { escapeTaken } from "./number-field";
 import { cellCentre } from "./one-grid";
 import { cellsOfState } from "./owners";
 import { NATION_COLOURS } from "./palette";
@@ -132,7 +133,7 @@ function remember(): void {
 }
 
 function startDrag(event: PointerEvent): void {
-  const handle = (event.target as HTMLElement).closest("[data-drag]");
+  const handle = (event.target as HTMLElement).closest("[data-drag]:not([data-drag='row'], [data-drag='army'])");
   if (!handle || !panel) return;
   event.preventDefault();
   const box = panel.getBoundingClientRect();
@@ -517,7 +518,7 @@ function notes(id: number): string {
 }
 
 function onKey(event: KeyboardEvent): void {
-  if (event.key !== "Escape" || !panel) return;
+  if (event.key !== "Escape" || !panel || escapeTaken()) return;
   const target = event.target as HTMLElement;
   if (target.closest?.(".ui-dialog") || (target !== document.body && panel.contains(target) && editingName)) return;
   closeNation();

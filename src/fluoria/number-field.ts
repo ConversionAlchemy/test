@@ -3,6 +3,13 @@
 import { escapeHtml } from "@/utils/stringUtils";
 import { play } from "./sfx";
 
+let escaped = 0;
+/** An Escape already used (a field put back, a drag cancelled): its keyup closes nothing */
+export const takeEscape = () => {
+  escaped = performance.now();
+};
+export const escapeTaken = () => performance.now() - escaped < 600;
+
 /** The field's markup; `signed` fields start at 0 and move an amount either way */
 export const numberField = (name: string, value: number, tip: string, signed = false) =>
   `<span class="flField${signed ? " flSigned" : ""}" data-field="${name}" data-tip="${escapeHtml(tip)}"><input type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="${fmt(value, signed)}" /><span class="flSteps"><button type="button" tabindex="-1" data-dir="1">▲</button><button type="button" tabindex="-1" data-dir="-1">▼</button></span><button type="button" class="flTick" tabindex="-1" disabled data-tip="Confirm (Enter)">✓</button></span>`;
@@ -66,8 +73,12 @@ export function wireField(field: HTMLElement, wiring: FieldWiring): void {
   const confirm = () => {
     if (pending === null || pending === wiring.current()) return reset();
     const why = wiring.apply(pending);
-    pending = null;
-    preview.remove();
+    if (why)
+      show(); // the refused figure stays, to be changed or put back
+    else {
+      pending = null;
+      preview.remove();
+    }
     wiring.done(why, field);
   };
 
@@ -84,7 +95,8 @@ export function wireField(field: HTMLElement, wiring: FieldWiring): void {
     } else if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
-      reset(); // focus stays: an Escape that reached the page would close the panel
+      takeEscape();
+      reset();
     } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
       event.preventDefault();
       step(event.key === "ArrowUp" ? 1 : -1, event);
