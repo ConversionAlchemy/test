@@ -4,6 +4,7 @@ import { MapEntities } from "@/components/map-entities";
 import { FEATURE_SUBTYPE_LABELS } from "@/data/id-labels";
 import { cellLine } from "@/fluoria/cell-line";
 import { cellAtPoint } from "@/fluoria/one-grid";
+import { settlementTipFor, unitTipFor } from "@/fluoria/tips";
 import { Notes } from "@/generators/notes";
 import { highlightEmblemElement } from "@/renderers/overlays/highlight";
 import type { Point } from "@/types/global";
@@ -20,7 +21,6 @@ import {
 } from "@/utils";
 import { sentences, t } from "@/utils/i18n";
 import { showMainTip, tip } from "./tooltips";
-import { settlementTipFor, unitTipFor } from "@/fluoria/tips";
 
 export function handleMouseMove(event: MouseEvent | TouchEvent): void {
   const node = event.currentTarget as SVGElement | null;

@@ -257,7 +257,7 @@ function mergeAt(regs: Regiment[], target: Regiment, cell: number): Plan {
       if (!here && !rangeFor(r).range.has(mainCell(cell))) return t("Out of reach this move");
       fillFrom(r, pile);
       if (!troopsOf(r)) {
-        Military.remove(r.state, r.i);
+        dropIfEmpty(r);
         continue;
       }
       beside++;
@@ -405,7 +405,7 @@ function moveRows(p: Extract<Payload, { kind: "rows" }>, to: Regiment, list: Lis
     const refused = shift(from, p.list, row.unit, n, to, list);
     if (refused) return t(refused);
   }
-  if (!troopsOf(from) && !hasHold(from) && !from.garrison) Military.remove(from.state, from.i);
+  if (!from.garrison && !hasHold(from)) dropIfEmpty(from);
   return "";
 }
 
@@ -501,7 +501,7 @@ function rowsPlan(p: Extract<Payload, { kind: "rows" }>, at: Under): Plan {
       if (cell === at0 && !from.garrison) [made.x, made.y] = [from.x, from.y];
       made.n = 0;
     }
-    if (!troopsOf(from) && !hasHold(from) && !from.garrison) Military.remove(from.state, from.i);
+    if (!from.garrison && !hasHold(from)) dropIfEmpty(from);
     return "";
   };
   const why = rehearse(apply);

@@ -56,10 +56,14 @@ export function applyUnitZoom(scale: number): void {
   if (!armies || !scale) return;
   unitScale = ART_PX / scale;
   armies.style.setProperty("--fl-unit", String(unitScale));
-  far = (grid?.spacing ?? 10) * scale < CARD_W * ART_PX; // closer than a card is wide: piles would overlap
+  const wasFar = far;
+  far = (grid?.spacing ?? 10) * scale < CARD_W * ART_PX * 1.5; // cells too close for their piles not to overlap
   armies.dataset.flStage = far ? "far" : "close";
-  layCells();
+  clearTimeout(settle);
+  if (far !== wasFar) layCells();
+  else if (far) settle = window.setTimeout(layCells, 120); // piles regroup once the zoom stops
 }
+let settle = 0;
 
 /** Whether units are merged into piles at this zoom: no dragging then */
 export const isFar = () => far;
@@ -301,6 +305,12 @@ export function spread(stack: Stack | null): void {
   if (key === spreadKey) return;
   spreadKey = key;
   layCells();
+  // a spread pile lies over its neighbours
+  for (const r of stack && key ? stack.members : []) {
+    const el = elementOf(r);
+    el?.parentElement?.append(el);
+    if (el?.parentElement) el.parentElement.parentElement?.append(el.parentElement);
+  }
 }
 export const spreadStack = () => stacks.find(s => s.key === spreadKey) ?? null;
 
@@ -342,7 +352,7 @@ function layCells(): void {
       el.classList.toggle("fl-pile", Boolean(spot && (spot.art?.count ?? 1) > 1));
       if (!spot?.art) continue;
       setArt(el, spot.art);
-      el.style.translate = `${spot.x * unitScale}px ${spot.y * unitScale}px`;
+      el.style.translate = `calc(var(--fl-unit) * ${spot.x}px) calc(var(--fl-unit) * ${spot.y}px)`; // follows the zoom
     }
 }
 
