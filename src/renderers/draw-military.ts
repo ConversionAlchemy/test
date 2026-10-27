@@ -1,34 +1,14 @@
 import { easeSinInOut, select, transition } from "d3";
-import {
-  cargoSlots,
-  domainOf,
-  isTransport,
-  kitOf,
-  perSlot,
-  powerOf,
-  refreshNames,
-  rows,
-  strength,
-  troopsOf
-} from "@/fluoria/forces/forces";
-import { type KitUnit, unitName } from "@/fluoria/forces/kit";
-import {
-  type ArtLayout,
-  artLayout,
-  artUrl,
-  CARD,
-  type CardFace,
-  type CardKind,
-  short,
-  type UnitArt
-} from "@/fluoria/forces/pixels";
+import { type Pile, pileSize, pileUrl } from "@/fluoria/forces/cards";
+import { refreshNames, troopsOf } from "@/fluoria/forces/forces";
+import { short } from "@/fluoria/forces/pixels";
 import { sizeOf } from "@/fluoria/settlement-size";
 import { garrisonOf } from "@/fluoria/settlements";
 import type { Regiment } from "../generators/military-generator";
 import { rn } from "../utils";
 
-// Fluoria: a regiment is one unit card (a transport: its hull and hold); far out a nation's units in a cell fold into
-// one chip of symbols. Both are drawn and the zoom picks one; units.ts lays out each cell
+// Fluoria: a regiment is one unit card; units.ts piles a nation's units of a type in a cell and gives each its art.
+// Art is in art pixels, one map unit each; the group is scaled so a card keeps its size on screen
 
 const SVG = "http://www.w3.org/2000/svg";
 const size = () => styles.military.options.boxSize * 2;
@@ -40,150 +20,43 @@ export const colourOf = (stateId: number) => {
   return colour && colour[0] === "#" && colour.length >= 7 ? colour.slice(0, 7) : "#999999";
 };
 
-/** Power as one digit, 1–9: each step about twice the one before */
-export const gradeOf = (power: number) =>
-  power > 0 ? Math.max(1, Math.min(9, Math.round(Math.log2(power / 25)) + 1)) : 0;
-
-const kindOf = (regiment: Regiment): CardKind => {
-  const d = domainOf(regiment);
-  return d === "naval" ? "naval" : d === "air" ? "air" : "land";
-};
-
-/** One face per unit of a list, in a nation's colour */
-function facesOf(
-  units: Record<string, number> | undefined,
-  colour: string,
-  band: string | undefined,
-  full = 1
-): CardFace[] {
-  return rows(units).flatMap(({ unit, count }) => {
-    const kit = kitOf(unit);
-    if (!kit) return [];
-    const share = Math.min(1, count / perSlot(unit));
-    return [{ unit: kit, colour, band, grade: gradeOf(powerOf({ [unit]: count })), strength: share * full }];
-  });
+/** Show a pile (or one card) in a regiment's group */
+export function setArt(g: SVGGElement, pile: Pile): void {
+  let image = g.querySelector<SVGImageElement>("image");
+  if (!image) {
+    image = document.createElementNS(SVG, "image") as SVGImageElement;
+    image.setAttribute("preserveAspectRatio", "none");
+    image.setAttribute("image-rendering", "pixelated");
+    g.append(image);
+  }
+  const href = pileUrl(pile);
+  if (image.getAttribute("href") === href) return;
+  const { w, h, mid } = pileSize(pile);
+  image.setAttribute("href", href);
+  image.dataset.w = String(w);
+  image.dataset.h = String(h);
+  image.dataset.mid = String(mid);
+  const regiment = pack.states[Number(g.dataset.state)]?.military?.find(r => r.i === Number(g.dataset.id));
+  if (regiment) placeRegiment(g, regiment.x, regiment.y);
 }
 
-const coloursOf = (regiment: Regiment) => ({
-  colour: colourOf(regiment.origin ?? regiment.state), // an assigned army keeps the colour it came from
-  band: regiment.origin ? colourOf(regiment.state) : undefined
-});
-
-/** A regiment's art close in; `lit` lights a bay of a transport, where a carried unit would go */
-export function artOf(regiment: Regiment, lit?: number): UnitArt | null {
-  const { colour, band } = coloursOf(regiment);
-  const face = facesOf(regiment.u, colour, band, strength(regiment))[0];
-  if (!face) return null;
-  if (!isTransport(regiment)) return { type: "card", face };
-  return {
-    type: "transport",
-    face: { ...face, grade: gradeOf(powerOf(regiment.u) + powerOf(regiment.cargo)) },
-    cargo: facesOf(regiment.cargo, colour, band),
-    room: Math.max(cargoSlots(regiment), rows(regiment.cargo).length), // an old map's overfull hold shows whole
-    lit
-  };
+/** Put a regiment's art on a point: its top card's middle there */
+export function placeRegiment(g: SVGGElement, x: number, y: number): void {
+  g.setAttribute("transform-origin", `${x}px ${y}px`);
+  const el = g.querySelector<SVGImageElement>("image");
+  if (!el?.dataset.w) return;
+  const w = Number(el.dataset.w);
+  el.setAttribute("x", String(rn(x - w / 2, 2)));
+  el.setAttribute("y", String(rn(y - Number(el.dataset.mid), 2)));
+  el.setAttribute("width", String(w));
+  el.setAttribute("height", el.dataset.h!);
 }
-
-/** A regiment's art far out: a transport flattened round its cargo's symbols, or its nation's units in the cell as one */
-export function farArtOf(regiment: Regiment, mine: Regiment[]): UnitArt | null {
-  const { colour, band } = coloursOf(regiment);
-  const face = facesOf(regiment.u, colour, band, strength(regiment))[0];
-  if (!face) return null;
-  if (isTransport(regiment))
-    return {
-      type: "farTransport",
-      face,
-      cargo: facesOf(regiment.cargo, colour, undefined).map(f => f.unit.role),
-      room: cargoSlots(regiment)
-    };
-  const roles = mine.filter(r => !isTransport(r)).flatMap(r => facesOf(r.u, colour, undefined).map(f => f.unit.role));
-  return { type: "far", colour, kind: kindOf(regiment), roles };
-}
-
-/** One unit of a regiment's list on its own card, for dragging */
-export function chipOf(regiment: Regiment, list: "u" | "cargo", index: number): UnitArt | null {
-  const { colour, band } = coloursOf(regiment);
-  const face = facesOf(list === "u" ? regiment.u : regiment.cargo, colour, band)[index];
-  return face ? { type: "card", face } : null;
-}
-
-/** What a unit is called on the map: its own name if given one; land units by name, aircraft and ships by nickname */
-export function labelOf(regiment: Regiment): string {
-  if (regiment.named) return regiment.name;
-  const kit: KitUnit | undefined = kitOf(rows(regiment.u)[0]?.unit ?? "");
-  if (!kit) return regiment.name;
-  return kit.domain === "land" ? unitName(kit) : (kit.nickname ?? unitName(kit));
-}
-
-/** Map units per art pixel: an aircraft's card is as tall as Azgaar's box was */
-const unit = () => size() / CARD.h;
 
 function add(g: SVGGElement, tag: string, kind: string): SVGElement {
   const element = document.createElementNS(SVG, tag) as SVGElement;
   element.setAttribute("class", kind);
   g.append(element);
   return element;
-}
-
-function image(g: SVGGElement, kind: string, href: string, layout: ArtLayout): SVGImageElement {
-  const el = add(g, "image", kind) as SVGImageElement;
-  el.setAttribute("href", href);
-  el.setAttribute("preserveAspectRatio", "none");
-  el.setAttribute("image-rendering", "pixelated");
-  el.dataset.w = String(layout.width);
-  el.dataset.h = String(layout.height);
-  el.dataset.mid = String(layout.middle);
-  return el;
-}
-
-/** A bare card in a group of its own: a unit carried by the pointer */
-export function paintColumn(g: SVGGElement, art: UnitArt): void {
-  g.replaceChildren();
-  image(g, "flClose", artUrl(art), artLayout(art));
-}
-
-/** Fill a regiment's group: its card close in, far out its nation's chip when it leads it (or its own, a transport) */
-export function paintRegiment(g: SVGGElement, regiment: Regiment, lit?: number, mine?: Regiment[]): void {
-  g.replaceChildren();
-  const art = artOf(regiment, lit);
-  if (art) {
-    const layout = artLayout(art);
-    g.dataset.layout = JSON.stringify({ w: layout.width, h: layout.height, bays: layout.bays });
-    image(g, "flClose", artUrl(art), layout);
-    image(g, "flClose flPick", artUrl(art, true), layout);
-  }
-  const far = mine && farArtOf(regiment, mine);
-  if (far) {
-    const layout = artLayout(far);
-    image(g, "flFar", artUrl(far), layout);
-    image(g, "flFar flPick", artUrl(far, true), layout);
-  }
-  g.classList.toggle("fl-carrier", isTransport(regiment));
-  const name = add(g, "text", "regimentName");
-  name.setAttribute("text-anchor", "middle");
-  name.textContent = labelOf(regiment);
-  placeRegiment(g, regiment.x, regiment.y);
-}
-
-/** Put a regiment's art on a point: its card's middle there */
-export function placeRegiment(g: SVGGElement, x: number, y: number): void {
-  const u = unit();
-  g.setAttribute("transform-origin", `${x}px ${y}px`);
-  for (const el of g.querySelectorAll<SVGImageElement>("image")) {
-    const w = Number(el.dataset.w) * u;
-    const h = Number(el.dataset.h) * u;
-    el.setAttribute("x", String(rn(x - w / 2, 2)));
-    el.setAttribute("y", String(rn(y - Number(el.dataset.mid) * u, 2)));
-    el.setAttribute("width", String(rn(w, 3)));
-    el.setAttribute("height", String(rn(h, 3)));
-  }
-  const name = g.querySelector("text.regimentName");
-  const close = g.querySelector<SVGImageElement>("image.flClose");
-  if (name && close) {
-    name.setAttribute("x", String(rn(x, 2)));
-    name.setAttribute("y", String(rn(y - (Number(close.dataset.mid) + 2) * u, 2)));
-    name.setAttribute("font-size", `${rn(15 * u, 2)}px`);
-  }
 }
 
 function armyGroup(stateId: number): SVGGElement {
@@ -203,7 +76,6 @@ function regimentGroup(regiment: Regiment, stateId: number): SVGGElement {
   g.dataset.name = regiment.name;
   g.dataset.state = String(stateId);
   g.dataset.id = String(regiment.i);
-  paintRegiment(g, regiment);
   return g;
 }
 
@@ -235,6 +107,7 @@ export const drawRegiment = (regiment: Regiment, stateId: number): void => {
   const g = regimentGroup(regiment, stateId);
   if (old) old.replaceWith(g);
   else armyGroup(stateId).append(g);
+  queueMicrotask(() => window.dispatchEvent(new Event("fl:restack"))); // units.ts gives it its art
 };
 
 /** Move one regiment to a point, gliding */

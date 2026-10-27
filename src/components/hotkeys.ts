@@ -59,8 +59,11 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (code === "KeyO" && findEl("canvas3d")) Controllers.View3d.toggleOptions();
   else if (ctrl && code === "KeyQ") toggleSaveReminder();
   else if (ctrl && code === "KeyC") Services.Save.toDropbox();
-  else if (ctrl && code === "KeyZ") findEl("undo")?.click();
-  else if (ctrl && code === "KeyY") findEl("redo")?.click();
+  else if (ctrl && code === "KeyZ") {
+    const undo = findEl("undo");
+    if (undo && (undo as HTMLElement).offsetParent) undo.click();
+    else window.dispatchEvent(new Event("fl:undo")); // Fluoria: the last unit order
+  } else if (ctrl && code === "KeyY") findEl("redo")?.click();
   else if ((shift || altShift) && code === "KeyH") Controllers.HeightmapEditor.open();
   else if ((shift || altShift) && code === "KeyB") Controllers.BiomesEditor.open();
   else if ((shift || altShift) && code === "KeyS") Controllers.StatesEditor.open();

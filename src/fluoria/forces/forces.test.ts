@@ -5,7 +5,9 @@ import {
   cargoSlots,
   convertToChips,
   convertUnitTypes,
+  fillFrom,
   flagship,
+  health,
   mergeInto,
   normalise,
   refreshNames,
@@ -163,5 +165,33 @@ describe("base names", () => {
       "1st Troopship",
       "The Iron Host"
     ]);
+  });
+});
+
+describe("holds, health and merging", () => {
+  it("gives every ship and airship a hold by role and tier, land units none", () => {
+    expect(cargoSlots(regiment({ Troopship: 1 }))).toBe(3);
+    expect(cargoSlots(regiment({ Frigate: 1 }))).toBe(1);
+    expect(cargoSlots(regiment({ Gunboat: 1 }))).toBe(0);
+    expect(cargoSlots(regiment({ Riflemen: 60 }))).toBe(0);
+    expect(refusal(regiment({ Frigate: 1 }), "cargo", "Riflemen", 60)).toBe("");
+  });
+
+  it("fills the most hurt of a type first and keeps what doesn't fit", () => {
+    const hurt = regiment({ Riflemen: 20 }, { i: 1 });
+    const half = regiment({ Riflemen: 30 }, { i: 2 });
+    const fresh = regiment({ Riflemen: 60 }, { i: 3 });
+    expect(health(hurt)).toBeCloseTo(20 / 60);
+    expect(fillFrom(fresh, [half, hurt])).toBe(60);
+    expect(hurt.u.Riflemen).toBe(60);
+    expect(half.u.Riflemen).toBe(50);
+    expect(fresh.a).toBe(0);
+    const extra = regiment({ Riflemen: 60 }, { i: 4 });
+    expect(fillFrom(extra, [half, hurt])).toBe(10);
+    expect(extra.u.Riflemen).toBe(50);
+  });
+
+  it("merges only the same type", () => {
+    expect(refusal(regiment({ Riflemen: 30 }), "u", "Homeguard", 10)).toMatch(/same type/);
   });
 });

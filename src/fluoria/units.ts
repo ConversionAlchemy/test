@@ -1,12 +1,12 @@
-// Regiments on the map, Fluoria's way: they stand at the centre of their cell, share a cell as a stack, and a
-// selected one dims everything it can't reach in one move. A drag ends on a reachable cell or not at all
+// Regiments on the map, Fluoria's way: they stand at the centre of their cell, a nation's units of one type there lie
+// as one pile, and a selected one dims everything it can't reach in one move
 
 import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
-import { paintRegiment } from "@/renderers/draw-military";
+import { colourOf, setArt } from "@/renderers/draw-military";
 import { landingCells, unload } from "./boarding";
-import { cardPower, domainOf, isTransport, kitOf, rows, slotsOf, troopsOf } from "./forces/forces";
-import { CARD } from "./forces/pixels";
+import { CARD_W, pileSize } from "./forces/cards";
+import { domainOf, health, kitOf, rows, slotsOf, troopsOf, typeOf } from "./forces/forces";
 import { airReach, canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
 import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./one-grid";
 import { dimPixelMap } from "./pixel-map-sync";
@@ -14,7 +14,6 @@ import { laneSteps } from "./road-geometry";
 import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
 import { afterMove, blocked, hasRoom, placeOf } from "./war";
 
-let range: Map<number, number> | null = null; // packed cells for armies, sea grid cells for fleets
 let rangeOf: Regiment | null = null;
 
 /**
@@ -46,25 +45,24 @@ const standAt = (
   return cell === undefined ? null : { cell, packCell: cell, point: cellCentre(cell) };
 };
 
-const CHIP_PX = 20; // a chip's height on screen, at every zoom
-const FAR_MILES = 70; // past this on the ruler, a cell shows as one summary chip
+const ART_PX = 2; // screen pixels per art pixel, at every zoom
+const PILE_GAP = 8; // screen pixels kept between piles far out: closer ones merge
 let unitScale = 1;
+let far = false;
 
-/** Scale every regiment around its own point so its on-screen size stays the same; far out, cells fold into summaries */
+/** Units keep their size on screen; far out, a nation's nearby units merge into one pile and can't be dragged */
 export function applyUnitZoom(scale: number): void {
   const armies = document.getElementById("armies");
-  if (!armies || !scale || !styles?.military) return;
-  const bar = styles.scaleBar?.options?.barSize ?? 2;
-  const miles = (100 * bar * options.map.units.distance.scale) / scale; // what the ruler reads
-  const stage = miles > FAR_MILES ? "far" : "close";
-  const box = styles.military.options.boxSize * 2; // a chip's height in map units
-  unitScale = Math.max(0.02, CHIP_PX / (box * scale));
+  if (!armies || !scale) return;
+  unitScale = ART_PX / scale;
   armies.style.setProperty("--fl-unit", String(unitScale));
-  armies.dataset.flStage = stage;
-  armies.dataset.flNames = stage === "close" ? "1" : "0";
+  far = (grid?.spacing ?? 10) * scale < CARD_W * ART_PX; // closer than a card is wide: piles would overlap
+  armies.dataset.flStage = far ? "far" : "close";
   layCells();
-  nameLabels();
 }
+
+/** Whether units are merged into piles at this zoom: no dragging then */
+export const isFar = () => far;
 
 /** Markers stand at their cell's centre, or on the settlement in it */
 export function snapMarkers(): boolean {
@@ -103,54 +101,55 @@ export function snapAll(): boolean {
   return moved;
 }
 
+type Kind = "land" | "sea" | "grid";
+
+/** Where a regiment can end this move, and in which cells that's measured: a pure reading, nothing shown */
+export function rangeFor(regiment: Regiment): { range: Map<number, number>; kind: Kind } {
+  if (isAirborne(regiment)) return { range: airReach(regiment), kind: "grid" };
+  if (regiment.n) {
+    const start = seaCellAt(regiment.x, regiment.y);
+    const reach = start === undefined ? new Map() : seaReach(start, laneSteps(), SEA_CELLS, LANE_CELLS);
+    for (const g of [...reach.keys()])
+      if (g !== start && !hasRoom(regiment.state, -1 - g, slotsOf(regiment.u), regiment)) reach.delete(g); // by sea cell
+    return { range: reach, kind: "sea" };
+  }
+  const reach = reachable(regiment);
+  for (const cell of blocked(regiment)) reach.delete(cell); // an enemy army is attacked, not walked into
+  for (const cell of [...reach.keys()])
+    if (cell !== mainCell(regiment.cell) && !hasRoom(regiment.state, cell, slotsOf(regiment.u), regiment))
+      reach.delete(cell);
+  return { range: reach, kind: "land" };
+}
+
 /** Show what a regiment can reach this move */
 export function selectRegiment(regiment: Regiment): void {
   rangeOf = regiment;
-  if (isAirborne(regiment)) {
-    range = airReach(regiment);
-    dimPixelMap(new Set(range.keys()), "grid");
-    return;
-  }
-  if (regiment.n) {
-    const start = seaCellAt(regiment.x, regiment.y);
-    range = start === undefined ? new Map() : seaReach(start, laneSteps(), SEA_CELLS, LANE_CELLS);
-    for (const g of [...range.keys()])
-      if (g !== start && !hasRoom(regiment.state, -1 - g, slotsOf(regiment.u), regiment)) range.delete(g); // by sea cell
-    dimPixelMap(new Set(range.keys()), "sea");
-    return;
-  }
-  range = reachable(regiment);
-  for (const cell of blocked(regiment)) range.delete(cell); // an enemy army is attacked, not walked into
-  for (const cell of [...range.keys()])
-    if (cell !== mainCell(regiment.cell) && !hasRoom(regiment.state, cell, slotsOf(regiment.u), regiment))
-      range.delete(cell);
-  dimPixelMap(new Set(range.keys()), "land");
+  const { range: reach, kind } = rangeFor(regiment);
+  dimPixelMap(new Set(reach.keys()), kind);
 }
 
 export function clearSelection(): void {
-  range = null;
   rangeOf = null;
   dimPixelMap(null);
   outline(null);
 }
 
-/** While dragging: outline the cell under the pointer if the regiment may end there */
-export function dragOver(regiment: Regiment, x: number, y: number): void {
-  if (rangeOf !== regiment) selectRegiment(regiment);
+/** Where a regiment would stand if let go at a map point within a range: its packed cell and point, or null */
+export function spotIn(
+  regiment: Regiment,
+  reach: Map<number, number>,
+  x: number,
+  y: number
+): { cell: number; point: [number, number]; measured: number } | null {
   const spot = standAt(regiment, x, y);
-  outline(spot && range?.has(spot.cell) ? spot.cell : null, Boolean(regiment.n) || isAirborne(regiment));
+  if (!spot || !reach.has(spot.cell)) return null;
+  if (!canStand(regiment, spot.packCell) && !regiment.n && !isAirborne(regiment)) return null;
+  return { cell: spot.packCell, point: spot.point, measured: spot.cell };
 }
 
-/** Where a dragged regiment ends up: the centre of a reachable cell, or null to put it back */
-export function dropAt(regiment: Regiment, x: number, y: number): [number, number] | null {
-  outline(null);
-  const spot = standAt(regiment, x, y);
-  if (!spot || !range?.has(spot.cell)) return null;
-  const cell = spot.packCell;
-  if (!canStand(regiment, cell) && !regiment.n && !isAirborne(regiment)) return null;
-  regiment.cell = cell;
-  return spot.point;
-}
+/** The cell a regiment is measured in under a map point (a fleet's sea grid cell), for outlining */
+export const measuredAt = (regiment: Regiment, x: number, y: number) => standAt(regiment, x, y);
+export const isAfloat = (regiment: Regiment) => Boolean(regiment.n) || isAirborne(regiment);
 
 /** After a move: enemy ground taken or freed, and the reach measured again from the new cell */
 export function moved(regiment: Regiment): void {
@@ -215,7 +214,8 @@ export function chooseLanding(transport: Regiment, done: () => void): void {
   window.addEventListener("keyup", onKey, true);
 }
 
-function outline(cell: number | null, sea = false): void {
+/** Outline a cell: white where the dragged units may go, red where they may not */
+export function outline(cell: number | null, sea = false, refused = false): void {
   const debug = select<SVGGElement, unknown>("#debug");
   debug.select("#flTargetCell").remove();
   if (cell === null) return;
@@ -228,111 +228,195 @@ function outline(cell: number | null, sea = false): void {
     .attr("id", "flTargetCell")
     .attr("points", points)
     .attr("fill", "none")
-    .attr("stroke", "#ffffff")
+    .attr("stroke", refused ? "#e0533f" : "#ffffff")
     .attr("stroke-width", 2)
     .attr("vector-effect", "non-scaling-stroke")
     .attr("pointer-events", "none");
 }
 
-// --- cells: aircraft, ships and transports lie stacked on top, land units stand in a row beneath, all above a
-// settlement's symbol; transports first, then the highest tier. Far out each nation's part folds into one chip
+// --- stacks: a nation's units of one type in one cell lie as one pile, the healthiest on top. Ships and airships pile
+// above the land units' row, and all of it above a settlement's symbol. Hovering a pile spreads it so any card can be
+// grabbed. Far out a nation's units close together merge into one pile
 
-let cells: Regiment[][] = [];
-let lit: { key: string; bay: number } | null = null; // the transport bay a carried unit would board
-const keyOf = (r: Regiment) => `${r.state}-${r.i}`;
-
-/** Light the bay a carried unit would take in a transport, or none */
-export function lightBay(transport: Regiment | null): void {
-  const next = transport ? { key: keyOf(transport), bay: rows(transport.cargo).length } : null;
-  if (next?.key === lit?.key) return;
-  const was = lit;
-  lit = next;
-  for (const key of [was?.key, next?.key]) {
-    const r = key && cells.flat().find(o => keyOf(o) === key);
-    if (r) repaint(r);
-  }
+export interface Stack {
+  key: string;
+  state: number;
+  place: number; // the cell, or a fleet's sea grid cell as a negative number
+  unit: string;
+  members: Regiment[]; // healthiest first: the top card
 }
 
-const tierOf = (r: Regiment) => kitOf(rows(r.u)[0]?.unit ?? "")?.tier ?? 0;
-const flat = (r: Regiment) => isTransport(r) || domainOf(r) !== "land";
-const ORDER = (a: Regiment, b: Regiment) =>
-  Number(isTransport(b)) - Number(isTransport(a)) || tierOf(b) - tierOf(a) || cardPower(b) - cardPower(a);
+let stacks: Stack[] = [];
+let byRegiment = new Map<Regiment, Stack>();
+let spreadKey: string | null = null;
+let piles = new Map<Regiment, { members: Regiment[]; x: number; y: number }>(); // far out: each pile's leader
 
-function repaint(r: Regiment): void {
-  const el = elementOf(r);
-  const cell = cells.find(c => c.includes(r));
-  if (!el || !cell) return;
-  const mine = cell.filter(o => o.state === r.state);
-  const lead = isTransport(r) || mine.find(o => !isTransport(o)) === r;
-  paintRegiment(el, r, lit?.key === keyOf(r) ? lit.bay : undefined, lead ? mine : undefined);
-  el.classList.toggle("fl-farhide", !lead);
-  el.classList.toggle("fl-lone", cell.length === 1);
-}
+const flat = (r: Regiment) => domainOf(r) !== "land";
+const tierOf = (r: Regiment) => kitOf(typeOf(r) ?? "")?.tier ?? 0;
 
-/** Lay out every cell */
+/** Group every visible regiment into stacks, then lay them out */
 export function stackAll(): void {
-  const armies = document.getElementById("armies");
-  if (!armies) return;
-  const byCell = new Map<number, Regiment[]>();
+  const groups = new Map<string, Stack>();
   for (const state of pack.states) {
     if (!state.i || state.removed) continue;
-    for (const regiment of state.military ?? []) {
-      if (regiment.hidden) continue;
-      const cell = placeOf(regiment); // a fleet: its sea grid cell
-      byCell.set(cell, [...(byCell.get(cell) ?? []), regiment]);
+    for (const r of state.military ?? []) {
+      if (r.hidden) continue;
+      const place = placeOf(r);
+      const unit = typeOf(r) ?? "";
+      const key = `${r.state}|${place}|${unit}`;
+      const stack = groups.get(key) ?? { key, state: r.state, place, unit, members: [] };
+      groups.set(key, stack);
+      stack.members.push(r);
     }
   }
-  cells = [...byCell.values()];
-  for (const cell of cells) {
-    cell.sort(ORDER);
-    for (const r of cell) repaint(r);
+  stacks = [...groups.values()];
+  byRegiment = new Map();
+  for (const stack of stacks) {
+    stack.members.sort((a, b) => health(b) - health(a) || troopsOf(b) - troopsOf(a));
+    for (const r of stack.members) byRegiment.set(r, stack);
   }
+  if (spreadKey && !groups.has(spreadKey)) spreadKey = null;
   layCells();
-  nameLabels();
+}
+
+window.addEventListener("fl:restack", () => stackAll());
+
+export const stackOf = (r: Regiment): Stack | undefined => byRegiment.get(r);
+
+/** Regiments sharing a regiment's cell, itself included */
+export const cellOf = (regiment: Regiment): Regiment[] => {
+  const place = stackOf(regiment)?.place;
+  return place === undefined ? [regiment] : stacks.filter(s => s.place === place).flatMap(s => s.members);
+};
+
+/** Far out: the units merged into the pile a regiment leads or belongs to */
+export function pileOf(r: Regiment): Regiment[] {
+  for (const pile of piles.values()) if (pile.members.includes(r)) return pile.members;
+  return [r];
+}
+
+/** Spread a stack so every card can be grabbed, or fold it back (null) */
+export function spread(stack: Stack | null): void {
+  const key = stack && stack.members.length > 1 && !far ? stack.key : null;
+  if (key === spreadKey) return;
+  spreadKey = key;
+  layCells();
+}
+export const spreadStack = () => stacks.find(s => s.key === spreadKey) ?? null;
+
+const pileArt = (members: Regiment[], unit = typeOf(members[0]) ?? "") => {
+  const kit = kitOf(unit);
+  if (!kit) return null;
+  const lead = members[0];
+  return {
+    unit: kit,
+    colour: colourOf(lead.origin ?? lead.state),
+    count: members.length,
+    health: members.reduce((sum, r) => sum + health(r), 0) / members.length,
+    pips: Math.min(4, rows(lead.cargo).length)
+  };
+};
+
+/** The most common unit type of a merged pile, the higher tier on a tie */
+function leadingType(members: Regiment[]): string {
+  const count = new Map<string, number>();
+  for (const r of members) count.set(typeOf(r) ?? "", (count.get(typeOf(r) ?? "") ?? 0) + 1);
+  return [...count.entries()].sort(([a, n], [b, m]) => m - n || (kitOf(b)?.tier ?? 0) - (kitOf(a)?.tier ?? 0))[0][0];
 }
 
 const GAP = 1; // art pixels between cards
-const sizeOf = (el: SVGGElement | null, far: boolean) => {
-  const image = el?.querySelector<SVGImageElement>(far ? "image.flFar" : "image.flClose");
-  return { w: Number(image?.dataset.w ?? 0), h: Number(image?.dataset.h ?? 0), mid: Number(image?.dataset.mid ?? 0) };
-};
 
-/** Each regiment's place in its cell, for the zoom showing: offsets of its card's middle from the cell's point */
+/** Each regiment's art and its place: its pile's top card middle, offset from its own point */
 function layCells(): void {
-  const armies = document.getElementById("armies");
-  if (!armies || !styles?.military) return;
-  const far = armies.dataset.flStage === "far";
-  const u = ((styles.military.options.boxSize * 2) / CARD.h) * unitScale; // map units per art pixel, as drawn
-  for (const cell of cells) {
-    const parts = cell.filter(r => !far || !elementOf(r)?.classList.contains("fl-farhide"));
-    const spots: { r: Regiment; x: number; y: number }[] = [];
-    let y = 0;
-    const stack = far ? parts : parts.filter(flat);
-    for (const r of stack) {
-      const { h, mid } = sizeOf(elementOf(r), far);
-      spots.push({ r, x: 0, y: y + mid });
-      y += h + GAP;
-    }
-    const row = far ? [] : parts.filter(r => !flat(r));
-    if (row.length) {
-      const sizes = row.map(r => sizeOf(elementOf(r), false));
-      const width = sizes.reduce((sum, s) => sum + s.w, 0) + GAP * 2 * (row.length - 1);
-      let x = -width / 2;
-      const tallest = Math.max(...sizes.map(s => s.h));
-      row.forEach((r, k) => {
-        spots.push({ r, x: x + sizes[k].w / 2, y: y + sizes[k].mid });
-        x += sizes[k].w + GAP * 2;
-      });
-      y += tallest + GAP;
-    }
-    const total = y - GAP;
-    const first = parts[0];
-    const burg = first && !first.n ? pack.cells.burg[mainCell(first.cell)] : 0;
-    const top = burg ? -total - CARD.h * 0.45 : -total / 2; // above a settlement's symbol, else centred
-    for (const { r, x, y } of spots) {
+  if (!document.getElementById("armies")) return;
+  piles = new Map();
+  const shown = new Map<Regiment, { art: ReturnType<typeof pileArt>; x: number; y: number }>();
+  if (far) layFar(shown);
+  else layClose(shown);
+  for (const stack of stacks)
+    for (const r of stack.members) {
       const el = elementOf(r);
-      if (el) el.style.translate = `${x * u}px ${(top + y) * u}px`;
+      if (!el) continue;
+      const spot = shown.get(r);
+      el.classList.toggle("fl-hide", !spot?.art);
+      el.classList.toggle("fl-pile", Boolean(spot && (spot.art?.count ?? 1) > 1));
+      if (!spot?.art) continue;
+      setArt(el, spot.art);
+      el.style.translate = `${spot.x * unitScale}px ${spot.y * unitScale}px`;
     }
+}
+
+function layClose(shown: Map<Regiment, { art: ReturnType<typeof pileArt>; x: number; y: number }>): void {
+  const byPlace = new Map<number, Stack[]>();
+  for (const stack of stacks) byPlace.set(stack.place, [...(byPlace.get(stack.place) ?? []), stack]);
+  for (const here of byPlace.values()) {
+    here.sort((a, b) => tierOf(b.members[0]) - tierOf(a.members[0]));
+    const column = here.filter(s => flat(s.members[0]));
+    const row = here.filter(s => !flat(s.members[0]));
+    const spots: { stack: Stack; x: number; y: number }[] = [];
+    let y = 0;
+    for (const stack of column) {
+      const size = pileSize(pileArt(stack.members) ?? { count: 1, pips: 0 });
+      spots.push({ stack, x: 0, y: y + size.mid });
+      y += size.h + GAP;
+    }
+    if (row.length) {
+      const sizes = row.map(s => pileSize(pileArt(s.members) ?? { count: 1, pips: 0 }));
+      const width = row.length * CARD_W + GAP * 2 * (row.length - 1);
+      for (const [k, stack] of row.entries())
+        spots.push({ stack, x: -width / 2 + CARD_W / 2 + k * (CARD_W + GAP * 2), y: y + sizes[k].mid });
+      y += Math.max(...sizes.map(s => s.h)) + GAP;
+    }
+    const first = here[0].members[0];
+    const burg = !first.n ? pack.cells.burg[mainCell(first.cell)] : 0;
+    const top = burg ? -y - 4 : -y / 2; // above a settlement's symbol, else centred
+    for (const { stack, x, y: sy } of spots) {
+      const [lead, ...rest] = stack.members;
+      if (stack.key === spreadKey) {
+        const width = stack.members.length * (CARD_W + GAP) - GAP;
+        for (const [k, r] of stack.members.entries())
+          shown.set(r, { art: pileArt([r]), x: x - width / 2 + CARD_W / 2 + k * (CARD_W + GAP), y: top + sy });
+        continue;
+      }
+      shown.set(lead, { art: pileArt(stack.members), x, y: top + sy });
+      for (const r of rest) shown.set(r, { art: null, x: 0, y: 0 });
+    }
+  }
+}
+
+/** Far out: a nation's cells closer than a pile's width on screen merge, round the one with most units */
+function layFar(shown: Map<Regiment, { art: ReturnType<typeof pileArt>; x: number; y: number }>): void {
+  const reach = ((CARD_W * ART_PX + PILE_GAP) / ART_PX) * unitScale; // map units
+  const parts = new Map<string, Regiment[]>();
+  for (const stack of stacks) {
+    const key = `${stack.state}|${stack.place}`;
+    parts.set(key, [...(parts.get(key) ?? []), ...stack.members]);
+  }
+  const free = [...parts.values()].sort((a, b) => b.length - a.length);
+  const taken = new Set<Regiment[]>();
+  for (const part of free) {
+    if (taken.has(part)) continue;
+    taken.add(part);
+    const [cx, cy] = [part[0].x, part[0].y];
+    const members = [...part];
+    for (const other of free)
+      if (
+        !taken.has(other) &&
+        other[0].state === part[0].state &&
+        Math.hypot(other[0].x - cx, other[0].y - cy) < reach
+      ) {
+        taken.add(other);
+        members.push(...other);
+      }
+    const x = members.reduce((sum, r) => sum + r.x, 0) / members.length;
+    const y = members.reduce((sum, r) => sum + r.y, 0) / members.length;
+    const lead = [...members].sort(
+      (a, b) => Number(typeOf(b) === leadingType(members)) - Number(typeOf(a) === leadingType(members))
+    )[0];
+    const art = pileArt([lead, ...members.filter(r => r !== lead)], leadingType(members));
+    piles.set(lead, { members, x, y });
+    shown.set(lead, { art, x: (x - lead.x) / unitScale, y: (y - lead.y) / unitScale });
+    for (const r of members) if (r !== lead) shown.set(r, { art: null, x: 0, y: 0 });
   }
 }
 
@@ -343,9 +427,6 @@ export function nameLabels(): void {
     label.style.translate = "0 1.5em";
   }
 }
-
-/** Regiments sharing a regiment's cell, itself included, in layout order */
-export const cellOf = (regiment: Regiment): Regiment[] => cells.find(cell => cell.includes(regiment)) ?? [regiment];
 
 const elementOf = (regiment: Regiment) =>
   document.getElementById(`regiment${regiment.state}-${regiment.i}`) as SVGGElement | null;

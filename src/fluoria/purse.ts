@@ -1,10 +1,12 @@
-// A settlement's money and manpower as two blocks, shared by the settlement and nation panels: a box with ▲▼ that
-// draws from (or returns to) the settlement picked under it, the Goldbank (a loan; mercenaries) and other nations
+// A settlement's money and manpower as two blocks, shared by the settlement and nation panels. Each amount is a number
+// field (number-field.ts): it draws from (or returns to) the settlement picked under it, the Goldbank (a loan;
+// mercenaries) and other nations. Nothing moves until it's confirmed; then every open purse updates in place
 import type { Burg } from "@/generators/burgs-generator";
 import { EmblemRenderer } from "@/renderers/emblems/renderer";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
 import { standing } from "./nation";
+import { numberField, wireField } from "./number-field";
 import { RANKS, rankOf } from "./settlement-size";
 import {
   bankFunds,
@@ -20,6 +22,7 @@ import {
   setNationMoney,
   transfer
 } from "./settlements";
+import { play } from "./sfx";
 
 const NONE = 0; // no source: the box sets its figure outright
 const sources = new Map<string, number>(); // "m12" / "p12": the settlement a box draws on
@@ -66,9 +69,6 @@ const picker = (name: string, current: string, items: Item[]) => {
   return `<span class="flPicker" data-picker="${name}"><button type="button" class="flPickOpen">${current} ▾</button><div class="flPickList">${list}</div></span>`;
 };
 
-const box = (name: string, value: number, tip: string) =>
-  `<span class="flBox"><input type="number" data-box="${name}" value="${Math.round(value)}" data-tip="${tip}" /><span class="flSteps"><button type="button" data-step="${name}" data-dir="1">▲</button><button type="button" data-step="${name}" data-dir="-1">▼</button></span></span>`;
-
 const emblem = (state: number) => {
   void EmblemRenderer.trigger(`stateCOA${state}`, pack.states[state].coa);
   return `<svg class="flPickEmblem" viewBox="0 0 200 200"><use href="#stateCOA${state}"></use></svg>`;
@@ -113,6 +113,10 @@ function otherNation(kind: "m" | "p", burg: Burg, only?: string): number {
 
 /** The treasury and manpower blocks of a settlement; the nation panel shows only the treasury */
 export function purseBlocks(burg: Burg, men = true): string {
+  return `<div class="flPurseWrap" data-purse-of="${burg.i}" data-men="${men ? 1 : 0}">${blocks(burg, men)}</div>`;
+}
+
+function blocks(burg: Burg, men: boolean): string {
   const state = burg.state ?? 0;
   const from = sourceOf("m", burg);
   const other = otherNation("m", burg);
@@ -120,15 +124,15 @@ export function purseBlocks(burg: Burg, men = true): string {
   const otherCapital = other ? capitalOf(other) : null;
   const nationName = (id: number) => (id ? `${emblem(id)}${escapeHtml(pack.states[id].name)}` : t("None"));
   return /* html */ `
-    <div class="flPurse" data-purse="${burg.i}">
-      <div class="flPurseHead">${t("Treasury")}${box("money", funds(burg), t("Draws from or returns to the settlement below"))}</div>
+    <div class="flPurse">
+      <div class="flPurseHead">${t("Treasury")}${numberField("money", funds(burg), t("Draws from or returns to the settlement below"))}</div>
       <div class="flPurseLine">${picker(
         "m-source",
         from ? escapeHtml(from.name ?? "") : t("Set directly"),
         settlementItems(burg, b => `§${fmt(funds(b))}`)
       )}<span>${from ? `§${fmt(funds(from))}` : ""}</span></div>
-      ${state ? `<div class="flPurseLine">${t("Goldbank")} <span>§${fmt(bankFunds())}</span> · ${t("Loan")}${box("loan", loan, t("Raise to borrow, lower to repay"))}</div>` : ""}
-      ${state && other ? `<div class="flPurseLine">${picker("m-nation", nationName(other), nationItems(state))}<span>§${fmt(otherCapital ? funds(otherCapital) : 0)}</span>${box("gift", 0, t("Raise to take from their capital, lower to send to it"))}</div>` : ""}
+      ${state ? `<div class="flPurseLine">${t("Goldbank")} <span class="flGold">§${fmt(bankFunds())}</span> · ${t("Loan")}${numberField("loan", loan, t("Raise to borrow, lower to repay"))}</div>` : ""}
+      ${state && other ? `<div class="flPurseLine">${picker("m-nation", nationName(other), nationItems(state))}<span>§${fmt(otherCapital ? funds(otherCapital) : 0)}</span>${numberField("gift", 0, t("+ takes from their capital, − sends to it"), true)}</div>` : ""}
     </div>
     ${men ? manpowerBlock(burg) : ""}`;
 }
@@ -140,19 +144,19 @@ function manpowerBlock(burg: Burg): string {
   const allyCapital = ally ? capitalOf(ally) : null;
   const nationName = (id: number) => (id ? `${emblem(id)}${escapeHtml(pack.states[id].name)}` : t("None"));
   return /* html */ `
-    <div class="flPurse" data-purse="${burg.i}">
-      <div class="flPurseHead">${t("Manpower")}${box("men", manpowerOf(burg), t("Draws from or returns to the settlement below"))}</div>
+    <div class="flPurse">
+      <div class="flPurseHead">${t("Manpower")}${numberField("men", manpowerOf(burg), t("Draws from or returns to the settlement below"))}</div>
       <div class="flPurseLine">${picker(
         "p-source",
         fromMen ? escapeHtml(fromMen.name ?? "") : t("Set directly"),
         settlementItems(burg, b => fmt(manpowerOf(b)))
       )}<span>${fromMen ? fmt(manpowerOf(fromMen)) : ""}</span></div>
-      ${state ? `<div class="flPurseLine">${t("Goldbank mercenaries")} (§${MERCENARY_PRICE} ${t("a man")})${box("hire", 0, t("Raise to hire, lower to let go"))}</div>` : ""}
-      ${state && ally ? `<div class="flPurseLine">${picker("p-nation", nationName(ally), nationItems(state, "ally"))}<span>${fmt(allyCapital ? manpowerOf(allyCapital) : 0)}</span>${box("lend", 0, t("Raise to borrow men, lower to send them back"))}</div>` : ""}
+      ${state ? `<div class="flPurseLine">${t("Goldbank mercenaries")} (§${MERCENARY_PRICE} ${t("a man")})${numberField("hire", 0, t("+ hires, − lets go"), true)}</div>` : ""}
+      ${state && ally ? `<div class="flPurseLine">${picker("p-nation", nationName(ally), nationItems(state, "ally"))}<span>${fmt(allyCapital ? manpowerOf(allyCapital) : 0)}</span>${numberField("lend", 0, t("+ borrows men, − sends them back"), true)}</div>` : ""}
     </div>`;
 }
 
-/** Move `delta` of a box's figure; "" or why not */
+/** Move `delta` of a field's figure; "" or why not */
 function apply(burg: Burg, name: string, delta: number): string {
   if (!delta) return "";
   const state = burg.state ?? 0;
@@ -197,7 +201,7 @@ function apply(burg: Burg, name: string, delta: number): string {
   return "";
 }
 
-/** The box's figure now, to read a typed value against */
+/** The field's figure now: what a typed value is read against (0 for the take/send fields) */
 function figure(burg: Burg, name: string): number {
   if (name === "money") return funds(burg);
   if (name === "men") return manpowerOf(burg);
@@ -205,25 +209,81 @@ function figure(burg: Burg, name: string): number {
   return 0;
 }
 
-/** Wire the blocks in a panel; `done` redraws, `refuse` reports why a move didn't happen */
-export function wirePurse(
-  root: HTMLElement,
-  burg: Burg,
-  done: () => void,
-  refuse: (why: string, el: Element) => void
-): void {
-  for (const input of root.querySelectorAll<HTMLInputElement>(".flPurse [data-box]"))
-    input.addEventListener("change", () => {
-      const why = apply(burg, input.dataset.box!, Math.round(+input.value || 0) - figure(burg, input.dataset.box!));
-      if (why) refuse(t(why), input);
-      done();
+const signedNumber = (n: number) => `${n > 0 ? "+" : "−"}${fmt(Math.abs(n))}`;
+
+/** What confirming a field's new figure would do, in a line */
+function previewOf(burg: Burg, name: string, next: number): string {
+  const now = figure(burg, name);
+  const delta = next - now;
+  const other = (kind: "m" | "p", only?: string) => pack.states[otherNation(kind, burg, only)]?.name ?? "";
+  switch (name) {
+    case "money": {
+      const from = sourceOf("m", burg);
+      return from
+        ? `§${fmt(now)} → §${fmt(next)} · ${from.name} §${fmt(funds(from))} → §${fmt(funds(from) - delta)}`
+        : `§${fmt(now)} → §${fmt(next)}`;
+    }
+    case "men": {
+      const from = sourceOf("p", burg);
+      return from
+        ? `${fmt(now)} → ${fmt(next)} · ${from.name} ${fmt(manpowerOf(from))} → ${fmt(manpowerOf(from) - delta)}`
+        : `${fmt(now)} → ${fmt(next)}`;
+    }
+    case "loan":
+      return `${t("Loan")} §${fmt(now)} → §${fmt(next)} · ${t("treasury")} ${signedNumber(delta)}`;
+    case "gift":
+      return next > 0 ? `+§${fmt(next)} ${t("from")} ${other("m")}` : `−§${fmt(-next)} ${t("to")} ${other("m")}`;
+    case "hire":
+      return next > 0
+        ? `+${fmt(next)} ${t("men")} · §${fmt(next * MERCENARY_PRICE)}`
+        : `${t("Let")} ${fmt(-next)} ${t("men go")}`;
+    case "lend":
+      return next > 0
+        ? `+${fmt(next)} ${t("men from")} ${other("p", "ally")}`
+        : `−${fmt(-next)} ${t("men to")} ${other("p", "ally")}`;
+  }
+  return "";
+}
+
+const SOUND: Record<string, "coin" | "pouch" | "men"> = {
+  money: "coin",
+  loan: "pouch",
+  gift: "coin",
+  men: "men",
+  hire: "men",
+  lend: "men"
+};
+
+/** Every open purse redraws its figures, wherever it is */
+export function refreshPurses(): void {
+  for (const wrap of document.querySelectorAll<HTMLElement>(".flPurseWrap[data-purse-of]")) {
+    const burg = living(Number(wrap.dataset.purseOf));
+    if (!burg) continue;
+    wrap.innerHTML = blocks(burg, wrap.dataset.men === "1");
+    wireBlocks(wrap, burg);
+  }
+}
+
+let refuseWith: (why: string, el: Element) => void = () => {};
+
+function wireBlocks(root: HTMLElement, burg: Burg): void {
+  for (const field of root.querySelectorAll<HTMLElement>(".flField[data-field]")) {
+    const name = field.dataset.field!;
+    wireField(field, {
+      current: () => figure(burg, name),
+      preview: next => previewOf(burg, name, next),
+      apply: next => apply(burg, name, next - figure(burg, name)),
+      done: (why, el) => {
+        if (why) refuseWith(t(why), el);
+        else {
+          const big = Math.abs(figure(burg, name)) >= 100;
+          play(SOUND[name] === "coin" && big ? "pouch" : SOUND[name]);
+          window.dispatchEvent(new Event("fl:money"));
+        }
+        refreshPurses();
+      }
     });
-  for (const button of root.querySelectorAll<HTMLButtonElement>(".flPurse [data-step]"))
-    button.addEventListener("click", event => {
-      const why = apply(burg, button.dataset.step!, Number(button.dataset.dir) * (event.shiftKey ? 10 : 1));
-      if (why) refuse(t(why), button);
-      done();
-    });
+  }
   for (const pick of root.querySelectorAll<HTMLElement>(".flPurse [data-picker]")) {
     pick.querySelector(".flPickOpen")?.addEventListener("click", event => {
       event.stopPropagation();
@@ -236,11 +296,19 @@ export function wirePurse(
       if (!item || item.disabled) return;
       const [kind, what] = pick.dataset.picker!.split("-") as ["m" | "p", string];
       (what === "source" ? sources : nations).set(`${kind}${burg.i}`, Number(item.dataset.pickValue));
-      done();
+      refreshPurses();
     });
   }
   for (const block of root.querySelectorAll(".flPurse"))
-    block.addEventListener("click", () => {
+    block.addEventListener("click", event => {
+      if ((event.target as Element).closest(".flPicker")) return;
       for (const other of root.querySelectorAll(".flPicker.on")) other.classList.remove("on");
     });
+}
+
+/** Wire the blocks in a panel; `refuse` reports why a change didn't happen */
+export function wirePurse(root: HTMLElement, burg: Burg, refuse: (why: string, el: Element) => void): void {
+  refuseWith = refuse;
+  const wrap = root.querySelector<HTMLElement>(`.flPurseWrap[data-purse-of="${burg.i}"]`);
+  if (wrap) wireBlocks(wrap, burg);
 }

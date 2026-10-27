@@ -1,8 +1,8 @@
-// Loading land units onto transports. Ships load at the coast or in a port, airships on any land cell beside them.
-// Cargo lives in the transport (`cargo`), so it moves with it and is lost with it
+// Loading land units into a ship's or airship's hold. Ships load at the coast or in a port, airships on any land cell
+// beside them. Cargo lives in the carrier (`cargo`), so it moves with it and is lost with it
 import type { Regiment } from "@/generators/military-generator";
 import { disband, loadAll } from "./forces/army";
-import { domainOf, isTransport, troopsOf } from "./forces/forces";
+import { domainOf, hasHold, isTransport, troopsOf } from "./forces/forces";
 import { cellCentre, isPort, mainCell, neighbours } from "./one-grid";
 
 const isWater = (cell: number) => pack.cells.h[cell] < 20;
@@ -16,7 +16,7 @@ const near = (cell: number, ship: Regiment) => {
 
 /** Whether an army standing where it is can step aboard a transport */
 export function canLoad(army: Regiment, transport: Regiment): boolean {
-  if (army === transport || army.state !== transport.state || !isTransport(transport)) return false;
+  if (army === transport || army.state !== transport.state || !hasHold(transport)) return false;
   if (isTransport(army) || !troopsOf(army) || domainOf(army) !== "land") return false;
   const at = mainCell(army.cell);
   if (domainOf(transport) === "air") {
