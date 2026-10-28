@@ -252,7 +252,7 @@ const RENAMED: Record<string, string> = {
   dreadnought: "air_combat_t3"
 };
 const BY_TYPE: Record<string, string> = {
-  melee: "land_assault_t1",
+  melee: "land_assault_t2",
   ranged: "land_infantry_t2",
   mounted: "land_cavalry_t1",
   machinery: "land_armour_t1",
@@ -260,6 +260,56 @@ const BY_TYPE: Record<string, string> = {
   naval: "naval_combat_t1",
   aviation: "air_combat_t1"
 };
+
+/** Unit types no longer in the kit and what they became: Saber troops Homeguard, trade ships and airships transports */
+const RETIRED: Record<string, string> = {
+  land_assault_t1: "land_infantry_t1",
+  air_trade_t1: "air_transport_t1",
+  air_trade_t2: "air_transport_t2",
+  air_trade_t3: "air_transport_t3",
+  naval_trade_t1: "naval_transport_t1",
+  naval_trade_t2: "naval_transport_t2",
+  naval_trade_t3: "naval_transport_t3"
+};
+
+/** Maps made before the kit lost its retired types: each chip becomes a chip of its successor. Returns groups changed */
+export function retireUnits(glyph: (emoji: string) => string): number {
+  const before = options.map.military.units;
+  const gone = before.filter(u => u.fl && RETIRED[u.fl]);
+  if (!gone.length) return 0;
+  const kit = kitUnits(glyph);
+  const plan = new Map(
+    gone.map(u => {
+      const id = RETIRED[u.fl!];
+      const to = kit.find(k => k.fl === id)!;
+      return [u.name, { to: to.name, ratio: (to.slot ?? 1) / (u.slot ?? to.slot ?? 1) }] as const;
+    })
+  );
+  const convert = (units: Units | undefined) => {
+    let hit = false;
+    const out: Units = {};
+    for (const [name, n] of present(units)) {
+      const step = plan.get(name);
+      if (step) hit = true;
+      add(out, step?.to ?? name, step ? Math.max(1, Math.round(n * step.ratio)) : n);
+    }
+    return { out, hit };
+  };
+  options.map.military.units = kit;
+  let changed = 0;
+  for (const state of pack.states ?? [])
+    for (const regiment of state?.military ?? []) {
+      const u = convert(regiment.u);
+      const cargo = convert(regiment.cargo);
+      if (!u.hit && !cargo.hit) continue;
+      regiment.u = u.out;
+      if (regiment.cargo) regiment.cargo = cargo.out;
+      regiment.a = troopsOf(regiment);
+      regiment.full = undefined; // power is measured afresh
+      changed++;
+    }
+  return changed;
+}
 
 /** Old Azgaar unit types become kit types, troops and all. Returns whether anything changed */
 export function convertUnitTypes(glyph: (emoji: string) => string): boolean {

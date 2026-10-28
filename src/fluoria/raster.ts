@@ -60,8 +60,10 @@ export class PixelRaster {
   /** The atlas look: pale sea, a crisp dark coastline, no beaches */
   atlas = false;
   dim = 0; // military view: the ground darkened under the nations' colours, borders and coasts kept bright
-  /** State border width in game pixels */
+  /** State border width in game pixels, on each side of the line */
   borderPx = 1;
+  /** How strongly the inner band shows, 1 as drawn by default */
+  bandStrength = 1;
   /** Optional second level of regions (provinces), outlined with a thin dashed line */
   subregion: Uint16Array | null = null;
   stamps: Stamp[] = [];
@@ -227,20 +229,24 @@ export class PixelRaster {
         const j = i + dy * this.width + dx;
         return !isOpenWater(this.terrain[j]) && region[j] !== id;
       };
-      for (let d = 1; d <= this.borderPx; d++)
-        if (other(d, 0) || other(0, d)) return mixP(color, C.ink, this.atlas ? 0.62 : 0.8);
-      if (this.bandPx) {
-        const other4 = (dx: number, dy: number) => {
-          if (lx + dx < 0 || ly + dy < 0 || lx + dx >= this.width || ly + dy >= this.height) return false;
-          const j = i + dy * this.width + dx;
-          return !isOpenWater(this.terrain[j]) && region[j] !== id;
-        };
-        const band = this.bandColors[id];
+      const other4 = (dx: number, dy: number) => {
+        if (lx + dx < 0 || ly + dy < 0 || lx + dx >= this.width || ly + dy >= this.height) return false;
+        const j = i + dy * this.width + dx;
+        return !isOpenWater(this.terrain[j]) && region[j] !== id;
+      };
+      const near = (d: number) => other4(d, 0) || other4(-d, 0) || other4(0, d) || other4(0, -d);
+      const band = this.bandColors[id];
+      if (this.atlas) {
+        for (let d = 1; d <= this.borderPx; d++) if (other(d, 0) || other(0, d)) return mixP(color, C.ink, 0.62);
+      } else {
+        // a thick line on both sides, each in its own nation's dark tone, then a band of its colour inside
+        const dark = band ? mixP(band, C.ink, 0.62) : C.ink;
+        for (let d = 1; d <= this.borderPx; d++) if (near(d)) return mixP(color, dark, 0.88);
+      }
+      if (this.bandPx && band) {
         const reach = this.borderPx + this.bandPx;
-        if (band)
-          for (let d = 1; d <= reach; d++)
-            if (other4(d, 0) || other4(-d, 0) || other4(0, d) || other4(0, -d))
-              return mixP(color, band, 0.62 - (d / reach) * 0.22);
+        for (let d = this.borderPx + 1; d <= reach; d++)
+          if (near(d)) return mixP(color, band, Math.min(0.92, (0.78 - (d / reach) * 0.3) * this.bandStrength));
       }
       const sub = this.subregion;
       if (sub && (x + y) % 4 < 2) {

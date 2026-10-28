@@ -31,12 +31,23 @@ interface Level {
 
 const LEVELS: Level[] = [
   { scale: 0.25, from: 0, detail: 0, borderPx: 1, bandPx: 0, keep: Infinity }, // a quick first look while the rest paints
-  { scale: 1, from: 0, detail: 0, borderPx: 2, bandPx: 2, keep: Infinity },
-  { scale: 2, from: 1.5, detail: 1, borderPx: 2, bandPx: 3, keep: Infinity },
-  { scale: 4, from: 3, detail: 2, borderPx: 2, bandPx: 4, keep: 28 },
-  { scale: 8, from: 6, detail: 2, borderPx: 3, bandPx: 6, keep: 28 }
+  { scale: 1, from: 0, detail: 0, borderPx: 1, bandPx: 2, keep: Infinity },
+  { scale: 2, from: 1.5, detail: 1, borderPx: 2, bandPx: 4, keep: Infinity },
+  { scale: 4, from: 3, detail: 2, borderPx: 2, bandPx: 5, keep: 28 },
+  { scale: 8, from: 6, detail: 2, borderPx: 2, bandPx: 7, keep: 28 }
 ];
 const FADE_MS = 220;
+
+/** The Style editor's state borders set the line: its width scales line and band, its opacity the band's strength */
+function borderStyle(): { width: number; strength: number } {
+  const attrs = styles?.borders?.groups?.stateBorders?.attrs;
+  const width = Number(attrs?.["stroke-width"] ?? 1);
+  const opacity = Number(attrs?.opacity ?? 0.8);
+  return {
+    width: Number.isFinite(width) ? Math.max(0.25, Math.min(4, width)) : 1,
+    strength: Number.isFinite(opacity) ? Math.max(0, Math.min(1.25, opacity / 0.8)) : 1
+  };
+}
 const TINT = [0.2, 0.2, 0.08]; // by level: nations' colour over the terrain, clearest zoomed out
 
 // widths in map pixels, with a floor in screen pixels so roads stay visible zoomed out; solid roads get a dark edge
@@ -563,6 +574,7 @@ class PixelMap {
     const spec = LEVELS[tile.level];
     const view = getMapView();
     const borders = Layers.isOn("borders") || view !== "terrain";
+    const line = borderStyle();
     return {
       scale: spec.scale,
       ox: tile.col * TILE - APRON,
@@ -573,8 +585,9 @@ class PixelMap {
       detail: spec.detail,
       view,
       borders,
-      borderPx: spec.borderPx,
-      bandPx: spec.bandPx,
+      borderPx: Math.max(1, Math.round(spec.borderPx * line.width)),
+      bandPx: Math.round(spec.bandPx * line.width),
+      bandStrength: line.strength,
       provinces: tile.level >= 3 && (view === "terrain" || view === "military") && borders,
       outline: isOutlineOnly(),
       coastPx: borders ? Math.max(1, Math.round(spec.scale / 3)) : 0,

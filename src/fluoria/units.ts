@@ -5,6 +5,7 @@ import { select } from "d3";
 import type { Regiment } from "@/generators/military-generator";
 import { colourOf, setArt } from "@/renderers/draw-military";
 import { landingCells, unload } from "./boarding";
+import { ART_PX, MAX_PIPS, PIP, SYMBOL } from "./constants";
 import { CARD_W, pileSize } from "./forces/cards";
 import { domainOf, health, kitOf, rows, slotsOf, troopsOf, typeOf } from "./forces/forces";
 import { airReach, canStand, LANE_CELLS, reachable, SEA_CELLS } from "./movement";
@@ -12,6 +13,8 @@ import { cellAtPoint, cellCentre, cellOfGrid, cellPolygon, mainCell } from "./on
 import { dimPixelMap } from "./pixel-map-sync";
 import { laneSteps } from "./road-geometry";
 import { seaCellAt, seaPoint, seaPolygon, seaReach } from "./sea-grid";
+import { rankOf } from "./settlement-size";
+import { isCapital } from "./settlements";
 import { afterMove, blocked, hasRoom, placeOf } from "./war";
 
 let rangeOf: Regiment | null = null;
@@ -45,7 +48,6 @@ const standAt = (
   return cell === undefined ? null : { cell, packCell: cell, point: cellCentre(cell) };
 };
 
-const ART_PX = 2; // screen pixels per art pixel, at every zoom
 const PILE_GAP = 8; // screen pixels kept between piles far out: closer ones merge
 let unitScale = 1;
 let far = false;
@@ -323,7 +325,7 @@ const pileArt = (members: Regiment[], unit = typeOf(members[0]) ?? "") => {
     colour: colourOf(lead.origin ?? lead.state),
     count: members.length,
     health: members.reduce((sum, r) => sum + health(r), 0) / members.length,
-    pips: Math.min(4, rows(lead.cargo).length)
+    pips: Math.min(MAX_PIPS, rows(lead.cargo).length)
   };
 };
 
@@ -378,8 +380,10 @@ function layClose(shown: Map<Regiment, { art: ReturnType<typeof pileArt>; x: num
       y += Math.max(...sizes.map(s => s.h)) + GAP;
     }
     const first = here[0].members[0];
-    const burg = !first.n ? pack.cells.burg[mainCell(first.cell)] : 0;
-    const top = burg ? -y - 4 : -y / 2; // above a settlement's symbol, else centred
+    const burg = pack.cells.burg[mainCell(first.cell)]; // a fleet in harbour too
+    const town = burg ? pack.burgs[burg] : null;
+    const symbol = town ? SYMBOL[isCapital(town) ? "capital" : rankOf(town)] : 0;
+    const top = town ? -y - symbol / 2 - PIP - 1 : -y / 2; // above a settlement's symbol and its pips, else centred
     for (const { stack, x, y: sy } of spots) {
       const [lead, ...rest] = stack.members;
       if (stack.key === spreadKey) {
@@ -427,14 +431,6 @@ function layFar(shown: Map<Regiment, { art: ReturnType<typeof pileArt>; x: numbe
     piles.set(lead, { members, x, y });
     shown.set(lead, { art, x: (x - lead.x) / unitScale, y: (y - lead.y) / unitScale });
     for (const r of members) if (r !== lead) shown.set(r, { art: null, x: 0, y: 0 });
-  }
-}
-
-/** Settlement names keep their place under the symbol: units stand above it */
-export function nameLabels(): void {
-  for (const label of document.querySelectorAll<SVGTextElement>("#labels text[data-fl-under]")) {
-    delete label.dataset.flUnder;
-    label.style.translate = "0 1.5em";
   }
 }
 

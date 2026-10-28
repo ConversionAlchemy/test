@@ -43,6 +43,7 @@ export interface TileJob {
   borders: boolean;
   borderPx: number;
   bandPx: number;
+  bandStrength?: number;
   provinces: boolean; // dashed province lines
   outline: boolean; // regions as borders only, no fill
   coastPx: number; // owner's colour along coasts
@@ -172,6 +173,7 @@ export function paintTile(model: WorldModel, job: TileJob): Uint32Array {
   raster.borders = job.borders;
   raster.borderPx = job.borderPx;
   raster.bandPx = job.bandPx;
+  raster.bandStrength = job.bandStrength ?? 1;
   raster.coastPx = job.coastPx;
   raster.bandColors = Array.from(model.colors.state);
   const military = job.view === "military"; // the terrain darkened, each nation's land washed in its colour

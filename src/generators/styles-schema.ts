@@ -150,8 +150,8 @@ const shift = (axis: "x" | "y", reach: number, step: number, tip: string) =>
 const borders = z.strictObject({
   attrs: z.strictObject({
     stroke,
-    opacity,
-    "stroke-width": strokeWidth,
+    opacity: variant(opacity, { effect: "draw" }), // Fluoria: the pixel map's border band follows it
+    "stroke-width": variant(strokeWidth, { effect: "draw" }), // and its line width
     "stroke-dasharray": strokeDasharray,
     "stroke-linecap": strokeLinecap,
     filter

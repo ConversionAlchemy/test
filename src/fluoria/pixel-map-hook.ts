@@ -9,7 +9,7 @@ import { drawSettlements } from "@/renderers/draw-military";
 import { ensureHitLayer, NATION_ZOOM } from "./cell-card";
 import { applyFluoriaEmblems, enrichPlainEmblems } from "./emblems/store";
 import { raiseBeside } from "./forces/army";
-import { convertToChips, convertUnitTypes, normalise } from "./forces/forces";
+import { convertToChips, convertUnitTypes, normalise, retireUnits } from "./forces/forces";
 import { applyLabelZoom } from "./label-zoom";
 import { getMapView, onMapView } from "./map-view";
 import { setFocus, simplifyDiplomacy } from "./nation";
@@ -26,7 +26,7 @@ import {
 } from "./pixel-map-sync";
 import { collectSeas } from "./sea-names";
 import { evictNonInfantry, foldCapitalPurses, garrisonLoners, seedManpower } from "./settlements";
-import { applyUnitZoom, nameLabels, snapAll, snapMarkers, stackAll } from "./units";
+import { applyUnitZoom, snapAll, snapMarkers, stackAll } from "./units";
 import { spreadCrowds } from "./war";
 
 type PixelMapModule = typeof import("./pixel-map")["PixelMapLayer"];
@@ -61,7 +61,6 @@ Layers.onDraw(ids => {
   labelsOverUnits();
   if (ids.includes("labels")) {
     applyLabelZoom();
-    nameLabels();
   }
   if (ids.includes("burgIcons") && !ids.includes("military") && Layers.isOn("military")) {
     drawSettlements();
@@ -104,6 +103,7 @@ window.addEventListener("map:generated", () => {
   setFocus(0);
   const { moved, clashes } = foldMap();
   const relations = simplifyDiplomacy();
+  const retired = retireUnits(emoji => Icons.glyph(emoji)); // before the rest: they don't know the old types
   const converted = convertUnitTypes(emoji => Icons.glyph(emoji));
   const chips = convertToChips(emoji => Icons.glyph(emoji));
   const split = normalise(raiseBeside);
@@ -122,6 +122,9 @@ window.addEventListener("map:generated", () => {
       : "",
     clashes.length ? `Left in place (their cell already has a settlement): ${clashes.join(", ")}.` : "",
     relations ? `${relations} relations set to neutral (friendly, suspicious, rival or unknown).` : "",
+    retired
+      ? `${retired} groups of retired types converted: Saber troops to Homeguard, trade ships to transports.`
+      : "",
     converted ? "Military units converted to the Fluoria unit types." : "",
     chips ? `${chips} groups converted to the new unit sizes, one chip per old slot.` : "",
     split ? `${split} units split off so every chip stands on its own.` : "",

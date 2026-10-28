@@ -698,7 +698,7 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
       </div>
     </div>
     ${purseBlocks(burg)}
-    <div class="flPurse"><div class="flPurseHead">${t("Military")}<span class="flSummary">${t("Garrison")} ${short(garrisonTroops)} · ${t("Armies")} ${short(armyTroops)}</span></div></div>
+    <div class="flPurse"><div class="flPurseHead">${t("Military")}<span class="flSummary">${size ? `${t("Garrison")} ${short(garrisonTroops)} · ` : ""}${t("Armies")} ${short(armyTroops)}</span></div></div>
     <nav class="flTabs">${tabs.map(([key, label]) => `<button type="button" data-settle-tab="${key}" class="${key === settleTab ? "on" : ""}">${label}</button>`).join("")}</nav>
     <div class="flTabBody">${body}</div>
     ${recruiting === burgId ? recruitForm(burg) : ""}

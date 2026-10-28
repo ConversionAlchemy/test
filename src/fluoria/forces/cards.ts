@@ -1,6 +1,7 @@
 // Unit cards: a 21×13 box in the nation's colour with a black symbol; the frame tells the domain (land plain, air with
 // its top corners clipped, sea with its bottom ones) and the symbol tells the type and tier. A stack shows the units
 // under the top card as 1 px strips, one health line under all of them and cargo pips on top
+import { MAX_PIPS, PIP } from "../constants";
 import type { KitUnit } from "./kit";
 
 export const CARD_W = 21;
@@ -8,7 +9,6 @@ export const CARD_H = 13;
 const CX = 10;
 const CY = 6;
 const STRIP = 2; // art px each card under the top one adds
-const PIP = 3;
 
 /** 0 empty, 1 black, 2 nation colour */
 export type Grid = number[][];
@@ -82,12 +82,6 @@ const hold = (dot: Ink, tier: number) => {
     line(dot, CX - 5, 9, CX + 5, 9);
   }
 };
-const crate = (dot: Ink, tier: number) => {
-  box(dot, CX - 4, CY - 2, 9, 5);
-  box(dot, CX - 3, CY - 1, 7, 3, 2);
-  if (tier >= 2) line(dot, CX - 3, CY, CX + 3, CY);
-  if (tier === 3) box(dot, CX - 3, CY - 1, 7, 3);
-};
 
 const SYMBOLS: Record<string, (dot: Ink, tier: number) => void> = {
   land_infantry: (dot, tier) => {
@@ -100,8 +94,8 @@ const SYMBOLS: Record<string, (dot: Ink, tier: number) => void> = {
   },
   land_assault: (dot, tier) => {
     cross(dot);
-    if (tier <= 2) line(dot, 1, CY, CARD_W - 2, CY);
     if (tier === 2) {
+      line(dot, 1, CY, CARD_W - 2, CY);
       box(dot, CX - 2, CY - 2, 2, 5);
       box(dot, CX + 1, CY - 2, 2, 5);
     }
@@ -144,8 +138,6 @@ const SYMBOLS: Record<string, (dot: Ink, tier: number) => void> = {
   },
   air_transport: (dot, tier) => hold(dot, tier),
   naval_transport: (dot, tier) => hold(dot, tier),
-  air_trade: (dot, tier) => crate(dot, tier),
-  naval_trade: (dot, tier) => crate(dot, tier),
   naval_scout: (dot, tier) => {
     const bases = tier === 1 ? [7] : tier === 2 ? [5, 9] : [4, 7, 10];
     for (const base of bases) arc(dot, base, 2, 3);
@@ -220,7 +212,7 @@ export function pilePixels(pile: Pile): (string | null)[][] {
   const bar = h - 1;
   const kept = Math.round(CARD_W * Math.max(0, Math.min(1, pile.health)));
   for (let x = 0; x < CARD_W; x++) out[bar][x] = x < kept ? healthColour(pile.health) : HEALTH.lost;
-  const pips = Math.min(4, pile.pips);
+  const pips = Math.min(MAX_PIPS, pile.pips);
   if (pips) {
     const width = pips * 2 + 1;
     const x0 = Math.floor((CARD_W - width) / 2);
@@ -236,7 +228,7 @@ const healthStep = (health: number) => Math.round(Math.max(0, Math.min(1, health
 
 /** A pile as an image: cached by everything it shows */
 export function pileUrl(pile: Pile): string {
-  const key = `${pile.unit.id}|${pile.colour}|${Math.min(pile.count, MAX_STRIPS + 1)}|${healthStep(pile.health)}|${Math.min(4, pile.pips)}`;
+  const key = `${pile.unit.id}|${pile.colour}|${Math.min(pile.count, MAX_STRIPS + 1)}|${healthStep(pile.health)}|${Math.min(MAX_PIPS, pile.pips)}`;
   let url = cache.get(key);
   if (url) return url;
   const pixels = pilePixels({ ...pile, health: healthStep(pile.health) / CARD_W });
