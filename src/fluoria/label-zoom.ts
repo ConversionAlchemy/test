@@ -1,8 +1,9 @@
 // Fluoria's map lettering, atlas-style: which label groups show at which zoom, how big they are on screen, how each
 // kind looks, and which give way where they overlap. Labels and icons stay Azgaar's; this styles and gates them
 import { viewport } from "@/components/viewport";
+import { ART_PX, SYMBOL, SYMBOL_BOX } from "./constants";
 import { cellsOfState, stateInk, TINY_FROM, TINY_STATE } from "./owners";
-import { type Size, sizeOf } from "./settlement-size";
+import { type Rank, rankOf, sizeOf } from "./settlement-size";
 import { CLASS_ORDER, classOf, isCapital, type SettlementClass } from "./settlements";
 
 const SMALL_STATE = 8; // cells under which a nation is named by its city once zoomed in
@@ -33,12 +34,6 @@ const TIERS: Record<string, Tier> = {
 
 const GROWTH = 0.3; // labels grow with zoom, much slower than the map
 const MAX_GROWTH = 2;
-const ICON_PX = [
-  [0, 9],
-  [1.6, 11],
-  [4.5, 14],
-  [8, 16]
-] as const; // settlement symbols on screen
 
 /** Fluoria's zoom range for a label group, or undefined to keep Azgaar's */
 export function labelTier(group: string): { min: number; max: number } | undefined {
@@ -78,8 +73,9 @@ const STYLE = `
   stroke-width: 0.12em !important;
 }
 #labels text.flHidden { visibility: hidden; }
-body[data-fl-tier="political"] #burgIcons { display: none; }
-body[data-fl-tier="region"] #burgIcons > g:not([data-group="capital"], [data-group="city"]) { display: none; }
+#burgIcons use { image-rendering: pixelated; }
+body[data-fl-tier="political"] #burgIcons use[href="#fl-village"] { display: none; }
+#burgIcons use:hover { filter: brightness(1.12) drop-shadow(0 0 1px #ffffff); }
 #burgIcons > g > g[data-group="anchors"] { display: none; }
 #burgIcons > g > g[data-group="icons"] {
   font-size: var(--fl-burg) !important;
@@ -92,12 +88,11 @@ ${Object.entries(TIERS)
   .join("\n")}
 `;
 
-// atlas symbols in a 1×1 box centred on the settlement: a village a black dot; towns, cities and citadels white squares
-// growing in size, each with its class's pixel glyph; the capital a square in the road red
+// pixel symbols, drawn at the unit cards' pixel size: a village, town, city or citadel a white square growing with
+// size (a citadel's border twice as thick), each with its class's glyph; the capital a citadel in the road red
 const DARK = "#26262b";
 const LIGHT = "#f4f1e8";
 const CAPITAL_RED = "#a83424";
-const HALF: Record<Size | "capital", number> = { town: 0.24, city: 0.32, citadel: 0.4, capital: 0.42 };
 const GLYPHS: Record<SettlementClass, string[]> = {
   barracks: ["#...#", ".#.#.", "..#..", ".#.#.", "#...#"],
   armoury: [".###.", "#...#", "#...#", "#...#", ".###."],
@@ -105,38 +100,34 @@ const GLYPHS: Record<SettlementClass, string[]> = {
   airbase: ["..#..", "#####", "..#..", "..#..", ".###."],
   market: [".####", "#....", ".###.", "....#", "####."]
 };
+const CENTRE = ["###", "###", "###"]; // a city with no class
 
-function glyph(c: SettlementClass, half: number, ink: string): string {
-  const px = (half * 2 * 0.6) / 5;
-  const x0 = -2.5 * px;
-  return GLYPHS[c]
-    .flatMap((row, y) =>
-      [...row].map((cell, x) =>
-        cell === "#"
-          ? `<rect x="${(x0 + x * px).toFixed(3)}" y="${(x0 + y * px).toFixed(3)}" width="${(px + 0.002).toFixed(3)}" height="${(px + 0.002).toFixed(3)}" fill="${ink}" stroke="none"/>`
-          : ""
-      )
-    )
-    .join("");
-}
+// every paint property on the shapes, so none of the group styles Azgaar puts on the icons leaks in
+const rect = (x: number, y: number, w: number, h: number, fill: string) =>
+  `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="none" opacity="1"/>`;
 
-// every paint property is set on the shapes, so nothing leaks in from the group styles Azgaar puts on the icons
-function symbol(id: string, half: number, fill: string, c: SettlementClass | null, ink: string): string {
-  return `<symbol id="fl-${id}" viewBox="-0.5 -0.5 1 1" overflow="visible"><rect x="${-half}" y="${-half}" width="${half * 2}" height="${half * 2}" fill="${fill}" stroke="${DARK}" stroke-width="0.09"/>${c ? glyph(c, half, ink) : ""}</symbol>`;
+/** One symbol on the box's pixel grid; a clear margin round it makes it easy to hover and drop on */
+function symbol(id: string, rank: Rank | "capital", c: SettlementClass | null): string {
+  const side = SYMBOL[rank];
+  const border = side >= SYMBOL.citadel ? 2 : 1;
+  const o = (SYMBOL_BOX - side) / 2;
+  const fill = rank === "capital" ? CAPITAL_RED : LIGHT;
+  const ink = rank === "capital" ? LIGHT : DARK;
+  const art = c ? GLYPHS[c] : rank === "city" ? CENTRE : null;
+  let pixels = rect(o, o, side, side, DARK) + rect(o + border, o + border, side - border * 2, side - border * 2, fill);
+  if (art && side - border * 2 >= art.length + 2) {
+    const g = (SYMBOL_BOX - art.length) / 2;
+    art.forEach((row, y) => {
+      for (const [x, cell] of [...row].entries()) if (cell === "#") pixels += rect(g + x, g + y, 1, 1, ink);
+    });
+  }
+  return `<symbol id="fl-${id}" data-v="3" viewBox="0 0 ${SYMBOL_BOX} ${SYMBOL_BOX}" overflow="visible" shape-rendering="crispEdges"><rect x="-3" y="-3" width="${SYMBOL_BOX + 6}" height="${SYMBOL_BOX + 6}" fill="none" stroke="none" pointer-events="all"/>${pixels}</symbol>`;
 }
 
 const SYMBOLS = [
-  `<symbol id="fl-village" viewBox="-0.5 -0.5 1 1" overflow="visible"><circle r="0.13" fill="${DARK}" stroke="${LIGHT}" stroke-width="0.05"/></symbol>`,
-  ...(["town", "city", "citadel", "capital"] as const).flatMap(size =>
-    [null, ...CLASS_ORDER].map(c =>
-      symbol(
-        c ? `${size}-${c}` : size,
-        HALF[size],
-        size === "capital" ? CAPITAL_RED : LIGHT,
-        c,
-        size === "capital" ? LIGHT : DARK
-      )
-    )
+  symbol("village", "village", null),
+  ...(["town", "city", "citadel", "capital"] as const).flatMap(rank =>
+    [null, ...CLASS_ORDER].map(c => symbol(c ? `${rank}-${c}` : rank, rank, c))
   )
 ].join("\n");
 
@@ -151,7 +142,7 @@ function install(): void {
     style.textContent = STYLE;
     document.head.append(style);
   }
-  if (!document.getElementById("fl-capital-market")) {
+  if (!document.querySelector("#map symbol#fl-capital-market[data-v='3']")) {
     for (const old of document.querySelectorAll("#map symbol[id^='fl-']")) old.remove();
     const defs = document.querySelector("#map defs") ?? document.querySelector("#map");
     defs?.insertAdjacentHTML("beforeend", SYMBOLS);
@@ -190,10 +181,10 @@ export function applyLabelZoom(scale = viewport.scale): void {
     const screen = Math.round(px * Math.max(1, growth));
     labels.style.setProperty(`--fl-${group}`, `${screen / scale}px`);
   }
-  let icon: number = ICON_PX[0][1];
-  for (const [from, size] of ICON_PX) if (scale >= from) icon = size;
-  icon = Math.round(icon * Math.min(1.8, Math.max(1, (scale / 2) ** 0.3))); // and keeps growing a little closer in
-  document.getElementById("burgIcons")?.style.setProperty("--fl-burg", `${icon / scale}px`);
+  // symbols keep their size on screen, pixel for pixel with the unit cards; at the political view half that
+  const art = scale < 1.6 ? 1 : ART_PX;
+  document.getElementById("burgIcons")?.style.setProperty("--fl-burg", `${(SYMBOL_BOX * art) / scale}px`);
+  labels.style.setProperty("--fl-px", String(1 / scale));
   document.body.dataset.flTier = scale < 1.6 ? "political" : scale < 4.5 ? "region" : "close";
   scheduleDeclutter();
 }
@@ -259,8 +250,9 @@ function declutter(): void {
   }
 }
 
-/** A settlement's name always sits under its symbol, so a garrison's count can sit above */
+/** A settlement's name sits under its symbol; its units and garrison pips stand above */
 function landSide(text: SVGTextElement): void {
-  if (text.dataset.flUnder) return; // a unit card stands on it: the name already sits below the card
-  text.style.translate = "0 1.5em";
+  const burg = pack.burgs[Number(text.dataset.id)];
+  const side = burg ? SYMBOL[isCapital(burg) ? "capital" : rankOf(burg)] : SYMBOL.town;
+  text.style.translate = `0 calc(var(--fl-px, 1) * ${(side / 2) * ART_PX + 2}px + 0.8em)`;
 }

@@ -12,6 +12,7 @@ import {
   normalise,
   refreshNames,
   refusal,
+  retireUnits,
   rows,
   shift,
   slotsOf,
@@ -55,7 +56,7 @@ describe("slots", () => {
 describe("power and strength", () => {
   it("gives a full chip its power: 80 Homeguard are 100", () => {
     expect(cardPower(regiment({ Homeguard: 80 }))).toBe(100);
-    expect(cardPower(regiment({ Commandos: 25 }))).toBe(340);
+    expect(cardPower(regiment({ Commandos: 25 }))).toBe(260); // as strong as Guard riflemen, with fewer men;
     expect(cardPower(regiment({ Troopship: 1 }))).toBe(100);
   });
 
@@ -193,5 +194,24 @@ describe("holds, health and merging", () => {
 
   it("merges only the same type", () => {
     expect(refusal(regiment({ Riflemen: 30 }), "u", "Homeguard", 10)).toMatch(/same type/);
+  });
+});
+
+describe("retired unit types", () => {
+  it("turns Saber troops into Homeguard and trade ships into transports, chip for chip", () => {
+    const kit = kitUnits(glyph);
+    options.map.military.units = [
+      ...kit,
+      { ...kit[0], name: "Saber troops", fl: "land_assault_t1", slot: 50 },
+      { ...kit[0], name: "Merchant ship", fl: "naval_trade_t1", slot: 1 }
+    ];
+    const army = regiment({ "Saber troops": 50 });
+    const ship = regiment({ "Merchant ship": 1 }, { i: 1 });
+    pack.states[1].military = [army, ship];
+    expect(retireUnits(glyph)).toBe(2);
+    expect(army.u).toEqual({ Homeguard: 80 });
+    expect(ship.u).toEqual({ "Troop barge": 1 });
+    expect(options.map.military.units.some(u => u.name === "Saber troops")).toBe(false);
+    expect(retireUnits(glyph)).toBe(0);
   });
 });

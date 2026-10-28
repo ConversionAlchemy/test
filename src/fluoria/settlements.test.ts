@@ -13,8 +13,8 @@ import {
   priceOf,
   recruitable,
   resizeTo,
-  sendFunds,
-  setClass
+  setClass,
+  transfer
 } from "./settlements";
 
 const kit = (id: string) => KIT.find(k => k.id === id)!;
@@ -100,7 +100,7 @@ describe("settlements", () => {
 
   it("spends the nation's money at the capital, and sends it to towns", () => {
     expect(funds(capital())).toBe(1050);
-    expect(sendFunds(town(), 200)).toBe("");
+    expect(transfer(capital(), town(), 200)).toBe("");
     expect(pack.states[1].treasury).toBe(800);
     expect(town().treasury).toBe(500);
   });

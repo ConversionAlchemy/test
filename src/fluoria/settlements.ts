@@ -31,7 +31,7 @@ export const CLASSES: Record<SettlementClass, ClassInfo> = {
   armoury: { name: "Armoury", cost: 450, unlocks: "Armour" },
   harbour: { name: "Harbour", cost: 500, unlocks: "Ships" },
   airbase: { name: "Airbase", cost: 800, unlocks: "Airships" },
-  market: { name: "Market", cost: 150, unlocks: "Trade" }
+  market: { name: "Market", cost: 150, unlocks: "Goods" }
 };
 export const CLASS_ORDER: SettlementClass[] = ["barracks", "armoury", "harbour", "airbase", "market"];
 
@@ -41,11 +41,9 @@ const SLOT_PRICE: Record<string, [number, number, number]> = {
   "land:assault": [30, 80, 200],
   "land:cavalry": [30, 80, 200],
   "land:armour": [60, 160, 400],
-  "naval:trade": [30, 80, 200],
   "naval:scout": [40, 100, 250],
   "naval:combat": [80, 200, 500],
   "naval:transport": [40, 100, 250],
-  "air:trade": [40, 100, 250],
   "air:scout": [50, 130, 300],
   "air:combat": [100, 250, 600],
   "air:bomber": [120, 300, 700],
@@ -267,13 +265,6 @@ export function transfer(from: Burg, to: Burg, amount: number): string {
   spend(from, sum);
   receive(to, sum);
   return "";
-}
-
-/** Move money from the nation's treasury to a settlement */
-export function sendFunds(burg: Burg, amount: number): string {
-  const capital = pack.burgs[pack.states[burg.state ?? 0]?.capital ?? 0];
-  if (!capital?.i) return "The nation has no capital";
-  return transfer(capital, burg, amount);
 }
 
 /** Once on load: a capital's own purse joins its nation's treasury, so there is one figure */

@@ -4,8 +4,8 @@ import { applySorting, applySortingByHeader } from "@/components/dialog/sorting"
 import { Icons } from "@/components/icons";
 import { Layers } from "@/components/layers";
 import { tip } from "@/components/tooltips";
+import { cardUrl } from "@/fluoria/forces/cards";
 import { kitOf, powerOf } from "@/fluoria/forces/forces";
-import { iconUrl } from "@/fluoria/forces/pixels";
 import { returnView } from "@/fluoria/map-view";
 import { standing } from "@/fluoria/nation";
 import { mainCell, neighbours } from "@/fluoria/one-grid";
@@ -616,7 +616,7 @@ function renderSide(side: Side): void {
   };
   const icon = (unit: string, state: number) => {
     const kit = kitOf(unit);
-    return kit ? `<img class="flBattleIcon" src="${iconUrl(kit, colour(state))}" alt="" />` : "";
+    return kit ? `<img class="flBattleIcon" src="${cardUrl(kit, colour(state))}" alt="" />` : "";
   };
   const total = { start: 0, lost: 0, left: 0 };
   const body = [...rows]

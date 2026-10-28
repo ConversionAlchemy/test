@@ -1085,6 +1085,11 @@ body.fl-atlas #coordinates text {
   overflow-x: hidden;
 }
 
+/* Azgaar sizes a dialog's direct blocks to their content: a folder's fill its width (the garrison box, notes) */
+.flFolder > div {
+  width: auto;
+}
+
 .flSlotCount input {
   width: 4.5em;
 }
@@ -1158,8 +1163,8 @@ body.fl-atlas #coordinates text {
 }
 
 .flBattleIcon {
-  width: 1.4em;
-  height: 1.4em;
+  width: 42px;
+  height: 26px;
   image-rendering: pixelated;
   vertical-align: middle;
 }
@@ -1233,7 +1238,6 @@ body[data-fl-view="military"] :is(#labels, #routes) { pointer-events: none; }
 #flNation .np-tools { display: flex; gap: 4px; margin-bottom: 6px; }
 #flNation .np-tools select { flex: 1; }
 #flNation details.np-army { background: #292929; border: 1px solid #3c3c3c; margin: 2px 0; }
-#flNation details.np-army.np-over { outline: 1px solid #fff; }
 #flNation details.np-army summary { display: flex; align-items: center; gap: 6px; padding: 3px 6px; cursor: pointer; list-style: none; }
 #flNation details.np-army summary::-webkit-details-marker { display: none; }
 #flNation details.np-army summary img, #flNation .np-unit img { width: 42px; height: 26px; image-rendering: pixelated; flex: none; }
@@ -1246,37 +1250,26 @@ body[data-fl-view="military"] :is(#labels, #routes) { pointer-events: none; }
 #flNation h3 { margin: 8px 0 3px; font-weight: normal; color: var(--fl-dim); font-size: 18px; }
 
 /* the settlement folder */
-.flSettleRow { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 0 0 0.3em; }
-.flBuildings { display: flex; gap: 3px; }
-.flBuilding { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; background: #1b1b1b; border: 1px solid #3a3a3a; cursor: pointer; }
-.flBuilding.on { background: #3a3a3a; border-color: #ddd; }
-.flBuilding img { width: 17px; height: 17px; image-rendering: pixelated; }
 .flGoods { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; color: var(--fl-dim); }
 .flGood { display: inline-flex; align-items: center; gap: 2px; }
 .flGold { color: #e3c66b; }
 .flRecruit { display: grid; gap: 4px; padding: 4px 0; }
 .flRecruitLine { display: flex; gap: 4px; }
-.flRecruitCount { flex: 1; }
 #armies .flSettle { cursor: pointer; }
-/* a garrison's count above its settlement, close in only */
-#armies[data-fl-stage="far"] #flSettlements { display: none; }
-#flSettlements .flCount { font-family: "VT323", monospace; text-shadow: 0.06em 0.06em 0 #000000; }
+/* garrison pips on a settlement's symbol, kept their size on screen like the cards */
+#flSettlements > g { scale: var(--fl-unit, 1); }
 .flNationLink { cursor: pointer; }
 
 /* folder buttons are pixel icons */
-.flFolderBottom .flPx, .flMoneyLine .flPx, .flPart .flPx { display: inline-grid; place-items: center; width: 34px; height: 28px; padding: 0; background: #4a4a4a; border: 1px solid #2a2a2a; cursor: pointer; }
-.flMoneyLine .flPx, .flPart .flPx { width: 24px; height: 22px; }
+.flFolderBottom .flPx, .flPart .flPx { display: inline-grid; place-items: center; width: 34px; height: 28px; padding: 0; background: #4a4a4a; border: 1px solid #2a2a2a; cursor: pointer; }
+.flPart .flPx { width: 24px; height: 22px; }
 .flPx img { width: 22px; height: 22px; image-rendering: pixelated; }
-.flMoneyLine .flPx img, .flPart .flPx img { width: 16px; height: 16px; }
+.flPart .flPx img { width: 16px; height: 16px; }
 .flPx:hover { background: #5c5c5c; }
 .flPx.pressed { background: #e8e5d9; }
 .flPx.pressed img { filter: invert(1); }
 /* the settlement folder: inline edits and nested parts */
-.flInline { width: 4.2em; appearance: textfield; -moz-appearance: textfield; background: transparent; border: 1px solid transparent; color: inherit; font: inherit; padding: 0 2px; }
-.flInline:hover, .flInline:focus { border-color: #555; background: #1e1e1e; }
-.flMoneyLine { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .flSize { font: inherit; }
-.flPartHead { color: var(--fl-dim); padding: 4px 2px 2px; }
 details.flPart { background: #292929; border: 1px solid #3c3c3c; margin: 2px 0; }
 details.flPart > summary { display: flex; align-items: center; gap: 6px; padding: 3px 6px; cursor: pointer; list-style: none; }
 details.flPart > summary::-webkit-details-marker { display: none; }
@@ -1285,23 +1278,18 @@ details.flPart .flPartName { flex: 1; min-width: 0; overflow: hidden; text-overf
 details.flPart .flPartSize { color: var(--fl-dim); white-space: nowrap; }
 details.flPart .flSlots { padding: 0 4px 4px 4px; box-sizing: border-box; }
 .flFolder a.flAt { cursor: pointer; border-bottom: 1px dashed #777; color: inherit; }
-.flInline::-webkit-inner-spin-button, .flInline::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
 /* cursors say what can be done: point at what opens, a crosshair while picking a target */
-#armies .flTab, #flSettlements .flSettle, #burgIcons use, .flNationLink, .flBuilding, .flPx, .flAt, .flGear,
+#armies .flTab, #flSettlements .flSettle, #burgIcons use, .flNationLink, .flPx, .flAt, .flGear,
 #flNation .np-stat[data-tab], details.flPart > summary { cursor: pointer; }
 .flSlot.flEmpty:not(.flNoAdd) { cursor: copy; }
-.flFolderName, .flInline, .np-army-name { cursor: text; }
+.flFolderName, .np-army-name { cursor: text; }
 #viewbox[style*="crosshair"] #armies > g > g { cursor: crosshair; }
 
 /* Azgaar's note preview, dark like the rest of the interface */
 #notes { background: #232323ee !important; border: 1px solid #000 !important; color: #e8e5d9; font-family: "VT323", monospace; box-shadow: 0 3px 10px #0008; }
 #notesHeader { border-bottom: 1px solid #444 !important; color: #fff; }
 #notesBody { color: #e8e5d9; }
-
-/* the money line keeps to one row */
-.flMoneyLine { flex-wrap: nowrap; white-space: nowrap; }
-.flMoneyLine .flInline { width: 3.6em; }
 
 /* Azgaar's lists and editors in the dark grey of Fluoria's own folders: flat rows, a dark header, no light gradients */
 .ui-dialog div.states {
@@ -1335,7 +1323,7 @@ details.flPart .flSlots { padding: 0 4px 4px 4px; box-sizing: border-box; }
   border: 1px solid var(--fl-line);
   border-radius: 0;
 }
-.ui-dialog button:not(.flPx):not(.flBuilding):not(.flGear):not(.ui-dialog-titlebar-close):not(.ui-dialog-titlebar-minimize) {
+.ui-dialog button:not(.flPx):not(.flGear):not(.ui-dialog-titlebar-close):not(.ui-dialog-titlebar-minimize) {
   border-radius: 0;
 }
 .ui-dialog fieldset,
@@ -1344,9 +1332,7 @@ details.flPart .flSlots { padding: 0 4px 4px 4px; box-sizing: border-box; }
 .ui-dialog .ui-dialog-buttonpane button { background: #4a4a4a; color: #e8e5d9; border: 1px solid #2a2a2a; }
 .ui-dialog .ui-dialog-buttonpane button:hover { background: #5c5c5c; }
 
-.ui-dialog.flFaded { opacity: 0.4; pointer-events: none; } /* clicks go through to the map while picking */
 body.flPicking #map, body.flPicking #map * { cursor: crosshair !important; }
-#flNation .np-send { margin-left: 4px; padding: 0 5px; font-size: 0.9em; cursor: pointer; }
 .flSlot .flUp { padding: 0 4px; background: none; border: 0; color: #8fd18a; cursor: pointer; font: inherit; letter-spacing: -1px; }
 .flSlot .flUp:hover { color: #c8ffc2; }
 .flSlot .flUp.flOff { color: #5c5c5c; }
@@ -1426,3 +1412,4 @@ body.flPicking #map, body.flPicking #map * { cursor: crosshair !important; }
 .flLanding .flSlot { cursor: pointer; }
 .flHold .flSlot.flEmpty { height: 2em; }
 .flLanding input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; margin: 0; accent-color: #6fd36a; flex: none; }
+body[data-fl-tier="political"] #flSettlements { display: none; }

@@ -1,9 +1,9 @@
 import { easeSinInOut, select, transition } from "d3";
+import { MAX_PIPS, PIP, SYMBOL } from "@/fluoria/constants";
 import { type Pile, pileSize, pileUrl } from "@/fluoria/forces/cards";
-import { refreshNames, troopsOf } from "@/fluoria/forces/forces";
-import { short } from "@/fluoria/forces/pixels";
-import { sizeOf } from "@/fluoria/settlement-size";
-import { garrisonOf } from "@/fluoria/settlements";
+import { refreshNames, rows } from "@/fluoria/forces/forces";
+import { garrisonSlots, sizeOf } from "@/fluoria/settlement-size";
+import { garrisonOf, isCapital } from "@/fluoria/settlements";
 import type { Regiment } from "../generators/military-generator";
 import { rn } from "../utils";
 
@@ -123,7 +123,7 @@ export const moveRegiment = (regiment: Regiment, x: number, y: number): void => 
     .tween("move", () => (t: number) => placeRegiment(el, fromX + (x - fromX) * t, fromY + (y - fromY) * t));
 };
 
-/** Close in, a settlement with a garrison shows its count beside its symbol; hover lists them, a click opens it */
+/** A settlement's garrison as pips on its symbol's top edge, one per quarter full; hover tells, a click opens it */
 export function drawSettlements(armies = document.getElementById("armies")): void {
   if (!armies) return;
   let layer = armies.querySelector<SVGGElement>(":scope > g#flSettlements");
@@ -131,29 +131,38 @@ export function drawSettlements(armies = document.getElementById("armies")): voi
     layer = document.createElementNS(SVG, "g");
     layer.id = "flSettlements";
   }
-  armies.prepend(layer); // units stand above settlements
+  armies.prepend(layer);
   layer.replaceChildren();
-  const h = size();
   for (const burg of pack.burgs ?? []) {
     if (!burg?.i || burg.removed || !burg.state || !sizeOf(burg)) continue;
     const garrison = garrisonOf(burg);
-    const troops = garrison ? troopsOf(garrison) : 0;
-    if (!troops) continue;
+    const used = garrison ? rows(garrison.u).length : 0;
+    if (!used) continue;
+    const slots = garrisonSlots(burg.i) || 1;
+    const pips = Math.max(1, Math.min(MAX_PIPS, Math.ceil((used / slots) * MAX_PIPS)));
+    const side = SYMBOL[isCapital(burg) ? "capital" : (sizeOf(burg) ?? "town")];
     const g = document.createElementNS(SVG, "g");
     g.dataset.burg = String(burg.i);
     g.classList.add("flSettle");
-    const count = add(g, "text", "flCount");
-    count.setAttribute("text-anchor", "start");
-    count.setAttribute("x", String(rn(burg.x + h * 0.35, 2))); // beside the symbol: units stand above it
-    count.setAttribute("y", String(rn(burg.y + h * 0.15, 2)));
-    count.setAttribute("font-size", `${rn(h * 0.42, 2)}px`);
-    count.setAttribute("fill", tintOf(colourOf(burg.state)));
-    count.textContent = short(troops);
     g.setAttribute("transform-origin", `${burg.x}px ${burg.y}px`);
+    g.setAttribute("shape-rendering", "crispEdges");
+    const colour = colourOf(burg.state);
+    const x0 = burg.x - (pips * 2 + 1) / 2;
+    const y0 = burg.y - side / 2 - PIP;
+    for (let k = 0; k < pips; k++) {
+      const pip = add(g, "rect", "flPip");
+      pip.setAttribute("x", String(rn(x0 + k * 2, 2)));
+      pip.setAttribute("y", String(rn(y0, 2)));
+      pip.setAttribute("width", String(PIP));
+      pip.setAttribute("height", String(PIP));
+      pip.setAttribute("fill", "#111111");
+      const dot = add(g, "rect", "flPip");
+      dot.setAttribute("x", String(rn(x0 + k * 2 + 1, 2)));
+      dot.setAttribute("y", String(rn(y0 + 1, 2)));
+      dot.setAttribute("width", "1");
+      dot.setAttribute("height", "1");
+      dot.setAttribute("fill", colour);
+    }
     layer.append(g);
   }
 }
-
-/** The nation's colour lifted toward white, so a count reads on any ground */
-const tintOf = (hex: string) =>
-  `rgb(${[1, 3, 5].map(k => Math.round(Number.parseInt(hex.slice(k, k + 2), 16) * 0.35 + 255 * 0.65)).join(",")})`;

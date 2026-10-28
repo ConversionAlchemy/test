@@ -1,18 +1,10 @@
-// The 39 approved unit types: 13 families (land, air, naval) in three tiers, with their 17×17 pixel icons
+// The approved unit types by family (land, air, naval) and tier, with their 17×17 pixel icons. Infantry is five:
+// Homeguard, Riflemen, Guard riflemen, Shock troops and Commandos; there are no trade units
 import type { MilitaryUnit } from "@/types/Military";
 import data from "./kit.json";
 
 export type Domain = "land" | "naval" | "air";
-export type Role =
-  | "infantry"
-  | "assault"
-  | "cavalry"
-  | "armour"
-  | "trade"
-  | "scout"
-  | "combat"
-  | "bomber"
-  | "transport";
+export type Role = "infantry" | "assault" | "cavalry" | "armour" | "scout" | "combat" | "bomber" | "transport";
 
 export interface KitUnit {
   id: string;
@@ -38,10 +30,9 @@ export const SLOT_SIZE: Partial<Record<Role, [number, number, number]>> = {
 
 /** Power of one full chip by tier, transports the weakest; a unit's Azgaar power is this over the chip, ×100 */
 const SLOT_POWER: Record<Domain, Partial<Record<Role, [number, number, number]>>> = {
-  land: { infantry: [100, 160, 260], assault: [120, 200, 340], cavalry: [120, 200, 340], armour: [180, 300, 500] },
-  naval: { trade: [60, 100, 160], scout: [80, 140, 220], combat: [200, 340, 560], transport: [60, 100, 160] },
+  land: { infantry: [100, 160, 260], assault: [120, 200, 260], cavalry: [120, 200, 340], armour: [180, 300, 500] }, // Commandos as strong as Guard riflemen, with fewer men
+  naval: { scout: [80, 140, 220], combat: [200, 340, 560], transport: [60, 100, 160] },
   air: {
-    trade: [60, 100, 160],
     scout: [80, 140, 220],
     combat: [220, 370, 600],
     bomber: [250, 420, 680],
@@ -56,13 +47,13 @@ const AZGAAR_TYPE: Partial<Record<Role, string>> = {
   armour: "armored"
 };
 
-const CREW: Partial<Record<Role, number>> = { infantry: 1, assault: 1, cavalry: 2, armour: 6, scout: 30, trade: 20 };
+const CREW: Partial<Record<Role, number>> = { infantry: 1, assault: 1, cavalry: 2, armour: 6, scout: 30 };
 
 // who a new map raises: share of rural and urban population, as Azgaar's own defaults
 const RAISED: Record<string, [number, number]> = {
   land_infantry_t1: [0.25, 0.1],
   land_infantry_t2: [0.08, 0.15],
-  land_assault_t1: [0, 0.03],
+  land_assault_t2: [0, 0.03],
   land_cavalry_t1: [0.06, 0.01],
   land_armour_t1: [0, 0.0015],
   naval_combat_t1: [0, 0.01],
