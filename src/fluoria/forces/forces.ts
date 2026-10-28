@@ -8,7 +8,8 @@ import { type Domain, type KitUnit, kitUnit, kitUnits, oldSlotSize, slotSize } f
 
 /** One unit is one chip: a group holds one slot; a cell holds 4 of them (war.ts) */
 export const MAX_SLOTS = 1;
-export const CARGO_SLOTS = [0, 2, 3, 4]; // bays by tier: a bigger transport carries more
+/** Land units a ship or airship carries in its hold, by role and tier: transports most, warships one at best */
+const HOLD: Partial<Record<string, [number, number, number]>> = { transport: [2, 3, 4], combat: [0, 1, 1] };
 
 export type Units = Record<string, number>;
 
@@ -51,10 +52,16 @@ export function rows(units: Units | undefined): { unit: string; count: number }[
   return out;
 }
 
+/** Land units a regiment's hold takes: none on land */
 export function cargoSlots(regiment: Pick<Regiment, "u">): number {
-  const name = transportUnit(regiment);
-  return name ? (CARGO_SLOTS[kitOf(name)?.tier ?? 1] ?? 4) : 0;
+  let room = 0;
+  for (const [name] of present(regiment.u)) {
+    const kit = kitOf(name);
+    if (kit && kit.domain !== "land") room = Math.max(room, HOLD[kit.role]?.[kit.tier - 1] ?? 0);
+  }
+  return room;
 }
+export const hasHold = (regiment: Pick<Regiment, "u">) => cargoSlots(regiment) > 0;
 
 /** Slots a regiment's own list may hold: 12, or one transport */
 export const capacityOf = (regiment: Pick<Regiment, "u">) => (isTransport(regiment) ? 1 : MAX_SLOTS);
@@ -76,6 +83,16 @@ export function strength(regiment: Pick<Regiment, "u" | "full">): number {
   if (!regiment.full || regiment.full <= power) return 1;
   return Math.max(0, power / regiment.full);
 }
+
+/** How whole a unit is, 0–1: its troops against a full chip, times what is left of its strength */
+export function health(regiment: Pick<Regiment, "u" | "full">): number {
+  const first = present(regiment.u)[0];
+  if (!first) return 0;
+  return Math.min(1, first[1] / perSlot(first[0])) * strength(regiment);
+}
+
+/** The unit type a single-chip regiment is, for stacking: only the same type stacks and merges */
+export const typeOf = (regiment: Pick<Regiment, "u">) => present(regiment.u)[0]?.[0];
 
 /** The unit a card shows: the transport, else the highest tier, then the most slots */
 export function flagship(regiment: Pick<Regiment, "u">): string | undefined {
@@ -118,7 +135,7 @@ export type List = "u" | "cargo";
 export function refusal(to: Regiment, list: List, unit: string, n: number): string {
   const domain = domainOfUnit(unit);
   if (list === "cargo") {
-    if (!isTransport(to)) return "Only a transport carries cargo";
+    if (!hasHold(to)) return "It has no hold";
     if (domain !== "land") return "Only land units can be cargo";
     const after = { ...to.cargo };
     add(after, unit, n);
@@ -132,9 +149,10 @@ export function refusal(to: Regiment, list: List, unit: string, n: number): stri
     const room = garrisonSlots(to.garrison);
     return slotsOf(after) > room ? `Won't fit: the garrison holds ${room} slots` : "";
   }
-  if (isTransport(to)) return "A transport carries land units as cargo";
+  if (isTransport(to)) return "A transport carries land units in its hold";
   if (kitOf(unit)?.role === "transport" && troopsOf(to)) return "A transport stands alone";
   if (troopsOf(to) && domain !== domainOf(to)) return `${capitalise(domain)} units can't join a ${domainOf(to)} group`;
+  if (troopsOf(to) && typeOf(to) !== unit) return "Only units of the same type merge";
   const after = { ...to.u };
   add(after, unit, n);
   return slotsOf(after) > MAX_SLOTS ? "A unit is one chip: this one is full" : "";
@@ -189,6 +207,31 @@ export function mergeInto(from: Regiment, into: Regiment): string {
   settle(from);
   settle(into);
   return "";
+}
+
+/** Room left in a chip for more of its own type */
+export const roomIn = (regiment: Pick<Regiment, "u">) => {
+  const unit = typeOf(regiment);
+  return unit ? Math.max(0, perSlot(unit) - (regiment.u[unit] ?? 0)) : 0;
+};
+
+/**
+ * Pour one unit's troops into others of its type, the most hurt first; what doesn't fit stays in `from`.
+ * Returns how many moved
+ */
+export function fillFrom(from: Regiment, into: Regiment[]): number {
+  const unit = typeOf(from);
+  if (!unit) return 0;
+  let moved = 0;
+  const targets = into
+    .filter(r => r !== from && r.state === from.state && typeOf(r) === unit && !isTransport(r))
+    .sort((a, b) => health(a) - health(b));
+  for (const target of targets) {
+    const n = Math.min(roomIn(target), from.u[unit] ?? 0);
+    if (n <= 0) continue;
+    if (!shift(from, "u", unit, n, target, "u")) moved += n;
+  }
+  return moved;
 }
 
 /** Encamping restores the bar: full strength becomes what is left */

@@ -1,7 +1,6 @@
-// Fluoria's folder for a regiment: Azgaar's regiment dialog, its units shown as one row per slot up to the cap.
-// Rows drag between open folders, out onto the map to stand alone or join a regiment there, and into a transport.
-// A regiment dragged onto another on the map merges with it, or loads into it if it's a transport
-import { type D3DragEvent, drag, easeSinInOut, select, transition } from "d3";
+// Fluoria's folder for a regiment: Azgaar's regiment dialog, its unit and its hold as rows, and the settlement panel.
+// Moving units is drag.ts's: map cards, panel rows and army headers all drag the same way
+import { easeSinInOut, select, transition } from "d3";
 import { confirmationDialog, refreshEditors } from "@/components/dialog/dialog-helpers";
 import { Icons } from "@/components/icons";
 import { Layers } from "@/components/layers";
@@ -10,8 +9,10 @@ import { applyDefaultViewboxEvents } from "@/components/viewbox-events";
 import { viewport } from "@/components/viewport";
 import { zoomTo } from "@/components/zoom";
 import { Controllers } from "@/controllers";
-import { canLoad, landingCells, load } from "@/fluoria/boarding";
-import { addSlot, assign, changeRow, disband, encampRefusal, merge, regimentOf, splitOff } from "@/fluoria/forces/army";
+import { landingCells } from "@/fluoria/boarding";
+import { dragging, type Payload, pressed, regimentUnder, setDragHooks, watchMapDrags } from "@/fluoria/drag";
+import { addSlot, assign, changeRow, encampRefusal, regimentOf, splitOff } from "@/fluoria/forces/army";
+import { cardUrl } from "@/fluoria/forces/cards";
 import {
   cardPower,
   cargoSlots,
@@ -19,26 +20,24 @@ import {
   domainOfUnit,
   encamp,
   flagship,
-  isTransport,
+  health,
   kitOf,
   type List,
   MAX_SLOTS,
-  mergeRefusal,
-  perSlot as perChip,
   refusal,
   rows,
-  shift,
   slotsOf,
-  strength,
-  troopsOf
+  troopsOf,
+  typeOf
 } from "@/fluoria/forces/forces";
 import { KIT } from "@/fluoria/forces/kit";
-import { artUrl, buttonUrl, iconUrl, short, stallUrl } from "@/fluoria/forces/pixels";
+import { buttonUrl, iconUrl, short, stallUrl } from "@/fluoria/forces/pixels";
 import { borrowView, returnView } from "@/fluoria/map-view";
-import { canStand, reachable } from "@/fluoria/movement";
+
 import { openNation } from "@/fluoria/nation-panel";
-import { cellAtPoint, mainCell, neighbours } from "@/fluoria/one-grid";
-import { dimPixelMap, highlightCell } from "@/fluoria/pixel-map-sync";
+import { escapeTaken, numberField, wireField } from "@/fluoria/number-field";
+import { cellAtPoint, mainCell, neighbours as neighbourCells } from "@/fluoria/one-grid";
+import { forgetOrders, order, undoOrder } from "@/fluoria/orders";
 import { purseBlocks, wirePurse } from "@/fluoria/purse";
 import {
   GARRISON_SLOTS,
@@ -52,7 +51,6 @@ import {
   sizeOf
 } from "@/fluoria/settlement-size";
 import {
-  burgOfElement,
   CLASS_ORDER,
   CLASSES,
   categoryOf,
@@ -60,7 +58,6 @@ import {
   classRefusal,
   ensureGarrison,
   formArmy,
-  garrisonable,
   garrisonOf,
   isCapital,
   manpowerGain,
@@ -76,28 +73,28 @@ import {
   type SettlementClass,
   sendHome,
   setClass,
-  station,
   unitName,
   upgrade,
   upgradeCost,
   upgradeRefusal
 } from "@/fluoria/settlements";
-import { hidePeek, LINGER, onPeekDrag, peek, regimentGroup, unitTip } from "@/fluoria/unit-peek";
+import { play } from "@/fluoria/sfx";
+import { setTips } from "@/fluoria/tips";
 import {
-  cellOf,
   chooseLanding,
   clearSelection,
-  dragOver,
-  dropAt,
-  lightBay,
-  moved,
+  isFar,
+  pileOf,
   selectRegiment,
-  stackAll
+  spread,
+  spreadStack,
+  stackAll,
+  stackOf
 } from "@/fluoria/units";
-import { atWar, enemiesIn, hasRoom } from "@/fluoria/war";
+import { hasRoom } from "@/fluoria/war";
 import { Notes } from "@/generators/notes";
 import { goodIconLines } from "@/renderers/draw-goods";
-import { artOf, chipOf, labelOf, paintColumn, placeRegiment } from "@/renderers/draw-military";
+import { placeRegiment } from "@/renderers/draw-military";
 import { EmblemRenderer } from "@/renderers/emblems/renderer";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
@@ -107,7 +104,7 @@ import { ensureEl, getPointer } from "../utils";
 
 const folders = new Map<string, HTMLElement>(); // open folders by "state-id"
 let picked: Regiment | null = null; // the one whose reach is shown
-let mode: "attack" | "merge" | "add" | null = null;
+let mode: "attack" | "add" | null = null;
 
 const keyOf = (r: Pick<Regiment, "state" | "i">) => `${r.state}-${r.i}`;
 const elementOf = (r: Pick<Regiment, "state" | "i">) =>
@@ -138,24 +135,23 @@ function editRegiment(selector: string, beside = false): void {
   pick(regiment);
 }
 
-/** A click picks a unit; Shift adds it to the chosen ones, Ctrl or Cmd chooses its whole column; in a settlement's cell
- * it opens the settlement too */
-function clickRegiment(selector: string, shift = false): void {
+/** A click picks a unit and spreads its pile; in a settlement's cell it opens the settlement too. Far out a click on a
+ * pile zooms in to it */
+function clickRegiment(selector: string, _shift = false): void {
   if (customization) return;
   const regiment = regimentFrom(document.querySelector(selector));
   if (!regiment) return;
   bindRegiments();
   if (mode) return; // the mode's own click handles it
-  if (shift) {
-    elementOf(regiment)?.classList.toggle("fl-chosen");
+  if (isFar()) {
+    const pile = pileOf(regiment);
+    const x = pile.reduce((sum, r) => sum + r.x, 0) / pile.length;
+    const y = pile.reduce((sum, r) => sum + r.y, 0) / pile.length;
+    zoomTo(x, y, Math.max((viewport.scale || 1) * 2, 70 / (grid.spacing || 10)), 600);
     return;
   }
-  const event = window.event as MouseEvent | undefined;
-  if (event?.ctrlKey || event?.metaKey) {
-    // the whole column of the nation's units in this cell
-    for (const r of cellOf(regiment)) if (r.state === regiment.state) elementOf(r)?.classList.add("fl-chosen");
-    return;
-  }
+  const stack = stackOf(regiment);
+  if (stack && stack.members.length > 1) spread(stack);
   const town = settlementIn(regiment.cell);
   if (town && !regiment.n) openSettlement(town.i);
   pick(regiment);
@@ -189,103 +185,70 @@ function pick(regiment: Regiment | null): void {
   selectRegiment(regiment);
 }
 
-/** Every regiment can be dragged at any time; a double-click on one opens its folder */
-function bindRegiments(): void {
-  const armies = select<SVGGElement, unknown>("#armies");
-  armies.selectAll(":scope > g").classed("draggable", true);
-  armies
-    .selectAll<SVGGElement, unknown>(":scope > g:not(#flSettlements) > g")
-    .call(drag<SVGGElement, unknown>().clickDistance(4).on("start", dragRegiment)); // a shaky click is still a click
-  const node = armies.node();
-  if (node && !node.dataset.flDouble) {
-    node.dataset.flDouble = "1";
-    for (const type of ["pointerdown", "mousedown", "touchstart"]) node.addEventListener(type, () => hidePeek(), true);
-    // close in, a unit's card (a transport's: the cargo card under the pointer) tells what it is; far out, a nation's
-    // chip lists its units
-    node.addEventListener("mousemove", event => {
-      const mouse = event as MouseEvent;
-      if (mouse.buttons) return;
-      if ((mouse.target as Element).closest(".flSettle")) return; // a settlement's own hover shows it
-      const g = (mouse.target as Element).closest<SVGGElement>("#armies > g > g");
-      const regiment = regimentFrom(g);
-      if (!g || !regiment) return hidePeek(LINGER);
-      if (node.dataset.flStage === "far") {
-        if (isTransport(regiment)) return hidePeek();
-        const mine = cellOf(regiment).filter(r => r.state === regiment.state && !isTransport(r));
-        peek(g.querySelector("image.flFar:not(.flPick)") ?? g, mine.map(regimentGroup), true);
-        return;
-      }
-      const part = partAt(g, mouse.clientX, mouse.clientY);
-      if (!part) return hidePeek();
-      const row = rows(part.list === "cargo" ? regiment.cargo : regiment.u)[part.index];
-      if (!row) return hidePeek();
-      const full = part.list === "cargo" ? Math.min(1, row.count / perChip(row.unit)) : strength(regiment);
-      unitTip(mouse.clientX, mouse.clientY, unitLine(regiment, part.list, row.unit, row.count, full));
-    });
-    node.addEventListener("mouseout", event => {
-      const to = (event as MouseEvent).relatedTarget as Element | null;
-      if (!to?.closest?.("#armies > g > g")) hidePeek(LINGER);
-    });
-    node.addEventListener(
-      "click",
-      event => {
-        const settle = (event.target as Element).closest<SVGGElement>(".flSettle");
-        if (settle && !mode) {
-          event.stopPropagation();
-          openSettlement(Number(settle.dataset.burg), event.shiftKey);
-          return;
-        }
-      },
-      true
-    );
-    node.addEventListener("dblclick", event => {
-      const g = (event.target as Element).closest<SVGGElement>("#armies > g > g");
-      if (!g?.dataset.state) return;
-      event.stopPropagation(); // not the map's double-click zoom
-      // an army standing in one of its own settlements opens there, folded out under the garrison
-      const r = regimentFrom(g);
-      const town = r ? pack.burgs[pack.cells.burg[mainCell(r.cell)]] : null;
-      if (r && town?.i && !town.removed && town.state === r.state && !event.shiftKey) {
-        openParts.add(`b${town.i}:${keyOf(r)}`);
-        openSettlement(town.i);
-        pick(r);
-        return;
-      }
-      editRegiment(`#${g.id}`, event.shiftKey);
-    });
+let hoverTimer = 0;
+let hovered: ReturnType<typeof stackOf> | null = null;
+
+/** Hovering a pile spreads it after a moment, so any card can be grabbed; leaving folds it back */
+function hoverRegiment(r: Regiment | undefined): void {
+  const stack = r && !isFar() ? (stackOf(r) ?? null) : null;
+  if (stack === hovered) return;
+  hovered = stack;
+  clearTimeout(hoverTimer);
+  if (!stack) {
+    hoverTimer = window.setTimeout(() => spread(null), 300);
+    return;
   }
+  if (stack.members.length < 2 || spreadStack() === stack) return;
+  hoverTimer = window.setTimeout(() => spread(stack), spreadStack() ? 0 : 180);
 }
 
-/** The settlement whose symbol is under a screen point: only dropping on the symbol garrisons */
-const settlementAt = (x: number, y: number) => {
-  for (const el of document.elementsFromPoint(x, y))
-    if (el.closest("#burgIcons use[data-id]")) return burgOfElement(el);
-  return null;
-};
-
-/** Every unit of a list may go inside a settlement */
-const allGarrisonable = (units: Record<string, number>) => Object.keys(units).every(garrisonable);
-
-/** A regiment walks into its settlement's garrison, if it can reach it */
-function stationIn(r: Regiment, burg: Burg): void {
-  const there = mainCell(burg.cell);
-  if (mainCell(r.cell) !== there && !reachable(r).has(there)) {
-    report(t("Out of reach this move"));
-    return;
-  }
-  const why = station(r, burg);
-  if (why) {
-    report(why);
-    return;
-  }
-  tip(t("{{name}} joins the garrison of {{town}}", { name: r.name, town: burg.name ?? "" }), false, "success");
-  changed();
+/** Cards drag at any time (drag.ts); hovering spreads a pile and tells what it is; a double-click opens a folder */
+function bindRegiments(): void {
+  watchMapDrags();
+  const node = document.getElementById("armies");
+  if (!node || node.dataset.flDouble) return;
+  node.dataset.flDouble = "1";
+  // hovering: the card under the pointer, even beneath a label
+  let frame = 0;
+  document.getElementById("map")?.addEventListener("mousemove", event => {
+    if (event.buttons || dragging() || frame) return;
+    const [x, y] = [event.clientX, event.clientY];
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      hoverRegiment(regimentUnder(x, y));
+    });
+  });
+  node.addEventListener(
+    "click",
+    event => {
+      const settle = (event.target as Element).closest<SVGGElement>(".flSettle");
+      if (settle && !mode) {
+        event.stopPropagation();
+        openSettlement(Number(settle.dataset.burg), event.shiftKey);
+      }
+    },
+    true
+  );
+  node.addEventListener("dblclick", event => {
+    const g = (event.target as Element).closest<SVGGElement>("#armies > g > g");
+    if (!g?.dataset.state || isFar()) return;
+    event.stopPropagation(); // not the map's double-click zoom
+    // an army standing in one of its own settlements opens there, folded out under the garrison
+    const r = regimentFrom(g);
+    const town = r ? pack.burgs[pack.cells.burg[mainCell(r.cell)]] : null;
+    if (r && town?.i && !town.removed && town.state === r.state && !event.shiftKey) {
+      openParts.add(`b${town.i}:${keyOf(r)}`);
+      openSettlement(town.i);
+      pick(r);
+      return;
+    }
+    editRegiment(`#${g.id}`, event.shiftKey);
+  });
 }
 
 // --- the folder
 
 function openFolder(regiment: Regiment, beside = false): void {
-  hidePeek();
   const key = keyOf(regiment);
   if (!beside) for (const other of [...folders.keys()]) if (other !== key) closeFolder(other, false);
   const existing = folders.get(key);
@@ -318,7 +281,6 @@ function openFolder(regiment: Regiment, beside = false): void {
 
 /** A settlement's panel, replacing any open folder; with Shift, beside it */
 function openSettlement(burgId: number, beside = false): void {
-  hidePeek();
   const burg = pack.burgs[burgId];
   if (!burg?.i || burg.removed) return;
   const key = `b${burgId}`;
@@ -396,35 +358,35 @@ const slotRow = (list: List, unit: string, count: number, state: number, at: Bur
     const tip = `${t("Upgrade to")} ${unitName(next)} · §${upgradeCost(kit, count)}${why ? ` · ${t(why)}` : ""}`;
     up = `<button type="button" class="flUp${why ? " flOff" : ""}" data-burg="${at.i}" data-tip="${escapeHtml(tip)}">++</button>`;
   }
-  return `<div class="flSlot" draggable="true" data-list="${list}" data-unit="${escapeHtml(unit)}" data-count="${count}">
-    <img src="${iconUrl(kit, colourOf(state))}" alt="" /><span class="flSlotName">${escapeHtml(unit)}</span>
+  const whole = Math.min(1, count / perSlot(kit));
+  return `<div class="flSlot" data-drag="row" data-list="${list}" data-unit="${escapeHtml(unit)}" data-count="${count}">
+    <img src="${cardUrl(kit, colourOf(state), whole)}" alt="" /><span class="flSlotName">${escapeHtml(unit)}</span>
     ${up}<button type="button" class="flGear" data-tip="${t("Edit Unit")}">⚙</button>
     <span class="flSlotCount">${count.toLocaleString()}</span></div>`;
 };
 const emptyRow = (list: List) => `<div class="flSlot flEmpty" data-list="${list}"></div>`;
 
 function render(el: HTMLElement, regiment: Regiment): void {
-  const transport = isTransport(regiment);
-  const face = artOf(regiment);
-  const art = face ? artUrl(face) : "";
-  const list: List = transport ? "cargo" : "u";
-  const items = rows(transport ? regiment.cargo : regiment.u);
-  const cap = transport ? cargoSlots(regiment) : MAX_SLOTS;
+  const room = cargoSlots(regiment);
+  const own = rows(regiment.u);
+  const aboard = rows(regiment.cargo);
+  const lead = kitOf(typeOf(regiment) ?? "");
+  const art = lead ? cardUrl(lead, colourOf(regiment.origin ?? regiment.state), health(regiment)) : "";
   const home = pack.burgs[pack.cells.burg[mainCell(regiment.cell)]];
   const upAt = home?.i && !home.removed && home.state === regiment.state && sizeOf(home) ? home : null;
-  const filled = items.map(row => slotRow(list, row.unit, row.count, regiment.state, upAt)).join("");
-  const empty = Array.from({ length: Math.max(0, cap - items.length) }, () => emptyRow(list)).join("");
-  const own = transport ? Object.keys(regiment.u)[0] : "";
-  const burgHere = pack.burgs[pack.cells.burg[mainCell(regiment.cell)]];
-  const at = burgHere?.i && !burgHere.removed ? burgHere : null;
+  const unitRows = own.map(row => slotRow("u", row.unit, row.count, regiment.state, upAt)).join("");
+  const holdRows =
+    aboard.map(row => slotRow("cargo", row.unit, row.count, regiment.state)).join("") +
+    Array.from({ length: Math.max(0, room - aboard.length) }, () => emptyRow("cargo")).join("");
+  const at = home?.i && !home.removed ? home : null;
+  const drop = `${regiment.state}-${regiment.i}`;
 
   el.innerHTML = /* html */ `
     <div class="flFolderHead">
-      <img class="flFolderArt" src="${art}" alt="" />
+      <img class="flFolderArt" src="${art}" alt="" data-drag="army" data-tip="${t("Drag onto the map to move it")}" />
       <div>
         <input class="flFolderName" value="${escapeHtml(regiment.name)}" data-tip="${t("Type to rename")}" spellcheck="false" />
-        <div class="flFolderSub">${t("Power")} ${short(cardPower(regiment))} · ${short(transport ? troopsOf({ u: regiment.cargo ?? {} }) : troopsOf(regiment))} ${t("troops")}</div>
-        <div class="flFolderSub">${transport ? `${escapeHtml(own)} · ${t("cargo")}` : t("Slots")} ${items.length}/${cap}</div>
+        <div class="flFolderSub">${t("Power")} ${short(cardPower(regiment))} · ${short(troopsOf(regiment))} ${t("troops")} · ${Math.round(health(regiment) * 100)}%</div>
         ${at ? `<div class="flFolderSub">${t("At")} <a class="flAt" data-burg="${at.i}">${escapeHtml(at.name ?? "")} ›</a></div>` : ""}
         <div class="flFolderSub flNationLine">${t("Nation")}: <select class="flAssign">${pack.states
           .filter(st => st.i && !st.removed)
@@ -437,11 +399,11 @@ function render(el: HTMLElement, regiment: Regiment): void {
           )}</select><button type="button" class="flAssignPick" data-tip="${t("Pick a nation on the map")}">⌖</button></div>
       </div>
     </div>
-    <div class="flSlots" data-list="${list}">${filled}${empty}</div>
+    <div class="flSlots" data-list="u" data-drop="${drop}" data-drop-list="u">${unitRows || emptyRow("u")}</div>
+    ${room ? `<div class="flFolderSub">${t("Hold")} ${aboard.length}/${room}</div><div class="flSlots flHold" data-list="cargo" data-drop="${drop}" data-drop-list="cargo">${holdRows}</div>` : ""}
     <div class="flFolderBottom">
       ${px("attack", "attack", t("Attack a regiment next to this one"))}
-      ${transport ? "" : px("merge", "merge", t("Merge into another group: click it on the map, or drag this one onto it"))}
-      ${transport ? px("unload", "unload", t("Unload all cargo onto the coast beside it")) : px("disband", "disband", t("Disband: every slot stands on its own in this cell"))}
+      ${room ? px("unload", "unload", t("Unload the hold onto the coast beside it")) : ""}
       ${px("encamp", "encamp", t("Encamp: rest and repair, the strength bar refills (no new troops)"))}
       ${px("add", "recruit", t("Raise a new group: click on the map"))}
       ${px("", "notes", t("Notes"), `flFolderNote${keyOf(regiment)}`)}
@@ -452,16 +414,9 @@ function render(el: HTMLElement, regiment: Regiment): void {
     assignTo(regiment, +this.value);
   });
   el.querySelector(".flAssignPick")?.addEventListener("click", () => pickNation(state => assignTo(regiment, state)));
-  const handle = el.querySelector<HTMLImageElement>(".flFolderArt");
-  if (handle) {
-    handle.draggable = true;
-    handle.dataset.tip = t("Drag onto the map to move the whole army");
-    handle.addEventListener("dragstart", event => {
-      event.dataTransfer?.setData("text/plain", regiment.name);
-      carryArmy(regiment);
-    });
-    handle.addEventListener("dragend", () => carryArmy(null));
-  }
+  el.querySelector<HTMLElement>(".flFolderArt")?.addEventListener("pointerdown", event =>
+    pressed(event, () => ({ kind: "units", regs: [regiment], from: "panel" }))
+  );
 
   for (const button of el.querySelectorAll<HTMLButtonElement>(".flFolderBottom button[data-act]"))
     button.classList.toggle("pressed", button.dataset.act === mode && picked === regiment);
@@ -480,7 +435,7 @@ function render(el: HTMLElement, regiment: Regiment): void {
     "click",
     () => void Controllers.NotesEditor.open({ type: "regiment", id: regiment.state, sub: regiment.i })
   );
-  wireSlots(el, regiment);
+  for (const box of el.querySelectorAll<HTMLElement>(".flSlots")) wireSlots(box, regiment);
 }
 
 /** A folder button with a pixel icon */
@@ -545,6 +500,7 @@ const CLASS_ICON: Record<SettlementClass, string> = {
   market: ""
 };
 let recruiting: number | null = null; // the settlement whose recruit form is open
+let recruitUnit = ""; // the unit type last picked in it
 type SettleTab = "military" | "economy" | "notes";
 let settleTab: SettleTab = "military";
 let settleFilter = "all";
@@ -571,7 +527,6 @@ function goodsOf(burg: Burg): string {
 }
 
 const openParts = new Set<string>(); // folded sections a settlement folder keeps open: "b12:g" (garrison), "b12:3-7"
-let carriedArmy: Regiment | null = null;
 
 /** The settlement a nested folder's rows upgrade at: the garrison's own, or the one an army stands in */
 const partBurg = (r: Regiment): Burg | null => {
@@ -582,15 +537,17 @@ const partBurg = (r: Regiment): Burg | null => {
 /** A nested folder in a settlement: an army or the garrison, its units as rows */
 function partFolder(key: string, r: Regiment, title: string, cap: number, open: boolean, garrisonOfBurg = 0): string {
   const lead = kitOf(flagship(r) ?? "");
-  const icon = lead ? `<img src="${iconUrl(lead, colourOf(r.state))}" alt="" />` : "<span class='flNoIcon'></span>";
+  const icon = lead
+    ? `<img src="${cardUrl(lead, colourOf(r.state), garrisonOfBurg ? 1 : health(r))}" alt="" />`
+    : "<span class='flNoIcon'></span>";
   const items = rows(r.u);
   const empty = Math.max(0, cap - slotsOf(r.u));
   return /* html */ `<details class="flPart" data-part="${key}" data-state="${r.state}" data-id="${r.i}" ${open ? "open" : ""}>
-    <summary draggable="true" data-tip="${t("Drag onto the map to march out")}">${icon}<span class="flPartName">${escapeHtml(title)}</span>
+    <summary data-drag="army" data-tip="${garrisonOfBurg ? t("Drag onto the map to march out") : t("Drag onto the map to move it")}">${icon}<span class="flPartName">${escapeHtml(title)}</span>
       <span class="flPartSize">${short(troopsOf(r))} (${cardPower(r)})</span>
       ${garrisonOfBurg ? "" : px("", "locate", t("Locate"))}
     </summary>
-    <div class="flSlots" data-list="u">${items.map(row => slotRow("u", row.unit, row.count, r.state, partBurg(r))).join("")}${Array.from(
+    <div class="flSlots" data-list="u" data-drop="${r.state}-${r.i}" data-drop-list="u">${items.map(row => slotRow("u", row.unit, row.count, r.state, partBurg(r))).join("")}${Array.from(
       { length: empty },
       () => `<div class="flSlot flEmpty flNoAdd" data-list="u"></div>`
     ).join("")}</div>
@@ -750,7 +707,7 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
       ${px("remove", "delete", t("Delete"))}
     </div>`;
   el.querySelector('[data-act="recruit"]')?.classList.toggle("pressed", recruiting === burgId);
-  wirePurse(el, burg, changed, (why, at) => report(why, at));
+  wirePurse(el, burg, (why, at) => report(why, at));
 
   const nameInput = el.querySelector<HTMLInputElement>("input.flFolderName");
   if (nameInput) {
@@ -816,30 +773,17 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
       if (part.open) openParts.add(part.dataset.part!);
       else openParts.delete(part.dataset.part!);
     });
-    wireSlots(part, r);
+    const box = part.querySelector<HTMLElement>(".flSlots");
+    if (box) wireSlots(box, r);
     const summary = part.querySelector("summary")!;
     summary.querySelector(".flPx")?.addEventListener("click", event => {
       event.preventDefault();
       zoomTo(r.x, r.y, 6, 900);
     });
-    summary.addEventListener("dragstart", event => {
-      event.dataTransfer?.setData("text/plain", r.name);
-      carryArmy(r);
+    summary.addEventListener("pointerdown", event => {
+      if ((event.target as Element).closest("button")) return;
+      pressed(event, () => ({ kind: "units", regs: [r], from: "panel" }));
     });
-    summary.addEventListener("dragend", () => carryArmy(null));
-    if (r.garrison) {
-      // a whole army dragged onto the garrison is stationed in it
-      part.addEventListener("dragover", event => {
-        if (carriedArmy && carriedArmy !== r) event.preventDefault();
-      });
-      part.addEventListener("drop", event => {
-        if (!carriedArmy || carriedArmy === r) return;
-        event.preventDefault();
-        const army = carriedArmy;
-        carriedArmy = null;
-        stationIn(army, burg);
-      });
-    }
   }
   if (recruiting === burgId) wireRecruit(el, burg);
 }
@@ -870,6 +814,8 @@ function askResize(burg: Burg, to: Rank, el: HTMLElement): void {
     confirm: t("Confirm"),
     onConfirm: () => {
       resize(burg, to);
+      forgetOrders(); // a settlement's size isn't undone: nothing before it is either
+      play("build");
       changed();
     },
     onCancel: () => renderSettlement(el, burg.i)
@@ -892,7 +838,10 @@ function askClass(burg: Burg, c: SettlementClass | null, button: Element): void 
     message: `${c ? t("Make {{name}} a {{class}}?", { name: burg.name ?? "", class: t(CLASSES[c].name) }) : t("Give up {{name}}'s class?", { name: burg.name ?? "" })}<br>${lines.filter(Boolean).join("<br>")}`,
     confirm: t("Confirm"),
     onConfirm: () => {
-      report(t(setClass(burg, c)), button);
+      const why = setClass(burg, c);
+      if (!why) forgetOrders();
+      if (why) report(t(why), button);
+      else play("build");
       Layers.draw("burgIcons");
       changed();
     }
@@ -950,45 +899,60 @@ function recruitForm(burg: Burg): string {
         group =>
           `<optgroup label="${t(group)}">${options
             .filter(k => categoryOf(k) === group)
-            .map(k => `<option value="${k.id}">${escapeHtml(unitName(k))}</option>`)
+            .map(
+              k =>
+                `<option value="${k.id}" ${k.id === recruitUnit ? "selected" : ""}>${escapeHtml(unitName(k))}</option>`
+            )
             .join("")}</optgroup>`
       )
       .join("")}</select>
-    <div class="flRecruitLine"><input class="flRecruitCount" type="number" min="1" /><button type="button" class="flRecruitGo">${t("Raise")}</button></div>
+    <div class="flRecruitLine flFieldLine">${numberField("count", 0, t("How many to raise"))}<button type="button" class="flRecruitGo">${t("Raise")}</button></div>
     <div class="flFolderSub flRecruitCost"></div>
   </div>`;
 }
 
 function wireRecruit(el: HTMLElement, burg: Burg): void {
   const unit = el.querySelector<HTMLSelectElement>(".flRecruitUnit");
-  const count = el.querySelector<HTMLInputElement>(".flRecruitCount");
+  const field = el.querySelector<HTMLElement>(".flRecruit .flField");
   const cost = el.querySelector<HTMLElement>(".flRecruitCost");
-  if (!unit || !count || !cost) return;
+  if (!unit || !field || !cost) return;
   const kit = () => KIT.find(k => k.id === unit.value)!;
-  const update = (reset: boolean) => {
+  const costLine = (n: number) => {
     const k = kit();
-    const limit = recruitLimit(burg, k);
-    count.max = String(limit);
-    if (reset || +count.value > limit) count.value = String(Math.min(perSlot(k), limit));
-    const n = Math.max(0, +count.value || 0);
-    cost.textContent = `${t("Cost")}: ${peopleFor(unitName(k), n).toLocaleString()} ${t("Manpower")} · §${priceOf(k, n).toLocaleString()} · ${t("Up To")} ${limit.toLocaleString()}`;
+    return `${t("Cost")}: ${peopleFor(unitName(k), n).toLocaleString()} ${t("Manpower")} · §${priceOf(k, n).toLocaleString()} · ${t("Up To")} ${recruitLimit(burg, k).toLocaleString()}`;
   };
-  update(true);
-  unit.addEventListener("change", () => update(true));
-  count.addEventListener("input", () => update(false));
-  const go = () => {
-    const why = recruit(burg, kit(), +count.value);
-    if (why) {
-      report(why, count);
-      return;
-    }
-    tip(t("Raised in {{name}}", { name: burg.name }), false, "success");
-    changed();
-  };
-  el.querySelector(".flRecruitGo")?.addEventListener("click", go);
-  count.addEventListener("keydown", event => {
-    if (event.key === "Enter") go();
+  {
+    const k = kit();
+    const start = Math.min(perSlot(k), recruitLimit(burg, k));
+    cost.textContent = costLine(start);
+    wireField(field, {
+      current: () => 0,
+      start,
+      min: 1,
+      max: () => recruitLimit(burg, kit()),
+      preview: n => {
+        cost.textContent = costLine(n);
+        return "";
+      },
+      apply: n => order("Recruit", () => recruit(burg, kit(), n)),
+      done: why => {
+        if (why) {
+          report(why, field);
+          return;
+        }
+        play("pouch");
+        tip(t("Raised in {{name}}", { name: burg.name }), false, "success", 1800);
+        changed();
+      }
+    });
+  }
+  unit.addEventListener("change", () => {
+    recruitUnit = unit.value;
+    renderSettlement(el, burg.i);
   });
+  el.querySelector(".flRecruitGo")?.addEventListener("click", () =>
+    el.querySelector<HTMLButtonElement>(".flRecruit .flTick")?.click()
+  );
 }
 
 function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
@@ -1013,6 +977,7 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
       confirm: t("Confirm"),
       onConfirm: () => {
         Burgs.setCapital(burg.i);
+        forgetOrders();
         Layers.draw("burgIcons", "labels");
         changed();
       }
@@ -1040,6 +1005,7 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
           Military.remove(garrison.state, garrison.i);
         }
         Burgs.remove(burg.i);
+        forgetOrders();
         closeFolder(`b${burg.i}`);
         Layers.draw("burgIcons", "labels");
         changed();
@@ -1048,48 +1014,12 @@ function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
   }
 }
 
-/** The garrison's chips of its first kind, as many as the cell has room for: what Form Army marches out */
-function marchOut(units: Record<string, number>, room: number): Record<string, number> {
-  const out: Record<string, number> = {};
-  const first = Object.keys(units).find(u => units[u] > 0);
-  if (!first) return out;
-  const domain = domainOfUnit(first);
-  for (const row of rows(units)) {
-    if (domainOfUnit(row.unit) !== domain || room <= 0) continue;
-    if (kitOf(row.unit)?.role === "transport") continue;
-    out[row.unit] = (out[row.unit] ?? 0) + row.count;
-    room--;
-  }
-  return out;
-}
+// --- rows: a click chooses them (Shift a run, Ctrl or Cmd one more), dragging carries the chosen ones
 
-// --- dragging rows
-
-interface Carried {
-  state: number;
-  id: number;
-  list: List;
-  unit: string;
-  count: number;
-  more?: { unit: string; count: number }[]; // other chosen rows of the same list, carried together
-}
-let carried: Carried | null = null;
-let dropSet: ReadonlySet<number> = new Set(); // where the carried rows may land, lit while dragging
-
-/** Every row a drag carries, the grabbed one first */
-const carriedRows = (c: Carried): Carried[] => [c, ...(c.more ?? []).map(r => ({ ...c, ...r, more: undefined }))];
-
-function showDrop(cells: number[]): void {
-  dropSet = new Set(cells);
-  dimPixelMap(dropSet, "land");
-}
-
-function wireSlots(el: HTMLElement, regiment: Regiment): void {
-  const box = el.querySelector<HTMLElement>(".flSlots")!;
+function wireSlots(box: HTMLElement, regiment: Regiment): void {
   const rowsOf = () => [...box.querySelectorAll<HTMLElement>(".flSlot:not(.flEmpty)")];
   let anchor: HTMLElement | null = null;
   for (const row of rowsOf()) {
-    // a click chooses rows: Shift picks a run, Ctrl or Cmd adds one, a plain click picks just this one
     row.addEventListener("click", event => {
       if ((event.target as HTMLElement).closest("button, input, select")) return;
       const all = rowsOf();
@@ -1107,228 +1037,78 @@ function wireSlots(el: HTMLElement, regiment: Regiment): void {
       }
       anchor = row;
     });
-    row.addEventListener("dragstart", event => {
-      const chosen = rowsOf().filter(r => r.classList.contains("flChosenRow") && r.dataset.list === row.dataset.list);
-      const group = row.classList.contains("flChosenRow") ? chosen : [row];
-      carried = {
-        state: regiment.state,
-        id: regiment.i,
-        list: row.dataset.list as List,
-        unit: row.dataset.unit!,
-        count: +row.dataset.count!,
-        more: group.filter(r => r !== row).map(r => ({ unit: r.dataset.unit!, count: +r.dataset.count! }))
-      };
-      for (const r of group) r.classList.add("flCarried");
-      event.dataTransfer?.setData("text/plain", row.dataset.unit!);
-      if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-      showDrop(dropCells(regiment, carried.list, carriedUnits(carried)));
-    });
-    row.addEventListener("dragend", () => {
-      for (const r of rowsOf()) r.classList.remove("flCarried");
-      carried = null;
-      highlightCell(null);
-      pick(picked); // the reach again
+    row.addEventListener("pointerdown", event => {
+      if ((event.target as HTMLElement).closest("button, input, select")) return;
+      pressed(event, (): Payload | null => {
+        const from = regimentOf(regiment.state, regiment.i);
+        if (!from) return null;
+        const chosen = rowsOf().filter(r => r.classList.contains("flChosenRow") && r.dataset.list === row.dataset.list);
+        const group = row.classList.contains("flChosenRow") ? chosen : [row];
+        for (const r of group) r.classList.add("flCarried");
+        return {
+          kind: "rows",
+          from,
+          list: row.dataset.list as List,
+          rows: [row, ...group.filter(r => r !== row)].map(r => ({ unit: r.dataset.unit!, count: +r.dataset.count! }))
+        };
+      });
     });
     row.querySelector(".flGear")?.addEventListener("click", () => editRow(row, regiment));
     row.querySelector<HTMLElement>(".flUp")?.addEventListener("click", function () {
       const at = pack.burgs[Number(this.dataset.burg)];
       if (!at) return;
-      report(upgrade(at, regiment, row.dataset.unit!, +row.dataset.count!), row);
+      const why = order("Upgrade", () => upgrade(at, regiment, row.dataset.unit!, +row.dataset.count!));
+      if (why) report(why, row);
+      else play("pouch");
       changed();
     });
   }
   for (const row of box.querySelectorAll<HTMLElement>(".flEmpty:not(.flNoAdd)"))
     row.addEventListener("click", () => chooseUnit(row, regiment, row.dataset.list as List));
-  box.addEventListener("dragover", event => {
-    if (!carried) return;
-    event.preventDefault();
-    box.classList.add("flOver");
-  });
-  box.addEventListener("dragleave", () => box.classList.remove("flOver"));
-  box.addEventListener("drop", event => {
-    event.preventDefault();
-    box.classList.remove("flOver");
-    const from = carried && regimentOf(carried.state, carried.id);
-    if (!carried || !from) return;
-    const list = box.dataset.list as List;
-    report(
-      carriedRows(carried)
-        .map(r => moveRow(from, r, regiment, list))
-        .find(Boolean) ?? "",
-      box
-    );
-  });
-}
-
-/** Move a dragged row into another regiment, if they stand close enough */
-function moveRow(from: Regiment, row: Carried, to: Regiment, list: List): string {
-  if (from === to && row.list === list) return "";
-  if (from.state !== to.state) return t("Only a nation's own groups trade units");
-  const why = closeEnough(from, row.list, to, list);
-  if (why) return why;
-  const result = shift(from, row.list, row.unit, row.count, to, list);
-  if (!result) {
-    if (!troopsOf(from) && !isTransport(from)) Military.remove(from.state, from.i);
-    changed();
-  }
-  return result;
-}
-
-function closeEnough(from: Regiment, fromList: List, to: Regiment, toList: List): string {
-  if (toList === "cargo") return canLoad(from, to) ? "" : t("Move beside the transport first");
-  if (fromList === "cargo")
-    return landingCells(from).includes(mainCell(to.cell)) ? "" : t("Land beside the transport first");
-  if (to.garrison && neighbours(mainCell(to.cell)).includes(mainCell(from.cell))) return "";
-  return mainCell(from.cell) === mainCell(to.cell) ? "" : t("Both groups must stand in the same cell");
 }
 
 function report(why: string, el?: Element | null): void {
   if (!why) return;
-  tip(why, false, "error");
+  play("refuse");
+  tip(t(why), false, "error", 2500);
   el?.classList.add("flRefused");
   setTimeout(() => el?.classList.remove("flRefused"), 400);
 }
 
-/** A row dropped on the map from a folder or hover panel */
-function dropOnMap(event: DragEvent): void {
-  if (!carried) return;
-  event.preventDefault();
-  dropRowsAt(event.clientX, event.clientY);
-}
-
-/** Carried rows let go at a screen point: into a garrison (on its symbol), a regiment under the pointer, or a cell,
- * joining the nation's group already standing there */
-function dropRowsAt(clientX: number, clientY: number): void {
-  const from = carried && regimentOf(carried.state, carried.id);
-  highlightCell(null);
-  markSymbol(null);
-  if (!carried || !from) return;
-  const rowsCarried = carriedRows(carried);
-  carried = null;
-  const town = settlementAt(clientX, clientY);
-  if (town && town.state === from.state) {
-    const garrison = ensureGarrison(town);
-    if (garrison && garrison !== from)
-      report(rowsCarried.map(r => moveRow(from, r, garrison, "u")).find(Boolean) ?? "");
-    changed();
-    return;
-  }
-  const target = regimentAt(clientX, clientY, from);
-  if (target && target.state === from.state) {
-    const why = rowsCarried
-      .map(r => moveRow(from, r, target, isTransport(target) && domainOfUnit(r.unit) === "land" ? "cargo" : "u"))
-      .find(Boolean);
-    report(why ?? "");
-    changed();
-    return;
-  }
-  const point = mapPoint(clientX, clientY);
-  const cell = point && cellAtPoint(point[0], point[1]);
-  if (cell === undefined || cell === null || !dropSet.has(mainCell(cell))) {
-    if (cell !== undefined && cell !== null && mainCell(cell) !== mainCell(from.cell))
-      report(
-        rowsCarried[0].list === "cargo"
-          ? t("Unload onto the shore beside the transport, in a cell with room")
-          : t("Out of reach, or that cell is full")
+/** A ship with troops aboard let go on the shore beside it: tick who lands, then Land */
+function chooseWhoLands(ship: Regiment, cell: number): void {
+  const aboard = rows(ship.cargo);
+  if (!aboard.length) return;
+  const box = document.createElement("div");
+  box.className = "flLanding";
+  box.innerHTML = aboard
+    .map(
+      (row, k) =>
+        `<label class="flSlot"><input type="checkbox" data-k="${k}" checked /><img src="${cardUrl(kitOf(row.unit) ?? KIT[0], colourOf(ship.state), Math.min(1, row.count / (perSlot(kitOf(row.unit) ?? KIT[0]) || 1)))}" alt="" /><span class="flSlotName">${escapeHtml(row.unit)}</span><span class="flSlotCount">${row.count.toLocaleString()}</span></label>`
+    )
+    .join("");
+  confirmationDialog({
+    title: t("Land troops"),
+    message: box.outerHTML,
+    confirm: t("Land"),
+    onConfirm: () => {
+      const ticked = [...document.querySelectorAll<HTMLInputElement>(".flLanding input:checked")].map(
+        input => aboard[Number(input.dataset.k)]
       );
-    pick(picked);
-    changed();
-    return;
-  }
-  // each chip stands as a unit of its own
-  for (const r of rowsCarried) {
-    const made = splitOff(from, r.list, r.unit, r.count, cell);
-    if (typeof made === "string") {
-      report(made);
-      break;
+      const why = order("Unload", () => {
+        for (const row of ticked) {
+          if (!hasRoom(ship.state, cell, 1)) return "That cell is full: 4 units";
+          const made = splitOff(ship, "cargo", row.unit, row.count, cell);
+          if (typeof made === "string") return made;
+          made.n = 0;
+        }
+        return "";
+      });
+      if (why) report(why);
+      else play("unload");
+      changed();
     }
-    if (mainCell(cell) === mainCell(from.cell)) [made.x, made.y] = [from.x, from.y];
-  }
-  if (!troopsOf(from) && !isTransport(from) && !from.garrison) Military.remove(from.state, from.i);
-  changed();
-}
-
-/** Light a settlement symbol while carried infantry could go inside it */
-function markSymbol(burg: Burg | null): void {
-  const was = document.querySelector("#burgIcons use.flGarrisonHere");
-  if (was && burg && was.getAttribute("data-id") === String(burg.i)) return;
-  was?.classList.remove("flGarrisonHere");
-  if (!burg) return;
-  document.querySelector(`#burgIcons use[data-id="${burg.i}"]`)?.classList.add("flGarrisonHere");
-  tip(t("Drop on the symbol to garrison {{town}}", { town: burg.name ?? "" }), false, "info", 1500);
-}
-
-const carriedUnits = (c: Carried): Record<string, number> => {
-  const units: Record<string, number> = {};
-  for (const r of carriedRows(c)) units[r.unit] = (units[r.unit] ?? 0) + r.count;
-  return units;
-};
-
-/** A whole army (or garrison) is being dragged from a folder, a hover panel or the Military tab */
-function carryArmy(r: Regiment | null): void {
-  carriedArmy = r;
-  if (r && !r.garrison) selectRegiment(r); // show where it can go
-  if (!r) pick(picked);
-}
-
-/** A whole army dropped on the map from a list: like dragging its card. A garrison marches out first */
-function dropArmy(army: Regiment, clientX: number, clientY: number): void {
-  if (army.garrison) {
-    const burg = pack.burgs[army.garrison];
-    const units = marchOut(army.u, 4);
-    if (!burg || !Object.keys(units).length) {
-      report(t("The garrison is empty"));
-      return;
-    }
-    if (settlementAt(clientX, clientY) === burg) return;
-    const made = formArmy(burg, units);
-    if (typeof made === "string") {
-      report(made);
-      return;
-    }
-    for (const r of made) if (!landArmy(r, clientX, clientY)) station(r, burg); // nowhere to go: back inside
-    changed();
-    return;
-  }
-  landArmy(army, clientX, clientY);
-  changed();
-}
-
-/** Put an army where a pointer let go: into a settlement, onto a friend, into battle, or onto a cell in reach */
-function landArmy(reg: Regiment, clientX: number, clientY: number): boolean {
-  const town = settlementAt(clientX, clientY);
-  if (town && town.state === reg.state && allGarrisonable(reg.u)) {
-    stationIn(reg, town);
-    return true;
-  }
-  const under = regimentAt(clientX, clientY, reg);
-  if (under && under.state === reg.state) {
-    joinOnMap(reg, under);
-    return true;
-  }
-  const point = mapPoint(clientX, clientY);
-  if (!point) return false;
-  const cell = cellAtPoint(point[0], point[1]);
-  const foe =
-    under && atWar(reg.state, under.state) ? under : cell === undefined ? undefined : enemiesIn(reg.state, cell)[0];
-  if (foe) return attack(reg, foe);
-  selectRegiment(reg); // its reach, measured now (a garrison's army has only just formed)
-  const spot = dropAt(reg, point[0], point[1]);
-  if (!spot) {
-    report(t("Out of reach this move"));
-    return false;
-  }
-  Military.move(reg.state, reg.i, spot[0], spot[1]);
-  moved(reg);
-  return true;
-}
-
-/** Where a row may be dropped: its own cell or a neighbour with room; cargo onto the shore beside the transport */
-function dropCells(from: Regiment, list: List, units: Record<string, number>): number[] {
-  const slots = slotsOf(units);
-  const at = mainCell(from.cell);
-  const cells = list === "cargo" ? landingCells(from) : [at, ...neighbours(at)].filter(cell => canStand(from, cell));
-  return cells.filter(cell => hasRoom(from.state, cell, list === "u" && cell === at ? 0 : slots));
+  });
 }
 
 function mapPoint(x: number, y: number): [number, number] | null {
@@ -1337,30 +1117,6 @@ function mapPoint(x: number, y: number): [number, number] | null {
   if (!matrix) return null;
   const point = new DOMPoint(x, y).matrixTransform(matrix);
   return [point.x, point.y];
-}
-
-function watchMap(): void {
-  const map = document.getElementById("map");
-  if (!map || map.dataset.flFolders) return;
-  map.dataset.flFolders = "1";
-  map.addEventListener("dragover", event => {
-    if (!carried && !carriedArmy) return;
-    event.preventDefault();
-    // the cell under the pointer lights up when the carried rows may land there
-    const point = mapPoint(event.clientX, event.clientY);
-    const cell = point ? cellAtPoint(point[0], point[1]) : undefined;
-    highlightCell(carried && cell !== undefined && dropSet.has(mainCell(cell)) ? cell : null);
-  });
-  map.addEventListener("drop", event => {
-    if (carriedArmy) {
-      event.preventDefault();
-      const army = carriedArmy;
-      carryArmy(null);
-      dropArmy(army, event.clientX, event.clientY);
-      return;
-    }
-    dropOnMap(event);
-  });
 }
 
 // --- editing slots in place
@@ -1433,13 +1189,8 @@ function editRow(row: HTMLElement, regiment: Regiment): void {
 
 function action(act: string, regiment: Regiment): void {
   pick(regiment);
-  if (act === "attack" || act === "merge" || act === "add") {
+  if (act === "attack" || act === "add") {
     setMode(mode === act ? null : act);
-    return;
-  }
-  if (act === "disband") {
-    disband(regiment);
-    changed();
     return;
   }
   if (act === "unload") {
@@ -1460,7 +1211,11 @@ function action(act: string, regiment: Regiment): void {
       report(why);
       return;
     }
-    encamp(regiment);
+    order("Encamp", () => {
+      encamp(regiment);
+      return "";
+    });
+    play("men");
     tip(t("{{name}} rests and repairs", { name: regiment.name }), false, "success");
     changed();
     return;
@@ -1471,8 +1226,12 @@ function action(act: string, regiment: Regiment): void {
       message: t("Release {{name}}? Its troops go home to the settlement they came from.", { name: regiment.name }),
       confirm: t("Release"),
       onConfirm: () => {
-        sendHome(regiment, { ...regiment.u, ...(regiment.cargo ?? {}) });
-        Military.remove(regiment.state, regiment.i);
+        order("Release", () => {
+          sendHome(regiment, { ...regiment.u, ...(regiment.cargo ?? {}) });
+          Military.remove(regiment.state, regiment.i);
+          return "";
+        });
+        play("men");
         changed();
       }
     });
@@ -1492,7 +1251,6 @@ function setMode(next: typeof mode, battling = false): void {
   }
   const message = {
     attack: t("Click a regiment next to this one to attack it"),
-    merge: t("Click a group to merge this one into it"),
     add: t("Click on the map to raise a new group")
   }[mode];
   tip(message, true);
@@ -1524,42 +1282,10 @@ function onModeClick(this: SVGGElement, event: MouseEvent): void {
     report(t("Click another group"));
     return;
   }
-  if (mode === "merge") {
-    setMode(null);
-    joinOnMap(self, target);
-    return;
-  }
   if (mode === "attack") {
     setMode(null, true);
     if (!attack(self, target)) returnView();
   }
-}
-
-/** Merge into a group, or load into a transport, after walking there if it's within reach */
-function joinOnMap(self: Regiment, target: Regiment): void {
-  if (isTransport(target) && !isTransport(self)) {
-    report(load(self, target));
-    changed();
-    return;
-  }
-  const why = mergeRefusal(self, target);
-  if (why) {
-    report(why);
-    return;
-  }
-  const same = mainCell(self.cell) === mainCell(target.cell);
-  if (!same && !reachable(self).has(mainCell(target.cell))) {
-    report(t("Out of reach this move"));
-    return;
-  }
-  if (!same && !hasRoom(self.state, target.cell, slotsOf(self.u), self, 0)) {
-    report(t("That cell is full: 4 units"));
-    return;
-  }
-  report(merge(self, target));
-  changed();
-  openFolder(target);
-  pick(target);
 }
 
 /** Charge, then open the battle; false when the attack isn't allowed */
@@ -1574,7 +1300,7 @@ function attack(attacker: Regiment, defender: Regiment): boolean {
   }
   const at = mainCell(attacker.cell);
   const there = mainCell(defender.cell);
-  if (at !== there && !neighbours(at).includes(there)) {
+  if (at !== there && !neighbourCells(at).includes(there)) {
     report(t("Attack only a regiment in a cell next to this one"));
     return false;
   }
@@ -1601,239 +1327,111 @@ function attack(attacker: Regiment, defender: Regiment): boolean {
   return true;
 }
 
-// --- dragging a regiment on the map
+// --- what a card is, for the tooltip line
 
-/** What of a regiment's card a screen point is on: a cargo card in a transport's bay, or the unit itself */
-function partAt(g: SVGGElement, clientX: number, clientY: number): { list: List; index: number } | null {
-  const image = g.querySelector<SVGImageElement>("image.flClose:not(.flPick)");
-  if (!image || !g.dataset.layout) return null;
-  const rect = image.getBoundingClientRect();
-  const layout = JSON.parse(g.dataset.layout) as {
-    w: number;
-    h: number;
-    bays: { x: number; y: number; w: number; h: number }[];
-  };
-  const x = ((clientX - rect.left) / rect.width) * layout.w;
-  const y = ((clientY - rect.top) / rect.height) * layout.h;
-  const regiment = regimentFrom(g);
-  if (!regiment) return null;
-  const bay = layout.bays.findIndex(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
-  if (bay >= 0) return bay < rows(regiment.cargo).length ? { list: "cargo", index: bay } : null;
-  return isTransport(regiment) ? null : { list: "u", index: 0 }; // a transport's hull tells nothing
-}
-
-/** A unit's tooltip: name, type, tier, troops, health */
-function unitLine(regiment: Regiment, list: List, unit: string, count: number, full: number): string {
+const roleName = (unit: string) => {
   const kit = kitOf(unit);
-  const name = list === "u" ? labelOf(regiment) : kit ? (kit.domain === "land" ? unit : (kit.nickname ?? unit)) : unit;
-  const type = kit ? t(kit.role[0].toUpperCase() + kit.role.slice(1)) : "";
-  const tier = kit ? `${t("Tier")} ${kit.tier}` : "";
-  const troops = kit && kit.domain === "land" ? ` · ${short(count)} ${t("troops")}` : "";
-  return `<b>${escapeHtml(name)}</b><br>${[type, tier].filter(Boolean).join(" · ")}${troops} · ${Math.round(full * 100)}%`;
-}
+  return kit ? t(kit.role[0].toUpperCase() + kit.role.slice(1)) : "";
+};
 
-/** While a land unit is carried over its nation's transport with room, light the bay it would take */
-function lightUnder(reg: Regiment, units: Record<string, number>, clientX: number, clientY: number): void {
-  const under = regimentAt(clientX, clientY, reg);
-  const boards =
-    under &&
-    under !== reg &&
-    isTransport(under) &&
-    under.state === reg.state &&
-    Object.keys(units).every(u => domainOfUnit(u) === "land");
-  lightBay(boards && rows(under.cargo).length < cargoSlots(under) ? under : null);
-}
-
-/** Drag a unit: close in, the chip under the pointer goes on its own (Shift: the whole group); far out, the cell's
- * part that belongs to its nation moves together */
-function dragRegiment(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown, unknown>): void {
-  const reg = regimentFrom(this);
-  if (!reg || mode) return; // in a mode, a click picks a target instead
-  const source = event.sourceEvent as MouseEvent;
-  const far = document.getElementById("armies")?.dataset.flStage === "far";
-  const part = far ? null : partAt(this, source.clientX, source.clientY);
-  const own = part?.list === "cargo" ? rows(reg.cargo) : rows(reg.u);
-  if (part && !source.shiftKey && (part.list === "cargo" || own.length > 1)) {
-    dragChip(this, reg, part.list, part.index, event);
-    return;
+/** A unit: name, type, tier, troops, health; a pile: how many of what */
+function unitLine(regiment: Regiment): string {
+  const stack = stackOf(regiment);
+  const unit = typeOf(regiment) ?? "";
+  const kit = kitOf(unit);
+  const many = stack && stack.members.length > 1 && spreadStack() !== stack ? stack.members : null;
+  if (many) {
+    const whole = many.reduce((sum, r) => sum + health(r), 0) / many.length;
+    return `${many.length} × ${escapeHtml(unit)} · ${Math.round(whole * 100)}% · ${t("Shift-drag moves them all")}`;
   }
-  // far out the nation's part of the cell moves together; close in, every chosen unit moves with the one dragged
-  const chosen = [...document.querySelectorAll<SVGGElement>("#armies .fl-chosen")]
-    .map(el => regimentFrom(el))
-    .filter((r): r is Regiment => Boolean(r) && r!.state === reg.state);
-  const group = far
-    ? cellOf(reg).filter(r => r.state === reg.state)
-    : chosen.includes(reg)
-      ? [reg, ...chosen.filter(r => r !== reg)]
-      : [reg];
-  const from = [reg.x, reg.y] as const;
-  let started = false;
-  event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
-    const { x, y } = dragEvent;
-    if (!isInMap(x, y)) return;
-    if (!started) {
-      started = true;
-      select(this).raise();
-      select(this.parentNode as Element).raise();
-      this.style.translate = "";
-      pick(reg);
-    }
-    placeRegiment(this, x, y);
-    dragOver(reg, x, y);
-    const town = settlementAt(
-      (dragEvent.sourceEvent as MouseEvent).clientX,
-      (dragEvent.sourceEvent as MouseEvent).clientY
-    );
-    markSymbol(town && town.state === reg.state && allGarrisonable(reg.u) ? town : null);
-    const mouse = dragEvent.sourceEvent as MouseEvent;
-    if (!isTransport(reg)) lightUnder(reg, reg.u, mouse.clientX, mouse.clientY);
-  });
-  event.on("end", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
-    markSymbol(null);
-    lightBay(null);
-    if (!started) return;
-    const end = dragEvent.sourceEvent as MouseEvent | undefined;
-    const town = end ? settlementAt(end.clientX, end.clientY) : null;
-    if (town && town.state === reg.state && allGarrisonable(reg.u)) {
-      placeRegiment(this, from[0], from[1]);
-      stationIn(reg, town);
-      return;
-    }
-    const under = end ? regimentAt(end.clientX, end.clientY, reg) : undefined;
-    if (under && under.state === reg.state && !group.includes(under)) {
-      placeRegiment(this, from[0], from[1]);
-      joinOnMap(reg, under);
-      return;
-    }
-    // dropped on an enemy, or into a cell an enemy holds: the battle starts
-    const cell = cellAtPoint(dragEvent.x, dragEvent.y);
-    const foe =
-      under && atWar(reg.state, under.state) ? under : cell === undefined ? undefined : enemiesIn(reg.state, cell)[0];
-    if (foe) {
-      placeRegiment(this, from[0], from[1]);
-      attack(reg, foe);
-      return;
-    }
-    const reached = dropAt(reg, dragEvent.x, dragEvent.y);
-    if (!reached && cell !== undefined && mainCell(cell) !== mainCell(reg.cell))
-      report(t("Out of reach, or that cell is full"));
-    const spot = reached ?? from;
-    Military.move(reg.state, reg.i, spot[0], spot[1]);
-    placeRegiment(this, reg.x, reg.y);
-    // the rest of the cell's group follows where it can reach
-    for (const other of group.slice(1)) {
-      if (other === reg) continue;
-      selectRegiment(other);
-      const there = dropAt(other, dragEvent.x, dragEvent.y);
-      if (there) Military.move(other.state, other.i, there[0], there[1]);
-    }
-    moved(reg);
-    changed();
-  });
+  const troops = kit?.domain === "land" ? ` · ${short(troopsOf(regiment))} ${t("troops")}` : "";
+  const hold = cargoSlots(regiment) ? ` · ${t("Hold")} ${rows(regiment.cargo).length}/${cargoSlots(regiment)}` : "";
+  return `${escapeHtml(regiment.name)} · ${roleName(unit)}${kit ? ` ${t("Tier")} ${kit.tier}` : ""}${troops}${hold} · ${Math.round(health(regiment) * 100)}%`;
 }
 
-/** Drag one chip out of a column: a little copy follows the pointer, the cells it may land in light up */
-function dragChip(
-  g: SVGGElement,
-  reg: Regiment,
-  list: List,
-  index: number,
-  event: D3DragEvent<SVGGElement, unknown, unknown>
-): void {
-  const row = (list === "cargo" ? rows(reg.cargo) : rows(reg.u))[index];
-  const art = chipOf(reg, list, index);
-  if (!row || !art) return;
-  let ghost: SVGGElement | null = null;
-  event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
-    const { x, y } = dragEvent;
-    const mouse = dragEvent.sourceEvent as MouseEvent;
-    if (!ghost) {
-      ghost = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      ghost.id = "flChipGhost";
-      paintColumn(ghost, art);
-      document.getElementById("armies")?.append(ghost);
-      g.classList.add("fl-lifting");
-      carried = { state: reg.state, id: reg.i, list, unit: row.unit, count: row.count };
-      showDrop(dropCells(reg, list, { [row.unit]: row.count }));
-    }
-    lightUnder(reg, { [row.unit]: row.count }, mouse.clientX, mouse.clientY);
-    placeRegiment(ghost, x, y);
-    const cell = cellAtPoint(x, y);
-    highlightCell(cell !== undefined && dropSet.has(mainCell(cell)) ? cell : null);
-    const town = settlementAt(mouse.clientX, mouse.clientY);
-    markSymbol(town && town.state === reg.state && garrisonable(row.unit) ? town : null);
-  });
-  event.on("end", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
-    if (!ghost) return;
-    const mouse = dragEvent.sourceEvent as MouseEvent;
-    ghost.remove();
-    g.classList.remove("fl-lifting");
-    lightBay(null);
-    dropRowsAt(mouse.clientX, mouse.clientY);
-  });
+/** Far out: a merged pile's units by type */
+function pileLine(pile: Regiment[]): string {
+  const count = new Map<string, number>();
+  for (const r of pile) count.set(typeOf(r) ?? "", (count.get(typeOf(r) ?? "") ?? 0) + 1);
+  const whole = pile.reduce((sum, r) => sum + health(r), 0) / pile.length;
+  return `${[...count.entries()].map(([unit, n]) => `${n} × ${escapeHtml(unit)}`).join(", ")} · ${Math.round(whole * 100)}% · ${t("Click to zoom in")}`;
 }
 
-const isInMap = (x: number, y: number) =>
-  x >= 0 && y >= 0 && x <= options.map.graph.width && y <= options.map.graph.height;
+/** Whether a panel is being typed in: it isn't rebuilt under the cursor */
+const typing = (el: HTMLElement) => {
+  const active = document.activeElement as HTMLElement | null;
+  return Boolean(active && el.contains(active) && active.matches("input, textarea, select, [contenteditable]"));
+};
+const stale = new Set<HTMLElement>(); // panels skipped while typed in, rebuilt when the typing ends
 
 /** After any change: redraw, rebind, refresh the open folders and the other editors */
 function changed(): void {
   Layers.draw("military");
   stackAll();
   bindRegiments();
-  for (const [key, el] of [...folders]) {
-    if (key[0] === "b") {
-      if (pack.burgs[+key.slice(1)]?.removed) closeFolder(key);
-      else renderSettlement(el, +key.slice(1));
-      continue;
-    }
-    const r = regimentOf(...(key.split("-").map(Number) as [number, number]));
-    if (!r) closeFolder(key);
-    else render(el, r);
-  }
+  for (const [key, el] of [...folders]) refreshFolder(key, el);
   if (picked && !regimentOf(picked.state, picked.i)) pick(null);
   else pick(picked);
   refreshEditors();
 }
 
-watchMap();
-watchSettlements();
-
-/** Hovering a settlement (its count, symbol or name) lists its garrison; the count above says how many */
-function watchSettlements(): void {
-  document.addEventListener("mouseover", event => {
-    if ((event as MouseEvent).buttons) return;
-    const burg = burgOfElement(event.target as Element);
-    if (!burg) return;
-    const garrison = garrisonOf(burg);
-    if (garrison && troopsOf(garrison)) peek(event.target as Element, [regimentGroup(garrison)], false);
-  });
-  document.addEventListener("mouseout", event => {
-    const from = burgOfElement(event.target as Element);
-    if (from && burgOfElement((event as MouseEvent).relatedTarget as Element | null) !== from) hidePeek(LINGER);
-  });
-  // rows dragged out of the hover panel behave like folder rows
-  onPeekDrag(
-    row => {
-      const from = regimentOf(row.state, row.id);
-      if (!from) return;
-      if (!row.unit) {
-        carryArmy(from);
-        return;
-      }
-      carried = { state: row.state, id: row.id, list: "u", unit: row.unit, count: row.count };
-      showDrop(dropCells(from, "u", { [row.unit]: row.count }));
-    },
-    () => {
-      carried = null;
-      carryArmy(null);
-      pick(picked);
-    }
-  );
+function refreshFolder(key: string, el: HTMLElement): void {
+  if (typing(el)) {
+    stale.add(el);
+    return;
+  }
+  stale.delete(el);
+  if (key[0] === "b") {
+    if (pack.burgs[+key.slice(1)]?.removed) closeFolder(key);
+    else renderSettlement(el, +key.slice(1));
+    return;
+  }
+  const r = regimentOf(...(key.split("-").map(Number) as [number, number]));
+  if (!r) closeFolder(key);
+  else render(el, r);
 }
 
+document.addEventListener("focusout", () =>
+  setTimeout(() => {
+    for (const [key, el] of [...folders]) if (stale.has(el)) refreshFolder(key, el);
+  })
+);
+
+setDragHooks({ attack, land: chooseWhoLands, changed });
+
+/** A settlement's tooltip: its name and size, and what its garrison holds */
+function settlementLine(id: number): string {
+  const burg = pack.burgs[id];
+  if (!burg?.i) return "";
+  const garrison = garrisonOf(burg);
+  const units = garrison ? rows(garrison.u) : [];
+  const slots = garrisonSlots(burg.i);
+  const held = slots
+    ? ` · ${t("Garrison")} ${units.length}/${slots}${units.length ? `: ${units.map(r => `${escapeHtml(r.unit)} ${short(r.count)}`).join(", ")}` : ""}`
+    : "";
+  return `${escapeHtml(burg.name ?? "")} · ${t(RANK_NAME[rankOf(burg)])}${held}`;
+}
+
+setTips(el => {
+  const r = regimentFrom(el);
+  if (!r) return null;
+  return isFar() ? pileLine(pileOf(r)) : `${unitLine(r)}. ${t("Drag to move, double-click to open")}`;
+}, settlementLine);
+
+/** Ctrl+Z: the last unit order undone */
+function undoLast(): void {
+  const label = undoOrder();
+  if (label === null) {
+    tip(t("Nothing to undo"), false, "info", 1500);
+    return;
+  }
+  play("undo");
+  tip(t("Undone: {{what}}", { what: t(label) }), false, "info", 1800);
+  changed();
+}
+window.addEventListener("fl:undo", undoLast);
+
 export const RegimentEditor = {
-  carry: (state: number, id: number | null) => carryArmy(id === null ? null : (regimentOf(state, id) ?? null)),
   open: editRegiment,
   click: clickRegiment,
   bind: bindRegiments,
@@ -1850,7 +1448,12 @@ window.addEventListener("fl:clear", clearAll);
 document.addEventListener(
   "keyup",
   event => {
-    if (event.key === "Escape" && !(event.target as HTMLElement)?.closest?.("input, textarea, select")) clearAll();
+    if (
+      event.key === "Escape" &&
+      !escapeTaken() &&
+      !(event.target as HTMLElement)?.closest?.("input, textarea, select")
+    )
+      clearAll();
   },
   true
 );

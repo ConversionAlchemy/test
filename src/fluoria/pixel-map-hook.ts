@@ -15,6 +15,7 @@ import { getMapView, onMapView } from "./map-view";
 import { setFocus, simplifyDiplomacy } from "./nation";
 import { nationZoom, refreshNation } from "./nation-panel";
 import { foldMap } from "./one-grid";
+import { forgetOrders } from "./orders";
 import { collectIslands, drawIslands } from "./owners";
 import {
   setPixelMapDimmer,
@@ -110,6 +111,7 @@ window.addEventListener("map:generated", () => {
   const evicted = evictNonInfantry();
   foldCapitalPurses();
   seedManpower(); // sizes and classes made explicit, manpower given
+  forgetOrders(); // a new map: nothing to undo
   const spread = spreadCrowds();
   const emblems = applyFluoriaEmblems();
   void enrichPlainEmblems();

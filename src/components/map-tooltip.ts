@@ -4,6 +4,7 @@ import { MapEntities } from "@/components/map-entities";
 import { FEATURE_SUBTYPE_LABELS } from "@/data/id-labels";
 import { cellLine } from "@/fluoria/cell-line";
 import { cellAtPoint } from "@/fluoria/one-grid";
+import { settlementTipFor, unitTipFor } from "@/fluoria/tips";
 import { Notes } from "@/generators/notes";
 import { highlightEmblemElement } from "@/renderers/overlays/highlight";
 import type { Point } from "@/types/global";
@@ -129,14 +130,20 @@ function getElementTip({ group, target, event, path, cellId }: TipContext): stri
     );
     const values = { burg: burg.name, group: burg.group, population };
     const name = burg.port ? t("{{burg}} {{group}} port", values) : t("{{burg}} {{group}}", values);
-    return withHint(sentences(name, `${t("Population")}: ${population}`));
+    const fluoria = settlementTipFor(burgId); // its size and garrison
+    return fluoria
+      ? withHint(fluoria, t("Click to open"))
+      : withHint(sentences(name, `${t("Population")}: ${population}`));
   }
 
   const labelElement = target.closest<SVGElement>("#labels [data-label-type]");
   if (labelElement) return withHint(escapeHtml(getLabelText(labelElement)));
 
-  if (group === "armies")
+  if (group === "armies") {
+    const line = unitTipFor(target); // Fluoria: what the card or pile is
+    if (line !== null) return line;
     return withHint(escapeHtml((parent as SVGElement & { dataset: DOMStringMap }).dataset.name ?? ""));
+  }
 
   if (group === "emblems" && target.tagName === "use") return getEmblemTip(target, parent, event);
 

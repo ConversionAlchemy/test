@@ -14,10 +14,12 @@ import { EmblemRenderer } from "@/renderers/emblems/renderer";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
 import { si } from "@/utils/unitUtils";
+import { pressed } from "./drag";
 import { openStudio } from "./emblems/studio";
-import { cardPower, flagship, isTransport, kitOf, shift, troopsOf } from "./forces/forces";
-import { iconUrl } from "./forces/pixels";
+import { cardUrl } from "./forces/cards";
+import { cardPower, cargoSlots, flagship, kitOf, troopsOf } from "./forces/forces";
 import { focusedNation, type Standing, setFocus, standing } from "./nation";
+import { escapeTaken } from "./number-field";
 import { cellCentre } from "./one-grid";
 import { cellsOfState } from "./owners";
 import { NATION_COLOURS } from "./palette";
@@ -131,7 +133,7 @@ function remember(): void {
 }
 
 function startDrag(event: PointerEvent): void {
-  const handle = (event.target as HTMLElement).closest("[data-drag]");
+  const handle = (event.target as HTMLElement).closest("[data-drag]:not([data-drag='row'], [data-drag='army'])");
   if (!handle || !panel) return;
   event.preventDefault();
   const box = panel.getBoundingClientRect();
@@ -217,7 +219,7 @@ function render(): void {
       <button type="button" data-act="editor">⚙ ${t("Full editor")}</button>
     </footer>`;
   const seat = capitalOf(id);
-  if (seat) wirePurse(panel, seat, render, why => tip(why, false, "error"));
+  if (seat) wirePurse(panel, seat, why => tip(why, false, "error"));
   wireMilitary();
 }
 
@@ -419,21 +421,29 @@ function military(regiments: Regiment[]): string {
           ? b.a - a.a
           : cardPower(b) - cardPower(a)
     );
+  const unitRow =
+    (r: Regiment, list: "u" | "cargo") =>
+    ([unit, n]: [string, number]) => {
+      const kit = kitOf(unit);
+      const icon = kit ? `<img src="${cardUrl(kit, colour)}" alt="" />` : "";
+      return `<div class="np-unit" data-drag="row" data-from="${r.i}" data-list="${list}" data-unit="${escapeHtml(unit)}" data-count="${n}">${icon}<span>${escapeHtml(unit)}</span><b>${n.toLocaleString()}</b></div>`;
+    };
   const unitRows = (r: Regiment) =>
-    Object.entries({ ...r.u, ...(r.cargo ?? {}) })
-      .filter(([, n]) => n > 0)
-      .map(([unit, n]) => {
-        const kit = kitOf(unit);
-        const icon = kit ? `<img src="${iconUrl(kit, colour)}" alt="" />` : "";
-        return `<div class="np-unit" draggable="true" data-from="${r.i}" data-unit="${escapeHtml(unit)}">${icon}<span>${escapeHtml(unit)}</span><b>${n.toLocaleString()}</b></div>`;
-      })
-      .join("");
+    [
+      ...Object.entries(r.u)
+        .filter(([, n]) => n > 0)
+        .map(unitRow(r, "u")),
+      ...Object.entries(r.cargo ?? {})
+        .filter(([, n]) => n > 0)
+        .map(unitRow(r, "cargo"))
+    ].join("");
   const army = (r: Regiment) => {
     const key = String(r.i);
     const lead = kitOf(flagship(r) ?? "");
-    const icon = lead ? `<img src="${iconUrl(lead, colour)}" alt="" />` : "";
-    return /* html */ `<details class="np-army" data-army="${r.i}" ${openArmies.has(key) ? "open" : ""}>
-      <summary draggable="true" data-army-drag="${r.i}">${icon}
+    const icon = lead ? `<img src="${cardUrl(lead, colour)}" alt="" />` : "";
+    const list = r.garrison ? "u" : cargoSlots(r) ? "cargo" : "u";
+    return /* html */ `<details class="np-army" data-army="${r.i}" data-drop="${r.state}-${r.i}" data-drop-list="${list}" ${openArmies.has(key) ? "open" : ""}>
+      <summary data-drag="army" data-army-drag="${r.i}">${icon}
         <input class="np-army-name" data-rename="${r.i}" value="${escapeHtml(r.name)}" spellcheck="false" />
         <span class="np-army-size">${si(r.a)} (${cardPower(r)})</span>
         <button type="button" data-locate="${r.i}" aria-label="${t("Locate")}" data-tip="${t("Locate")}">⌖</button>
@@ -465,11 +475,10 @@ function military(regiments: Regiment[]): string {
     </div>`;
 }
 
-/** The Military tab's dragging: units onto another army or garrison, armies into a new order */
+/** The Military tab: folds remember their state; units and armies drag like anywhere else (drag.ts) */
 function wireMilitary(): void {
   if (!panel || tab !== "military") return;
   const id = focusedNation();
-  let carried: { from: number; unit: string } | { army: number } | null = null;
   for (const d of panel.querySelectorAll<HTMLDetailsElement>("details.np-fold"))
     d.addEventListener("toggle", () => {
       if (d.open) folded.delete(d.dataset.fold!);
@@ -481,60 +490,24 @@ function wireMilitary(): void {
       else openArmies.delete(d.dataset.army!);
     });
   for (const row of panel.querySelectorAll<HTMLElement>(".np-unit"))
-    row.addEventListener("dragstart", event => {
-      carried = { from: Number(row.dataset.from), unit: row.dataset.unit! };
-      event.dataTransfer?.setData("text/plain", row.dataset.unit!);
-      event.stopPropagation();
+    row.addEventListener("pointerdown", event =>
+      pressed(event, () => {
+        const from = regimentOf(Number(row.dataset.from));
+        if (!from) return null;
+        row.classList.add("flCarried");
+        const list = row.dataset.list as "u" | "cargo";
+        return { kind: "rows", from, list, rows: [{ unit: row.dataset.unit!, count: Number(row.dataset.count) }] };
+      })
+    );
+  for (const s of panel.querySelectorAll<HTMLElement>("summary[data-army-drag]"))
+    s.addEventListener("pointerdown", event => {
+      if ((event.target as Element).closest("button, input")) return;
+      pressed(event, () => {
+        const r = regimentOf(Number(s.dataset.armyDrag));
+        return r ? { kind: "units", regs: [r], from: "panel" } : null;
+      });
     });
-  for (const s of panel.querySelectorAll<HTMLElement>("summary[data-army-drag]")) {
-    s.addEventListener("dragstart", event => {
-      carried = { army: Number(s.dataset.armyDrag) };
-      event.dataTransfer?.setData("text/plain", s.dataset.armyDrag!);
-      void Controllers.RegimentEditor.carry(id, Number(s.dataset.armyDrag)); // it can land on the map too
-    });
-    s.addEventListener("dragend", () => void Controllers.RegimentEditor.carry(id, null));
-  }
-  for (const d of panel.querySelectorAll<HTMLElement>("details.np-army")) {
-    d.addEventListener("dragover", event => {
-      if (!carried) return;
-      event.preventDefault();
-      d.classList.add("np-over");
-    });
-    d.addEventListener("dragleave", () => d.classList.remove("np-over"));
-    d.addEventListener("drop", event => {
-      event.preventDefault();
-      d.classList.remove("np-over");
-      const to = regimentOf(Number(d.dataset.army));
-      if (!carried || !to) return;
-      if ("army" in carried) {
-        const list = pack.states[id].military ?? [];
-        const moving = list.find(r => r.i === (carried as { army: number }).army);
-        if (moving && moving !== to) {
-          list.splice(list.indexOf(moving), 1);
-          list.splice(list.indexOf(to), 0, moving);
-        }
-      } else {
-        const from = regimentOf(carried.from);
-        if (from && from !== to) {
-          const list = from.u[carried.unit] ? "u" : "cargo";
-          const why = shift(
-            from,
-            list,
-            carried.unit,
-            (list === "u" ? from.u : (from.cargo ?? {}))[carried.unit] ?? 0,
-            to,
-            isTransport(to) ? "cargo" : "u"
-          );
-          if (why) tip(why, false, "error");
-          if (!troopsOf(from) && !isTransport(from) && !from.garrison) Military.remove(from.state, from.i);
-        }
-      }
-      carried = null;
-      drawMilitary();
-      Layers.draw("military");
-      render();
-    });
-  }
+  void id;
 }
 
 function notes(id: number): string {
@@ -545,7 +518,7 @@ function notes(id: number): string {
 }
 
 function onKey(event: KeyboardEvent): void {
-  if (event.key !== "Escape" || !panel) return;
+  if (event.key !== "Escape" || !panel || escapeTaken()) return;
   const target = event.target as HTMLElement;
   if (target.closest?.(".ui-dialog") || (target !== document.body && panel.contains(target) && editingName)) return;
   closeNation();

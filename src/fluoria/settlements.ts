@@ -3,7 +3,7 @@
 import type { Burg } from "@/generators/burgs-generator";
 import type { Regiment } from "@/generators/military-generator";
 import { raise } from "./forces/army";
-import { domainOfUnit, isTransport, kitOf, rows, slotsOf, troopsOf, type Units } from "./forces/forces";
+import { domainOfUnit, kitOf, rows, slotsOf, troopsOf, type Units } from "./forces/forces";
 import { KIT, type KitUnit, slotSize } from "./forces/kit";
 import { cellCentre, mainCell, neighbours } from "./one-grid";
 import {
@@ -454,7 +454,7 @@ export function garrisonLoners(): number {
   for (const state of pack.states) {
     if (!state.i || state.removed) continue;
     for (const r of [...(state.military ?? [])]) {
-      if (r.hidden || r.garrison || slotsOf(r.u) > 1 || (isTransport(r) && slotsOf(r.cargo))) continue;
+      if (r.hidden || r.garrison || slotsOf(r.u) > 1 || slotsOf(r.cargo)) continue;
       const unit = Object.keys(r.u).find(u => r.u[u] > 0);
       if (!unit || !garrisonable(unit)) continue;
       const sea = domainOfUnit(unit) === "naval";

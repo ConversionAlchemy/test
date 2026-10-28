@@ -20,6 +20,7 @@ import { getPointsNumber } from "@/data/graph-density";
 import { heightmapTemplates } from "@/data/heightmap-templates";
 import { isLanguage, LANGUAGES } from "@/data/languages";
 import { precreatedHeightmaps } from "@/data/precreated-heightmaps";
+import { setSound, soundSettings } from "@/fluoria/sfx";
 import { isAutoBurgLimit } from "@/generators/burgs-generator";
 import { CULTURE_SETS, Cultures } from "@/generators/cultures-generator";
 import { Emblems } from "@/generators/emblems-generator";
@@ -197,7 +198,9 @@ const OPTION_BINDINGS: Record<string, OptionBinding> = {
   zoomExtentMax: { read: o => o.app.zoomExtent.max, update: changeZoomExtent, event: "change" },
   themeHue: { read: o => hsl(o.app.ui.themeColor).h, update: changeThemeHue },
   themeColor: { read: o => o.app.ui.themeColor, update: value => setTheme(value, options.app.ui.transparency) },
-  transparency: { read: o => o.app.ui.transparency, update: value => setTheme(options.app.ui.themeColor, +value) }
+  transparency: { read: o => o.app.ui.transparency, update: value => setTheme(options.app.ui.themeColor, +value) },
+  soundOn: { read: () => (soundSettings().on ? "on" : "off"), update: value => setSound({ on: value === "on" }) },
+  soundVolume: { read: () => soundSettings().volume, update: value => setSound({ volume: +value }) }
 };
 
 function option<T extends string | number>(definition: OptionDefinition<T>): OptionBinding {
@@ -398,6 +401,23 @@ const TEMPLATE = /* html */ `
       <td>${t("Transparency")}</td>
       <td colspan="2">
         <slider-input id="transparencyInput" data-option="transparency" min="0" max="100"></slider-input>
+      </td>
+    </tr>
+    <tr data-tip="${t("Sounds when moving units and spending")}">
+      <td></td>
+      <td>${t("Sounds")}</td>
+      <td>
+        <select id="soundOn" data-option="soundOn">
+          <option value="on">${t("On")}</option>
+          <option value="off">${t("Off")}</option>
+        </select>
+      </td>
+    </tr>
+    <tr data-tip="${t("How loud the sounds are")}">
+      <td></td>
+      <td>${t("Volume")}</td>
+      <td colspan="2">
+        <slider-input id="soundVolume" data-option="soundVolume" min="0" max="100"></slider-input>
       </td>
     </tr>
     <tr data-tip="${t("Rendering preset: visual quality traded for speed. Pick 'Speed' if the map feels slow")}">

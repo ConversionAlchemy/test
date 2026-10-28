@@ -1,5 +1,6 @@
 import { hideOptions } from "@/components/options/options-panel";
 import { Controllers } from "@/controllers";
+import { escapeTaken } from "@/fluoria/number-field";
 import { roadModeOn, setRoadMode } from "@/fluoria/road-mode";
 import { Services } from "@/services";
 import { toggleSaveReminder } from "@/services/autosave";
@@ -52,15 +53,18 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (code === "F6") Services.Save.toStorage();
   else if (code === "F9") Services.Load.quickLoad();
   else if (code === "Tab") toggleOptions(event);
-  else if (code === "Escape") {
+  else if (code === "Escape" && !escapeTaken()) {
     closeDialogs();
     hideOptions();
   } else if (code === "Delete") removeElementOnKey();
   else if (code === "KeyO" && findEl("canvas3d")) Controllers.View3d.toggleOptions();
   else if (ctrl && code === "KeyQ") toggleSaveReminder();
   else if (ctrl && code === "KeyC") Services.Save.toDropbox();
-  else if (ctrl && code === "KeyZ") findEl("undo")?.click();
-  else if (ctrl && code === "KeyY") findEl("redo")?.click();
+  else if (ctrl && code === "KeyZ") {
+    const undo = findEl("undo");
+    if (undo && (undo as HTMLElement).offsetParent) undo.click();
+    else window.dispatchEvent(new Event("fl:undo")); // Fluoria: the last unit order
+  } else if (ctrl && code === "KeyY") findEl("redo")?.click();
   else if ((shift || altShift) && code === "KeyH") Controllers.HeightmapEditor.open();
   else if ((shift || altShift) && code === "KeyB") Controllers.BiomesEditor.open();
   else if ((shift || altShift) && code === "KeyS") Controllers.StatesEditor.open();
