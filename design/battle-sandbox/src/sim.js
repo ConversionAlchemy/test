@@ -715,7 +715,7 @@ function rebuildDS(){const B=15;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++)
 function rebuildSH(){rebuildDS();for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){let k=0;if(!sol[j]){if(isS(X,Y-1)||isS(X-1,Y))k=1;else if(isS(X,Y-2)||isS(X-2,Y)||isS(X-1,Y-1))k=2}else{if(!isS(X,Y-1)||!isS(X,Y+1)||!isS(X-1,Y)||!isS(X+1,Y))k=1;else if(!isS(X,Y-2)||!isS(X-2,Y))k=2;else if(!isS(X,Y+2)||!isS(X+2,Y))k=3}SH[j]=k}}
 function render(){
  if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick}
- sheenFrame();for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j])c=OBJC[j];else if(j>2*W&&OBJ[j-2*W-1])c=mul(c,.6);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=BURN[bro+(X>>1)];if(bu>.02&&bu>hh(X,Y,13)*.45)c=mul(c,1-.8*bu);const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
+ sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>2*W&&OBJ[j-2*W-1])c=mul(c,.6);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=BURN[bro+(X>>1)];if(bu>.02&&bu>hh(X,Y,13)*.45)c=mul(c,1-.8*bu);const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
  if(fxDirty||(fxActive&&tick%3===0)||(tick%7===0&&FX.fire.some(v=>v>.3)))buildFx();
  for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}
@@ -823,7 +823,7 @@ function wasd(){slabTurn();let dx=(keys.has('d')?1:0)-(keys.has('a')?1:0),dy=(ke
 const GEL={planks:'wood',pplanks:'wood',dplanks:'wood',mfloor:'metal',marble:'marble',dmarble:'marble',omarble:'marble',msill:'marble',carpet:'carpet',grass:'grass',dirt:'dirt'};
 function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return GEL[k]||(k&&k.endsWith('H')?'dirt':'stone')}
 let lastHud='';
-let openCrate=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
+let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
 function moveItem(from,i,to){const q=from.inv&&from.inv[i];if(!q||!to.inv)return;const one={k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}
  if(to.type==='token'){if(addItem(to,one)){if((q.n-=one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k])q.ammo=CAP[q.k];sfx('flick')}else sfx('dry');return}
  const m=!CAP[q.k]&&to.inv.find(z=>z&&z.k===q.k);let j=-1;if(!m){j=to.inv.indexOf(null);if(j<0){if(to.kind==='crate'){j=to.inv.length;to.inv.push(null)}else{sfx('dry');return}}}
@@ -944,7 +944,7 @@ cv.addEventListener('pointerdown',e=>{au();closeMenu();if(panKey||e.button===1){
   box={x0:x,y0:y,x1:x,y1:y}}
  else if(tool==='chip'){chipLast=[X,Y];chip(X,Y)}});
 window.addEventListener('pointermove',e=>{if(pan){cam.x=pan.cx+e.clientX-pan.x;cam.y=pan.cy+e.clientY-pan.y;applyCam();return}const[x,y]=toBoard(e);mouse.x=x;mouse.y=y;mouse.in=inBoard(e);
- hover=mouse.in&&!drag?bodyAt(x|0,y|0,1):null;
+ hover=mouse.in&&!drag?bodyAt(x|0,y|0,1):null;hoverC=!hover&&mouse.in&&!drag&&(x|0)>=0&&(y|0)>=0&&(x|0)<W&&(y|0)<H?containerAt(x|0,y|0):null;
  if(!drag)for(const b of sel){if(b.type==='slab')continue;if(!srcInfo(b))continue;const a=Math.atan2(y-b.y,x-b.x);if(b.type==='token')turnTo(b,a);else if(Math.abs(a-b.ang)>.05)reshape(b,a)}
  if(pend&&Math.hypot(x-pend.x,y-pend.y)>2){startDrag(pend.b,pend.x,pend.y);pend=null}
  if(box){box.x1=x;box.y1=y}
