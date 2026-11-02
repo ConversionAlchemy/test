@@ -40,8 +40,8 @@ function tilePix(key,cx,cy){if(TEX[key]){const d=new Uint8ClampedArray(T*T*4);fo
  const d=g.getImageData(0,0,T,T).data,k=key==='stone'?.84:KIND[key]==='wall'?.64:key==='seat'||key==='carpet'?.25:key==='gfloor'?.15:key==='table'?.3:key==='sky'?.05:.42,lift=key==='stone'?1.3:key==='pillar'?1.05:1;let r=0,gg=0,b=0;
  for(let i=0;i<d.length;i+=4){r+=d[i];gg+=d[i+1];b+=d[i+2]}r/=T*T;gg/=T*T;b/=T*T;
  for(let i=0;i<d.length;i+=4){d[i]=cl((d[i]+(r-d[i])*k)*lift);d[i+1]=cl((d[i+1]+(gg-d[i+1])*k)*lift);d[i+2]=cl((d[i+2]+(b-d[i+2])*k)*lift)}return d}
-const WMAT={bush:2,stone:1,gstone:1,pillar:1,berm:1,rail:2,wood:2,dwood:2,metal:3,mplate:3,iron:3,brass:3};
-const SHINE={metal:70,mplate:70,iron:45,brass:80,mfloor:50,marble:28,dmarble:28,gfloor:80,gstone:20,pillar:28,msill:28,shelf:80};
+const WMAT={mpanel:3,bush:2,stone:1,gstone:1,pillar:1,berm:1,rail:2,wood:2,dwood:2,metal:3,mplate:3,iron:3,brass:3};
+const SHINE={omarble:28,mpanel:70,metal:70,mplate:70,iron:45,brass:80,mfloor:50,marble:28,dmarble:28,gfloor:80,gstone:20,pillar:28,msill:28,shelf:80};
 function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=key;const half=key.length>1&&key.endsWith('H')&&WMAT[key.slice(0,-1)],bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix('dirt',cx,cy):null,m=WMAT[bk]||0,gk=bk==='gstone'?1:0;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&x>=T/2,c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=bk==='bush'?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;shp[j]=MAT[m].hp;scol[j]=c;floor[j]=mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
@@ -57,7 +57,7 @@ function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[
 // every laid surface gets a soft edge where it meets a different one
 const NOB=new Set(['grass','dirt','sky','bush','carpet','sill','msill']);
 function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>map[y]&&map[y][x]!==undefined&&map[y][x]!==k;
- for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);if(d>1)continue;const j=(cy*T+y)*W+cx*T+x,f=d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);if(d>(WMAT[k]===3?2:1))continue;const j=(cy*T+y)*W+cx*T+x,mt=WMAT[k]===3,f=mt?[.7,1.3,.88][d]:d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
 // furniture and fixtures: above the floor, block walking, bullets pass over, blasts break them
 const OBJK=new Set(['table','desk','seat','shelf','chest','rack']),ONAME={table:'Table',desk:'Desk',seat:'Chair',shelf:'Vault shelf',chest:'Chest',rack:'Rack'};let OM=[];
 function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(0);const cells=[];for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(OBJK.has(map[cy][cx])){OM[cy][cx]=map[cy][cx];cells.push([cx,cy])}
@@ -65,7 +65,7 @@ function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(
   for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);OBJ[j]=1;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}}
 function inlays(){const ring=(X0,Y0,R)=>{for(let Y=Y0-R-2;Y<=Y0+R+2;Y++)for(let X=X0-R-2;X<=X0+R+2;X++){const j=Y*W+X;if(sol[j]||OBJ[j])continue;const dx=X-X0+.5,dy=Y-Y0+.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3),gm=(c,t)=>mix(c,rgb(214,176,96),t),dm=()=>{const c=TEX.dmarble(X,Y);return rgb(cl(c[0]),cl(c[1]),cl(c[2]))};
   let c=null;if(r<4)c=gm(floor[j],.85);else if(Math.abs(r-st)<.8)c=gm(floor[j],.7);else if(r<st)c=r<st*.55?floor[j]:dm();else if(Math.abs(r-R*.82)<.7||Math.abs(r-R)<.7)c=gm(floor[j],.7);else if(r>R*.82&&r<R)c=dm();if(c!==null){floor[j]=c;SHN[j]=c===floor[j]?SHN[j]:40}}};
- ring(240,216,46);ring(240,408,40)}
+ ring(240,408,40)}
 function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;const cells=[],seen=new Set([cy*CW+cx]),q=[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}
  const xs=cells.map(c=>c[0]),ys=cells.map(c=>c[1]),box=[Math.min(...xs)*T,Math.min(...ys)*T,(Math.max(...xs)+1)*T-1,(Math.max(...ys)+1)*T-1],c=weapon('crate',(box[0]+box[2])/2,(box[1]+box[3])/2,0);
  c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.inv=items.map(i=>({...i}));c.cells=cells;c.box=box;c.n0=cells.length*T*T;c.metal=k==='shelf';return c}
@@ -103,7 +103,7 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
 const RLANE=['stone','stoneH','stone2','wood','woodH','metal','metalH','door'];
 function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('grass'));
  const soil=(cx,cy)=>{const dx=(cx-33.5)/4.2,dy=(cy-26)/6.5;return dx*dx+dy*dy+(hh(cx,cy,98)-.5)*.35<1};
- const Y0=['flag','planks','pplanks','dplanks','mfloor','marble','dmarble'],W0=['stone','wood','dwood','metal','mplate','iron','brass'],W1=['gstone','rail','metalH','mplateH','woodH','stoneH'];
+ const Y0=['flag','planks','pplanks','dplanks','mfloor','marble','dmarble','omarble'],W0=['stone','wood','dwood','metal','mplate','mpanel','iron','brass'],W1=['gstone','rail','metalH','mplateH','woodH','stoneH'];
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='grass';if(cx>=2&&cx<=4&&cy>=1&&cy<=CH-2)k='dirt';
   if(cy>=1&&cy<=8){if(cx>=2&&cx<14)k='dirt';if(cx===14||cx===15)k='berm'}
   if(cy>=10&&cy<=11){if(cx>=2&&cx<37)k='dirt';if(cx===37||cx===38)k='berm'}
@@ -128,7 +128,7 @@ function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;retu
 function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
  const F=(cx,cy)=>{if(cy>=39&&cy<=45)return cx>=1&&cx<=4&&cy>=41&&cy<=44?(cx>=2&&cx<=3&&cy>=42&&cy<=43?'bush':'grass'):'pave';if(cy===46)return 'bush';if(cy===38)return cx>=13?'marble':'gstone';if(cx<=2||cy<=1)return 'gstone';
   if(cy>=2&&cy<=6&&cx>=8)return cx===10&&cy===4?'pillar':cy===2&&(cx<=10||cx>=13)?'shelf':'marble';if(cy===7)return cx>=13?'marble':'gstone';
-  if(cy>=8&&cy<=18){if(cx>=11)return cx===12&&(cy===10||cy===16)?'pillar':'marble';if(cx===10)return cy===13?'marble':'gstone';if(cx>=3&&cy>=9&&cy<=17)return cy===10&&cx>=5&&cx<=7?'desk':cx>=4&&cx<=8&&cy>=11&&cy<=16?'carpet':'marble';return 'gstone'}
+  if(cy>=8&&cy<=18){if(cx>=11)return cx===12&&(cy===10||cy===16)?'pillar':'omarble';if(cx===10)return cy===13?'marble':'gstone';if(cx>=3&&cy>=9&&cy<=17)return cy===10&&cx>=5&&cx<=7?'desk':cx>=4&&cx<=8&&cy>=11&&cy<=16?'carpet':'marble';return 'gstone'}
   if(cy===19)return cx>=13?'marble':'gstone';
   if(cy>=20&&cy<=30){if((cx===6||cx===10)&&(cy===22||cy===28))return 'pillar';if(cy===25&&cx>=5&&cx<=9)return 'table';return 'marble'}
   if(cy===31)return cx>=13?'marble':'gstone';
