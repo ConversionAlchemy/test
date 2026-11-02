@@ -65,13 +65,13 @@
    <div class="sec" data-k="wp"><b class="sh">Weapons</b><div class="wp" id="wp"></div></div>
    <div class="sec" data-k="cov"><b class="sh">Cover</b><div class="wp" id="cov"></div></div>
    <div class="sec" data-k="tools"><b class="sh">Tools</b><div class="wp" id="tools"></div></div>
-   <div class="sec" data-k="mk"><b class="sh"><span>Markers<canvas id="tp" width="17" height="17"></canvas></span></b><div class="wp mk"><div><span class="ml">Name</span><input id="fn" value="Edda"></div><div><span class="ml">Unit</span><select id="fu"></select><span class="c">▾</span></div><div><span class="ml">Side</span><select id="fnat"></select><span class="c">▾</span></div><div><span class="ml">Arms</span><select id="fw"></select><span class="c">▾</span></div></div></div>
+   <div class="sec" data-k="mk"><b class="sh">Markers</b><div class="wp mk"><div><span class="ml">Name</span><input id="fn" value="Edda"></div><div><span class="ml">Unit</span><select id="fu"></select><span class="c">▾</span></div><div><span class="ml">Side</span><select id="fnat"></select><span class="c">▾</span></div><div><span class="ml">Arms</span><select id="fw"></select><span class="c">▾</span></div><div id="tpr"><canvas id="tp" width="17" height="17"></canvas></div></div></div>
    <div class="sec" data-k="insp"><b class="sh" id="ihd">Inspector</b><div id="insp"></div></div>
   </div>
  </div>
  <div class="hint" id="hint"></div>
 </div>
-<script>
+<style>#sm .mk>#tpr{display:flex;justify-content:center;align-items:center;height:58px;cursor:grab}#sm .mk>#tpr canvas{width:51px;height:51px;image-rendering:pixelated}</style><script>
 const T=16;
 const hh=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)};
 const wrap=v=>((v%T)+T)%T;
@@ -1182,7 +1182,7 @@ const fnatv=()=>fnat.value==='Neutral'?null:fnat.value;
 function preview(){const g=tp.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={unit:fu.value,nat:fnatv(),guard:false},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));
  for(const p of px){let c=pcol(t,p);if(!set.has(K(p[0]+1,p[1]))||!set.has(K(p[0]-1,p[1]))||!set.has(K(p[0],p[1]+1))||!set.has(K(p[0],p[1]-1)))c=mul(c,.36);u[(p[1]+8)*17+p[0]+8]=c}g.putImageData(id,0,0)}
 fu.onchange=()=>{fw.value=UNITS[fu.value].w||'';preview()};fnat.onchange=preview;fw.value='';preview();
-$('tp').addEventListener('pointerdown',e=>{e.stopPropagation();au();e.preventDefault();const[x,y]=toBoard(e);charge=null;const b=token($('fn').value||'Unnamed',fnatv(),fu.value,x,y,false,fw.value||null);startDrag(b,x,y,true);listPeople()});
+$('tpr').addEventListener('pointerdown',e=>{au();e.preventDefault();const[x,y]=toBoard(e);charge=null;const b=token($('fn').value||'Unnamed',fnatv(),fu.value,x,y,false,fw.value||null);startDrag(b,x,y,true);listPeople()});
 for(const sc of document.querySelectorAll('#sm .sec')){const k='bsx:'+sc.dataset.k;try{if(localStorage.getItem(k)==='1')sc.classList.add('closed')}catch(e){}sc.querySelector('.sh').onclick=()=>{sc.classList.toggle('closed');try{localStorage.setItem(k,sc.classList.contains('closed')?'1':'0')}catch(e){}}}
 function listPeople(){const l=$('ppl');if(!l)return;l.innerHTML='';for(const b of bodies.filter(b=>b.type==='token')){const d=document.createElement('div');if(b.status!=='free')d.className='off';const nc=b.nat&&NAT[b.nat]?NAT[b.nat]:'#d8d4ca';
  d.innerHTML=`<span class="dot" style="background:${nc}"></span><span style="color:${natLabel(b)}">${b.name}</span>${b.status==='dead'?' ✝':b.status==='captured'?' ⛓':''}`;d.onclick=e=>clickBody(b,e.ctrlKey||e.metaKey);l.appendChild(d)}}
