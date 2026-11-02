@@ -33,12 +33,12 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Fire sticks to units and eats the outer rings; hot plate cracks; sewer water puts it out.
 - Shock spears lodged in metal or stone count down and blow; several in a shock trooper overload him.
 - Rod launchers fire an iron rod. It gets about two-thirds into a stone wall and can punch through a metal door. In a unit it stops halfway: straight on that kills light troops, but guards and shock troopers often survive it, and it glances off their plate at shallow angles. It throws the target back and can pin them to a wall. Recoil shoves the shooter; civilians and homeguard are thrown much further and wounded.
-- Plasma rod launchers fire the rod white-hot. While hot it goes through units without glancing off and burns through one wall and 20–40% of the next, where it cools and sticks; it also cools in flight, though one shot in five sticks in a shock trooper's plate. Once cool it acts like a plain rod.
+- Plasma rod launchers fire the rod white-hot. While hot it goes through units without glancing off and burns through about one wall's thickness of stone or plate plus 20–40% more, then cools and sticks, leaving a scorch line, smoke and fire where it hit; it also cools in flight, though one shot in five sticks in a shock trooper's plate. Once cool it acts like a plain rod.
 - The simulation runs at a fixed 60 steps a second whatever the frame rate.
 
 ## Maps
 
-Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest), Astia proving yard (rod launcher test range).
+Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest), Astia proving yard (outdoor test range: a lane of every unit type, a long lane where the plasma rod has cooled, and lanes of stone, double stone, wood, metal, half slab and heavy door with a target behind each).
 
 ## Planned
 
