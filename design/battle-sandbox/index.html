@@ -247,8 +247,8 @@ function tokPixels(b){const u=UNITS[b.unit],px=[];
  for(let dy=-8;dy<=8;dy++)for(let dx=-8;dx<=8;dx++){const d=Math.hypot(dx,dy);if(d>8.3)continue;let r,hp,m=0;
   if(u.arm&&d>7.4-u.arm){r='a';hp=u.cost;m=u.leather?0:3}else if(u.front&&d>5.4){r='f';hp=13;m=3}else if(d>4.4){r='c';hp=1}else if(d>3.5){r='k';hp=3}else{r='h';hp=3}
   px.push([dx,dy,0,hp,m,0,hp,r,dx,dy])}return px}
-function token(name,nat,unit,x,y,guard,wk){const w=wk===undefined?UNITS[unit].w:wk;const b={id:uid++,type:'token',name,nat,unit,x,y,vx:0,vy:0,status:'free',guard:!!guard,mass:1+UNITS[unit].arm*.4,ang:0,held:null,inv:null};{const L=loadout(unit,w),inv=[w?{k:w,n:w==='spear'?6:1,ammo:CAP[w],res:CAP[w]&&unit!=='civ'?CAP[w]*(unit==='guard'||unit==='cmd'||w==='sspear'?2:1):undefined}:null,...L];if(nat==='Goldbank')for(let i=0;i<inv.length;i++)if(inv[i]&&(inv[i].k==='grenade'||inv[i].k==='bomb'))inv[i]=null;while(inv.length<CARRY[unit]+1)inv.push(null);b.inv=inv;b.si=w?0:-1;b.held=w?inv[0]:null};b.px=tokPixels(b);b.n0=b.px.length;mkSet(b);bodies.push(b);mkLabel(b);return b}
-const WP={musket:{n:'Musket',gun:1,fr:.9,m:1,range:300,spread:.03,speed:46,proj:'ball',len:14,hold:750,smoke:1,rec:.5,E:18},blunder:{n:'Blunderbuss',gun:1,fr:.9,m:1,range:140,spread:.025,speed:42,proj:'pel',len:10,hold:750,smoke:1.2,rec:.45,E:10,pellets:4},pistol:{n:'Pistol',gun:1,fr:.9,m:.7,range:170,spread:.05,speed:40,proj:'pball',len:7,hold:500,smoke:.5,rec:.3,E:13},spear:{n:'Spear',sharp:1,melee:1,fr:.985,max:30,m:1.4,tip:19},sspear:{n:'Shock spear',sharp:1,melee:1,fr:.985,max:30,m:1.5,tip:22,proj:'arc',speed:34,E:6,rec:1.2,len:19,hold:1100,range:220,spread:.02},shield:{hide:1,n:'Shield',fr:.9,max:16,m:2,tip:1},rod:{n:'Bolter',gun:1,fr:.9,m:1.3,range:340,spread:.012,speed:50,proj:'rodp',len:15,tip:15,hold:900,smoke:.5,rec:2.4,E:40,kb:4},grenade:{n:'Grenade',fr:.93,max:24,m:1},pot:{hide:1,n:'Fire pot',fr:.97,max:24,m:1},bomb:{n:'Heavy grenade',fr:.95,max:16,m:5},crate:{n:'Crate',hide:1,fr:.75,max:6,m:9},gold:{n:'Solari',hide:1,fr:.8,max:10,m:1},plasma:{n:'Plasma cutter',tool:2,fr:.9,max:20,m:.8,tip:9,reach:34},rbox:{n:'Rods',hide:1,fr:.8,max:10,m:1.5},ball:{n:'Ball',fr:.995,max:46,m:.4,hide:1,bullet:1},pball:{n:'Shot',fr:.995,max:40,m:.25,hide:1,bullet:1},pel:{n:'Pellet',fr:.99,max:42,m:.3,hide:1,bullet:1},arc:{n:'Arc',fr:.995,max:34,m:.3,hide:1,bullet:1},rodp:{n:'Rod',fr:.996,max:52,m:1.2,hide:1,bullet:1,rod:1}};
+function token(name,nat,unit,x,y,guard,wk){const w=wk===undefined?UNITS[unit].w:wk;const b={id:uid++,type:'token',name,nat,unit,x,y,vx:0,vy:0,status:'free',guard:!!guard,mass:1+UNITS[unit].arm*.4,ang:0,held:null,inv:null};{const L=loadout(unit,w),inv=[w?{k:w,n:w==='spear'?4:1,ammo:CAP[w],res:CAP[w]&&unit!=='civ'?CAP[w]*(unit==='guard'||unit==='cmd'||w==='sspear'?2:1):undefined}:null,...L];if(nat==='Goldbank')for(let i=0;i<inv.length;i++)if(inv[i]&&(inv[i].k==='grenade'||inv[i].k==='bomb'))inv[i]=null;while(inv.length<CARRY[unit]+1)inv.push(null);b.inv=inv;b.si=w?0:-1;b.held=w?inv[0]:null};b.px=tokPixels(b);b.n0=b.px.length;mkSet(b);bodies.push(b);mkLabel(b);return b}
+const WP={musket:{n:'Musket',gun:1,fr:.9,m:1,range:300,spread:.03,speed:46,proj:'ball',len:14,hold:750,smoke:1,rec:.5,E:18},blunder:{n:'Blunderbuss',gun:1,fr:.9,m:1,range:140,spread:.025,speed:42,proj:'pel',len:10,hold:750,smoke:1.2,rec:.45,E:10,pellets:4},pistol:{n:'Pistol',gun:1,fr:.9,m:.7,range:170,spread:.05,speed:40,proj:'pball',len:7,hold:500,smoke:.5,rec:.3,E:13},spear:{n:'Spear',sharp:1,melee:1,fr:.985,max:30,m:1.4,tip:19},sspear:{n:'Shock spear',sharp:1,melee:1,fr:.985,max:30,m:1.5,tip:19,proj:'arc',speed:34,E:6,rec:1.2,len:19,hold:1100,range:220,spread:.02},shield:{hide:1,n:'Shield',fr:.9,max:16,m:2,tip:1},rod:{n:'Bolter',gun:1,fr:.9,m:1.3,range:340,spread:.012,speed:50,proj:'rodp',len:15,tip:15,hold:900,smoke:.5,rec:2.4,E:40,kb:4},grenade:{n:'Grenade',fr:.93,max:24,m:1},pot:{hide:1,n:'Fire pot',fr:.97,max:24,m:1},bomb:{n:'Heavy grenade',fr:.95,max:16,m:5},crate:{n:'Crate',hide:1,fr:.75,max:6,m:9},gold:{n:'Solari',hide:1,fr:.8,max:10,m:1},plasma:{n:'Plasma cutter',tool:2,fr:.9,max:20,m:.8,tip:9,reach:34},rbox:{n:'Rods',hide:1,fr:.8,max:10,m:1.5},ball:{n:'Ball',fr:.995,max:46,m:.4,hide:1,bullet:1},pball:{n:'Shot',fr:.995,max:40,m:.25,hide:1,bullet:1},pel:{n:'Pellet',fr:.99,max:42,m:.3,hide:1,bullet:1},arc:{n:'Arc',fr:.995,max:34,m:.3,hide:1,bullet:1},rodp:{n:'Rod',fr:.996,max:52,m:1.2,hide:1,bullet:1,rod:1}};
 const CAP={musket:12,pistol:18,blunder:8,sspear:4,rod:3},BOX={musket:'mbox',pistol:'pbox',blunder:'sbox',sspear:'cell',rod:'rbox'},CARRY={civ:1,home:2,rifle:2,guard:3,cmd:4,shock:5};
 function loadout(u,w){const L=[];if(w==='sspear')L.push({k:'sspear',n:2});if(u==='cmd')L.push({k:'bomb',n:1});if(u!=='civ')L.push({k:'grenade',n:u==='guard'||u==='cmd'||u==='rifle'?2:1});return L.slice(0,CARRY[u])}
 function consume(b){const s=b.held;if(!s)return;s.n=(s.n||1)-1;if(s.n>0){if(CAP[s.k])s.ammo=CAP[s.k];delete s.mode;b.hc=null;return}if(b.inv&&b.si>=0)b.inv[b.si]=null;b.held=null;b.si=-1;b.hc=null}
@@ -257,19 +257,20 @@ function reload(b){const h=b.held;if(!h||!CAP[h.k])return false;const cur=h.ammo
 const THR={civ:.5,home:.7,rifle:.8,guard:.9,cmd:.9,shock:1};
 const C={lw:rgb(198,164,112),lwD:rgb(160,126,80),wood:rgb(...PAL.oak[2]),woodH:rgb(...PAL.oak[3]),woodD:rgb(...PAL.oak[1]),iron:rgb(...PAL.iron[3]),ironH:rgb(...PAL.iron[4]),ironD:rgb(...PAL.iron[1]),ironK:rgb(...PAL.iron[0]),lead:rgb(78,80,86),clay:rgb(156,82,60),clayD:rgb(104,50,36),cloth:rgb(214,204,180),fuse:rgb(230,170,60)};
 const rodFill=it=>it&&(it.k==='rod'||it.kind==='rod')?Math.ceil((it.ammo??CAP[it.k||it.kind])/CAP[it.k||it.kind]*3-1e-9)/3:1;
-function heatCol(h,cold){return h<.15?cold:h<.45?mix(cold,rgb(170,46,24),(h-.15)/.3):h<.7?mix(rgb(170,46,24),rgb(255,140,50),(h-.45)/.25):h<.95?mix(rgb(255,140,50),rgb(255,222,130),(h-.7)/.25):rgb(255,250,236)}
+const HEAT=[[0,null],[.18,rgb(118,72,64)],[.34,rgb(150,44,28)],[.5,rgb(206,62,26)],[.66,rgb(250,118,38)],[.82,rgb(255,190,90)],[1,rgb(255,244,214)]];
+function heatCol(h,cold){if(h<=0)return cold;h=Math.min(1.05,h);for(let i=1;i<HEAT.length;i++)if(h<=HEAT[i][0]||i===HEAT.length-1){const a=HEAT[i-1],b=HEAT[i],t=Math.min(1,(h-a[0])/(b[0]-a[0])),e=t*t*(3-2*t);return mix(a[1]||cold,b[1],e)}return cold}
 const sh3=(c,u)=>u<-.2?mul(c,1.16):u>.2?mul(c,.72):c;
 function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(a);
  const st=(t0,t1,w,f)=>{for(let t=t0;t<=t1;t+=.5)for(let u=-w;u<=w+.01;u+=.5)m.set(K(Math.round(c*t-s*u),Math.round(s*t+c*u)),f(t,u))};
  const disc=(r,f)=>{for(let y=-6;y<=6;y++)for(let x=-6;x<=6;x++){const d=Math.hypot(x,y);if(d<=r)m.set(K(x,y),f(x,y,d))}};
  if(kind==='spear'){st(-20,13,0,t=>(t+20)%7<1?C.lwD:C.lw);st(13,17,.5,(t,u)=>sh3(C.iron,u));st(17.5,19.5,0,()=>C.ironH)}
- if(kind==='sspear'){st(-20,14,0,()=>C.iron);st(13,15,.5,()=>rgb(44,62,110));st(15.5,18,.5,()=>TIPA);st(18.5,22,0,t=>t>20.5?TIPB:TIPA)}
+ if(kind==='sspear'){st(-20,13,0,t=>(t+20)%7<1?C.lwD:C.lw);st(13,17,.5,(t,u)=>u<-.2?TIPB:u>.2?TIPC:TIPA);st(17.5,19.5,0,()=>TIPB)}
  if(kind==='arc')m.set(K(0,0),rgb(200,230,255));
  if(kind==='sword'){st(-4,-1,0,()=>C.ironD);for(let u=-2;u<=2;u+=.5)m.set(K(Math.round(c*-.5-s*u),Math.round(s*-.5+c*u)),C.ironD);st(0,11,.5,(t,u)=>t>10||u<0?C.ironH:C.iron)}
  if(kind==='shield'){for(let t=-1;t<=.5;t+=.5)for(let u=-7;u<=7;u+=.5){const e=Math.abs(u)>6||t<-.6;m.set(K(Math.round(c*(t-Math.abs(u)*.12)-s*u),Math.round(s*(t-Math.abs(u)*.12)+c*u)),Math.abs(u)<1.2&&t>-.6?C.ironH:e?C.ironD:C.iron)}}
- if(kind==='rod'){const glow=c=>heat>1?mix(c,rgb(214,70,30),Math.min(.8,(heat-1)*2.2)):c;st(-10,-5,1.5,(t,u)=>glow(u<-1.2?rgb(66,68,76):u>1.2?rgb(34,36,42):rgb(56,58,64)));st(-5,-3,.5,()=>glow(rgb(70,72,78)));st(-3,15,1,(t,u)=>Math.abs(u)>.6?glow(t>14?rgb(46,48,54):u<0?rgb(112,116,124):rgb(78,82,90)):t>-3+18*fill?rgb(30,32,36):heatCol(heat,t>13?C.ironH:rgb(176,180,188)))}
+ if(kind==='rod'){const glow=c=>heat>1?mix(c,rgb(214,70,30),Math.min(.8,(heat-1)*2.2)):c;st(-10,-5,1.5,(t,u)=>glow(u<-1.2?rgb(58,60,66):u>1.2?rgb(28,29,33):rgb(44,46,51)));st(-5,-3,.5,()=>glow(rgb(50,52,57)));st(-3,15,1,(t,u)=>Math.abs(u)>.6?glow(t>14?rgb(30,31,35):u<0?rgb(66,68,75):rgb(42,44,49)):t>-3+18*fill?rgb(30,32,36):heatCol(heat*(.9+.12*(t+3)/18)+(hh(t*2|0,7,3)-.5)*.05*Math.min(1,heat*3),t>13?C.ironH:rgb(176,180,188)))}
   if(kind==='rodp')st(-3-(fill>1?2:0),2,fill>1?.5:0,t=>t>1?C.ironH:C.iron);
- if(kind==='blunder'){st(-10,-5,1,(t,u)=>sh3(C.wood,u));st(-5,6,.5,(t,u)=>sh3(C.iron,u));st(6,8,1,(t,u)=>sh3(rgb(186,148,70),u));st(8.5,10,1.5,(t,u)=>Math.abs(u)<.6&&t>9.5?rgb(30,26,22):sh3(rgb(206,166,82),u))}
+ if(kind==='blunder'){const dm=rgb(50,52,57);st(-10,-5,1,(t,u)=>sh3(dm,u));st(-5,6,.5,(t,u)=>sh3(rgb(58,60,66),u));st(6,8,1,(t,u)=>sh3(rgb(54,56,62),u));st(8.5,10,1.5,(t,u)=>Math.abs(u)<.6&&t>9.5?rgb(18,18,20):sh3(rgb(62,64,70),u))}
  if(kind==='bolt'){st(-6,3,0,()=>C.lw);st(3.5,6,0,()=>C.ironH)}
  if(kind==='musket'){st(-13,-9,1,(t,u)=>sh3(C.wood,u));st(-9,8,.5,(t,u)=>sh3(C.woodD,u));st(-4,14,0,t=>t>13?C.ironK:C.iron);m.set(K(Math.round(c*-6-s*1),Math.round(s*-6+c*1)),C.ironH)}
  if(kind==='pistol'){st(-5,-2,1,(t,u)=>sh3(C.woodD,u));st(-2,7,.5,(t,u)=>t>6.5?C.ironK:sh3(C.iron,u))}
@@ -395,7 +396,7 @@ function shatter(b){sfx('crash');for(let i=0;i<4;i++)dab(TF,b.x+(Math.random()-.
 // held weapons
 const HOFF={grenade:9,bomb:9,sspear:10,spear:10,sword:7,musket:8,blunder:7,pistol:6,crossbow:9,rod:8,plasma:8,shield:9};
 const sideOf=b=>b.held&&b.held.k==='shield'?0:5*(b.side||1);
-function heldPix(b){const a=b.ang,k=b.held.k,sd=sideOf(b),wd=Math.round((b.wind||0)*9+(b.cock>0?4*Math.sin(Math.PI*b.cock/14):0));const fl=rodFill(b.held),ht=Math.round((b.held.heat||0)*12)/12;if(!b.hc||b.hc.a!==a||b.hc.k!==k||b.hc.sd!==sd||b.hc.wd!==wd||b.hc.fl!==fl||b.hc.ht!==ht){const o=HOFF[k]-wd,c=Math.cos(a),s=Math.sin(a),ox=Math.round(c*o-s*sd),oy=Math.round(s*o+c*sd);b.hc={a,k,sd,wd,fl,ht,px:shape(k,a,fl,ht).map((p,i)=>[p[0]+ox,p[1]+oy,b.held.spent&&p[2]===TIPA?C.iron:b.held.spent&&p[2]===TIPB?C.ironH:p[2],i])}}
+function heldPix(b){const a=b.ang,k=b.held.k,sd=sideOf(b),wd=Math.round((b.wind||0)*9+(b.cock>0?4*Math.sin(Math.PI*b.cock/14):0));const fl=rodFill(b.held),ht=Math.round((b.held.heat||0)*48)/48;if(!b.hc||b.hc.a!==a||b.hc.k!==k||b.hc.sd!==sd||b.hc.wd!==wd||b.hc.fl!==fl||b.hc.ht!==ht){const o=HOFF[k]-wd,c=Math.cos(a),s=Math.sin(a),ox=Math.round(c*o-s*sd),oy=Math.round(s*o+c*sd);b.hc={a,k,sd,wd,fl,ht,px:shape(k,a,fl,ht).map((p,i)=>[p[0]+ox,p[1]+oy,b.held.spent?spentCol(p[2]):p[2],i])}}
  const bx=Math.round(b.x),by=Math.round(b.y),dm=b.held.dmg;return b.hc.px.filter(p=>!dm||!(dm[p[3]]>=7)).map(p=>[bx+p[0],by+p[1],dm&&dm[p[3]]?mul(p[2],1-dm[p[3]]*.06):p[2],p[3]])}
 function tipOf(b){if(b.type==='weapon'){const c=Math.cos(b.ang),s=Math.sin(b.ang),f=WP[b.kind].tip;return[b.x+c*f,b.y+s*f]}const k=b.held.k,a=b.ang,c=Math.cos(a),s=Math.sin(a),f=HOFF[k]+WP[k].tip;const sd=sideOf(b);return[b.x+c*f-s*sd,b.y+s*f+c*sd]}
 function shieldAt(o,pts){if(!o.held||o.held.k!=='shield')return false;const hp=heldPix(o);return pts.some(([X,Y])=>hp.some(q=>q[0]===X&&q[1]===Y))}
@@ -409,8 +410,9 @@ function melee(b){if(!b.held||!WP[b.held.k].melee||b.status==='dead')return;cons
    settle(o)}
   else{sfx('clink');o.vx+=(mx/v)*.4/o.mass;o.vy+=(my/v)*.4/o.mass}}
  for(const[X,Y]of blade.slice(-3)){const m=matAt(X,Y);if(m&&Math.random()<(m===1?.08:m===2?.3:.04)){damagePixel(X,Y,1);sfx(m===3?'clink':m===1?'crack':'thunk')}}}
-const TIPA=rgb(140,205,255),TIPB=rgb(230,245,255);
-function spend(b){b.spent=true;for(const p of b.px){if(p[2]===TIPA)p[2]=C.iron;else if(p[2]===TIPB)p[2]=C.ironH}}
+const TIPA=rgb(140,205,255),TIPB=rgb(230,245,255),TIPC=rgb(90,150,220);
+const spentCol=c=>c===TIPA?C.iron:c===TIPB?C.ironH:c===TIPC?mul(C.iron,.72):c;
+function spend(b){b.spent=true;for(const p of b.px)p[2]=spentCol(p[2])}
 function armSpear(b,o,p,mx){if(b.spent)return;let metal=false,back=false;
  if(o){const u=UNITS[o.unit];if(o.kind==='crate')metal=!!o.metal;else if(o.type==='token'&&u&&u.arm>=2&&!u.leather){metal=true;back=Math.cos(b.ang-(o.ang||0))>.5}}
  else metal=mx===3;
@@ -435,7 +437,7 @@ function blastSlab(d,x,y,s){const R=16*s,bx=Math.round(d.x),by=Math.round(d.y);l
 function lockBlast(x,y,r){for(const d of bodies){if(d.type!=='slab'||!d.locked||d.fallen)continue;const Lq=swingPt(d,(d.len||16)-4.5,-((d.th||6)>>1)-.5,d.ang||0),lx=d.x+Lq[0],ly=d.y+Lq[1];if(Math.hypot(lx-x,ly-y)>r)continue;
  for(const q of d.pair?[d,d.pair]:[d]){q.locked=false;if(!q.fallen&&q.ang===0&&q.tgt===0)q.tgt=openDir(q)}for(let i=0;i<10;i++)spark(lx,ly,Math.random()<.5?rgb(214,176,70):rgb(255,226,140),0,0,2.6);sfx('door');sfx('clink')}}
 function arcBlast(x,y,big=1){flash(x,y,.45,.7,1,1.4*big,4+big,.82);carve(x,y,2.6*(1+(big-1)*.6),4,0,0);lockBlast(x,y,3*big);primeNear(x,y,7*big);arcHit(x,y);if(big>1){for(const q of [...bodies])if((q.type==='token'||q.type==='part')&&Math.hypot(q.x-x,q.y-y)<6+big*4)cut(q,Math.round(x),Math.round(y),2+big,true,3);embers(x,y,12*big,true)}dab(SF,x,y,.7*big,3+big);for(let i=0;i<10*big;i++)spark(x,y,Math.random()<.5?rgb(140,200,255):rgb(255,226,140),0,0,2.6,Math.random()<.5?10:undefined);sfx('sblast');shake=Math.max(shake,3)}
-function spearTip(b){const c=Math.cos(b.ang),s=Math.sin(b.ang);return[b.x+c*22,b.y+s*22]}
+function spearTip(b){const c=Math.cos(b.ang),s=Math.sin(b.ang);return[b.x+c*19,b.y+s*19]}
 function arcHit(x,y){for(const o of bodies){if(o.type==='weapon'||Math.abs(o.x-x)>14||Math.abs(o.y-y)>14)continue;const ox=Math.round(o.x),oy=Math.round(o.y);for(const p of o.px)if(p[4]===3&&Math.hypot(ox+p[0]-x,oy+p[1]-y)<4)p[5]=Math.min(1.2,p[5]+.7)}
  for(let j=-3;j<=3;j++)for(let i=-3;i<=3;i++){const X=Math.round(x)+i,Y=Math.round(y)+j;if(X<0||Y<0||X>=W||Y>=H)continue;const jj=Y*W+X;if(sol[jj]===1&&Math.hypot(i,j)<3.5){WH[jj]=Math.min(1.1,WH[jj]+.5);whOn=true}}
  for(let i=0;i<8;i++)spark(x,y,Math.random()<.5?rgb(140,200,255):rgb(220,240,255),0,0,2,8+(Math.random()*8|0));sfx('zap')}
@@ -499,8 +501,8 @@ function heatTick(){const ch=charge?new Set(armed()):null;
  for(const b of [...bodies]){if(b.type!=='token'||!b.held||!bodies.includes(b))continue;const h=b.held,k=h.k;if(k!=='rod'&&!(k==='sspear'&&h.mode!=='throw'&&!h.spent))continue;
   const on=ch&&ch.has(b)&&b.status==='free'&&(h.ammo??CAP[k])>0;
   if(!on){if(h.heat>0)h.heat=Math.max(0,h.heat-1/240);continue}
-  h.heat=(h.heat||0)+(k==='rod'?1/150:1/130);const u=UNITS[b.unit],t=tipOf(b);
-  if(k==='rod'&&(u.arm===0||u.leather)&&h.heat>.25){h.heat=0;dropHeld(b);sfx('drop');sfx('sizzle');ignite(b,b.ang,.4,1.5);b.burn=Math.max(b.burn||0,.3);continue}
+  const u=UNITS[b.unit],t=tipOf(b);if(k==='rod'&&(u.arm===0||u.leather)){h.heat=0;continue}
+  h.heat=(h.heat||0)+(k==='rod'?1/210:1/150);
   if(h.heat>1&&(Math.random()<(h.heat-1)*.035||h.heat>1.4)){overcharge(b);continue}
   if(Math.random()<h.heat*.25)spark(t[0],t[1],k==='rod'?(h.heat>.95?rgb(255,250,236):rgb(255,170,70)):(Math.random()<.5?TIPA:TIPB),0,0,.6+h.heat,6);
   if(h.heat>.3&&tick%(h.heat>1?5:16)===0)sfx(k==='rod'?'sizzle':'zap');if(h.heat>1)shake=Math.max(shake,(h.heat-1)*6)}}
@@ -642,8 +644,8 @@ function buildFx(){fxLow.fill(0);fxTop.fill(0);fxA.fill(0);const ph=(tick/7|0)%4
  const blk=(buf,X,Y,c,al=255)=>{const j=Y*2*W+X*2;buf[j]=buf[j+1]=buf[j+W]=buf[j+W+1]=c;if(buf===fxTop)fxA[j]=fxA[j+1]=fxA[j+W]=fxA[j+W+1]=al};
  const thr=(k,X,Y)=>.3+hh(X,Y,k)*.3;const on=(a,k,X,Y)=>X>=0&&Y>=0&&X<BW&&Y<BH&&a[Y*BW+X]>thr(k,X,Y);
  let a=FX.blood;for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const v=a[Y*BW+X];if(!on(a,1,X,Y))continue;if(v<.8&&hh(X,Y,3)<.28)continue;const e=!on(a,1,X+1,Y)||!on(a,1,X-1,Y)||!on(a,1,X,Y+1)||!on(a,1,X,Y-1);blk(fxLow,X,Y,e?FXC.b0:v>2.2?(hh(X,Y,8)>.94?FXC.b3:FXC.b2):FXC.b1)}
- a=FV;const fk=2+ph;for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const v=a[Y*BW+X];if(v<=.05)continue;if(!on(a,fk,X,Y)){if(v>.12&&hh(X,Y,9+ph)>.88)blk(fxTop,X,Y,FXC.f[0]);continue}const e=!on(a,fk,X+1,Y)||!on(a,fk,X-1,Y)||!on(a,fk,X,Y+1)||!on(a,fk,X,Y-1);
-  blk(fxTop,X,Y,e?FXC.f[1]:v<1?FXC.f[2]:v<1.6?FXC.f[3]:v<2.3?FXC.f[4]:v<3?FXC.f[5]:FXC.f[6])}
+ a=FV;const fk=2+ph;for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const v=a[Y*BW+X];if(v<=.05)continue;if(!on(a,fk,X,Y)){if(v>.12&&hh(X,Y,9+ph)>.88)blk(fxLow,X,Y,FXC.f[0]);continue}const e=!on(a,fk,X+1,Y)||!on(a,fk,X-1,Y)||!on(a,fk,X,Y+1)||!on(a,fk,X,Y-1);
+  blk(fxLow,X,Y,e?FXC.f[1]:v<1?FXC.f[2]:v<1.6?FXC.f[3]:v<2.3?FXC.f[4]:v<3?FXC.f[5]:FXC.f[6])}
  a=SV;for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const i=Y*BW+X,v=a[i];if(v<.05)continue;const j=Y*2*W+X*2;if(fxTop[j])continue;
   if(ST[i]/v>.5){const al=Math.min(.62,ST[i]*.55)*(.7+.6*hh(X,Y,33));if(al<.04)continue;blk(fxTop,X,Y,rgb(232,236,240),al*255|0);continue}
   if(SS[i]/v>.55){const al=Math.min(.68,v*.3)*(.72+.56*hh(X,Y,31));if(al<.05)continue;blk(fxTop,X,Y,mix(rgb(206,211,220),rgb(150,156,170),Math.min(1,v/5)),al*255|0);continue}
@@ -836,7 +838,7 @@ function lightPass(){if(PBX){const[x0,y0,x1,y1]=PBX;for(let Y=y0;Y<=y1;Y++){cons
   for(const j of [j0,j0+1,j0+W,j0+W+1]){const c=out[j];out[j]=rgb(ch(c&255,lr),ch(c>>8&255,lg),ch(c>>16&255,lb))}}}
 const PICK=new Set(['musket','blunder','pistol','spear','sspear','grenade','bomb','rod','plasma','gold','rbox']);
 const ONE=new Set(['musket','pistol','blunder']);
-function addItem(t,it){if(!t.inv)return false;{const g=Object.keys(BOX).find(k=>BOX[k]===it.k),gun=g&&t.inv.find(z=>z&&z.k===g);if(gun){gun.res=(gun.res||0)+CAP[g]*(it.n||1);return true}}if(ONE.has(it.k)&&t.inv.some(z=>z&&z.k===it.k))return false;const m=!CAP[it.k]&&t.inv.find(z=>z&&z.k===it.k);if(m){if(m.k==='spear'){if(m.n>=6)return false;m.n=Math.min(6,m.n+it.n);return true}m.n+=it.n;return true}const j=t.inv.indexOf(null);if(j<0)return false;t.inv[j]={...it};if(!t.held&&it.k!=='gold'){t.si=j;t.held=t.inv[j];t.hc=null}return true}
+function addItem(t,it){if(!t.inv)return false;{const g=Object.keys(BOX).find(k=>BOX[k]===it.k),gun=g&&t.inv.find(z=>z&&z.k===g);if(gun){gun.res=(gun.res||0)+CAP[g]*(it.n||1);return true}}if(ONE.has(it.k)&&t.inv.some(z=>z&&z.k===it.k))return false;const m=!CAP[it.k]&&t.inv.find(z=>z&&z.k===it.k);if(m){if(m.k==='spear'){if(m.n>=4)return false;m.n=Math.min(4,m.n+it.n);return true}m.n+=it.n;return true}const j=t.inv.indexOf(null);if(j<0)return false;t.inv[j]={...it};if(!t.held&&it.k!=='gold'){t.si=j;t.held=t.inv[j];t.hc=null}return true}
 function autoPick(){for(const t of bodies){if(t.type!=='token'||t.status!=='free'||!t.inv||inDrag(t))continue;
   for(const w of [...bodies]){if(w.type!=='weapon'||!PICK.has(w.kind)||w.stuck||w.att||w.fuse||inDrag(w)||(w.noPick&&w.noPick>tick)||Math.hypot(w.vx,w.vy)>.3||Math.hypot(w.x-t.x,w.y-t.y)>13)continue;
    if(addItem(t,{k:w.kind,n:w.kind==='gold'?(w.amt||50):1,ammo:CAP[w.kind]?(w.ammo??CAP[w.kind]):undefined,res:CAP[w.kind]?(w.res||0):undefined,spent:w.spent||undefined,mode:w.spent?'throw':undefined})){remove(w);sfx('flick')}}
