@@ -117,10 +117,35 @@ function crater(x,y,s){const r=6.5*s,rr=s>1.5?.72:.4;for(let Y=Math.floor(y-r*2)
   else if(hh(X,Y,96)<(2-q)*.22)c=sc(so,.8+hh(X,Y,97)*.2);
   if(!c)continue;const n=rgb(cl(c[0]),cl(c[1]),cl(c[2])),o=floor[j],lum=v=>(v&255)+(v>>8&255)+(v>>16&255);floor[j]=GT[j]===2&&q<1&&lum(o)<lum(n)?o:n;GT[j]=2}}
 function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
- const F=(cx,cy)=>{if(cy===12)return 'pave';if(cy===13)return 'bush';if(cy===11)return cx===8||cx===9||cx===1?'marble':'gstone';if(cx===1&&cy<=10)return 'marble';if(cx===2&&cy===8)return 'marble';
-  if(cx>=3&&cx<=14&&cy>=3&&cy<=10){if(cy===7)return cx<=12?'desk':'marble';if(cy===3&&cx<=5)return 'shelf';if(cy===5&&cx>=8&&cx<=10)return 'desk';if(cy>=4&&cy<=6&&cx>=7&&cx<=11)return 'carpet';if(cy>=8&&(cx===8||cx===9))return 'carpet';return 'marble'}return 'gstone'};
+ const F=(cx,cy)=>{if(cy===15)return 'bush';if(cy===14)return 'pave';if(cx===2&&cy<=13)return 'marble';if(cy===13)return cx===10||cx===11?'marble':'gstone';if(cx===3&&cy===10)return 'marble';
+  if(cx>=4&&cx<=17&&cy>=9&&cy<=12)return cy>=9&&(cx===10||cx===11)?'carpet':'marble';
+  if(cy===8&&cx>=4&&cx<=17)return cx<=15?'desk':'marble';
+  if(cx>=4&&cx<=17&&cy>=2&&cy<=7){if(cy===2&&(cx<=6||cx>=15))return 'shelf';if((cx===5||cx===16)&&(cy===3||cy===6))return 'pillar';if(cy===4&&cx>=9&&cx<=12)return 'desk';if(cy===3&&(cx===10||cx===11))return 'seat';if(cx>=8&&cx<=13&&cy>=3&&cy<=6)return 'carpet';return 'omarble'}
+  return 'gstone'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
+const EXITS={vault:{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'← Counting house',lx:4,ly:386},count:{dir:'n',cell:[2,0],to:'vault',arrive:[40,22],label:'↑ The Aurum',lx:52,ly:4}};
+const STATE={},PEND={};
+function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of document.querySelectorAll('#sm .xlab'))e.remove();
+ STATE[curMap]={CW,CH,map,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,TF,SF,SS,ST,BURN,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
+function loadMap(m){const q=STATE[m];delete STATE[m];CW=q.CW;CH=q.CH;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
+ ({SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,TF,SF,SS,ST,BURN,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}=q.a);for(const k in q.FX)FX[k]=q.FX[k];
+ map=q.map;OM=q.OM;DS0=q.DS0;ds0Need=false;alarm=q.alarm;bodies=q.bodies;parts=q.parts;whOn=q.whOn;hzOn=q.hzOn;solDirty=true;fxDirty=true;camInit=true;setTimeout(fit,0);
+ for(const b of bodies)if(b.lab)stage.appendChild(b.lab);arrivals();exitLabels();listPeople()}
+function goMap(v){if(v===curMap)return;saveMap();curMap=v;const ms=$('msel');if(ms)ms.value=v;$('sm').querySelector('header span').textContent=TITLE[v]||'';sel.clear();openCrate=null;drag=null;charge=null;box=null;moveSel=null;lastHud='';if(STATE[v])loadMap(v);else{camInit=true;reset()}}
+function arrivals(){const q=PEND[curMap];if(!q)return;delete PEND[curMap];for(const b of q){bodies.push(b);if(b.lab)stage.appendChild(b.lab)}}
+function exitLabels(){for(const e of document.querySelectorAll('#sm .xlab'))e.remove();const x=EXITS[curMap];if(!x)return;const l=document.createElement('div');l.className='xlab';l.textContent=x.label;l.style.left=x.lx*S+'px';l.style.top=x.ly*S+'px';stage.appendChild(l)}
+// the passage fades to black towards the map it leads to
+function exitFade(){const x=EXITS[curMap];if(!x)return;const L=28,[cx,cy]=x.cell;for(let i=0;i<L;i++){const f=Math.pow(i/L,1.4);if(x.dir==='w'){const X=i;for(let Y=cy*T-6;Y<cy*T+T+6;Y++)if(Y>=0&&Y<H)out[Y*W+X]=mul(out[Y*W+X],f)}else{const Y=i;for(let X=cx*T-6;X<cx*T+T+6;X++)if(X>=0&&X<W)out[Y*W+X]=mul(out[Y*W+X],f)}}}
+function exitTick(){const x=EXITS[curMap];if(!x)return;for(const b of [...bodies]){if(b.type!=='token'||b.status!=='free'||inDrag(b)||b.tether&&!b.tether.broken)continue;if((b.x/T|0)!==x.cell[0]||(b.y/T|0)!==x.cell[1])continue;
+ const was=sel.has(b);bodies=bodies.filter(o=>o!==b);if(b.lab)b.lab.remove();sel.delete(b);b.x=EXITS[x.to].arrive[0];b.y=EXITS[x.to].arrive[1];b.vx=b.vy=0;b.glide=null;b.hc=null;sfx('door');
+ if(STATE[x.to])STATE[x.to].bodies.push(b);else(PEND[x.to]||(PEND[x.to]=[])).push(b);listPeople();if(was){goMap(x.to);if(bodies.includes(b))sel.add(b)}}}
+function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
+ dbl(3,160,219,191,212,0,2,false);slab(3,52,160,1);for(const o of bodies)if(o.type==='slab')goldify(o);
+ container(9,4,[{k:'gold',n:900}]);container(4,2,[{k:'gold',n:1200}]);container(15,2,[{k:'gold',n:1500}]);container(4,8,[]);
+ face(token('Clerk Amsel','Goldbank','civ',120,72,false,null),dn);face(token('Teller Rowe','Goldbank','civ',104,120,false,'pistol'),dn);
+ face(token('Silas','Reapers','civ',168,168,false,'pistol'),up);face(token('Gull','Reapers','home',120,176,false,'blunder'),up);face(token('Rask','Reapers','rifle',232,176),up);
+ face(token('Sgt. Brant','Goldbank','guard',152,232,true),up);face(token('Wells','Goldbank','guard',200,232,true),up);face(token('Ode','Goldbank','rifle',104,232),up);face(token('Kerr','Goldbank','rifle',248,232),up)}
 // proving yard: unit lane, long lane, eight material lanes, a texture yard and a grenade field
 const RLANE=['stone','stoneH','stone2','wood','woodH','metal','metalH','door'];
 function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('grass'));
@@ -142,12 +167,6 @@ function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
  RLANE.forEach((t,i)=>{const y=13*16+i*48+16;face(token(['Ade','Bel','Cole','Dace','Eel','Fenn','Gale','Hart'][i],'Reapers','rifle',280,y,false,null));if(t==='door'){const d=slab(3,180,y-16,1,32,8);d.locked=true}});
  for(const[x,y,k]of[[408,248,'grenade'],[440,248,'bomb'],[408,600,'grenade'],[440,600,'bomb'],[520,392,'grenade'],[552,392,'bomb'],[536,456,'grenade']])weapon(k,x,y,0);
  barricade(2,392,312);barricade(3,456,312);barricade(3,560,560,32,8);for(const t of bodies)if(t.type==='token'&&t.nat==='Reapers')tie(t,t.unit==='guard'||t.unit==='shock'||t.unit==='cmd'||['Bel','Dace','Fenn','Hart'].includes(t.name)?'chain':'rope');}
-function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
- dbl(3,128,187,159,180,0,2,false);slab(3,36,128,1);for(const o of bodies)if(o.type==='slab')goldify(o);
- container(8,5,[{k:'gold',n:900}]);container(3,3,[{k:'gold',n:1200}]);container(3,7,[]);
- face(token('Clerk Amsel','Goldbank','civ',184,100,false,null),dn);face(token('Teller Rowe','Goldbank','civ',90,96,false,'pistol'),dn);
- face(token('Silas','Reapers','civ',136,140,false,'pistol'),up);face(token('Gull','Reapers','home',104,148,false,'blunder'),up);face(token('Rask','Reapers','rifle',176,148),up);
- face(token('Sgt. Brant','Goldbank','guard',120,200,true),up);face(token('Wells','Goldbank','guard',152,200,true),up);face(token('Ode','Goldbank','rifle',72,200),up);face(token('Kerr','Goldbank','rifle',200,200),up)}
 function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
  const F=(cx,cy)=>{if(cy>=39&&cy<=45)return cx>=1&&cx<=4&&cy>=41&&cy<=44?(cx>=2&&cx<=3&&cy>=42&&cy<=43?'bush':'grass'):'pave';if(cy===46)return 'bush';if(cy===38)return cx>=13?'marble':'gstone';if(cx<=2||cy<=1)return 'gstone';
   if(cy>=2&&cy<=6&&cx>=8)return cx===10&&cy===4?'pillar':cy===2&&(cx<=10||cx>=13)?'shelf':'marble';if(cy===7)return cx>=13?'marble':'gstone';
@@ -157,10 +176,10 @@ function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
   if(cy===31)return cx>=13?'marble':'gstone';
   if(cy>=32&&cy<=37){if(cx>=11)return cx===12&&(cy===33||cy===36)?'pillar':'marble';if(cx===10)return cy===34?'marble':'gstone';if(cx>=3)return cy===33&&cx>=5&&cx<=7?'desk':cx>=4&&cx<=8&&cy>=34&&cy<=36?'carpet':'marble';return 'gstone'}
   return 'gstone'};
- for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,cx<=14?F(cx,cy):F(29-cx,cy));
+ for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,cx<=14?F(cx,cy):F(29-cx,cy));for(const cx of [0,1,2])paintCell(cx,25,'marble');
  for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='gfloor')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='gfloor';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
-function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
+function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};slab(3,36,400,1);
  dbl(3,208,124,271,115,0,2,true,32,8);dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,true,32,8);
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
  container(8,2,[{k:'gold',n:1500}]);container(13,2,[{k:'gold',n:1600}]);container(19,2,[{k:'gold',n:1500}]);container(5,25,[{k:'gold',n:200}]);container(20,25,[{k:'gold',n:200}]);
@@ -742,6 +761,7 @@ function render(){
  if(box){const x0=Math.round(Math.min(box.x0,box.x1)),x1=Math.round(Math.max(box.x0,box.x1)),y0=Math.round(Math.min(box.y0,box.y1)),y1=Math.round(Math.max(box.y0,box.y1)),c=rgb(242,239,230);
   for(let x=x0;x<=x1;x++)if(x%2===0){if(y0>=0&&y0<H)out[y0*W+x]=c;if(y1>=0&&y1<H)out[y1*W+x]=c}for(let y=y0;y<=y1;y++)if(y%2===0){if(x0>=0&&x0<W)out[y*W+x0]=c;if(x1>=0&&x1<W)out[y*W+x1]=c}}
  if(cellDrag&&moveSel){const k=(mouse.y/T|0)*CW+(mouse.x/T|0);if(moveSel.cells.has(k)){const cx=k%CW,cy=k/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++)if(x===1||y===1||x===T-2||y===T-2)out[(cy*T+y)*W+cx*T+x]=rgb(242,239,230)}}
+ exitFade();
  {const ch=!panKey&&!pan&&tool==='move'&&mouse.in&&!drag&&armed().length>0;if(ch)crosshair();const cc=pan?'grabbing':panKey?'grab':ch?'none':tool==='move'?'default':'crosshair';if(cv.style.cursor!==cc)cv.style.cursor=cc}
  ctx.putImageData(img,0,0);
  for(const b of bodies){if(b.mv>0)b.mv--;if(b.lab){b.lab.style.left=(Math.round(b.x)+.5)*S+'px';b.lab.style.top=(Math.round(b.y)+10)*S+'px';b.lab.style.color=natLabel(b);b.lab.style.zIndex=b.status==='dead'?0:1}}
@@ -906,7 +926,7 @@ function update(){tick++;markSlabs();if(drag)dragStep();if(tick%3===0)fireTick()
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=pr*pr}}
  if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);charge=null}
- for(const b of [...bodies])if(bodies.includes(b))step(b);tetherTick();if(curMap==='air'&&tick%5===0)overboard();stepParts();cool();fxTick()}
+ for(const b of [...bodies])if(bodies.includes(b))step(b);tetherTick();if(tick%4===0)exitTick();if(curMap==='air'&&tick%5===0)overboard();stepParts();cool();fxTick()}
 let lastT=performance.now(),acc=0;
 function loop(){const now=performance.now();acc+=Math.min(120,now-lastT);lastT=now;let n=0;while(acc>=16.667&&n<6){update();acc-=16.667;n++}if(n)render();requestAnimationFrame(loop)}
 
@@ -1008,7 +1028,8 @@ const TOOLS={move:'Move',chip:'Chip'};const tb={};
 
 function setTool(k){tool=k;for(const[q,b]of Object.entries(tb))b.classList.toggle('on',q===k);cv.style.cursor=k==='move'?'default':'crosshair'}
 
-btn('Reset',()=>reset());{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['docks','Havenport warehouse'],['tavern','Havenport tavern'],['sewer','Havenport sewer'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard']]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.onchange=()=>{curMap=ms.value;camInit=true;$('sm').querySelector('header span').textContent=ms.value==='docks'?'Havenport · Warehouse':ms.value==='tavern'?'Havenport · Tavern':ms.value==='sewer'?'Havenport · Sewer':ms.value==='vault'?'Goldbank · The Aurum':ms.value==='count'?'Goldbank · Counting house':ms.value==='range'?'Astia · Proving yard':ms.value==='air'?'Open sky · Pirate airship':'Goldbank · Back room';reset()};bar.appendChild(ms)}
+const TITLE={bank:'Goldbank · Back room',docks:'Havenport · Warehouse',tavern:'Havenport · Tavern',sewer:'Havenport · Sewer',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard'};
+btn('Reset',()=>reset());{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['docks','Havenport warehouse'],['tavern','Havenport tavern'],['sewer','Havenport sewer'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard']]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
 setTool('move');
 
 function icon(px,scale){const c=document.createElement('canvas');c.width=28;c.height=20;const g=c.getContext('2d'),id=g.createImageData(28,20),u=new Uint32Array(id.data.buffer);
@@ -1043,7 +1064,7 @@ function listPeople(){const l=$('ppl');if(!l)return;l.innerHTML='';for(const b o
 
 function dbl(m,x1,y1,x2,y2,r1,r2,lk,len,th){const a=slab(m,x1,y1,r1,len,th),b=slab(m,x2,y2,r2,len,th);a.pair=b;b.pair=a;a.locked=b.locked=lk;return[a,b]}
 function goldify(d){d.gold=true;for(const p of d.px){const c=p[2],l=((c&255)+(c>>8&255)+(c>>16&255))/765;p[2]=mix(rgb(110,84,26),rgb(252,232,160),Math.min(1,l*1.25))}}
-const MAPSZ={vault:[30,47],range:[40,40],air:[34,20]};
+const MAPSZ={count:[22,16],vault:[30,47],range:[40,40],air:[34,20]};
 function reset(){ds0Need=true;{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz[1]!==CH){alloc(sz[0],sz[1]);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);camInit=true}setTimeout(fit,0)}for(const b of bodies)if(b.lab)b.lab.remove();bodies=[];parts=[];drag=null;charge=null;box=null;moveSel=null;sel.clear();build();HZ.fill(0);hzOn=false;if(curMap==='air'){unitsAir();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='range'){unitsRange();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='count'){unitsCount();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='vault'){unitsVault();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='sewer'){unitsSewer();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='tavern'){unitsTavern();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='docks'){unitsDocks();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}
  token('Aldric','Goldbank','guard',36,40,true);token('Bryn','Goldbank','rifle',62,40);token('Pell','Goldbank','rifle',88,40);
  token('Orla','Goldbank','home',28,82);token('Rook','Goldbank','cmd',28,150);token('Tam','Goldbank','shock',150,150,false,'spear');token('Hask','Goldbank','shock',150,186,false,'sspear');
@@ -1054,6 +1075,6 @@ function reset(){ds0Need=true;{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz
  slab(2,180,32,1);dbl(3,180,96,187,127,1,3,false);dbl(3,224,171,255,164,0,2,true);
  weapon('grenade',120,196,0);weapon('bomb',60,200,0);weapon('sspear',236,104,.3);
  for(const t of bodies)if(t.type==='token')t.hc=null;listPeople()}
-{const r0=reset;reset=function(){r0();snapDoors();sills();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
+{const r0=reset;reset=function(){r0();snapDoors();sills();arrivals();exitLabels();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
 reset();loop();
 })();
