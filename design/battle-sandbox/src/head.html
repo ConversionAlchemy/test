@@ -1,0 +1,56 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+#sm{background:#1e1e1e;color:#f2efe6;border:1px solid #000;font:20px/1.15 "VT323",monospace;position:relative;user-select:none}
+#sm *{box-sizing:border-box}
+#sm button,#sm input,#sm select{font:inherit;color:#f2efe6;background:#303030;border:1px solid #555;border-radius:0;padding:1px 7px}
+#sm button{cursor:pointer}#sm button:hover{border-color:#ddd}#sm button.on{background:#f2efe6;color:#111;border-color:#fff}
+#sm header{display:flex;justify-content:space-between;padding:6px 10px;background:#111;border-bottom:1px solid #000;font-size:24px}
+#sm .bar{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:6px 10px;border-bottom:1px solid #000}
+#sm .sep{width:8px}
+#sm .sw{padding:0;width:28px;height:28px;border:1px solid #000}
+#sm .sw.on{outline:2px solid #fff;outline-offset:1px;background:none}
+#sm .sw canvas{width:26px;height:26px;display:block;image-rendering:pixelated}
+#sm .main{display:grid;grid-template-columns:578px 1fr}
+#sm .view{background:#0b0b0c;border-right:1px solid #000}
+#sm .stage{position:relative;width:576px;height:448px;overflow:hidden}
+#sm #sb{display:block;width:576px;height:448px;image-rendering:pixelated;touch-action:none}
+#sm .lab{position:absolute;font-size:16px;line-height:1;color:#fff;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;transform:translateX(-50%);cursor:default}
+#sm .side{padding:6px;display:flex;flex-direction:column;gap:5px;max-height:448px;overflow:auto}
+#sm .side b{font-weight:normal;color:#c9c5b8}
+#sm .wp{display:flex;flex-direction:column;gap:2px}
+#sm .menu select{border:0;border-bottom:1px solid #333;background:#232323}
+#sm .menu input{border:0;border-bottom:1px solid #333;width:120px}
+#sm .wp div,#sm .ppl div{display:flex;align-items:center;gap:6px;padding:0 4px;background:#262626;border:1px solid #333;font-size:16px;line-height:1}
+#sm .wp div{cursor:grab}#sm .wp div:hover{border-color:#777}
+#sm .wp canvas{width:28px;height:18px;image-rendering:pixelated}
+#sm .ppl{display:flex;flex-direction:column;gap:3px}
+#sm .ppl div.off{opacity:.5}
+#sm .dot{width:14px;height:14px;border-radius:50%;border:1px solid #000;flex:none}
+#sm .form{display:grid;gap:4px}
+#sm .form input{width:100%}
+#sm #tp{width:34px;height:34px;image-rendering:pixelated;cursor:grab;justify-self:center}
+#sm .cols{display:flex;flex-wrap:wrap;gap:3px}
+#sm .cols span{width:18px;height:18px;border:1px solid #000;cursor:pointer}
+#sm .cols span.on{outline:2px solid #fff}
+#sm .hint{padding:5px 10px;border-top:1px solid #000;font-size:17px;color:#8f8b80;min-height:28px;white-space:nowrap;overflow:hidden}
+#sm .hint .k{color:#f2efe6}
+#sm .menu{position:absolute;z-index:5;background:#232323;border:1px solid #000;display:flex;flex-direction:column;min-width:120px;box-shadow:0 3px 10px #0008}
+#sm .menu button{border:0;border-bottom:1px solid #333;text-align:left;background:#232323}
+#sm .menu button:hover{background:#3a3a3a}
+#sm .menu button.on{background:#3a3a3a;color:#f2efe6}
+</style>
+<div id="sm">
+ <header><span>Goldbank · Back room</span><span id="snd" style="cursor:pointer">♪</span></header>
+ <div class="bar" id="bar"></div>
+ <div class="main">
+  <div class="view"><div class="stage" id="stage"><canvas id="sb"></canvas></div></div>
+  <div class="side">
+   <b>Weapons</b><div class="wp" id="wp"></div>
+   <b>Cover</b><div class="wp" id="cov"></div>
+   <b>Markers</b>
+   <div class="form"><input id="fn" value="Edda"><select id="fu"></select><select id="fnat"></select><select id="fw"></select><canvas id="tp" width="17" height="17"></canvas></div>
+   <div class="ppl" id="ppl"></div>
+  </div>
+ </div>
+ <div class="hint" id="hint"></div>
+</div>

@@ -8,6 +8,7 @@ Reference for the brief in `../FLUORIA.md`.
   - `willards-pass.json`: Watabou village generator (vg 1.6.9), GeoJSON.
   - `house_by_the_lake.json`: Watabou Dwellings, three floors.
 - `prototype/`: the Python scripts that drew the previews. They are sketches for the look, not app code. VT323 is bundled under the SIL Open Font License (`fonts/OFL.txt`).
+- `battle-sandbox/`: the pixel interior battle prototype, one self-contained page. See its README.
 
 Run the prototypes with Python 3, numpy, Pillow, shapely and scipy:
 
