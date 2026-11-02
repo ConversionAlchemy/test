@@ -126,7 +126,7 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
   if(x>=30&&x<=36&&y>=1&&y<=7)return x>=32&&x<=34&&y>=3&&y<=5?'desk':(x===31||x===35)&&y===4||(y===2||y===6)&&x===33?'seat':x>=31&&x<=35&&y>=2&&y<=6?'carpet':'dplanks';
   if(x>=8&&x<=28&&y>=1&&y<=9){
    if(x>=13&&x<=23&&y>=2&&y<=7){if(x===13||x===23||y===2||y===7)return (y===7||y===2)&&x===18?'bkslab':'ewood';
-    if(y>=4&&y<=5&&x>=15&&x<=21)return 'edesk';if((y===3||y===6)&&(x===16||x===18||x===20))return 'seat';if(x===14||x===22)return 'shelf';return 'bkslab'}
+    if(y>=4&&y<=5&&x>=15&&x<=21)return 'edesk';if((y===3||y===6)&&(x===16||x===17||x===19||x===20))return 'seat';if(x===14||x===22)return 'shelf';return 'bkslab'}
    if(y===1&&x!==18||(x===8||x===28)&&y>=2&&y<=8&&y!==4)return 'books';if(y>=8&&y<=9&&x>=11&&x<=25)return 'gcarpet';return 'dplanks'}
   if(x===7&&y===4||x===29&&y===4)return 'dplanks';
   if(y===10&&(x===12||x===24))return 'bkmarble';
@@ -135,7 +135,7 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
   if(x>=0&&x<=6&&y>=15&&y<=19)return y===16&&x>=2&&x<=4?'table':y===15&&x===3?'seat':x===0&&y===15?'rack':x===6&&y===15?'chest':'bkslab';
   if(y===20&&(x===1||x===5))return 'bkslab';if(y>=21&&y<=23&&(x>=0&&x<=2||x>=4&&x<=6))return 'flag';
   if(x>=8&&x<=14&&y>=15&&y<=23)return x===8&&y>=16&&y<=22?'rack':x===14&&y%2===0&&y>=16?'chest':'dplanks';
-  if(x>=16&&x<=26&&y>=15&&y<=23){if(y===18&&x>=20&&x<=22)return 'edesk';if(y===17&&x===21)return 'seat';if(y===15&&(x<=18||x>=24))return 'books';if(x===16&&y===23)return 'chest';if(x>=18&&x<=24&&y>=16&&y<=22)return 'gcarpet';return 'dplanks'}
+  if(x>=16&&x<=26&&y>=15&&y<=23){if(y===18&&x>=20&&x<=22)return 'edesk';if(y===19&&x===21)return 'seat';if(y===15&&(x<=18||x>=24))return 'books';if(x===16&&y===23)return 'chest';if(x>=18&&x<=24&&y>=16&&y<=22)return 'gcarpet';return 'dplanks'}
   if(x===27&&y===19)return 'mfloor';
   if(x>=28&&x<=36&&y>=15&&y<=23){if((y===15||y===23)&&x>=29&&x<=35)return 'shelf';if(y===19&&x>=31&&x<=33)return 'chest';return 'mfloor'}
   if((x===27||x===37)&&y>=14&&y<=24||(y===14||y===24)&&x>=27&&x<=37)return 'iron';
@@ -168,9 +168,9 @@ function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;retu
  cc(8,16,[{k:'musket',n:6,ammo:12,res:24},{k:'pistol',n:4,ammo:18,res:18}],'Rifle rack');cc(14,16,[{k:'grenade',n:6}],'Grenade chest');cc(14,18,[{k:'bomb',n:2}],'Heavy chest');cc(14,20,[{k:'mbox',n:6},{k:'pbox',n:4}],'Ammo chest');cc(14,22,[{k:'blunder',n:2,ammo:8,res:16}],'Chest');
  cc(0,15,[{k:'musket',n:2,ammo:12,res:12}],'Guard rack');cc(6,15,[{k:'grenade',n:2}],'Guard chest');cc(2,16,[],'Guard table');cc(32,3,[{k:'gold',n:500}],'Red room table');cc(2,3,[],'Green room table');
  cc(29,15,[{k:'gold',n:6000}],'Black shelf');cc(29,23,[{k:'gold',n:6000}],'Black shelf');cc(31,19,[{k:'gold',n:2000},{k:'sspear',n:1,ammo:4,res:4},{k:'rod',n:1,ammo:3,res:9}],'Black deals');
- face(token('Lord Vane','Goldbank','civ',X(33)+8,72,false,'pistol'),0);face(token('Corvo','Reapers','home',X(35)+8,72,false,'blunder'),Math.PI);
+ face(token('Lord Vane','Goldbank','civ',X(31)+8,72,false,'pistol'),0);face(token('Corvo','Reapers','home',X(35)+8,72,false,'blunder'),Math.PI);
  face(token('Archivist Lell','Goldbank','civ',X(10)+8,56,false,null),dn);face(token('Clerk Amsel','Goldbank','civ',X(16)+8,56,false,null),dn);face(token('Clerk Toll','Goldbank','civ',X(20)+8,104,false,null),up);
- face(token('Master Orsk','Goldbank','civ',X(21)+8,17*16+8,false,'pistol'),dn);
+ face(token('Master Orsk','Goldbank','civ',X(21)+8,19*16+8,false,'pistol'),up);
  face(token('Sgt. Brant','Goldbank','guard',X(3)+8,18*16+8,true),Math.PI);face(token('Wells','Goldbank','guard',X(5)+8,17*16+8,true),Math.PI);face(token('Kerr','Goldbank','rifle',X(11)+8,20*16+8),up);face(token('Ode','Goldbank','rifle',X(18)+8,12*16+8),0);
  const p=face(token('Dace',null,'civ',X(1)+8,22*16+8,false,null),up);p.status='captured';tie(p,'chain')}
 // fancy doors: mahogany leaf with a brass inlay line
@@ -263,8 +263,8 @@ function unitsTavern(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;ret
  container(2,2,[]);container(15,8,[{k:'pistol',n:3,ammo:18,res:18},{k:'musket',n:1,ammo:12,res:12}]);
  dbl(2,128,171,159,164,0,2,false);slab(2,212,64,1);
  face(token('Wick','Havenport','civ',64,24,false,'pistol'),dn);
- face(token('Capt. Hale','Havenport','home',110,84,false,'pistol'),dn);face(token('Nell','Havenport','home',168,104,false,'spear'),dn);face(token('Tobin','Havenport','civ',52,118,false,'spear'),0);
- face(token('Mara','Havenport','civ',180,52,false,'pistol'),dn);face(token('Capt. Rourke','Havenport','home',244,60,false,'pistol'),Math.PI);
+ face(token('Capt. Hale','Havenport','home',110,84,false,'pistol'),dn);face(token('Nell','Havenport','home',168,104,false,'spear'),dn);face(token('Tobin','Havenport','civ',52,126,false,'spear'),0);
+ face(token('Mara','Havenport','civ',180,70,false,'pistol'),dn);face(token('Capt. Rourke','Havenport','home',244,60,false,'pistol'),Math.PI);
  face(token('Gull','Reapers','home',116,142,false,'pistol'),up);face(token('Bones','Reapers','civ',150,142,false,'spear'),up);
  face(token('Rask','Reapers','home',60,192,false,'spear'),0);face(token('Skiff','Reapers','civ',100,192,false,'pistol'),up);face(token('Teague','Reapers','home',196,192,false,'pistol'),up);face(token('Brine','Reapers','home',240,192,false,'spear'),Math.PI)}
 function buildDocks(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
@@ -421,6 +421,9 @@ function dab(a,px,py,amt=1,R=8){for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){con
 // colours
 const glow=h=>h>.6?mix(rgb(242,122,40),rgb(255,232,160),Math.min(1,(h-.6)/.5)):h>.25?mix(rgb(150,34,16),rgb(242,122,40),(h-.25)/.35):rgb(150,34,16);
 const frontOf=(o,p)=>p[8]*Math.cos(o.ang||0)+p[9]*Math.sin(o.ang||0)>Math.hypot(p[8],p[9])*.7;
+function drawCape(b,lift){const a=b.ang||0,c=Math.cos(a),s=Math.sin(a),bx=Math.round(b.x),by=Math.round(b.y),sw=(b.mv>0?1.2:.4)*Math.sin(tick*.15+b.id),o=lift?3:0;
+ for(let f=-11;f<=-6;f+=.5)for(let u=-6.5;u<=6.5;u+=.5){const w=5+(-6-f)*.5;if(Math.abs(u)>w)continue;const uu=u+sw*(-6-f)/5,X=Math.round(bx+c*f-s*uu)+o,Y=Math.round(by+s*f+c*uu)+o;if(X<0||Y<0||X>=W||Y>=H||b.set.has(K(X-bx-o,Y-by-o)))continue;
+  let col=mul(rgb(42,94,62),.78+.22*Math.cos(u*1.6)+(f<-10?-.25:0));if(Math.abs(u)>w-.6||f<-10.5)col=mul(col,.6);if(b.status==='dead')col=grey(col);out[Y*W+X]=col}}
 const cape=(ox,oy)=>{const v=vn(ox/2,oy*1.5,77);return mul(rgb(42,94,62),.82+v*.3)};
 function pcol(b,p){let c;const r=p[7],ox=p[8],oy=p[9],u=UNITS[b.unit]||UNITS.civ;
  if(r==='x'||b.type==='weapon'){c=p[2];if(b.kind==='crate'&&b.metal&&!(b.open&&Math.abs(ox)<5&&Math.abs(oy)<5))c=mix(grey(c),rgb(152,158,170),.45);if(b.kind==='crate'&&b.open&&Math.abs(ox)<5&&Math.abs(oy)<5)c=Math.abs(ox)===4||Math.abs(oy)===4?mul(C.woodD,.75):(oy+5)%3===0?mul(C.woodD,.45):mul(C.woodD,.6);const sth=b.th||8,sln=b.len||16;if(b.type==='slab'&&!b.free&&ox>=0&&oy>=-(sth>>1)-1&&oy<=-(sth>>1)){if(ox>=1&&ox<=2)c=b.mat===3?rgb(62,64,70):rgb(170,172,176);else if(ox>=sln-5&&ox<=sln-4&&!b.lockBroken)c=b.locked?rgb(240,140,40):rgb(150,92,44)}}
@@ -746,7 +749,7 @@ function inDrag(b){return !!drag&&drag.group.includes(b)}
 let SHX=new Float32Array(0),SHC=new Float32Array(0),shY=[0,0];
 function sheenFrame(){if(SHX.length!==W){SHX=new Float32Array(W);SHC=new Float32Array(W)}const ax=.55*S*.0042,lp=0;for(let X=0;X<W;X++){SHX[X]=Math.sin(ax*X);SHC[X]=Math.cos(ax*X)}shY=[.83*S*.0042,(cam.x*.55+cam.y*.83)*.0042+lp]}
 function shine(c,X,Y,k){const a=shY[0]*Y+shY[1],v=SHX[X]*Math.cos(a)+SHC[X]*Math.sin(a);if(v<=0)return c;const v3=v*v*v;let t=v3*k/255*.45;if(k>=60){const v8=v3*v3*v*v;t+=v8*k/255*.7}return mix(c,rgb(246,250,255),Math.min(.8,t))}
-function drawBody(b,lift){if(b.hidden)return;if(b.kind==='arc'){const s=Math.hypot(b.vx,b.vy)||1,wd=b.big?1:0;[rgb(230,245,255),rgb(150,205,255),rgb(90,150,255),rgb(50,90,200),rgb(40,70,160)].slice(0,b.big?5:4).forEach((c,i)=>{for(let o=-wd;o<=wd;o++){const X=Math.round(b.x-b.vx/s*i-b.vy/s*o),Y=Math.round(b.y-b.vy/s*i+b.vx/s*o);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=o?mul(c,.8):c}});return}if(WP[b.kind]&&WP[b.kind].bullet&&!WP[b.kind].rod)return;const bx=Math.round(b.x),by=Math.round(b.y),st=b.status,dyn=b.type!=='weapon',hl=sel.has(b)?1.25:b===hover?1.12:1;
+function drawBody(b,lift){if(b.hidden)return;if(b.kind==='arc'){const s=Math.hypot(b.vx,b.vy)||1,wd=b.big?1:0;[rgb(230,245,255),rgb(150,205,255),rgb(90,150,255),rgb(50,90,200),rgb(40,70,160)].slice(0,b.big?5:4).forEach((c,i)=>{for(let o=-wd;o<=wd;o++){const X=Math.round(b.x-b.vx/s*i-b.vy/s*o),Y=Math.round(b.y-b.vy/s*i+b.vx/s*o);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=o?mul(c,.8):c}});return}if(WP[b.kind]&&WP[b.kind].bullet&&!WP[b.kind].rod)return;const bx=Math.round(b.x),by=Math.round(b.y),st=b.status,dyn=b.type!=='weapon',hl=sel.has(b)?1.25:b===hover?1.12:1;if(b.type==='token'&&b.unit==='shock'&&b.nat==='Goldbank')drawCape(b,lift);
  const sh=lift?[3,4]:b.stuck||b.fallen||st==='dead'?null:[1,2];
  if(sh)for(const p of b.px){const X=bx+p[0]+sh[0],Y=by+p[1]+sh[1];if(X<0||Y<0||X>=W||Y>=H||b.set.has(K(p[0]+sh[0],p[1]+sh[1]))||sol[Y*W+X])continue;out[Y*W+X]=mul(out[Y*W+X],.62)}
  for(const p of b.px){const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H||b.type==='slab'&&sol[Y*W+X])continue;let c=pcol(b,p);
@@ -1001,7 +1004,7 @@ cv.addEventListener('pointerdown',e=>{au();closeMenu();if(panKey||e.button===1){
  else if(tool==='chip'){chipLast=[X,Y];chip(X,Y)}});
 window.addEventListener('pointermove',e=>{if(pan){cam.x=pan.cx+e.clientX-pan.x;cam.y=pan.cy+e.clientY-pan.y;applyCam();return}const[x,y]=toBoard(e);mouse.x=x;mouse.y=y;mouse.in=inBoard(e);
  hover=mouse.in&&!drag?bodyAt(x|0,y|0,1):null;hoverC=!hover&&mouse.in&&!drag&&(x|0)>=0&&(y|0)>=0&&(x|0)<W&&(y|0)<H?containerAt(x|0,y|0):null;
- if(!drag)for(const b of sel){if(b.type==='slab')continue;if(!srcInfo(b))continue;const a=Math.atan2(y-b.y,x-b.x);if(b.type==='token')turnTo(b,a);else if(Math.abs(a-b.ang)>.05)reshape(b,a)}
+ if(!drag)for(const b of sel){if(b.type==='slab')continue;if(!srcInfo(b)&&!(b.type==='token'&&b.status==='free'))continue;const a=Math.atan2(y-b.y,x-b.x);if(b.type==='token')turnTo(b,a);else if(Math.abs(a-b.ang)>.05)reshape(b,a)}
  if(pend&&Math.hypot(x-pend.x,y-pend.y)>2){startDrag(pend.b,pend.x,pend.y);pend=null}
  if(box){box.x1=x;box.y1=y}
  if(drag){drag.tx=x;drag.ty=y;const t=performance.now();drag.smp.push([t,x,y]);while(drag.smp.length>2&&t-drag.smp[0][0]>90)drag.smp.shift();
