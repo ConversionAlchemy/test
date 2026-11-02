@@ -28,20 +28,17 @@ const sc=(c,k)=>[c[0]*k,c[1]*k,c[2]*k],mx=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1
 const WOOD={oak:[138,98,62],teak:[112,70,40],pine:[164,124,80],walnut:[86,58,38],ash:[150,128,98],rail:[78,52,32]};
 function woodT(X,Y,base,s=0){const w=Y+(vn(X/22,Y/9,40+s)-.5)*5,g=vn(X/9,w*.9,41+s),f=fbm(X/7,Y/2.4,42+s);let k=.86+f*.26+(g-.5)*.12;
  if(vn(X/4,w*1.6,43+s)>.82)k*=.8;if(hh(X>>1,Y,44+s)>.985)k*=.85;return sc(base,k)}
-function plankT(X,Y,base,s=0){const bw=5,row=Math.floor(Y/bw),yy=((Y%bw)+bw)%bw,off=(row*23)%48,bi=Math.floor((X+off)/48),xx=((X+off)%48+48)%48;let c=woodT(X,Y,base,s+row*3);
- c=sc(c,.94+hh(row,bi,45+s)*.12);if(yy===bw-1)c=sc(c,.8);else if(yy===0)c=sc(c,1.03);if(xx===0)c=sc(c,.86);return c}
+function plankT(X,Y,base,s=0){const row=Y>>3,col=X>>5;let c=sc(woodT(X,Y,base,s+row*3),.95+hh(row,col,45+s)*.1);if((Y&7)===7)c=sc(c,.86);else if((X&31)===0)c=sc(c,.9);return c}
 const STONE=[118,114,108],FLAG=[150,140,122];
 function stoneT(X,Y,base,s=0){const f=fbm(X/10,Y/10,50+s),d=fbm(X/3,Y/3,51+s);let k=.82+f*.3+(d-.5)*.12;const cr=Math.abs(vn(X/11,Y/11,52+s)-.5),on=vn(X/7,Y/7,54+s)>.6;if(on&&cr<.014)k*=.84;else if(on&&cr<.026)k*=.94;
  const p=hh(X,Y,53+s);if(p>.985)k*=1.12;else if(p<.015)k*=.85;return sc(base,k)}
-function flagT(X,Y,base){const row=Math.floor(Y/16),xx=((X+(row%2?8:0))%24+24)%24,yy=((Y%16)+16)%16;let c=stoneT(X,Y,base,row);if(yy===0||xx===0)c=sc(c,.9);else if(yy===1||xx===1)c=sc(c,1.02);return c}
+function flagT(X,Y,base){let c=sc(stoneT(X,Y,base),.96+hh(X>>4,Y>>4,46)*.08);if((X&15)===0||(Y&15)===0)c=sc(c,.9);return c}
 // metal: one cold core, variants are a tint plus an overlay
 const METAL=[126,140,146];
-function metalCore(X,Y,tint){let c=sc(METAL,.9+(vn(X/14,Y*.8,60)-.5)*.14+(hh(X>>2,Y,61)-.5)*.05);c=mx(c,[104,128,136],.25+.15*vn(X/30,Y/30,62));return tint?mx(c,tint,.55):c}
+function metalCore(X,Y,tint){let c=sc(METAL,.97+(vn(X/20,Y/20,60)-.5)*.06);c=mx(c,[108,130,138],.25);return tint?mx(c,tint,.55):c}
 const BEV=(x,y,e,c)=>e===0?sc(c,.42):e===1?(x===1||y===1?sc(c,1.38):sc(c,.68)):null;
-function metalT(X,Y,cx,cy,v,tint){const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y),c=metalCore(X,Y,tint);if(v==='floor'){const bx=x>>2,by=y>>2,lx=x&3,ly=y&3,d=(bx+by)%2?lx===ly:lx===3-ly;return d&&lx>0&&lx<3?sc(c,1.22):d?sc(c,.8):c}
- const b=BEV(x,y,e,c);if(b)return b;
- if(v==='panel'){const i=Math.min(x-4,y-4,11-x,11-y);if(i===0)return x===4||y===4?sc(c,.7):sc(c,1.3);return c}
- if(v==='rivet'){for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12]]){if(x===rx&&y===ry)return sc(c,1.45);if(x===rx+1&&y===ry+1)return sc(c,.62)}}
+function metalT(X,Y,cx,cy,v,tint){const x=X-cx*T,y=Y-cy*T,c=metalCore(X,Y,tint);if(v==='floor')return (X&15)===0||(Y&15)===0?sc(c,.88):c;
+ if(v==='rivet')for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12]])if(x===rx&&y===ry)return sc(c,1.25);
  return c}
 const GRASS=[73,107,49],GLITE=[100,137,62],GDRY=[136,140,79],GDARK=[52,80,38],SOIL=[112,88,60];
 function grassT(X,Y){const m=fbm(X/16,Y/16,70);let c=mx(GRASS,GLITE,Math.min(1,Math.max(0,m-.42)*1.8));const dry=fbm(X/26,Y/26,73);if(dry>.6)c=mx(c,GDRY,(dry-.6)*1.6);

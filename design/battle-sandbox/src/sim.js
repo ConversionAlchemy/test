@@ -46,7 +46,7 @@ function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=k
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&x>=T/2,c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=bk==='bush'?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;shp[j]=MAT[m].hp;scol[j]=c;floor[j]=mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
-function build(){(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank)();blendGround();objects();regions()}
+function build(){(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank)();blendGround();objects();borders();regions()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx];if(k!=='carpet'&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(k==='carpet'&&OM[y]&&OM[y][x]);
@@ -54,6 +54,10 @@ function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[
   if(k==='carpet'){if(d===0)c=mul(c,.6);else if(d<=3)c=mix(mul(c,.9),rgb(150,104,60),(x+y)%3?.5:.62);else if(d===4)c=mul(c,.72)}
   if(ok){c=OBJC[j];if(d===0)c=mul(c,.5);else if(d===1)c=mul(c,x===0||y===0||o(cx-1,cy)&&x===1||o(cx,cy-1)&&y===1?1.12:.82);else if(d===3&&k==='desk')c=mix(c,rgb(210,168,100),.4);else if(d===3&&k==='table')c=mix(c,rgb(176,126,84),.25);OBJC[j]=c}else floor[j]=c}}
  if(curMap==='vault')inlays()}
+// every laid surface gets a soft edge where it meets a different one
+const NOB=new Set(['grass','dirt','sky','bush','carpet','sill','msill']);
+function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>map[y]&&map[y][x]!==undefined&&map[y][x]!==k;
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);if(d>1)continue;const j=(cy*T+y)*W+cx*T+x,f=d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
 // furniture and fixtures: above the floor, block walking, bullets pass over, blasts break them
 const OBJK=new Set(['table','desk','seat','shelf','chest','rack']),ONAME={table:'Table',desk:'Desk',seat:'Chair',shelf:'Vault shelf',chest:'Chest',rack:'Rack'};let OM=[];
 function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(0);const cells=[];for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(OBJK.has(map[cy][cx])){OM[cy][cx]=map[cy][cx];cells.push([cx,cy])}
@@ -286,12 +290,12 @@ function slabPix(m,len=16,th=8){const px=[],hp=(m===2?2:7)+(len>16?(m===2?1:4):0
  c=rgb(cl(q[0]),cl(q[1]),cl(q[2]));
  px.push([x,y,c,hp,m,0,hp,'x',x,y])}return px}
 function swingPt(b,lx,ly,a){const B=b.rot*Math.PI/2+(b.spin||0),cb=Math.cos(B),sb=Math.sin(B),ca=Math.cos(a),sa=Math.sin(a),hx=-(b.th||8)/2-1,hy=-(b.th||8)/2,dx=lx-hx,dy=ly-hy,qx=hx+dx*ca-dy*sa,qy=hy+dx*sa+dy*ca;return[qx*cb-qy*sb,qx*sb+qy*cb]}
-function orient(b){const a=b.ang||0;if(!b.src){for(const p of b.px){const q=swingPt(b,p[8],p[9],a);p[0]=Math.round(q[0]);p[1]=Math.round(q[1])}mkSet(b);return}
+function orient(b){let a=b.ang||0;if(!b.src){for(const p of b.px){const q=swingPt(b,p[8],p[9],a);p[0]=Math.round(q[0]);p[1]=Math.round(q[1])}mkSet(b);return}
  if(b.used){const live=new Set();for(const t of b.px){if(!t.s||b.set.get(K(t[0],t[1]))!==t)continue;const q=t.s;live.add(q);if(t[3]<q[3])q[3]=t[3];if(t[2]!==t.c0)q[2]=t[2];if(t[5]>q[5])q[5]=t[5]}for(const q of b.used)if(!live.has(q))q.dead=1}
  if(!b.smap){b.smap=new Map();for(const q of b.src)b.smap.set(K(q[8],q[9]),q)}
- const L=b.len||16,th=b.th||8,B=b.rot*Math.PI/2+(b.spin||0),cb=Math.cos(B),sb=Math.sin(B),ca=Math.cos(a),sa=Math.sin(a),hx=-th/2-1,hy=-th/2;
- let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[lx,ly]of[[-.5,-th-.5],[L-.5,-th-.5],[-.5,-.5],[L-.5,-.5]]){const q=swingPt(b,lx,ly,a);x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);y0=Math.min(y0,q[1]);y1=Math.max(y1,q[1])}
- const px=[],used=new Set();for(let Y=Math.floor(y0);Y<=Math.ceil(y1);Y++)for(let X=Math.floor(x0);X<=Math.ceil(x1);X++){const rx=X*cb+Y*sb-hx,ry=-X*sb+Y*cb-hy,lx=hx+rx*ca+ry*sa,ly=hy-rx*sa+ry*ca,q=b.smap.get(K(Math.round(lx+1e-6),Math.round(ly+1e-6)));
+ const sl=!b.free&&!b.fallen,f=sl?Math.min(1,Math.abs(a)/1.4):0;if(sl)a=0;const L=b.len||16,th=b.th||8,B=b.rot*Math.PI/2+(b.spin||0),cb=Math.cos(B),sb=Math.sin(B),ca=Math.cos(a),sa=Math.sin(a),hx=-th/2-1,hy=-th/2,ox=-f*L*cb,oy=-f*L*sb;
+ let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[lx,ly]of[[-.5,-th-.5],[L-.5,-th-.5],[-.5,-.5],[L-.5,-.5]]){const q=swingPt(b,lx,ly,a);x0=Math.min(x0,q[0]+ox);x1=Math.max(x1,q[0]+ox);y0=Math.min(y0,q[1]+oy);y1=Math.max(y1,q[1]+oy)}
+ const px=[],used=new Set();for(let Y=Math.floor(y0);Y<=Math.ceil(y1);Y++)for(let X=Math.floor(x0);X<=Math.ceil(x1);X++){const rx=(X-ox)*cb+(Y-oy)*sb-hx,ry=-(X-ox)*sb+(Y-oy)*cb-hy,lx=hx+rx*ca+ry*sa,ly=hy-rx*sa+ry*ca,q=b.smap.get(K(Math.round(lx+1e-6),Math.round(ly+1e-6)));
   if(!q||q.dead)continue;const t=[X,Y,q[2],q[3],q[4],q[5],q[6],q[7],q[8],q[9]];t.s=q;t.c0=q[2];px.push(t);used.add(q)}
  b.px=px;b.used=used;mkSet(b)}
 function slab(m,x,y,rot=0,len=16,th=8){const b={id:uid++,type:'slab',mat:m,x,y,vx:0,vy:0,rot,ang:0,tgt:0,len,th,src:slabPix(m,len,th),px:[],mass:9*len/16};orient(b);bodies.push(b);return b}
@@ -663,12 +667,12 @@ const HAZE=rgb(198,203,212),VEIL=rgb(190,196,206);
 let sel=new Set(),hover=null,charge=null,box=null,moveSel=null,pend=null,drag=null,stepAcc=0;const keys=new Set();
 function inDrag(b){return !!drag&&drag.group.includes(b)}
 let SHX=new Float32Array(0),SHC=new Float32Array(0),shY=[0,0];
-function sheenFrame(){if(SHX.length!==W){SHX=new Float32Array(W);SHC=new Float32Array(W)}const ax=.55*S*.0042,lp=(mouse.x*.55+mouse.y*.83)*.014;for(let X=0;X<W;X++){SHX[X]=Math.sin(ax*X);SHC[X]=Math.cos(ax*X)}shY=[.83*S*.0042,(cam.x*.55+cam.y*.83)*.0042+lp]}
+function sheenFrame(){if(SHX.length!==W){SHX=new Float32Array(W);SHC=new Float32Array(W)}const ax=.55*S*.0042,lp=0;for(let X=0;X<W;X++){SHX[X]=Math.sin(ax*X);SHC[X]=Math.cos(ax*X)}shY=[.83*S*.0042,(cam.x*.55+cam.y*.83)*.0042+lp]}
 function shine(c,X,Y,k){const a=shY[0]*Y+shY[1],v=SHX[X]*Math.cos(a)+SHC[X]*Math.sin(a);if(v<=0)return c;return mix(c,rgb(255,255,250),v*v*v*k/255*.45)}
 function drawBody(b,lift){if(b.hidden)return;if(b.kind==='arc'){const s=Math.hypot(b.vx,b.vy)||1,wd=b.big?1:0;[rgb(230,245,255),rgb(150,205,255),rgb(90,150,255),rgb(50,90,200),rgb(40,70,160)].slice(0,b.big?5:4).forEach((c,i)=>{for(let o=-wd;o<=wd;o++){const X=Math.round(b.x-b.vx/s*i-b.vy/s*o),Y=Math.round(b.y-b.vy/s*i+b.vx/s*o);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=o?mul(c,.8):c}});return}if(WP[b.kind]&&WP[b.kind].bullet&&!WP[b.kind].rod)return;const bx=Math.round(b.x),by=Math.round(b.y),st=b.status,dyn=b.type!=='weapon',hl=sel.has(b)?1.25:b===hover?1.12:1;
  const sh=lift?[3,4]:b.stuck||b.fallen||st==='dead'?null:[1,2];
  if(sh)for(const p of b.px){const X=bx+p[0]+sh[0],Y=by+p[1]+sh[1];if(X<0||Y<0||X>=W||Y>=H||b.set.has(K(p[0]+sh[0],p[1]+sh[1]))||sol[Y*W+X])continue;out[Y*W+X]=mul(out[Y*W+X],.62)}
- for(const p of b.px){const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H)continue;let c=pcol(b,p);
+ for(const p of b.px){const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H||b.type==='slab'&&sol[Y*W+X])continue;let c=pcol(b,p);
   if(p[7]==='m'||p[7]==='a'||b.type==='slab'&&(b.mat===3||b.gold))c=shine(c,X,Y,UNITS[b.unit]&&UNITS[b.unit].dark?30:70);
   if(dyn){const l=!b.set.has(K(p[0]-1,p[1]))||!b.set.has(K(p[0],p[1]-1)),r=!b.set.has(K(p[0]+1,p[1]))||!b.set.has(K(p[0],p[1]+1));if(b.type==='slab'){if(r)c=mul(c,.5);else if(l)c=mul(c,.8);else if(!b.set.has(K(p[0]-2,p[1]))||!b.set.has(K(p[0],p[1]-2)))c=mul(c,1.22);else if(!b.set.has(K(p[0]+2,p[1]))||!b.set.has(K(p[0],p[1]+2)))c=mul(c,.82)}else if(l||r)c=mul(c,.36)}
   if(b.kind==='sspear'&&b.glw>.01){const g=b.glw,f=.5+.5*Math.sin(tick*(.15+g*.9)+p[8]*.35);c=mix(c,g<.6?rgb(80,140,255):mix(rgb(80,140,255),rgb(235,245,255),(g-.6)/.4),Math.min(1,.25+g*1.1)*(.7+.3*f))}
@@ -681,7 +685,7 @@ function drawBody(b,lift){if(b.hidden)return;if(b.kind==='arc'){const s=Math.hyp
   for(const p of hp){if(p[0]>=0&&p[1]>=0&&p[0]<W&&p[1]<H){let c=st==='dead'?grey(p[2]):p[2];if(hl>1)c=mul(c,hl);out[p[1]*W+p[0]]=c}}}
  if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&(tick>>2)%2){const X=bx,Y=by-(b.kind==='bomb'?0:4);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=rgb(255,240,160)}}
 let solDirty=true,solT=-9;
-const DF=[1,1,.92,.74,.52,.33,.19,.1,.06];
+const DF=[1,1,1,.93,.8,.64,.46,.3,.18,.1];
 function rebuildDS(){const B=15;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j]){DS[j]=0;continue}let d=B;if(X>0)d=Math.min(d,DS[j-1]+1);if(Y>0){d=Math.min(d,DS[j-W]+1);if(X>0)d=Math.min(d,DS[j-W-1]+1);if(X<W-1)d=Math.min(d,DS[j-W+1]+1)}DS[j]=d}
  for(let Y=H-1;Y>=0;Y--)for(let X=W-1;X>=0;X--){const j=Y*W+X;if(!sol[j])continue;let d=DS[j];if(X<W-1)d=Math.min(d,DS[j+1]+1);if(Y<H-1){d=Math.min(d,DS[j+W]+1);if(X<W-1)d=Math.min(d,DS[j+W+1]+1);if(X>0)d=Math.min(d,DS[j+W-1]+1)}DS[j]=d}}
 function rebuildSH(){rebuildDS();for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){let k=0;if(!sol[j]){if(isS(X,Y-1)||isS(X-1,Y))k=1;else if(isS(X,Y-2)||isS(X-2,Y)||isS(X-1,Y-1))k=2}else{if(!isS(X,Y-1)||!isS(X,Y+1)||!isS(X-1,Y)||!isS(X+1,Y))k=1;else if(!isS(X,Y-2)||!isS(X-2,Y))k=2;else if(!isS(X,Y+2)||!isS(X+2,Y))k=3}SH[j]=k}}
@@ -692,7 +696,7 @@ function render(){
  for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}
  for(const b of bodies)if((b.stuck&&!b.att)||b.fallen)drawBody(b);
- for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=NOD[j]?0:SH[j];if(k===1)c=mul(c,.5);else if(k===2)c=mul(c,1.1);if(!NOD[j])c=mul(c,DF[Math.min(8,DS[j])]);if(SHN[j]&&(DS[j]<4||NOD[j]))c=shine(c,X,Y,SHN[j]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}
+ for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=NOD[j]?0:SH[j];if(k===1)c=mul(c,.5);else if(k===2)c=mul(c,1.1);if(!NOD[j])c=mul(c,DF[Math.min(9,DS[j])]);if(SHN[j]&&(DS[j]<4||NOD[j]))c=shine(c,X,Y,SHN[j]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}
  for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!inDrag(b))drawBody(b);
  for(const b of bodies)if(!b.stuck&&b.type!=='slab'&&!inDrag(b)&&b.status==='dead')drawBody(b);for(const b of bodies)if(!b.stuck&&b.type!=='slab'&&!inDrag(b)&&b.status!=='dead')drawBody(b);
  for(const b of bodies)if(b.att)drawBody(b);
