@@ -27,16 +27,18 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 
 - Everyone starts sheathed; the first shot or blast draws every weapon.
 - Armour is per pixel. Shock troopers are weak at the back, commandos strong only at the front. Hit angle and distance change penetration.
-- Muskets 12 rounds, pistols 18, blunderbusses 8, shock spears 4 bolts, shown as loaded/spare. Units carry one of each gun.
+- Muskets 12 rounds, pistols 18, blunderbusses 8, shock spears 4 bolts, rod launchers 6, plasma rod launchers 3, shown as loaded/spare. Units carry one of each gun.
 - Items on the floor and in open crates are picked up automatically if there is room. Crates hold one kind of item. Solari are an item.
 - Doors swing on their hinge; double doors open together; hitting the lock bursts it, hitting the hinge drops the leaf. Heavy doors are two cells long and thicker.
 - Fire sticks to units and eats the outer rings; hot plate cracks; sewer water puts it out.
 - Shock spears lodged in metal or stone count down and blow; several in a shock trooper overload him.
+- Rod launchers fire an iron rod. It sinks halfway into stone, sticks in metal and goes through wood. In a unit it stops halfway: straight on that kills light troops, but guards and shock troopers often survive it, and it glances off their plate at shallow angles. It throws the target back and can pin them to a wall. Recoil shoves the shooter, and civilians and homeguard take a wound from it.
+- Plasma rod launchers fire the rod white-hot. Until it cools in flight it goes through walls, doors and units without glancing off, though one shot in five sticks in a shock trooper's plate. Once cool it acts like a plain rod.
 - The simulation runs at a fixed 60 steps a second whatever the frame rate.
 
 ## Maps
 
-Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest).
+Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest), Astia proving yard (rod launcher test range).
 
 ## Planned
 
