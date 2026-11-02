@@ -1197,7 +1197,40 @@ function fireTick(){for(const b of [...bodies]){if((b.type!=='token'&&b.type!=='
     const inn=b.set.get(K(p[0]-Math.sign(p[0]),p[1]-Math.sign(p[1])));if(inn&&inn[7]==='c'&&Math.random()<p[5]*.15)if(hitPix(b,bx+inn[0],by+inn[1],1)===2)hit=true}
    else if(Math.random()<b.burn*.6){if(hitPix(b,bx+p[0],by+p[1],1)===2){hit=true;if(Math.random()<.3)spark(bx+p[0],by+p[1],rgb(60,40,30),0,0,.8)}}}
   if(hit)settle(b)}}
-function update(){tick++;markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.cock>0)b.cock--;burstTick(b)}if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
+// AI: one side follows orders its leader rolls each playthrough
+const AIPLAN={docks:{side:'Reapers',zones:{floor:[24,104,168,200],back:[216,104,264,200],stash:[20,160,64,204]}}};
+let aiOn=false;
+const RANK={guard:5,shock:4,cmd:3,rifle:2,home:1,civ:0};
+function aiSetup(){const P=AIPLAN[curMap];for(const b of bodies)b.ai=null;if(!aiOn||!P)return;const us=bodies.filter(b=>b.type==='token'&&b.nat===P.side&&b.status==='free');if(!us.length)return;
+ const ld=us.slice().sort((a,b)=>RANK[b.unit]-RANK[a.unit])[0];const zk=Object.keys(P.zones);
+ for(const b of us){const r=Math.random(),o=b===ld?(r<.6?'hold':'defend'):r<.25?'hold':r<.55?'defend':r<.75?'protect':'attack';b.ai={o,z:o==='defend'?zk[Math.random()*zk.length|0]:o==='protect'?(Math.random()<.5?'stash':'leader'):null,ld:b===ld,cd:30+Math.random()*60|0,path:null,pt:0,wp:null};if(b.lab)b.lab.title=o+(b.ai.z?' · '+b.ai.z:'')}}
+const aiSeen=(a,x,y)=>{const n=Math.ceil(Math.hypot(x-a.x,y-a.y)/2);for(let i=2;i<n-2;i++){const X=Math.round(a.x+(x-a.x)*i/n),Y=Math.round(a.y+(y-a.y)*i/n),j=Y*W+X;if(sol[j]||slabG[j]||OBJ[j]&&i>n*.5)return false}return true};
+const aiOpen=(cx,cy)=>{const k=map[cy]&&map[cy][cx];return !!k&&!WMAT[k]&&!(WMAT[k.slice(0,-1)])&&!OBJK.has(k)&&k!=='sky'};
+function aiPath(b,tx,ty){const W0=CW,s0=(b.y/T|0)*W0+(b.x/T|0),g=(ty/T|0)*W0+(tx/T|0),prev=new Int32Array(CW*CH).fill(-1),q=[s0];prev[s0]=s0;
+ while(q.length){const c=q.shift();if(c===g)break;const cx=c%W0,cy=c/W0|0;for(const[a,d]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+a,ny=cy+d,n=ny*W0+nx;if(nx<0||ny<0||nx>=CW||ny>=CH||prev[n]>=0||!aiOpen(nx,ny))continue;if(bodies.some(o=>o.type==='slab'&&!o.free&&o.locked&&!o.lockBroken&&Math.abs(o.x-(nx*T+8))<12&&Math.abs(o.y-(ny*T+8))<12))continue;prev[n]=c;q.push(n)}}
+ if(prev[g]<0)return null;const p=[];for(let c=g;c!==s0;c=prev[c])p.push([(c%W0)*T+8,(c/W0|0)*T+8]);return p.reverse()}
+function aiStep(b,x,y){const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy);if(d<2)return true;const u=UNITS[b.unit],sp=.85*(1-u.arm*.07)*(b.held?.8:1);
+ for(const o of bodies)if(o.type==='slab'&&!o.free&&!o.locked&&o.tgt===0&&o.ang===0&&Math.hypot(o.x-b.x,o.y-b.y)<20)openGroup(o,b);
+ const m=moveToward(b,b.x+dx/d*sp,b.y+dy/d*sp);if(m>.1){b.mv=6;if(!b.ai.tg)turnTo(b,Math.atan2(dy,dx))}else b.ai.path=null;return false}
+function aiGo(b,x,y){const a=b.ai;if(!a.path||!a.wp||Math.hypot(a.wp[0]-x,a.wp[1]-y)>12||tick-a.pt>90){a.path=aiPath(b,x,y)||[[x,y]];a.wp=[x,y];a.pt=tick}const n=a.path[0];if(!n)return true;if(aiStep(b,n[0],n[1])||Math.hypot(n[0]-b.x,n[1]-b.y)<4)a.path.shift();return !a.path.length}
+const aiRand=z=>[z[0]+Math.random()*(z[2]-z[0]),z[1]+Math.random()*(z[3]-z[1])];
+function aiTick(){const P=AIPLAN[curMap];if(!aiOn||!P)return;const foes=bodies.filter(o=>o.type==='token'&&o.status==='free'&&o.nat&&o.nat!==P.side),ld=bodies.find(o=>o.ai&&o.ai.ld);
+ for(const b of bodies){const a=b.ai;if(!a||b.status!=='free'||inDrag(b))continue;
+  let tg=null,td=1e9;for(const f of foes){const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<td&&d<260&&aiSeen(b,f.x,f.y)){td=d;tg=f}}a.tg=tg;
+  if(tg&&!alarm)raiseAlarm();
+  if(alarm&&!b.held){const i=b.inv.findIndex((q,i)=>q&&i<2&&WP[q.k]&&!WP[q.k].hide);if(i>=0)selectSlot(b,i)}
+  if(ld&&ld.status!=='free'&&!a.shaken&&alarm){a.shaken=true;if(Math.random()<.35){a.o='defend';a.z='back'}}
+  if(b.px.length<b.n0*.55&&a.o!=='fall'){a.o='fall';a.z='back'}
+  let goal=null;if(a.o==='defend'||a.o==='fall'){if(!a.spot||a.o==='fall'&&!a.fs){a.spot=aiRand(P.zones[a.z]);a.fs=a.o==='fall'}goal=a.spot}
+  else if(a.o==='protect'){const c=a.z==='leader'&&ld&&ld.status==='free'?[ld.x,ld.y]:a.z==='stash'?[(P.zones.stash[0]+P.zones.stash[2])/2,(P.zones.stash[1]+P.zones.stash[3])/2]:null;if(c&&Math.hypot(c[0]-b.x,c[1]-b.y)>30)goal=c}
+  else if(a.o==='attack'&&alarm){const n=foes.reduce((m,f)=>{const d=Math.hypot(f.x-b.x,f.y-b.y);return d<m[0]?[d,f]:m},[1e9,null])[1];if(n&&(!tg||td>(b.held&&WP[b.held.k].melee?24:90)))goal=[n.x,n.y]}
+  if(goal&&!(tg&&a.o!=='attack'&&a.o!=='fall'))aiGo(b,goal[0],goal[1]);
+  if(!tg||!b.held)continue;turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));if(--a.cd>0)continue;const h=b.held,w=WP[h.k];
+  if(w.melee){if(td>110){a.cd=10;continue}}else if(CAP[h.k]&&!(h.ammo>0)){if(!reload(b))a.cd=999;else a.cd=90;continue}
+  if(bodies.some(o=>o!==b&&o.ai&&o.status==='free'&&(()=>{const vx=tg.x-b.x,vy=tg.y-b.y,L=vx*vx+vy*vy||1,t=((o.x-b.x)*vx+(o.y-b.y)*vy)/L;return t>0&&t<1&&Math.hypot(b.x+vx*t-o.x,b.y+vy*t-o.y)<9})())){a.cd=20;continue}
+  const gi=b.inv.findIndex(q=>q&&q.k==='grenade');if(gi>=0&&td>60&&td<140&&foes.filter(f=>Math.hypot(f.x-tg.x,f.y-tg.y)<30).length>=2&&Math.random()<.25){const pi=b.si;selectSlot(b,gi);fire(b,tg.x,tg.y);setTimeout(()=>{if(b.status==='free'&&pi>=0&&b.inv[pi])selectSlot(b,pi)},400);a.cd=80;continue}
+  fire(b,tg.x+(Math.random()-.5)*8,tg.y+(Math.random()-.5)*8);a.cd={musket:80,pistol:45,blunder:85,pgun:95,rod:120,spear:60,sspear:70}[h.k]+(Math.random()*30|0)||70}}
+function update(){tick++;aiTick();markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.cock>0)b.cock--;burstTick(b)}if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=pr*pr}}
  if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);charge=null}
@@ -1307,7 +1340,7 @@ const TOOLS={move:'Move',chip:'Chip'};const tb={};
 function setTool(k){tool=k;for(const[q,b]of Object.entries(tb))b.classList.toggle('on',q===k);cv.style.cursor=k==='move'?'default':'crosshair'}
 
 const TITLE={bank:'Goldbank · Back room',docks:'Havenport · Warehouse',tavern:'Havenport · Tavern',sewer:'Havenport · Sewer',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard',council:'Sanctis · Council chamber',road:'Portsbridge · Old road',alley:'Great Keys · Guild alley',stock:"Emperor's Dock · Stockyard"};
-btn('Reset',()=>reset());{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['docks','Havenport warehouse'],['tavern','Havenport tavern'],['sewer','Havenport sewer'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"]]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
+btn('Reset',()=>reset());{const ab=btn('AI',()=>{aiOn=!aiOn;ab.classList.toggle('on',aiOn);aiSetup()})}{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['docks','Havenport warehouse'],['tavern','Havenport tavern'],['sewer','Havenport sewer'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"]]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
 setTool('move');
 
 function icon(px,scale){const c=document.createElement('canvas');c.width=28;c.height=20;const g=c.getContext('2d'),id=g.createImageData(28,20),u=new Uint32Array(id.data.buffer);
@@ -1355,7 +1388,7 @@ function reset(){ds0Need=true;{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz
  weapon('grenade',120,196,0);weapon('bomb',60,200,0);weapon('sspear',236,104,.3);
  for(const t of bodies)if(t.type==='token')t.hc=null;listPeople()}
 const NAMED={count:{'Lord Vane':'Bank Lord','Archivist Lell':'Head Clerk','Master Orsk':'Banker',Corvo:'Reaper'},vault:{'Master Corwin':'Banker','Manager Vance':'Bank Lord',Dorran:'Merchant',Lyse:'Noblewoman',Sora:'Noble',Merrit:'Merchant'},sewer:{Ash:'Reaper'},bank:{}};
-{const r0=reset;reset=function(){r0();for(const t of bodies)if(t.type==='token'&&NAMED[curMap]&&NAMED[curMap][t.name])t.look=NAMED[curMap][t.name];snapDoors();sills();arrivals();exitLabels();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
+{const r0=reset;reset=function(){r0();setTimeout(aiSetup,0);for(const t of bodies)if(t.type==='token'&&NAMED[curMap]&&NAMED[curMap][t.name])t.look=NAMED[curMap][t.name];snapDoors();sills();arrivals();exitLabels();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
 reset();loop();
 })();
 </script></body></html>
