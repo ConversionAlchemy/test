@@ -36,7 +36,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Muskets 12 rounds, pistols 18, blunderbusses 8, Lancers 4 bolts, Bolters 3, shown as loaded/spare. Units carry one of each gun.
 - Inventory slots are fixed: one primary gun or spear, one secondary pistol, grenades, a heavy grenade, and one or two pack slots for spare spears, Solari and the rest. Civilians and homeguard have no secondary slot, so a pistol becomes their primary. A unit won't pick up a second primary while it holds one.
 - Items on the floor are picked up automatically if there is room. Solari are an item.
-- Doors slide along their own line into the wall beside them; double doors part to both sides together; hitting the lock bursts it, hitting the hinge drops the leaf. Heavy doors are two cells long and thicker.
+- Doors slide along their own line into the wall beside them, leaving a lip showing to click shut again, and don't block anyone while open; double doors part to both sides together; hitting the lock bursts it, hitting the hinge drops the leaf. Heavy doors are two cells long and thicker.
 - Fire catches a unit on the side that touched it and works inward; it only spreads round the whole body after long contact or when standing in it. It eats the outer rings; hot plate cracks; sewer water puts it out.
 - Hot stone and metal cool slowly through yellow, orange and red, and give off steam while they do.
 - Thrown spears glance off when they strike a surface at a shallow angle and lodge along their line of flight when they strike it squarely.
