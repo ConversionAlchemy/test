@@ -213,7 +213,7 @@ const NOB=new Set(['grass','dirt','sky','bush','carpet','sill','msill']);
 function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>map[y]&&map[y][x]!==undefined&&map[y][x]!==k;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);if(d>(WMAT[k]===3?2:1))continue;const j=(cy*T+y)*W+cx*T+x,mt=WMAT[k]===3,f=mt?[.7,1.3,.88][d]:d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
 // furniture and fixtures: above the floor, block walking, bullets pass over, blasts break them
-const OBJK=new Set(['table','desk','seat','shelf','chest','rack']),ONAME={table:'Table',desk:'Desk',seat:'Chair',shelf:'Vault shelf',chest:'Chest',rack:'Rack'};let OM=[];
+const OBJK=new Set(['table','desk','shelf','chest','rack']),ONAME={table:'Table',desk:'Desk',seat:'Chair',shelf:'Vault shelf',chest:'Chest',rack:'Rack'};let OM=[];
 function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(0);const cells=[];for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(OBJK.has(map[cy][cx])){OM[cy][cx]=map[cy][cx];cells.push([cx,cy])}
  for(const[cx,cy]of cells){let u=null;for(const d of [2,1,3,4])for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){if(u)break;const k=(map[cy+b*d]||[])[cx+a*d];if(k&&!OBJK.has(k)&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky')u=k}const k=OM[cy][cx];paintCell(cx,cy,u||'flag');
   for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);OBJ[j]=1;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}}
@@ -248,7 +248,7 @@ function sills(){for(const d of bodies){if(d.type!=='slab'||d.free)continue;cons
   for(let y=0;y<T;y++)for(let x=0;x<T;x++){const u=hz?y:x;if(u>=5&&u<=10)continue;const kk=u<5?ka:kb;if(!kk)continue;const X=cx*T+x,Y=cy*T+y,c=TEX[kk](X,Y,cx,cy);floor[Y*W+X]=rgb(cl(c[0]),cl(c[1]),cl(c[2]))}}}}
 // doors sit centred in the wall line and meet the wall ends
 function snapDoors(){for(const d of bodies){if(d.type!=='slab'||d.free)continue;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){x0=Math.min(x0,bx+p[0]);x1=Math.max(x1,bx+p[0]);y0=Math.min(y0,by+p[1]);y1=Math.max(y1,by+p[1])}
- let sx,sy;if(x1-x0>y1-y0){sx=Math.round(x0/T)*T-x0;sy=Math.floor((y0+y1)/2/T)*T+T/2-(d.th||8)/2-y0}else{sy=Math.round(y0/T)*T-y0;sx=Math.floor((x0+x1)/2/T)*T+T/2-(d.th||8)/2-x0}d.x=bx+sx;d.y=by+sy;orient(d)}}
+ let sx,sy;if(x1-x0>y1-y0){sx=Math.round(x0/(T/2))*(T/2)-x0;sy=Math.floor((y0+y1)/2/T)*T+T/2-(d.th||8)/2-y0}else{sy=Math.round(y0/(T/2))*(T/2)-y0;sx=Math.floor((x0+x1)/2/T)*T+T/2-(d.th||8)/2-x0}d.x=bx+sx;d.y=by+sy;orient(d)}}
 function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k of r)if(k==='grass'){any=true;break}if(!any)return;
  const R=6,ind=new Float32Array(N),tmp=new Float32Array(N);for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){const k=map[Y/T|0][X/T|0];ind[Y*W+X]=k==='grass'?1:k==='dirt'||k.endsWith('H')?0:.5}
  for(let Y=0;Y<H;Y++){let a=0;for(let X=-R;X<W;X++){if(X+R<W)a+=ind[Y*W+X+R];if(X-R-1>=0)a-=ind[Y*W+X-R-1];if(X>=0)tmp[Y*W+X]=a}}
@@ -265,14 +265,14 @@ function crater(x,y,s){const r=6.5*s,rr=s>1.5?.72:.4;for(let Y=Math.floor(y-r*2)
   else if(hh(X,Y,96)<(2-q)*.22)c=sc(so,.8+hh(X,Y,97)*.2);
   if(!c)continue;const n=rgb(cl(c[0]),cl(c[1]),cl(c[2])),o=floor[j],lum=v=>(v&255)+(v>>8&255)+(v>>16&255);floor[j]=GT[j]===2&&q<1&&lum(o)<lum(n)?o:n;GT[j]=2}}
 function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
- const F=(cx,cy)=>{if(cy===15)return 'bush';if(cy===14)return 'pave';if(cx===2&&cy<=13)return 'marble';if(cy===13)return cx===10||cx===11?'marble':'gstone';if(cx===3&&cy===10)return 'marble';
-  if(cx>=4&&cx<=17&&cy>=9&&cy<=12)return cy>=9&&(cx===10||cx===11)?'carpet':'marble';
-  if(cy===8&&cx>=4&&cx<=17)return cx<=15?'desk':'marble';
-  if(cx>=4&&cx<=17&&cy>=2&&cy<=7){if(cy===2&&(cx<=6||cx>=15))return 'shelf';if((cx===5||cx===16)&&(cy===3||cy===6))return 'pillar';if(cy===4&&cx>=9&&cx<=12)return 'desk';if(cy===3&&(cx===10||cx===11))return 'seat';if(cx>=8&&cx<=13&&cy>=3&&cy<=6)return 'carpet';return 'omarble'}
+ const F=(cx,cy)=>{if(cy===15)return 'bush';if(cy===14)return 'pave';if(cx===19&&cy>=4&&cy<=13)return 'marble';if(cy===4&&cx>=20)return 'marble';if(cy===13)return cx>=9&&cx<=11?'marble':'gstone';if(cx===18&&cy===5)return 'marble';
+  if(cx>=3&&cx<=17&&cy>=9&&cy<=12)return cx>=9&&cx<=11?'carpet':'marble';
+  if(cy===8&&cx>=3&&cx<=17)return cx<=15?'desk':'marble';
+  if(cx>=3&&cx<=17&&cy>=2&&cy<=7){if(cy===2&&(cx<=5||cx>=15))return 'shelf';if((cx===4||cx===16)&&(cy===3||cy===6))return 'pillar';if(cy===4&&cx>=9&&cx<=11)return 'desk';if(cy===3&&cx===10)return 'seat';if(cx>=7&&cx<=13&&cy>=3&&cy<=6)return 'carpet';return 'omarble'}
   return 'gstone'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
-const EXITS={vault:{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392},count:{dir:'n',cell:[2,0],to:'vault',arrive:[40,22],label:'The Aurum',lx:51,ly:3}};
+const EXITS={vault:{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392},count:{dir:'e',cell:[21,4],to:'vault',arrive:[328,72],label:'The Aurum',lx:300,ly:54}};
 const STATE={},PEND={};
 function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of document.querySelectorAll('#sm .xlab'))e.remove();
  STATE[curMap]={CW,CH,map,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,TF,SF,SS,ST,BURN,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
@@ -284,16 +284,18 @@ function goMap(v){if(v===curMap)return;saveMap();curMap=v;const ms=$('msel');if(
 function arrivals(){const q=PEND[curMap];if(!q)return;delete PEND[curMap];for(const b of q){bodies.push(b);if(b.lab)stage.appendChild(b.lab)}}
 function exitLabels(){for(const e of document.querySelectorAll('#sm .xlab'))e.remove();const x=EXITS[curMap];if(!x)return;const l=document.createElement('div');l.className='xlab';l.textContent=x.label;l.style.left=x.lx*S+'px';l.style.top=x.ly*S+'px';stage.appendChild(l)}
 // the passage fades to black towards the map it leads to
-function exitFade(){const x=EXITS[curMap];if(!x)return;const L=28,[cx,cy]=x.cell;for(let i=0;i<L;i++){const f=Math.pow(i/L,1.4);if(x.dir==='w'){const X=i;for(let Y=cy*T-6;Y<cy*T+T+6;Y++)if(Y>=0&&Y<H)out[Y*W+X]=mul(out[Y*W+X],f)}else{const Y=i;for(let X=cx*T-6;X<cx*T+T+6;X++)if(X>=0&&X<W)out[Y*W+X]=mul(out[Y*W+X],f)}}}
+function exitFade(){const x=EXITS[curMap];if(!x)return;const L=28,[cx,cy]=x.cell;for(let i=0;i<L;i++){const f=Math.pow(i/L,1.4);if(x.dir==='w'||x.dir==='e'){const X=x.dir==='w'?i:W-1-i;for(let Y=cy*T-6;Y<cy*T+T+6;Y++)if(Y>=0&&Y<H)out[Y*W+X]=mul(out[Y*W+X],f)}else{const Y=i;for(let X=cx*T-6;X<cx*T+T+6;X++)if(X>=0&&X<W)out[Y*W+X]=mul(out[Y*W+X],f)}}}
 function exitTick(){const x=EXITS[curMap];if(!x)return;for(const b of [...bodies]){if(b.type!=='token'||b.status!=='free'||inDrag(b)||b.tether&&!b.tether.broken)continue;if((b.x/T|0)!==x.cell[0]||(b.y/T|0)!==x.cell[1])continue;
  const was=sel.has(b);bodies=bodies.filter(o=>o!==b);if(b.lab)b.lab.remove();sel.delete(b);b.x=EXITS[x.to].arrive[0];b.y=EXITS[x.to].arrive[1];b.vx=b.vy=0;b.glide=null;b.hc=null;sfx('door');
  if(STATE[x.to])STATE[x.to].bodies.push(b);else(PEND[x.to]||(PEND[x.to]=[])).push(b);listPeople();if(was){goMap(x.to);if(bodies.includes(b))sel.add(b)}}}
 function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
- dbl(3,160,219,191,212,0,2,false);slab(3,52,160,1);for(const o of bodies)if(o.type==='slab')goldify(o);
- container(9,4,[{k:'gold',n:900}]);container(4,2,[{k:'gold',n:1200}]);container(15,2,[{k:'gold',n:1500}]);container(4,8,[]);
- face(token('Clerk Amsel','Goldbank','civ',120,72,false,null),dn);face(token('Teller Rowe','Goldbank','civ',104,120,false,'pistol'),dn);
- face(token('Silas','Reapers','civ',168,168,false,'pistol'),up);face(token('Gull','Reapers','home',120,176,false,'blunder'),up);face(token('Rask','Reapers','rifle',232,176),up);
- face(token('Sgt. Brant','Goldbank','guard',152,232,true),up);face(token('Wells','Goldbank','guard',200,232,true),up);face(token('Ode','Goldbank','rifle',104,232),up);face(token('Kerr','Goldbank','rifle',248,232),up)}
+ dbl(3,144,219,191,212,0,2,false,24,8);for(const o of bodies)if(o.type==='slab')goldify(o);const sd=slab(2,292,80,1),st=slab(2,304,219,0);st.locked=true;mahogany(sd);mahogany(st);
+ container(9,4,[{k:'gold',n:900}]);container(3,2,[{k:'gold',n:1200}]);container(15,2,[{k:'gold',n:1500}]);container(3,8,[]);
+ face(token('Clerk Amsel','Goldbank','civ',168,56,false,null),dn);face(token('Teller Rowe','Goldbank','civ',104,120,false,'pistol'),dn);
+ face(token('Silas','Reapers','civ',168,176,false,'pistol'),up);face(token('Gull','Reapers','home',104,176,false,'blunder'),up);face(token('Rask','Reapers','rifle',248,176),up);
+ face(token('Sgt. Brant','Goldbank','guard',216,200,true),up);face(token('Wells','Goldbank','guard',264,72,true),Math.PI)}
+// fancy doors: mahogany leaf with a brass inlay line
+function mahogany(d){const L=d.len||16,th=d.th||8;for(const q of d.src){const x=q[8],y=q[9],e=Math.min(x,L-1-x,y+th,-1-y),c=woodT(x+d.id*31,y,MAHOG,13);q[2]=e===2?rgb(cl(c[0]*.6+210*.4),cl(c[1]*.6+168*.4),cl(c[2]*.6+100*.4)):rgb(cl(c[0]),cl(c[1]),cl(c[2]))}d.used=null;d.px=[];orient(d)}
 // proving yard: unit lane, long lane, eight material lanes, a texture yard and a grenade field
 const RLANE=['stone','stoneH','stone2','wood','woodH','metal','metalH','door'];
 function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('grass'));
