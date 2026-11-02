@@ -19,9 +19,38 @@ const P={
  sky:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T,v=hh(X>>3,Y>>2,21)*.6+hh(X>>2,Y>>1,22)*.4;return v>.78?4:v>.64?3:v<.22?1:2},
  rail:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T;if(X%8===0&&Y%8===0)return 4;if(Y%4===0)return 0;if(Y%4===1)return 3;return hh(X>>2,Y,23)>.8?1:2},
  seat:(x,y)=>{if(x===0||y===0||x===T-1||y===T-1)return 0;if(x===1||y===1||x===T-2||y===T-2)return 1;if(y<=4)return 3;return (x+y)%4===0?1:(x-y+16)%4===2?3:2}};
-const KIND={marble:'floor',dmarble:'floor',flag:'floor',planks:'floor',stone:'wall',table:'floor',seat:'floor',gstone:'wall',pillar:'wall',carpet:'floor',gfloor:'floor',grass:'floor',dirt:'floor',berm:'wall',sky:'floor',rail:'wall'};
+
+// smooth world-space textures: walls and floors join across cells without visible tiles
+const sm=t=>t*t*(3-2*t);
+function vn(x,y,s){const xi=Math.floor(x),yi=Math.floor(y),fx=sm(x-xi),fy=sm(y-yi),a=hh(xi,yi,s),b=hh(xi+1,yi,s),c=hh(xi,yi+1,s),d=hh(xi+1,yi+1,s);return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
+const fbm=(x,y,s)=>vn(x,y,s)*.55+vn(x*2.1,y*2.1,s+3)*.3+vn(x*4.3,y*4.3,s+7)*.15;
+const sc=(c,k)=>[c[0]*k,c[1]*k,c[2]*k],mx=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+const WOOD={oak:[138,98,62],teak:[112,70,40],pine:[164,124,80],walnut:[86,58,38],ash:[150,128,98],rail:[78,52,32]};
+function woodT(X,Y,base,s=0){const w=Y+(vn(X/22,Y/9,40+s)-.5)*5,g=vn(X/9,w*.9,41+s),f=fbm(X/7,Y/2.4,42+s);let k=.86+f*.26+(g-.5)*.12;
+ if(vn(X/4,w*1.6,43+s)>.82)k*=.8;if(hh(X>>1,Y,44+s)>.985)k*=.85;return sc(base,k)}
+function plankT(X,Y,base,s=0){const bw=5,row=Math.floor(Y/bw),yy=((Y%bw)+bw)%bw,off=(row*23)%48,bi=Math.floor((X+off)/48),xx=((X+off)%48+48)%48;let c=woodT(X,Y,base,s+row*3);
+ c=sc(c,.94+hh(row,bi,45+s)*.12);if(yy===bw-1)c=sc(c,.66);else if(yy===0)c=sc(c,1.05);if(xx===0)c=sc(c,.72);return c}
+const STONE=[118,114,108],FLAG=[150,140,122];
+function stoneT(X,Y,base,s=0){const f=fbm(X/10,Y/10,50+s),d=fbm(X/3,Y/3,51+s);let k=.82+f*.3+(d-.5)*.12;const cr=Math.abs(vn(X/11,Y/11,52+s)-.5),on=vn(X/7,Y/7,54+s)>.6;if(on&&cr<.014)k*=.84;else if(on&&cr<.026)k*=.94;
+ const p=hh(X,Y,53+s);if(p>.985)k*=1.12;else if(p<.015)k*=.85;return sc(base,k)}
+function flagT(X,Y,base){const row=Math.floor(Y/16),xx=((X+(row%2?8:0))%24+24)%24,yy=((Y%16)+16)%16;let c=stoneT(X,Y,base,row);if(yy===0||xx===0)c=sc(c,.8);else if(yy===1||xx===1)c=sc(c,1.04);return c}
+const METAL=[168,176,188];
+function metalT(X,Y,cx,cy,plate=1){const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y);let c=sc(METAL,.9+(vn(X/14,Y*.8,60)-.5)*.14+(hh(X>>2,Y,61)-.5)*.05);
+ c=mx(c,[150,170,200],.12+.1*vn(X/30,Y/30,62));if(!plate)return c;
+ if(e===0)return[64,70,80];if(e===1)return x===1||y===1?[226,232,240]:[104,110,122];if(e===3)return x===3||y===3?[118,124,136]:[214,220,230];if(e===2)return sc(c,1.03);return c}
+const GRASS=[73,107,49],GLITE=[100,137,62],GDRY=[136,140,79],GDARK=[52,80,38],SOIL=[112,88,60];
+function grassT(X,Y){const m=fbm(X/16,Y/16,70);let c=mx(GRASS,GLITE,Math.min(1,Math.max(0,m-.42)*1.8));const dry=fbm(X/26,Y/26,73);if(dry>.6)c=mx(c,GDRY,(dry-.6)*1.6);
+ const tf=vn(X/2.3,Y/1.3,71);if(tf>.68)c=mx(c,GDARK,Math.min(1,(tf-.68)*3.2));else if(tf<.2)c=sc(c,1.08);const t=hh(X,Y,72);if(t>.985)c=mx(c,GDRY,.7);return c}
+function soilT(X,Y){const f=fbm(X/9,Y/9,80);let c=sc(SOIL,.86+f*.26);const t=hh(X,Y,81);if(t>.988)c=[146,124,94];else if(t<.03)c=sc(c,.72);else if(vn(X/3,Y/3,82)>.8)c=sc(c,.92);return c}
+const TEX={stone:(X,Y,cx,cy)=>stoneT(X,Y,STONE),gstone:(X,Y)=>mx(stoneT(X,Y,STONE),[214,180,96],.55),flag:(X,Y)=>flagT(X,Y,FLAG),
+ wood:(X,Y)=>woodT(X,Y,WOOD.oak),dwood:(X,Y)=>woodT(X,Y,WOOD.walnut,5),rail:(X,Y)=>woodT(X,Y,WOOD.rail,9),berm:(X,Y)=>woodT(X,Y,[104,86,64],2),
+ planks:(X,Y)=>plankT(X,Y,WOOD.oak),pplanks:(X,Y)=>plankT(X,Y,WOOD.pine,3),dplanks:(X,Y)=>plankT(X,Y,WOOD.teak,6),table:(X,Y)=>woodT(X,Y,WOOD.teak,7),
+ metal:(X,Y,cx,cy)=>metalT(X,Y,cx,cy),mfloor:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,0),grass:grassT,dirt:soilT};
+const KIND={marble:'floor',dmarble:'floor',flag:'floor',planks:'floor',stone:'wall',table:'floor',seat:'floor',gstone:'wall',pillar:'wall',carpet:'floor',gfloor:'floor',grass:'floor',dirt:'floor',berm:'wall',sky:'floor',rail:'wall',wood:'wall',dwood:'wall',metal:'wall',mfloor:'floor',pplanks:'floor',dplanks:'floor'};
 const PALOF={planks:'oak',seat:'oak',table:'teak'};
 const cache=new Map();
-function tile(key,sig,cx,cy){const ck=key+(cx%2)+(cy%2)+(cy%3);if(cache.has(ck))return cache.get(ck);const cv=document.createElement('canvas');cv.width=cv.height=T;const g=cv.getContext('2d');const pal=PAL[PALOF[key]||key],c={s:7,cx,cy};
+function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.has(ck))return cache.get(ck);const cv=document.createElement('canvas');cv.width=cv.height=T;const g=cv.getContext('2d'),im=g.createImageData(T,T);
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){const c=TEX[key](cx*T+x,cy*T+y,cx,cy),i=(y*T+x)*4;im.data[i]=c[0];im.data[i+1]=c[1];im.data[i+2]=c[2];im.data[i+3]=255}g.putImageData(im,0,0);cache.set(ck,cv);return cv}
+ const ck=key+(cx%2)+(cy%2)+(cy%3);if(cache.has(ck))return cache.get(ck);const cv=document.createElement('canvas');cv.width=cv.height=T;const g=cv.getContext('2d');const pal=PAL[PALOF[key]||key],c={s:7,cx,cy};
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const t=P[key](x,y,c);g.fillStyle=`rgb(${pal[t]})`;g.fillRect(x,y,1,1)}
  cache.set(ck,cv);return cv}
