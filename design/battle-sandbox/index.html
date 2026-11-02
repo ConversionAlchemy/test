@@ -1145,7 +1145,7 @@ function clickBody(b,add){if(b.status==='dead')return;if(b.hidden){openCrate=ope
  if(!add)sel.clear();if(add&&sel.has(b))sel.delete(b);else sel.add(b);sfx('flick')}
 let lastW=null;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-cv.addEventListener('pointerdown',e=>{au();closeMenu();if(panKey||e.button===1){pan={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};cv.setPointerCapture(e.pointerId);e.preventDefault();return}const[x,y]=toBoard(e),X=x|0,Y=y|0;
+const boardDown=e=>{au();closeMenu();if(panKey||e.button===1){pan={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};cv.setPointerCapture(e.pointerId);e.preventDefault();return}const[x,y]=toBoard(e),X=x|0,Y=y|0;
  if(e.button===2){const b=bodyAt(X,Y,1);if(b)openMenu(b,e);else{sel.clear();moveSel=null;charge=null}return}
  cv.setPointerCapture(e.pointerId);
  if(tool==='move'){
@@ -1157,7 +1157,10 @@ cv.addEventListener('pointerdown',e=>{au();closeMenu();if(panKey||e.button===1){
   if(ar.length&&!(b&&(sel.has(b)||b.kind==='crate'))){charge={t:performance.now(),need:Math.max(...ar.map(o=>srcInfo(o).hold)),x,y,b};return}
   if(b){if(b.status==='dead'||b.kind==='crate'){clickBody(b,e.ctrlKey||e.metaKey);return}pend={b,x,y,add:e.ctrlKey||e.metaKey};return}
   box={x0:x,y0:y,x1:x,y1:y}}
- else if(tool==='chip'){chipLast=[X,Y];chip(X,Y)}});
+ else if(tool==='chip'){chipLast=[X,Y];chip(X,Y)}};
+cv.addEventListener('pointerdown',boardDown);
+// the dark space around the board works like the board: box-select, pan, aim
+stage.parentElement.addEventListener('pointerdown',e=>{if(e.target===stage.parentElement||e.target===stage)boardDown(e)});
 window.addEventListener('pointermove',e=>{if(pan){cam.x=pan.cx+e.clientX-pan.x;cam.y=pan.cy+e.clientY-pan.y;applyCam();return}const[x,y]=toBoard(e);mouse.x=x;mouse.y=y;mouse.in=inBoard(e);
  hover=mouse.in&&!drag?bodyAt(x|0,y|0,1):null;hoverC=!hover&&mouse.in&&!drag&&(x|0)>=0&&(y|0)>=0&&(x|0)<W&&(y|0)<H?containerAt(x|0,y|0):null;
  if(!drag)for(const b of sel){if(b.type==='slab')continue;if(!srcInfo(b)&&!(b.type==='token'&&b.status==='free'))continue;const a=Math.atan2(y-b.y,x-b.x);if(b.type==='token')turnTo(b,a);else if(Math.abs(a-b.ang)>.05)reshape(b,a)}
