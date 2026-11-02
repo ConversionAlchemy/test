@@ -16,7 +16,6 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | WASD | Move selected units |
 | 1–6 | Pick an inventory slot |
 | R | Reload from spare ammo |
-| T | Shock spear: bolt or throw |
 | Q | Sheathe or draw |
 | E / Esc | Deselect |
 | F / G | Switch hand / drop |
