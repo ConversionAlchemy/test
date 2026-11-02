@@ -31,6 +31,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Items on the floor and in open crates are picked up automatically if there is room. Crates hold one kind of item. Solari are an item.
 - Doors swing on their hinge; double doors open together; hitting the lock bursts it, hitting the hinge drops the leaf. Heavy doors are two cells long and thicker.
 - Fire sticks to units and eats the outer rings; hot plate cracks; sewer water puts it out.
+- Hot stone and metal cool slowly through yellow, orange and red, and give off steam while they do.
 - Shock spears lodged in metal or stone count down and blow; several in a shock trooper overload him.
 - Rod launchers fire an iron rod. It gets about two-thirds into a stone wall and can punch through a metal door. In a unit it stops halfway: straight on that kills light troops, but guards and shock troopers often survive it, and it glances off their plate at shallow angles. It throws the target back and can pin them to a wall. Recoil shoves the shooter; civilians and homeguard are thrown much further and wounded.
 - Plasma rod launchers fire the rod white-hot. While hot it goes through units without glancing off and burns through about one wall's thickness of stone or plate plus 20–40% more, then cools and sticks, leaving a scorch line, smoke and fire where it hit; it also cools in flight, though one shot in five sticks in a shock trooper's plate. Once cool it acts like a plain rod.
