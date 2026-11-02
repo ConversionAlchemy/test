@@ -7,6 +7,7 @@ Reference for the brief in `../FLUORIA.md`.
   - `portsbridge.json`: Watabou city generator (mfcg 0.11.5), GeoJSON.
   - `willards-pass.json`: Watabou village generator (vg 1.6.9), GeoJSON.
   - `house_by_the_lake.json`: Watabou Dwellings, three floors.
+  - `zone-source.png`: screenshot of the Havenport–Goldbank–Portsbridge zone, traced by `zone.py`.
 - `prototype/`: the Python scripts that drew the previews. They are sketches for the look, not app code. VT323 is bundled under the SIL Open Font License (`fonts/OFL.txt`).
 - `battle-sandbox/`: the pixel interior battle prototype, one self-contained page. See its README.
 
@@ -15,6 +16,7 @@ Run the prototypes with Python 3, numpy, Pillow, shapely and scipy:
 ```
 cd design/prototype
 python3 region.py                     # writes out/2-region.png
+python3 zone.py                       # writes out/11-zone.png from samples/zone-source.png
 python3 import_city.py ../samples/portsbridge.json out/portsbridge.png "Portsbridge" "{n} buildings" 5.6
 ```
 
