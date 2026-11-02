@@ -36,7 +36,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Fire catches a unit on the side that touched it and works inward; it only spreads round the whole body after long contact or when standing in it. It eats the outer rings; hot plate cracks; sewer water puts it out.
 - Hot stone and metal cool slowly through yellow, orange and red, and give off steam while they do.
 - Thrown spears glance off when they strike a surface at a shallow angle and lodge along their line of flight when they strike it squarely.
-- Commandos hit 15% harder with every weapon, 35% with the blunderbuss. Their muskets fire two rounds a pull; their pistols keep firing about six shots a second while the mouse is held, spreading wider the longer the burst, until released or empty.
+- Commandos hit 15% harder with every weapon, 35% with the blunderbuss. Their muskets fire two rounds a pull and their pistols two. A commando can carry two pistols and dual-wield them, four shots a pull, each from its own magazine; a pistol dropped on a commando becomes their drawn weapon, and R reloads both.
 - Commandos throw furthest, hardest and straightest; about one spear throw in five is well placed enough to punch through a shock trooper's front plate.
 - Spears stack like grenades; a stack holds four, anyone armed with them starts with four, and loose spears top the stack up.
 - The Lancer is a short dark-metal spear with a plasma emitter behind its head. It fires blue bolts that blast on impact and spark off metal, four to a load, reloaded from cell boxes. Press T to throw it early: with bolts still in it, it bursts in a plasma blast on contact, bigger the more bolts are left. Once it is fired out the head goes plain steel and it throws like a plain spear.
