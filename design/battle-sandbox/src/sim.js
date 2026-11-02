@@ -46,7 +46,7 @@ function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=k
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&x>=T/2,c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=bk==='bush'?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;shp[j]=MAT[m].hp;scol[j]=c;floor[j]=mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
-function build(){(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank)();blendGround();objects();borders();regions()}
+function build(){(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank)();blendGround();objects();boards();borders();regions()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx];if(k!=='carpet'&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(k==='carpet'&&OM[y]&&OM[y][x]);
@@ -54,6 +54,12 @@ function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[
   if(k==='carpet'){if(d===0)c=mul(c,.6);else if(d<=3)c=mix(mul(c,.9),rgb(150,104,60),(x+y)%3?.5:.62);else if(d===4)c=mul(c,.72)}
   if(ok){c=OBJC[j];if(d===0)c=mul(c,.5);else if(d===1)c=mul(c,x===0||y===0||o(cx-1,cy)&&x===1||o(cx,cy-1)&&y===1?1.12:.82);else if(d===3&&k==='desk')c=mix(c,rgb(210,168,100),.4);else if(d===3&&k==='table')c=mix(c,rgb(176,126,84),.25);OBJC[j]=c}else floor[j]=c}}
  if(curMap==='vault')inlays()}
+// plank joints are laid from each floor's own edges, boards split evenly across its width
+const PLK=new Set(['planks','pplanks','dplanks']);
+function boards(){const seen=new Set();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!PLK.has(k))continue;
+ for(let y=0;y<T;y+=8){const Y=cy*T+y,id=Y*CW+cx;if(seen.has(id))continue;let a=cx,b=cx;while(map[cy][a-1]===k)a--;while(map[cy][b+1]===k)b++;for(let q=a;q<=b;q++)seen.add(Y*CW+q);
+  const x0=a*T,w=(b-a+1)*T,n=Math.max(1,Math.round(w/44)),row=Y>>3;for(let X=x0;X<x0+w;X++){const bi=Math.floor((X-x0)*n/w),edge=Math.floor((X-x0)*n/w)!==Math.floor((X-x0-1)*n/w)&&X>x0;
+   for(let yy=0;yy<8;yy++){const j=(Y+yy)*W+X;if(sol[j])continue;let c=mul(floor[j],.95+hh(row,bi,45)*.1);if(edge&&yy<7)c=mul(c,.86);floor[j]=c}}}}}
 // every laid surface gets a soft edge where it meets a different one
 const NOB=new Set(['grass','dirt','sky','bush','carpet','sill','msill']);
 function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>map[y]&&map[y][x]!==undefined&&map[y][x]!==k;
