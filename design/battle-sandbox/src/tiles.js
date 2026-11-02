@@ -34,19 +34,25 @@ const STONE=[118,114,108],FLAG=[150,140,122];
 function stoneT(X,Y,base,s=0){const f=fbm(X/10,Y/10,50+s),d=fbm(X/3,Y/3,51+s);let k=.82+f*.3+(d-.5)*.12;const cr=Math.abs(vn(X/11,Y/11,52+s)-.5),on=vn(X/7,Y/7,54+s)>.6;if(on&&cr<.014)k*=.84;else if(on&&cr<.026)k*=.94;
  const p=hh(X,Y,53+s);if(p>.985)k*=1.12;else if(p<.015)k*=.85;return sc(base,k)}
 function flagT(X,Y,base){const row=Math.floor(Y/16),xx=((X+(row%2?8:0))%24+24)%24,yy=((Y%16)+16)%16;let c=stoneT(X,Y,base,row);if(yy===0||xx===0)c=sc(c,.8);else if(yy===1||xx===1)c=sc(c,1.04);return c}
-const METAL=[168,176,188];
-function metalT(X,Y,cx,cy,plate=1){const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y);let c=sc(METAL,.9+(vn(X/14,Y*.8,60)-.5)*.14+(hh(X>>2,Y,61)-.5)*.05);
- c=mx(c,[150,170,200],.12+.1*vn(X/30,Y/30,62));if(!plate)return c;
- if(e===0)return[64,70,80];if(e===1)return x===1||y===1?[226,232,240]:[104,110,122];if(e===3)return x===3||y===3?[118,124,136]:[214,220,230];if(e===2)return sc(c,1.03);return c}
+// metal: one cold core, variants are a tint plus an overlay
+const METAL=[126,140,146];
+function metalCore(X,Y,tint){let c=sc(METAL,.9+(vn(X/14,Y*.8,60)-.5)*.14+(hh(X>>2,Y,61)-.5)*.05);c=mx(c,[104,128,136],.25+.15*vn(X/30,Y/30,62));return tint?mx(c,tint,.55):c}
+const BEV=(x,y,e,c)=>e===0?sc(c,.42):e===1?(x===1||y===1?sc(c,1.38):sc(c,.68)):null;
+function metalT(X,Y,cx,cy,v,tint){const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y),c=metalCore(X,Y,tint);if(v==='floor'){const bx=x>>2,by=y>>2,lx=x&3,ly=y&3,d=(bx+by)%2?lx===ly:lx===3-ly;return d&&lx>0&&lx<3?sc(c,1.22):d?sc(c,.8):c}
+ const b=BEV(x,y,e,c);if(b)return b;
+ if(v==='panel'){const i=Math.min(x-4,y-4,11-x,11-y);if(i===0)return x===4||y===4?sc(c,.7):sc(c,1.3);return c}
+ if(v==='rivet'){for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12]]){if(x===rx&&y===ry)return sc(c,1.45);if(x===rx+1&&y===ry+1)return sc(c,.62)}}
+ return c}
 const GRASS=[73,107,49],GLITE=[100,137,62],GDRY=[136,140,79],GDARK=[52,80,38],SOIL=[112,88,60];
 function grassT(X,Y){const m=fbm(X/16,Y/16,70);let c=mx(GRASS,GLITE,Math.min(1,Math.max(0,m-.42)*1.8));const dry=fbm(X/26,Y/26,73);if(dry>.6)c=mx(c,GDRY,(dry-.6)*1.6);
  const tf=vn(X/2.3,Y/1.3,71);if(tf>.68)c=mx(c,GDARK,Math.min(1,(tf-.68)*3.2));else if(tf<.2)c=sc(c,1.08);const t=hh(X,Y,72);if(t>.985)c=mx(c,GDRY,.7);return c}
 function soilT(X,Y){const f=fbm(X/9,Y/9,80);let c=sc(SOIL,.86+f*.26);const t=hh(X,Y,81);if(t>.988)c=[146,124,94];else if(t<.03)c=sc(c,.72);else if(vn(X/3,Y/3,82)>.8)c=sc(c,.92);return c}
-const TEX={stone:(X,Y,cx,cy)=>stoneT(X,Y,STONE),gstone:(X,Y)=>mx(stoneT(X,Y,STONE),[214,180,96],.55),flag:(X,Y)=>flagT(X,Y,FLAG),
+function foundT(X,Y){let c=stoneT(X,Y,[72,68,62],9);const g=hh(X,Y,99);if(g>.9)c=sc(c,1.25);else if(g<.12)c=sc(c,.7);return c}
+const TEX={stone:(X,Y,cx,cy)=>stoneT(X,Y,STONE),marble:(X,Y)=>mx(stoneT(X,Y,[226,224,218],11),[246,245,240],.35),dmarble:(X,Y)=>stoneT(X,Y,[54,82,74],12),gstone:(X,Y)=>mx(stoneT(X,Y,STONE),[214,180,96],.55),flag:(X,Y)=>flagT(X,Y,FLAG),
  wood:(X,Y)=>woodT(X,Y,WOOD.oak),dwood:(X,Y)=>woodT(X,Y,WOOD.walnut,5),rail:(X,Y)=>woodT(X,Y,WOOD.rail,9),berm:(X,Y)=>woodT(X,Y,[104,86,64],2),
  planks:(X,Y)=>plankT(X,Y,WOOD.oak),pplanks:(X,Y)=>plankT(X,Y,WOOD.pine,3),dplanks:(X,Y)=>plankT(X,Y,WOOD.teak,6),table:(X,Y)=>woodT(X,Y,WOOD.teak,7),
- metal:(X,Y,cx,cy)=>metalT(X,Y,cx,cy),mfloor:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,0),grass:grassT,dirt:soilT};
-const KIND={marble:'floor',dmarble:'floor',flag:'floor',planks:'floor',stone:'wall',table:'floor',seat:'floor',gstone:'wall',pillar:'wall',carpet:'floor',gfloor:'floor',grass:'floor',dirt:'floor',berm:'wall',sky:'floor',rail:'wall',wood:'wall',dwood:'wall',metal:'wall',mfloor:'floor',pplanks:'floor',dplanks:'floor'};
+ metal:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'panel'),mplate:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet'),iron:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet',[70,78,82]),brass:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet',[184,150,84]),mfloor:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'floor'),grass:grassT,dirt:soilT};
+const KIND={marble:'floor',dmarble:'floor',flag:'floor',planks:'floor',stone:'wall',table:'floor',seat:'floor',gstone:'wall',pillar:'wall',carpet:'floor',gfloor:'floor',grass:'floor',dirt:'floor',berm:'wall',sky:'floor',rail:'wall',wood:'wall',dwood:'wall',metal:'wall',mplate:'wall',iron:'wall',brass:'wall',mfloor:'floor',pplanks:'floor',dplanks:'floor'};
 const PALOF={planks:'oak',seat:'oak',table:'teak'};
 const cache=new Map();
 function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.has(ck))return cache.get(ck);const cv=document.createElement('canvas');cv.width=cv.height=T;const g=cv.getContext('2d'),im=g.createImageData(T,T);
