@@ -17,6 +17,7 @@ Run the prototypes with Python 3, numpy, Pillow, shapely and scipy:
 cd design/prototype
 python3 region.py                     # writes out/2-region.png
 python3 zone.py                       # writes out/11-zone.png from samples/zone-source.png
+python3 goldbank.py                   # writes out/12-goldbank.png, the city view and its panel
 python3 import_city.py ../samples/portsbridge.json out/portsbridge.png "Portsbridge" "{n} buildings" 5.6
 ```
 
