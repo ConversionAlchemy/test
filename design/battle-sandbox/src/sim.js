@@ -42,8 +42,9 @@ function tilePix(key,cx,cy){if(TEX[key]){const d=new Uint8ClampedArray(T*T*4);fo
  for(let i=0;i<d.length;i+=4){d[i]=cl((d[i]+(r-d[i])*k)*lift);d[i+1]=cl((d[i+1]+(gg-d[i+1])*k)*lift);d[i+2]=cl((d[i+2]+(b-d[i+2])*k)*lift)}return d}
 const WMAT={ewood:2,mpanel:3,bush:2,stone:1,gstone:1,pillar:1,berm:1,rail:2,wood:2,dwood:2,metal:3,mplate:3,iron:3,brass:3};
 const SHINE={bkmarble:22,bkslab:22,gtile:28,omarble:28,mpanel:70,metal:70,mplate:70,iron:45,brass:80,mfloor:50,marble:28,dmarble:28,gfloor:80,gstone:20,pillar:28,msill:28,shelf:80};
-function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=key;const half=key.length>1&&key.endsWith('H')&&WMAT[key.slice(0,-1)],bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix('dirt',cx,cy):null,m=WMAT[bk]||0,gk=bk==='gstone'?1:0;
- for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&x>=T/2,c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=bk==='bush'?1:0;
+let HALFF='dirt';
+function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(HALFF,cx,cy):null,m=WMAT[bk]||0,gk=bk==='gstone'?1:0;
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&(hv==='H'?x>=T/2:hv==='N'?y>=T/2:y<T/2),c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=bk==='bush'?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;shp[j]=MAT[m].hp;scol[j]=c;floor[j]=mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
 function build(){(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank)();blendGround();objects();boards();borders();regions()}
@@ -129,7 +130,7 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
    if(y===1&&x!==18||(x===8||x===28)&&y>=2&&y<=8&&y!==4)return 'books';if(y>=8&&y<=9&&x>=11&&x<=25)return 'gcarpet';return 'dplanks'}
   if(x===7&&y===4||x===29&&y===4)return 'dplanks';
   if(y===10&&(x===12||x===24))return 'bkmarble';
-  if(y>=11&&y<=13&&x>=0&&x<=36)return (y===11||y===13)&&[1,6,16,28,33].includes(x)?'pillar':'bkmarble';
+  if(y>=11&&y<=13&&x>=0&&x<=36)return (y===11||y===13)&&[1,6,16,28,33].includes(x)?(y===11?'gstoneN':'gstoneS'):'bkmarble';
   if(y===14&&(x===3||x===11||x===21))return 'bkmarble';
   if(x>=0&&x<=6&&y>=15&&y<=19)return y===16&&x>=2&&x<=4?'table':y===15&&x===3?'seat':x===0&&y===15?'rack':x===6&&y===15?'chest':'bkslab';
   if(y===20&&(x===1||x===5))return 'bkslab';if(y>=21&&y<=23&&(x>=0&&x<=2||x>=4&&x<=6))return 'flag';
@@ -139,7 +140,7 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
   if(x>=28&&x<=36&&y>=15&&y<=23){if((y===15||y===23)&&x>=29&&x<=35)return 'shelf';if(y===19&&x>=31&&x<=33)return 'chest';return 'mfloor'}
   if((x===27||x===37)&&y>=14&&y<=24||(y===14||y===24)&&x>=27&&x<=37)return 'iron';
   return 'gstone'};
- for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));
+ HALFF='bkmarble';for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));HALFF='dirt';
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 const EXITS={vault:[{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392}],count:[{dir:'e',cell:[43,12],to:'vault',arrive:[664,200],label:'The Aurum',lx:640,ly:182},{dir:'w',cell:[0,17],label:'Back alley',lx:2,ly:262}]};
 const STATE={},PEND={};
