@@ -45,7 +45,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 
 ## Maps
 
-Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest), Astia proving yard (outdoor test range, everyone unarmed, one Bolter on the ground with spare rods in a crate: a lane of every unit type, a long lane where the plasma rod has cooled, and lanes of stone, double stone, wood, metal, half slab and heavy door with a target behind each).
+Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest), Astia proving yard (outdoor test range, everyone unarmed, one Bolter on the ground with spare rods in a crate: a lane of every unit type, a long lane where a hot rod has cooled, and lanes of stone, double stone, wood, metal, half slab and heavy door with a target behind each).
 
 ## Planned
 
