@@ -14,7 +14,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Drag | Box-select, or drag a unit or item |
 | Hold | Aim and fire, or wind up a throw; the crosshair fills from inner to outer |
 | WASD | Move selected units |
-| 1–6 | Pick an inventory slot |
+| 1–6 | Pick a slot: 1 primary, 2 secondary, 3 grenade, 4 heavy, 5–6 pack |
 | R | Reload from spare ammo |
 | T | Lancer: switch between firing bolts and throwing |
 | Q | Sheathe or draw |
@@ -31,6 +31,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Everyone starts sheathed; the first shot or blast draws every weapon.
 - Armour is per pixel. Shock troopers are weak at the back, commandos strong only at the front. Hit angle and distance change penetration.
 - Muskets 12 rounds, pistols 18, blunderbusses 8, Lancers 4 bolts, Bolters 3, shown as loaded/spare. Units carry one of each gun.
+- Inventory slots are fixed: one primary gun or spear, one secondary pistol, grenades, a heavy grenade, and one or two pack slots for spare spears, Solari and the rest. Civilians and homeguard have no secondary slot, so a pistol becomes their primary. A unit won't pick up a second primary while it holds one.
 - Items on the floor and in open crates are picked up automatically if there is room. Crates hold one kind of item. Solari are an item.
 - Doors swing on their hinge; double doors open together; hitting the lock bursts it, hitting the hinge drops the leaf. Heavy doors are two cells long and thicker.
 - Fire catches a unit on the side that touched it and works inward; it only spreads round the whole body after long contact or when standing in it. It eats the outer rings; hot plate cracks; sewer water puts it out.
@@ -46,7 +47,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 
 ## Maps
 
-Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest), Astia proving yard (outdoor test range, everyone unarmed, one Bolter on the ground with spare rods in a crate: a lane of every unit type, a long lane where a hot rod has cooled, and lanes of stone, double stone, wood, metal, half slab and heavy door with a target behind each).
+Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest), Pirate airship boarding (six commandos, two of them dual-wielding pistols plus a Lancer and a Bolter, cross two gangplanks onto a pirate deck of twelve crew up to guard riflemen; anything that goes over the rail into open sky is lost), Astia proving yard (outdoor test range, everyone unarmed, one Bolter on the ground with spare rods in a crate: a lane of every unit type, a long lane where a hot rod has cooled, and lanes of stone, double stone, wood, metal, half slab and heavy door with a target behind each).
 
 ## Planned
 
