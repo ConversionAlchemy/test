@@ -45,11 +45,11 @@
 #sm .is b{position:absolute;right:2px;bottom:0;font-size:14px;color:#c9c5b8;pointer-events:none}#sm .is u{position:absolute;left:3px;top:0;font-size:13px;color:#5f5b52;text-decoration:none;pointer-events:none}
 #sm .is b.lo{color:#e0a040}#sm .is b.out{color:#b03a2a}#sm .ghost{position:fixed;pointer-events:none;z-index:9;opacity:.85}
 #sm .sec{display:flex;flex-direction:column;gap:5px}#sm .sec+.sec{border-top:1px solid #3a3a3a;padding-top:6px}
-#sm .sh{cursor:pointer}#sm .sh::before{content:'▾ ';color:#6f6b62}#sm .sec.closed .sh::before{content:'▸ '}#sm .sec.closed>:not(.sh){display:none}
-#sm .wp>div{height:24px;cursor:grab}#sm .wp>div.dim{opacity:.4;cursor:default}#sm .wp>div.on{border-color:#f2efe6}#sm .wp>div.arm{border-color:#e0a040}
+#sm .sh{cursor:pointer;display:grid;grid-template-columns:40px 1fr;gap:6px;align-items:center;padding:0 5px;font-size:16px;line-height:24px;color:#f2efe6}#sm .sh::before{content:'▾';color:#6f6b62;justify-self:center}#sm .sec.closed .sh::before{content:'▸'}#sm .sh canvas{width:26px;height:26px;vertical-align:middle;margin-left:6px;image-rendering:pixelated;cursor:grab}#sm .sec.closed>:not(.sh){display:none}
+#sm .wp>div{height:24px;cursor:grab;display:grid;grid-template-columns:40px 1fr auto;gap:6px;align-items:center}#sm .wp>div>canvas{justify-self:center}#sm .wp>div.dim{opacity:.4;cursor:default}#sm .wp>div.on{border-color:#f2efe6}#sm .wp>div.arm{border-color:#e0a040}
 #sm .wp .n{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#sm .wp .c{color:#c9c5b8}#sm .wp .c.lo{color:#e0a040}#sm .wp .c.out{color:#b03a2a}
-#sm .mk>div{cursor:default}#sm .mk .ml{width:42px;color:#8f8b80}#sm .mk input,#sm .mk select{flex:1;min-width:0;border:0;background:transparent;padding:0;font-size:16px}#sm .mk select option{background:#262626}
-#sm #tpr{cursor:grab}#sm #tp{width:17px;height:17px;image-rendering:pixelated}#sm .ibox{display:flex;flex-direction:column;gap:2px}#sm .ibox+.ibox{margin-top:4px}#sm .isub{font-size:16px;padding:0 2px}
+#sm .mk>div{cursor:default}#sm .mk .ml{color:#8f8b80}#sm .mk input,#sm .mk select{min-width:0;border:0;background:transparent;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none;cursor:pointer}#sm .mk .c{color:#6f6b62;pointer-events:none}#sm .mk select option{background:#262626}
+#sm #tpr{cursor:grab}#sm #tp{width:17px;height:17px;image-rendering:pixelated}#sm .ibox{display:flex;flex-direction:column;gap:2px;background:none;border:0;box-shadow:none}#sm .ibox+.ibox{margin-top:4px}#sm .isub{font-size:16px;padding:0 2px}
 #sm .menu{position:absolute;z-index:5;background:#232323;border:1px solid #000;display:flex;flex-direction:column;min-width:120px;box-shadow:0 3px 10px #0008}
 #sm .menu button{border:0;border-bottom:1px solid #333;text-align:left;background:#232323}
 #sm .menu button:hover{background:#3a3a3a}
@@ -64,7 +64,7 @@
    <div class="sec" data-k="wp"><b class="sh">Weapons</b><div class="wp" id="wp"></div></div>
    <div class="sec" data-k="cov"><b class="sh">Cover</b><div class="wp" id="cov"></div></div>
    <div class="sec" data-k="tools"><b class="sh">Tools</b><div class="wp" id="tools"></div></div>
-   <div class="sec" data-k="mk"><b class="sh">Markers</b><div class="wp mk"><div><span class="ml">Name</span><input id="fn" value="Edda"></div><div><span class="ml">Unit</span><select id="fu"></select></div><div><span class="ml">Side</span><select id="fnat"></select></div><div><span class="ml">Arms</span><select id="fw"></select></div><div id="tpr"><canvas id="tp" width="17" height="17"></canvas><span id="tpn">Edda</span></div></div></div>
+   <div class="sec" data-k="mk"><b class="sh"><span>Markers<canvas id="tp" width="17" height="17"></canvas></span></b><div class="wp mk"><div><span class="ml">Name</span><input id="fn" value="Edda"></div><div><span class="ml">Unit</span><select id="fu"></select><span class="c">▾</span></div><div><span class="ml">Side</span><select id="fnat"></select><span class="c">▾</span></div><div><span class="ml">Arms</span><select id="fw"></select><span class="c">▾</span></div></div></div>
    <div class="sec" data-k="insp"><b class="sh" id="ihd">Inspector</b><div id="insp"></div></div>
   </div>
  </div>
