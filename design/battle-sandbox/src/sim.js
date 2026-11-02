@@ -1052,7 +1052,7 @@ function aiPath(b,tx,ty){const W0=CW,s0=(b.y/T|0)*W0+(b.x/T|0),g=(ty/T|0)*W0+(tx
 function aiStep(b,x,y){const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy);if(d<2)return true;const u=UNITS[b.unit],sp=.85*(1-u.arm*.07)*(b.held?.8:1);
  for(const o of bodies)if(o.type==='slab'&&!o.free&&!o.locked&&o.tgt===0&&o.ang===0&&Math.hypot(o.x-b.x,o.y-b.y)<20)openGroup(o,b);
  const m=moveToward(b,b.x+dx/d*sp,b.y+dy/d*sp);if(m>.1){b.mv=6;if(!b.ai.tg)turnTo(b,Math.atan2(dy,dx))}else b.ai.path=null;return false}
-function aiGo(b,x,y){const a=b.ai;if(!a.path||!a.wp||Math.hypot(a.wp[0]-x,a.wp[1]-y)>12||tick-a.pt>90){a.path=aiPath(b,x,y)||[[x,y]];a.wp=[x,y];a.pt=tick}const n=a.path[0];if(!n)return true;if(aiStep(b,n[0],n[1])||Math.hypot(n[0]-b.x,n[1]-b.y)<4)a.path.shift();return !a.path.length}
+function aiGo(b,x,y){const a=b.ai;if(!a.path||!a.wp||Math.hypot(a.wp[0]-x,a.wp[1]-y)>12||tick-a.pt>90){a.path=aiPath(b,x,y)||[[x,y]];a.wp=[x,y];a.pt=tick}const n=a.path[0];if(!n)return true;if(aiStep(b,n[0],n[1])||Math.hypot(n[0]-b.x,n[1]-b.y)<4)a.path&&a.path.shift();return !a.path||!a.path.length}
 const aiRand=z=>[z[0]+Math.random()*(z[2]-z[0]),z[1]+Math.random()*(z[3]-z[1])];
 function aiTick(){const P=AIPLAN[curMap];if(!aiOn||!P)return;const foes=bodies.filter(o=>o.type==='token'&&o.status==='free'&&o.nat&&o.nat!==P.side),ld=bodies.find(o=>o.ai&&o.ai.ld);
  for(const b of bodies){const a=b.ai;if(!a||b.status!=='free'||inDrag(b))continue;
@@ -1070,7 +1070,7 @@ function aiTick(){const P=AIPLAN[curMap];if(!aiOn||!P)return;const foes=bodies.f
   if(bodies.some(o=>o!==b&&o.ai&&o.status==='free'&&(()=>{const vx=tg.x-b.x,vy=tg.y-b.y,L=vx*vx+vy*vy||1,t=((o.x-b.x)*vx+(o.y-b.y)*vy)/L;return t>0&&t<1&&Math.hypot(b.x+vx*t-o.x,b.y+vy*t-o.y)<9})())){a.cd=20;continue}
   const gi=b.inv.findIndex(q=>q&&q.k==='grenade');if(gi>=0&&td>60&&td<140&&foes.filter(f=>Math.hypot(f.x-tg.x,f.y-tg.y)<30).length>=2&&Math.random()<.25){const pi=b.si;selectSlot(b,gi);fire(b,tg.x,tg.y);setTimeout(()=>{if(b.status==='free'&&pi>=0&&b.inv[pi])selectSlot(b,pi)},400);a.cd=80;continue}
   fire(b,tg.x+(Math.random()-.5)*8,tg.y+(Math.random()-.5)*8);a.cd={musket:80,pistol:45,blunder:85,pgun:95,rod:120,spear:60,sspear:70}[h.k]+(Math.random()*30|0)||70}}
-function update(){tick++;aiTick();markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.cock>0)b.cock--;burstTick(b)}if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
+function update(){tick++;try{aiTick()}catch(e){console.warn(e)}markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.cock>0)b.cock--;burstTick(b)}if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=pr*pr}}
  if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);charge=null}
