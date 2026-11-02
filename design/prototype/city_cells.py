@@ -1,11 +1,11 @@
-"""Preview: Goldbank built from 16 px texture cells, like the battle maps; one marker per cell."""
+"""Preview: Goldbank from above, built on 16 px cells like the battle maps; roofs only, one marker per cell."""
 import os
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
+from scipy import ndimage
 
-from common import FONTS, P, mix, rng, shade
-from PIL import ImageDraw, ImageFont
+from common import FONTS, P, rng, shade
 
 OUT = os.environ.get("OUT", "out")
 os.makedirs(OUT, exist_ok=True)
@@ -20,12 +20,11 @@ def hh(x, y, s):
 
 
 # ---- the cell plan ----
+WATER, GRASS, FIELD, ROAD, LANE, DIRT, QUAY, PIER, PLAZA, GARDEN, WALL, GATE, BUILD = range(13)
 coast = np.array([6 + (1 if (y // 5) % 3 == 1 else 0) + max(0, y - 27) for y in range(R)])
-WATER, GRASS, FIELD, ROAD, LANE, PATH, QUAY, PIER, PLAZA, YARD, GARDEN, WALL, GATE, BUILD = range(14)
 g = np.full((R, C), GRASS)
 for y in range(R):
     g[y, : coast[y]] = WATER
-
 foot = np.zeros((R, C), bool)
 for x0, y0, x1, y1 in [(14, 5, 57, 37), (24, 2, 45, 5), (57, 14, 64, 30), (26, 37, 50, 43), (40, 37, 58, 40), (0, 6, 14, 30)]:
     foot[y0:y1, x0:x1] = True
@@ -34,323 +33,304 @@ for y in range(R):
 foot[30:37, 14:20] = False
 foot[37:, :26] = False
 
-# fields and trees outside
-for k in range(40):
-    fx, fy, fw, fh = r.integers(0, C), r.integers(0, R), r.integers(3, 8), r.integers(2, 5)
+
+def district(x, y):
+    if 22 <= x <= 52 and 2 <= y <= 19:
+        return "rich"
+    if x < 20:
+        return "harbour"
+    if y > 32:
+        return "poor"
+    if x > 52:
+        return "gate"
+    return "old"
+
+
+near = ndimage.binary_dilation(foot, iterations=2)
+for k in range(46):
+    fx, fy, fw, fh = r.integers(0, C), r.integers(0, R), r.integers(3, 9), r.integers(2, 5)
     m = np.zeros_like(foot)
     m[fy : fy + fh, fx : fx + fw] = True
-    m &= ~foot & (g == GRASS)
-    near = np.zeros_like(foot)
-    for dy in (-1, 0, 1):
-        for dx in (-1, 0, 1):
-            near |= np.roll(np.roll(foot, dy, 0), dx, 1)
-    g[m & ~near] = FIELD
+    g[m & ~near & (g == GRASS)] = FIELD
 
-g[foot] = YARD
+g[foot] = DIRT
 MAINX, MAINY = 36, 20
-VX = [(MAINX, 2), (20, 1), (28, 1), (46, 1), (53, 1), (12, 1)]
-HY = [(MAINY, 2), (9, 1), (14, 1), (27, 1), (33, 1), (39, 1)]
-for x, w in VX:
+for x, w in [(MAINX, 2), (20, 1), (28, 1), (46, 1), (53, 1), (12, 1), (41, 1), (31, 1), (58, 1)]:
     for y in range(R):
-        if foot[y, x]:
-            if w == 1 and (y // 6 + x) % 5 == 0:
-                continue
-            g[y, x : x + w] = np.where(foot[y, x : x + w], ROAD if w == 2 else LANE, g[y, x : x + w])
-for y, w in HY:
+        if foot[y, x] and not (w == 1 and (y // 5 + x) % 4 == 0):
+            for xx in range(x, x + w):
+                if foot[y, xx]:
+                    g[y, xx] = ROAD if w == 2 else LANE
+for y, w in [(MAINY, 2), (9, 1), (14, 1), (27, 1), (33, 1), (39, 1), (5, 1), (24, 1)]:
     for x in range(C):
-        if foot[y, x]:
-            if w == 1 and (x // 7 + y) % 4 == 0:
-                continue
-            g[y : y + w, x] = np.where(foot[y : y + w, x], ROAD if w == 2 else LANE, g[y : y + w, x])
-
-# walls round the footprint, open on the harbour
-edge = foot & ~(np.roll(foot, 1, 0) & np.roll(foot, -1, 0) & np.roll(foot, 1, 1) & np.roll(foot, -1, 1))
+        if foot[y, x] and not (w == 1 and (x // 6 + y) % 4 == 0):
+            for yy in range(y, y + w):
+                if foot[yy, x]:
+                    g[yy, x] = ROAD if w == 2 else LANE
+edge = foot & ~ndimage.binary_erosion(foot)
 for y, x in zip(*np.nonzero(edge)):
-    if x <= coast[y] + 3:
+    if x <= coast[y] + 1:
         g[y, x] = QUAY
     else:
         g[y, x] = GATE if (x in (MAINX, MAINX + 1) or y in (MAINY, MAINY + 1)) else WALL
-for y in range(R):  # quay along the water
+for y in range(R):
     for x in range(C):
-        if foot[y, x] and x <= coast[y] + 2 and g[y, x] in (YARD,):
-            g[y, x] = QUAY
-for x in (MAINX, MAINX + 1):
-    for y in range(R):
-        if not foot[y, x] and g[y, x] in (GRASS, FIELD):
-            g[y, x] = PATH
-for y in (MAINY, MAINY + 1):
-    for x in range(C):
-        if not foot[y, x] and g[y, x] in (GRASS, FIELD) and x > 40:
-            g[y, x] = PATH
-for py in range(8, 30, 5):  # piers
+        if not foot[y, x] and g[y, x] in (GRASS, FIELD) and ((x in (MAINX, MAINX + 1) and abs(y - 22) > 18) or (y in (MAINY, MAINY + 1) and x > 60)):
+            g[y, x] = DIRT
+for py in range(8, 30, 5):
     for k in range(1, 5):
-        x = coast[py] - k
-        if x >= 0:
-            g[py, x] = PIER
+        if coast[py] - k >= 0:
+            g[py, coast[py] - k] = PIER
 
-# landmarks as shaped complexes
 bid = np.zeros((R, C), int)
 mat = {}
 nid = [1]
+
+
+def free(cells):
+    return all(0 <= a < C and 0 <= b < R and g[b, a] == DIRT for a, b in cells)
 
 
 def build(cells, m):
     i = nid[0]
     nid[0] += 1
     for x, y in cells:
-        if 0 <= x < C and 0 <= y < R:
-            g[y, x] = BUILD
-            bid[y, x] = i
+        g[y, x] = BUILD
+        bid[y, x] = i
     mat[i] = m
-    return i
 
 
 def box(x0, y0, x1, y1):
     return [(x, y) for y in range(y0, y1) for x in range(x0, x1)]
 
 
-for x, y in box(29, 22, 45, 27):
+for x, y in box(32, 22, 41, 26):
     g[y, x] = PLAZA
-aurum = box(29, 11, 44, 13) + box(29, 13, 31, 19) + box(42, 13, 44, 19) + box(31, 17, 36, 19) + box(38, 17, 42, 19) + box(35, 9, 38, 11)
-build(aurum, "gold")
-for x, y in box(31, 13, 42, 17):
-    g[y, x] = PLAZA
-for x, y in box(36, 17, 38, 19):
-    g[y, x] = PLAZA
-build(box(46, 22, 52, 25) + box(46, 25, 48, 27), "goldtrim")  # counting house
-build(box(47, 10, 53, 12) + box(47, 12, 49, 14), "stone")  # barracks
-for x, y in box(49, 12, 53, 14):
-    g[y, x] = YARD
-build(box(21, 10, 27, 12) + box(23, 8, 25, 14), "slate")  # chapel, a cross
-build(box(8, 15, 12, 19), "clay2")  # customs house
+build(box(33, 15, 40, 18) + box(35, 18, 38, 19), "gold")  # the Aurum, with a porch on the square
+build(box(43, 22, 47, 25), "goldtrim")  # counting house
+build(box(47, 10, 52, 12) + box(47, 12, 49, 14), "stone")  # barracks
+build(box(21, 10, 27, 12) + box(23, 8, 25, 14), "slate")  # chapel
 
-ROOF = {"rich": ["slate", "slate3", "clay3"], "town": ["clay", "clay3", "clay2", "slate3"], "harbour": ["wood", "thatch2", "clay2"], "poor": ["thatch", "thatch3", "thatch2"]}
-
-
-def district(x, y):
-    if 22 <= x <= 52 and 4 <= y <= 20:
-        return "rich"
-    if x < 20:
-        return "harbour"
-    if y > 33 or x > 54:
-        return "poor"
-    return "town"
-
-
-for cx, cy in [(22, 22), (47, 2), (54, 34), (40, 30)]:  # courtyard houses
-    ring = [(x, y) for y in range(cy, cy + 4) for x in range(cx, cx + 4) if not (cx < x < cx + 3 and cy < y < cy + 3)]
-    if all(0 <= a < C and 0 <= b < R and g[b, a] == YARD for a, b in ring):
-        build(ring, "slate3" if cy < 20 else "clay3")
-        for x, y in [(cx + 1, cy + 1), (cx + 2, cy + 1), (cx + 1, cy + 2), (cx + 2, cy + 2)]:
-            g[y, x] = GARDEN
-cells = [(x, y) for y in range(R) for x in range(C) if g[y, x] == YARD]
+SIZE = {"rich": (2, 4), "old": (1, 3), "harbour": (2, 5), "poor": (1, 2), "gate": (1, 3)}
+ROOF = {"rich": ["slate", "slate", "slate2", "clay3"], "old": ["clay", "clay", "clay3", "clay2", "slate2"], "harbour": ["wood", "wood2", "clay2", "thatch2"],
+        "poor": ["wood", "wood2", "thatch", "thatch2"], "gate": ["clay2", "thatch", "wood", "clay"]}
+cells = [(x, y) for y in range(R) for x in range(C) if g[y, x] == DIRT and foot[y, x]]
 r.shuffle(cells)
 for x, y in cells:
-    if g[y, x] != YARD:
+    if g[y, x] != DIRT:
         continue
-    w, h = int(r.integers(2, 5)), int(r.integers(2, 4))
-    if r.random() < 0.5:
-        w, h = h, w
-    rect_ = [(x + i, y + j) for j in range(h) for i in range(w)]
-    if not all(0 <= a < C and 0 <= b < R and g[b, a] == YARD for a, b in rect_):
-        w, h = 2, 2
-        rect_ = [(x + i, y + j) for j in range(h) for i in range(w)]
-        if not all(0 <= a < C and 0 <= b < R and g[b, a] == YARD for a, b in rect_):
-            if r.random() < 0.6:
-                rect_ = [(x, y)]
-            else:
-                continue
-    if r.random() < 0.35 and len(rect_) > 2:  # an L or T wing
-        wx, wy = (x + w, y) if r.random() < 0.5 else (x, y + h)
-        wing = [(wx + i, wy + j) for j in range(2) for i in range(2)]
-        if all(0 <= a < C and 0 <= b < R and g[b, a] == YARD for a, b in wing):
-            rect_ += wing
     d = district(x, y)
-    build(rect_, ROOF[d][r.integers(0, len(ROOF[d]))])
+    lo, hi = SIZE[d]
+    w, h = int(r.integers(lo, hi + 1)), int(r.integers(lo, hi + 1))
+    if d == "harbour" and r.random() < 0.6:
+        w, h = 2, int(r.integers(3, 6))
+    shape = box(x, y, x + w, y + h)
+    while not free(shape) and (w > 1 or h > 1):
+        w, h = max(1, w - 1), max(1, h - 1)
+        shape = box(x, y, x + w, y + h)
+    if not free(shape):
+        continue
+    if d in ("rich", "old") and len(shape) >= 4 and r.random() < 0.4:
+        wing = box(x + w, y, x + w + 1, y + 2) if r.random() < 0.5 else box(x, y + h, x + 2, y + h + 1)
+        if free(wing):
+            shape += wing
+    if d == "rich" and r.random() < 0.5:  # a garden round wealthy houses
+        ring = box(x - 1, y - 1, x + w + 1, y + h + 1)
+        if not free([c for c in ring if c not in shape]):
+            if r.random() < 0.7:
+                continue
+    build(shape, ROOF[d][r.integers(0, len(ROOF[d]))])
+    if d == "rich":
+        for a_, b_ in box(x - 1, y - 1, x + w + 1, y + h + 1):
+            if 0 <= a_ < C and 0 <= b_ < R and g[b_, a_] == DIRT:
+                g[b_, a_] = GARDEN
 for y in range(R):
     for x in range(C):
-        if g[y, x] == YARD and r.random() < 0.3:
+        if g[y, x] == DIRT and foot[y, x] and r.random() < (0.5 if district(x, y) in ("rich", "old") else 0.15):
             g[y, x] = GARDEN
 
-# ---- textures ----
-PAL = {
-    "clay": [(108, 52, 38), (146, 72, 52), (166, 88, 62), (186, 108, 76)],
-    "clay2": [(92, 46, 34), (124, 62, 46), (142, 76, 54), (160, 92, 66)],
-    "clay3": [(122, 66, 46), (160, 92, 64), (178, 110, 78), (198, 130, 92)],
-    "slate": [(48, 54, 70), (70, 78, 98), (84, 92, 112), (104, 112, 132)],
-    "slate3": [(62, 68, 86), (88, 96, 116), (104, 112, 132), (124, 132, 150)],
-    "thatch": [(118, 96, 56), (160, 134, 82), (178, 150, 94), (198, 172, 116)],
-    "thatch2": [(102, 82, 48), (138, 114, 68), (152, 126, 78), (172, 146, 96)],
-    "thatch3": [(130, 110, 66), (176, 150, 96), (192, 168, 110), (210, 188, 132)],
-    "wood": [(70, 50, 32), (100, 72, 46), (118, 86, 56), (136, 102, 68)],
-    "stone": [(70, 68, 64), (100, 96, 90), (120, 116, 108), (142, 138, 128)],
-    "gold": [(140, 104, 30), (186, 146, 50), (210, 172, 64), (236, 204, 110)],
-    "goldtrim": [(136, 100, 40), (172, 134, 60), (190, 154, 74), (212, 180, 104)],
-}
-
-
-def tex(kind, x, y, seed=0):
-    t = np.zeros((T, T, 3), float)
-    for j in range(T):
-        for i in range(T):
-            X, Y = x * T + i, y * T + j
-            n = hh(X, Y, 3 + seed)
-            if kind == WATER:
-                c = P["water"] if n > 0.25 else P["water2"]
-                if hh(X // 3, Y, 9) > 0.93:
-                    c = P["foam"]
-                if hh(X // 4, Y // 4, 5) < 0.2:
-                    c = P["deep"]
-            elif kind in (GRASS, GARDEN):
-                c = P["g2"] if n > 0.5 else P["g1"] if n > 0.2 else P["g3"]
-                if n > 0.97:
-                    c = P["g4"]
-            elif kind == FIELD:
-                c = P["field1"] if (Y // 2) % 2 else P["field2"]
-                if n > 0.9:
-                    c = P["field3"]
-            elif kind in (ROAD, LANE, YARD, GATE, QUAY):
-                rows = 5
-                row = Y // rows
-                xx = (X + (row % 2) * 4) % 8
-                mortar = Y % rows == 0 or xx == 0
-                base = {ROAD: P["cob3"], LANE: P["cob1"], YARD: P["dirt3"], GATE: P["cob3"], QUAY: P["stone3"]}[kind]
-                c = shade(base, 0.62) if mortar else shade(base, 0.92 + n * 0.16)
-                if kind == YARD:
-                    c = shade(P["dirt3"], 0.85 + n * 0.25)
-            elif kind == PATH:
-                c = shade(P["dirt3"], 0.85 + n * 0.25)
-            elif kind == PLAZA:
-                c = (232, 228, 218) if ((X // 8 + Y // 8) % 2) else (214, 210, 200)
-                if X % 8 == 0 or Y % 8 == 0:
-                    c = (190, 186, 176)
-            elif kind == PIER:
-                c = P["wood"] if X % 4 else P["wood2"]
-            elif kind == WALL:
-                rows = 4
-                xx = (X + (Y // rows % 2) * 3) % 6
-                c = shade(P["stone2"], 0.6) if (Y % rows == 0 or xx == 0) else shade(P["stone2"], 0.95 + n * 0.12)
-            else:
-                c = (255, 0, 255)
-            t[j, i] = c
-    return t
-
-
-canvas = np.zeros((R * T, C * T, 3), float)
+# ---- ground ----
+H_, W_ = R * T, C * T
+YY, XX = np.mgrid[0:H_, 0:W_]
+N1 = hh(XX, YY, 3)
+N2 = hh(XX // 3, YY // 3, 7)
+cellk = np.repeat(np.repeat(g, T, 0), T, 1)
+distr = np.empty((R, C), object)
 for y in range(R):
     for x in range(C):
-        k = g[y, x]
-        if k == BUILD:
-            continue
-        canvas[y * T : (y + 1) * T, x * T : (x + 1) * T] = tex(k, x, y)
-        if k == GARDEN and hh(x, y, 4) > 0.45:  # a tree
-            cy, cx = y * T + 8, x * T + 8
-            for j in range(-6, 7):
-                for i in range(-6, 7):
-                    d = np.hypot(i, j)
-                    if d < 6.2 - hh(cx + i, cy + j, 2) * 1.5:
-                        canvas[cy + j, cx + i] = P["tree3"] if i + j < -3 else P["tree"] if d < 4.5 else P["tree2"]
+        distr[y, x] = district(x, y)
+poor_cell = np.repeat(np.repeat(np.vectorize(lambda d: d in ("poor", "gate", "harbour"))(distr), T, 0), T, 1)
+img = np.zeros((H_, W_, 3), float)
 
-# roofs: shingle rows, a ridge on the long axis, outline and cast shadow
+
+def put_mask(m, base, var=0.12, noise=N1):
+    img[m] = np.array(base)[None, :] * (1 - var + noise[m][:, None] * var * 2)
+
+
+grass = (cellk == GRASS) | (cellk == GARDEN)
+put_mask(grass, P["g2"], 0.14)
+img[grass & (N2 < 0.3)] *= 0.9
+img[grass & (N1 > 0.985)] = P["g4"]
+fld = cellk == FIELD
+put_mask(fld, P["field1"], 0.08)
+img[fld & ((YY // 3) % 2 == 0)] *= 0.88
+wat = cellk == WATER
+put_mask(wat, P["water"], 0.05)
+img[wat & (hh(XX // 6, YY // 2, 9) > 0.86)] = P["water2"]
+img[wat & (hh(XX // 9, YY // 9, 5) < 0.18)] = P["deep"]
+dirt = (cellk == DIRT) | ((cellk == LANE) & poor_cell)
+put_mask(dirt, P["dirt3"], 0.16)
+img[dirt & (N2 > 0.9)] = P["dirt2"]
+# cobbles: irregular stones with dark joints
+stone_id = (XX // 4 + ((YY // 3) % 2) * 2) * 7 + YY // 3
+joint = ((YY % 3) == 0) | (((XX + ((YY // 3) % 2) * 2) % 4) == 0)
+cob = ((cellk == ROAD) | (cellk == GATE) | ((cellk == LANE) & ~poor_cell))
+sv = hh(stone_id, 1, 11)
+img[cob] = np.array(P["cob1"])[None, :] * (0.86 + sv[cob][:, None] * 0.22)
+img[cob & joint] = np.array(P["gap"]) * 1.1
+plaza = cellk == PLAZA
+img[plaza] = np.array((222, 218, 206))[None, :] * (0.94 + N1[plaza][:, None] * 0.08)
+img[plaza & (((XX % 8) == 0) | ((YY % 8) == 0))] = (188, 184, 174)
+quay = cellk == QUAY
+img[quay] = np.array(P["stone3"])[None, :] * (0.9 + N1[quay][:, None] * 0.12)
+img[quay & joint] = P["stone2"]
+pier = cellk == PIER
+img[pier] = P["wood"]
+img[pier & (XX % 4 == 0)] = P["wood2"]
+wall = (cellk == WALL)
+img[wall] = np.array(P["stone2"])[None, :] * (0.92 + N1[wall][:, None] * 0.12)
+img[wall & ((YY % 4 == 0) | ((XX + (YY // 4 % 2) * 3) % 6 == 0))] = shade(P["stone2"], 0.62)
+
+# ---- roofs: hipped from above, lit from the north-west ----
+PAL = {
+    "clay": ((150, 72, 52), (176, 96, 68)), "clay2": ((128, 64, 48), (150, 82, 60)), "clay3": ((166, 98, 70), (190, 122, 86)),
+    "slate": ((70, 78, 98), (96, 104, 124)), "slate2": ((84, 88, 100), (110, 114, 126)),
+    "thatch": ((160, 134, 82), (190, 164, 108)), "thatch2": ((138, 114, 68), (164, 140, 90)),
+    "wood": ((100, 72, 46), (128, 96, 64)), "wood2": ((84, 62, 42), (110, 84, 58)),
+    "stone": ((104, 100, 94), (132, 128, 120)), "gold": ((196, 154, 52), (234, 200, 104)), "goldtrim": ((170, 132, 60), (204, 168, 92)),
+}
+LX, LY = -0.62, -0.78
+shadow = np.zeros((H_, W_), bool)
+roofed = np.zeros((H_, W_), bool)
 for i, m in mat.items():
     ys, xs = np.nonzero(bid == i)
-    x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
-    horiz = (x1 - x0) >= (y1 - y0)
-    pal = PAL[m]
+    x0, x1, y0, y1 = xs.min() * T - 2, (xs.max() + 1) * T + 2, ys.min() * T - 2, (ys.max() + 1) * T + 2
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(W_, x1), min(H_, y1)
+    M = np.zeros((y1 - y0, x1 - x0), bool)
     for y, x in zip(ys, xs):
-        for j in range(T):
-            for ii in range(T):
-                X, Y = x * T + ii, y * T + j
-                along = (Y - y0 * T) / ((y1 - y0) * T) if horiz else (X - x0 * T) / ((x1 - x0) * T)
-                lit = along < 0.5
-                row = (Y // 3) if horiz else (X // 3)
-                off = ((X if horiz else Y) + (row % 2) * 2) % 4
-                c = pal[3] if lit else pal[1]
-                if (Y % 3 == 0 if horiz else X % 3 == 0) or off == 0:
-                    c = pal[2] if lit else pal[0]
-                if abs(along - 0.5) < 0.5 / ((y1 - y0) * T if horiz else (x1 - x0) * T) * 1.5:
-                    c = shade(pal[3], 1.08)
-                canvas[Y, X] = c
-    for y, x in zip(ys, xs):  # outline against anything that is not this building
-        for (dx, dy) in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < C and 0 <= ny < R and bid[ny, nx] == i:
-                continue
-            if dx == 1:
-                canvas[y * T : (y + 1) * T, x * T + T - 1] *= 0.55
-            if dx == -1:
-                canvas[y * T : (y + 1) * T, x * T] *= 0.8
-            if dy == 1:
-                canvas[y * T + T - 1, x * T : (x + 1) * T] *= 0.5
-            if dy == -1:
-                canvas[y * T, x * T : (x + 1) * T] *= 0.85
-            if (dx == 1 or dy == 1) and 0 <= nx < C and 0 <= ny < R and bid[ny, nx] == 0:
-                sx, sy = nx * T, ny * T
-                if dx == 1:
-                    canvas[y * T + 3 : (y + 1) * T, sx : sx + 3] *= 0.72
-                else:
-                    canvas[sy : sy + 3, x * T + 3 : (x + 1) * T] *= 0.72
+        M[y * T - y0 : (y + 1) * T - y0, x * T - x0 : (x + 1) * T - x0] = True
+    M = ndimage.binary_erosion(M, iterations=1, border_value=0)
+    d, (iy, ix) = ndimage.distance_transform_edt(M, return_indices=True)
+    py, px = np.mgrid[0 : M.shape[0], 0 : M.shape[1]]
+    nx, ny = ix - px, iy - py
+    nl = np.hypot(nx, ny) + 1e-6
+    nx, ny = nx / nl, ny / nl
+    snap = np.abs(ny) >= np.abs(nx)
+    lit = np.where(snap, np.sign(ny) * LY, np.sign(nx) * LX)
+    dark, light = (np.array(c, float) for c in PAL[m])
+    t_ = np.clip(0.5 + lit * 0.75, 0, 1.15)[..., None]
+    base = dark * 0.82 + (light * 1.08 - dark * 0.82) * t_
+    gx, gy = px + x0, py + y0
+    horiz = np.abs(ny) >= np.abs(nx)
+    along = np.where(horiz, gx, gy)
+    course = d.astype(int)
+    if m.startswith("clay"):
+        step, split = 3, 3
+    elif m.startswith("slate") or m == "stone":
+        step, split = 2, 4
+    elif m.startswith("wood"):
+        step, split = 4, 5
+    elif m.startswith("gold"):
+        step, split = 4, 8
+    else:
+        step, split = 2, 0
+    seam = (course % step) == 0
+    if split:
+        seam |= ((along + (course // step) * (split // 2)) % split) == 0
+    col = base * (0.94 + hh(gx // 2, course // max(1, step), 13)[..., None] * 0.1)
+    if m.startswith("thatch"):
+        col = base * (0.86 + hh(along, course // 3, 17)[..., None] * 0.24)
+    col[seam] *= 0.84
+    ridge = ndimage.maximum_filter(d, 3) == d
+    ridge &= d > 2.5
+    col[ridge] = col[ridge] * 1.12
+    col[(d <= 1.2)] *= 0.72
+    sub = img[y0:y1, x0:x1]
+    sub[M] = col[M]
+    roofed[y0:y1, x0:x1] |= M
+    sh = np.zeros_like(M)
+    sh[3:, 3:] = M[:-3, :-3]
+    shadow[y0:y1, x0:x1] |= sh
+img[shadow & ~roofed & ~wat] *= 0.66
 
-# ships off the piers
+# trees in gardens and the odd one outside
+for y in range(R):
+    for x in range(C):
+        if g[y, x] == GARDEN and hh(x, y, 4) > 0.4 or (g[y, x] == GRASS and not near[y, x] and hh(x, y, 6) > 0.93):
+            cx, cy = x * T + 4 + int(hh(x, y, 8) * 8), y * T + 4 + int(hh(x, y, 9) * 8)
+            rad = 5 + hh(x, y, 10) * 3
+            for j in range(-9, 10):
+                for i in range(-9, 10):
+                    X, Y = cx + i, cy + j
+                    if 0 <= X < W_ and 0 <= Y < H_:
+                        dd = np.hypot(i, j)
+                        if dd < rad - hh(X, Y, 2) * 1.4 and not roofed[Y, X]:
+                            img[Y, X] = P["tree3"] if (i + j) < -rad * 0.5 else P["tree"] if dd < rad * 0.7 else P["tree2"]
+                        elif dd < rad + 1 and not roofed[Y, X] and i + j > 2:
+                            img[Y, X] *= 0.8
+
 for sx, sy in [(1, 10), (2, 20), (3, 34), (14, 41), (20, 44), (0, 27)]:
     if g[sy, sx] == WATER:
         X, Y = sx * T, sy * T
-        canvas[Y + 9 : Y + 13, X + 1 : X + 15] = P["wood2"]
-        canvas[Y + 8, X + 3 : X + 13] = P["wood"]
-        canvas[Y + 2 : Y + 8, X + 6 : X + 12] = (236, 230, 214)
-        canvas[Y + 2 : Y + 8, X + 8] = (200, 194, 180)
+        img[Y + 9 : Y + 13, X + 1 : X + 15] = P["wood2"]
+        img[Y + 8, X + 3 : X + 13] = P["wood"]
+        img[Y + 3 : Y + 8, X + 6 : X + 12] = (236, 230, 214)
 
-# markers: a place pin and characters each fill one cell
+
 def token(cx, cy, ring, body, arm=None):
     for j in range(-7, 8):
         for i in range(-7, 8):
-            d = np.hypot(i, j)
-            if d > 7.3:
+            dd = np.hypot(i, j)
+            if dd > 7.3:
                 continue
-            c = arm if arm and d > 5.6 else ring if d > 3.8 else (24, 22, 22) if d > 3 else body
-            if d > 6.6:
-                c = shade(c, 0.4)
-            canvas[cy + j, cx + i] = c
+            c = arm if arm and dd > 5.6 else ring if dd > 3.8 else (24, 22, 22) if dd > 3 else body
+            img[cy + j, cx + i] = shade(c, 0.4) if dd > 6.6 else c
 
 
-GOLD_RING = (196, 164, 40)
-for (x, y), (ring, body, arm) in {(36, 20): (GOLD_RING, (196, 164, 40), (186, 192, 202)), (37, 21): (GOLD_RING, (196, 164, 40), (186, 192, 202)),
-                                  (33, 24): (GOLD_RING, (214, 184, 150), None), (40, 25): ((206, 202, 192), (214, 184, 150), None),
-                                  (16, 24): ((92, 104, 72), (92, 104, 72), (118, 80, 48))}.items():
+GR = (196, 164, 40)
+for (x, y), (ring, body, arm) in {(35, 19): (GR, GR, (186, 192, 202)), (37, 19): (GR, GR, (186, 192, 202)), (34, 23): (GR, (214, 184, 150), None),
+                                  (39, 24): ((206, 202, 192), (214, 184, 150), None), (16, 24): ((92, 104, 72), (92, 104, 72), (118, 80, 48))}.items():
     token(x * T + 8, y * T + 8, ring, body, arm)
-for x, y in [(36, 16), (49, 23), (24, 11), (10, 17), (17, 25)]:  # place pins
+for x, y in [(36, 16), (45, 23), (24, 11), (17, 26)]:
     X, Y = x * T, y * T
-    canvas[Y + 2 : Y + 14, X + 2 : X + 14] = P["ink"]
-    canvas[Y + 4 : Y + 12, X + 4 : X + 12] = (240, 200, 40)
-    canvas[Y + 6 : Y + 10, X + 6 : X + 10] = (250, 232, 150)
+    img[Y + 3 : Y + 13, X + 3 : X + 13] = P["ink"]
+    img[Y + 5 : Y + 11, X + 5 : X + 11] = (240, 200, 40)
 
-img = Image.fromarray(np.clip(canvas, 0, 255).astype(np.uint8))
-full = img.copy()
-img = img.resize((C * T // 2 * 2 // 2 * 1, R * T // 2 * 2 // 2 * 1), Image.NEAREST) if False else img
-small = img.resize((C * 12, R * 12), Image.BOX)
-inset = full.crop((29 * T, 14 * T, 43 * T, 27 * T)).resize((14 * T * 2, 13 * T * 2), Image.NEAREST)
-
-out = Image.new("RGB", (small.width + inset.width + 24, max(small.height, inset.height) + 0), (24, 24, 24))
+full = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8))
+small = full.resize((C * 12, R * 12), Image.BOX)
+inset = full.crop((27 * T, 12 * T, 44 * T, 28 * T)).resize((17 * T * 2 // 1, 16 * T * 2 // 1), Image.NEAREST).resize((17 * 24, 16 * 24), Image.NEAREST)
+out = Image.new("RGB", (small.width + inset.width + 24, max(small.height, inset.height + 40)), (24, 24, 24))
 out.paste(small, (0, 0))
 out.paste(inset, (small.width + 12, 34))
-d = ImageDraw.Draw(out)
-d.fontmode = "1"
-f = ImageFont.truetype(FONTS["vt"], 26)
-fs = ImageFont.truetype(FONTS["vt"], 20)
+dr = ImageDraw.Draw(out)
+dr.fontmode = "1"
 
 
-def tag(text, x, y, font, fill=(236, 230, 214), out_=(36, 32, 38)):
+def tag(text, x, y, size, fill, edge):
+    f = ImageFont.truetype(FONTS["vt"], size)
     for ox in (-2, -1, 0, 1, 2):
         for oy in (-2, -1, 0, 1, 2):
-            d.text((x + ox, y + oy), text, font=font, fill=out_, anchor="mm")
-    d.text((x, y), text, font=font, fill=fill, anchor="mm")
+            dr.text((x + ox, y + oy), text, font=f, fill=edge, anchor="mm")
+    dr.text((x, y), text, font=f, fill=fill, anchor="mm")
 
 
 S12 = 12
-for t, x, y in [("Aurum Quarter", 36, 7.2), ("Old Town", 24, 17), ("Harbour", 9, 23), ("Saltside", 38, 36.2), ("Gate Ward", 56, 29.5), ("Goldbank", 36, 0.8)]:
-    tag(t, x * S12, y * S12, f if t == "Goldbank" else fs, (122, 30, 30) if t != "Goldbank" else (236, 230, 214), (236, 230, 214) if t != "Goldbank" else (36, 32, 38))
-for t, x, y in [("The Aurum", 36.5, 15.4), ("Counting house", 49.5, 21.6), ("Chapel", 24.5, 9.6), ("Customs", 10.5, 15.6), ("Gilded Anchor", 17.5, 26.4)]:
-    tag(t, x * S12, y * S12, ImageFont.truetype(FONTS["vt"], 16))
-d.text((small.width + 12, 10), "The Aurum, close up", font=fs, fill=(236, 230, 214))
+for t, x, y in [("Aurum Quarter", 36, 7.4), ("Old Town", 25, 17), ("Harbour", 9, 22.6), ("Saltside", 38, 36.4), ("Gate Ward", 58, 29.6)]:
+    tag(t, x * S12, y * S12, 20, (122, 30, 30), (236, 230, 214))
+tag("Goldbank", 36 * S12, 0.9 * S12, 26, (236, 230, 214), (36, 32, 38))
+for t, x, y in [("The Aurum", 36.5, 13.9), ("Counting house", 45.5, 21.4), ("Chapel", 24.5, 7.4), ("Gilded Anchor", 17.5, 28.4)]:
+    tag(t, x * S12, y * S12, 16, (236, 230, 214), (36, 32, 38))
+dr.text((small.width + 12, 10), "The Aurum and the square", font=ImageFont.truetype(FONTS["vt"], 20), fill=(236, 230, 214))
 out.save(os.path.join(OUT, "13-goldbank-cells.png"))
 print(out.size, nid[0] - 1)
