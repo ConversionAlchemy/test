@@ -117,8 +117,8 @@ function crater(x,y,s){const r=6.5*s,rr=s>1.5?.72:.4;for(let Y=Math.floor(y-r*2)
   else if(hh(X,Y,96)<(2-q)*.22)c=sc(so,.8+hh(X,Y,97)*.2);
   if(!c)continue;const n=rgb(cl(c[0]),cl(c[1]),cl(c[2])),o=floor[j],lum=v=>(v&255)+(v>>8&255)+(v>>16&255);floor[j]=GT[j]===2&&q<1&&lum(o)<lum(n)?o:n;GT[j]=2}}
 function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
- const F=(cx,cy)=>{if(cy===12)return 'flag';if(cy===13)return 'stone';if(cy===11)return cx===8||cx===9||cx===1?'marble':'gstone';
-  if(cx>=3&&cx<=14&&cy>=3&&cy<=10)return cx>=7&&cx<=10&&(cy===6||cy===7)?'desk':cx>=4&&cx<=13&&cy>=4&&cy<=9?'carpet':'marble';if(cx===2&&cy===6)return 'marble';if(cx===1&&cy>=2&&cy<=10)return 'marble';return 'gstone'};
+ const F=(cx,cy)=>{if(cy===12)return 'pave';if(cy===13)return 'bush';if(cy===11)return cx===8||cx===9||cx===1?'marble':'gstone';if(cx===1&&cy<=10)return 'marble';if(cx===2&&cy===8)return 'marble';
+  if(cx>=3&&cx<=14&&cy>=3&&cy<=10){if(cy===7)return cx<=12?'desk':'marble';if(cy===3&&cx<=5)return 'shelf';if(cy===5&&cx>=8&&cx<=10)return 'desk';if(cy>=4&&cy<=6&&cx>=7&&cx<=11)return 'carpet';if(cy>=8&&(cx===8||cx===9))return 'carpet';return 'marble'}return 'gstone'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 // proving yard: unit lane, long lane, eight material lanes, a texture yard and a grenade field
@@ -143,10 +143,11 @@ function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
  for(const[x,y,k]of[[408,248,'grenade'],[440,248,'bomb'],[408,600,'grenade'],[440,600,'bomb'],[520,392,'grenade'],[552,392,'bomb'],[536,456,'grenade']])weapon(k,x,y,0);
  barricade(2,392,312);barricade(3,456,312);barricade(3,560,560,32,8);for(const t of bodies)if(t.type==='token'&&t.nat==='Reapers')tie(t,t.unit==='guard'||t.unit==='shock'||t.unit==='cmd'||['Bel','Dace','Fenn','Hart'].includes(t.name)?'chain':'rope');}
 function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
- dbl(3,128,187,159,180,0,2,false);slab(3,36,96,1);for(const o of bodies)if(o.type==='slab')goldify(o);
- container(7,6,[{k:'gold',n:900}]);
- face(token('Silas','Reapers','civ',136,78,false,'pistol'),dn);face(token('Gull','Reapers','home',104,72,false,'blunder'),dn);face(token('Rask','Reapers','rifle',170,72),dn);
- face(token('Sgt. Brant','Goldbank','guard',120,152,true),up);face(token('Wells','Goldbank','guard',152,152,true),up);face(token('Ode','Goldbank','rifle',86,150),up);face(token('Kerr','Goldbank','rifle',186,150),up)}
+ dbl(3,128,187,159,180,0,2,false);slab(3,36,128,1);for(const o of bodies)if(o.type==='slab')goldify(o);
+ container(8,5,[{k:'gold',n:900}]);container(3,3,[{k:'gold',n:1200}]);container(3,7,[]);
+ face(token('Clerk Amsel','Goldbank','civ',184,100,false,null),dn);face(token('Teller Rowe','Goldbank','civ',90,96,false,'pistol'),dn);
+ face(token('Silas','Reapers','civ',136,140,false,'pistol'),up);face(token('Gull','Reapers','home',104,148,false,'blunder'),up);face(token('Rask','Reapers','rifle',176,148),up);
+ face(token('Sgt. Brant','Goldbank','guard',120,200,true),up);face(token('Wells','Goldbank','guard',152,200,true),up);face(token('Ode','Goldbank','rifle',72,200),up);face(token('Kerr','Goldbank','rifle',200,200),up)}
 function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
  const F=(cx,cy)=>{if(cy>=39&&cy<=45)return cx>=1&&cx<=4&&cy>=41&&cy<=44?(cx>=2&&cx<=3&&cy>=42&&cy<=43?'bush':'grass'):'pave';if(cy===46)return 'bush';if(cy===38)return cx>=13?'marble':'gstone';if(cx<=2||cy<=1)return 'gstone';
   if(cy>=2&&cy<=6&&cx>=8)return cx===10&&cy===4?'pillar':cy===2&&(cx<=10||cx>=13)?'shelf':'marble';if(cy===7)return cx>=13?'marble':'gstone';
@@ -1007,7 +1008,7 @@ const TOOLS={move:'Move',chip:'Chip'};const tb={};
 
 function setTool(k){tool=k;for(const[q,b]of Object.entries(tb))b.classList.toggle('on',q===k);cv.style.cursor=k==='move'?'default':'crosshair'}
 
-btn('Reset',()=>reset());{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['docks','Havenport warehouse'],['tavern','Havenport tavern'],['sewer','Havenport sewer'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['air','Pirate airship boarding']]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.onchange=()=>{curMap=ms.value;camInit=true;$('sm').querySelector('header span').textContent=ms.value==='docks'?'Havenport · Warehouse':ms.value==='tavern'?'Havenport · Tavern':ms.value==='sewer'?'Havenport · Sewer':ms.value==='vault'?'Goldbank · The Aurum':ms.value==='count'?'Goldbank · Counting house':ms.value==='range'?'Astia · Proving yard':ms.value==='air'?'Open sky · Pirate airship':'Goldbank · Back room';reset()};bar.appendChild(ms)}
+btn('Reset',()=>reset());{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['docks','Havenport warehouse'],['tavern','Havenport tavern'],['sewer','Havenport sewer'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard']]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.onchange=()=>{curMap=ms.value;camInit=true;$('sm').querySelector('header span').textContent=ms.value==='docks'?'Havenport · Warehouse':ms.value==='tavern'?'Havenport · Tavern':ms.value==='sewer'?'Havenport · Sewer':ms.value==='vault'?'Goldbank · The Aurum':ms.value==='count'?'Goldbank · Counting house':ms.value==='range'?'Astia · Proving yard':ms.value==='air'?'Open sky · Pirate airship':'Goldbank · Back room';reset()};bar.appendChild(ms)}
 setTool('move');
 
 function icon(px,scale){const c=document.createElement('canvas');c.width=28;c.height=20;const g=c.getContext('2d'),id=g.createImageData(28,20),u=new Uint32Array(id.data.buffer);
