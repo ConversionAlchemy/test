@@ -34,6 +34,16 @@
 #sm .cols span.on{outline:2px solid #fff}
 #sm .hint{padding:5px 10px;border-top:1px solid #000;font-size:17px;color:#8f8b80;min-height:28px;white-space:nowrap;overflow:hidden}
 #sm .hint .k{color:#f2efe6}
+#sm #insp{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+#sm .ibox{background:#181818;border:1px solid #000;box-shadow:inset 0 0 0 1px #3a3a3a}
+#sm .ih{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:2px 6px;background:#262626;border-bottom:1px solid #000;font-size:18px}
+#sm .ih i{font-style:normal;font-size:15px;color:#8f8b80}
+#sm .ig{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:5px}
+#sm .is{position:relative;height:40px;background:#222;border:1px solid #333;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#sm .is:hover{border-color:#777}#sm .is.on{border-color:#f2efe6}#sm .is.lock{background:#141414;border-color:#1a1a1a;cursor:default}
+#sm .is canvas{width:42px;height:30px;image-rendering:pixelated;pointer-events:none}
+#sm .is b{position:absolute;right:2px;bottom:0;font-size:14px;color:#c9c5b8;pointer-events:none}#sm .is u{position:absolute;left:3px;top:0;font-size:13px;color:#5f5b52;text-decoration:none;pointer-events:none}
+#sm .is b.lo{color:#e0a040}#sm .is b.out{color:#b03a2a}#sm .ghost{position:fixed;pointer-events:none;z-index:9;opacity:.85}
 #sm .menu{position:absolute;z-index:5;background:#232323;border:1px solid #000;display:flex;flex-direction:column;min-width:120px;box-shadow:0 3px 10px #0008}
 #sm .menu button{border:0;border-bottom:1px solid #333;text-align:left;background:#232323}
 #sm .menu button:hover{background:#3a3a3a}
@@ -49,7 +59,7 @@
    <b>Cover</b><div class="wp" id="cov"></div>
    <b>Markers</b>
    <div class="form"><input id="fn" value="Edda"><select id="fu"></select><select id="fnat"></select><select id="fw"></select><canvas id="tp" width="17" height="17"></canvas></div>
-   <div class="ppl" id="ppl"></div>
+   <div id="insp"></div>
   </div>
  </div>
  <div class="hint" id="hint"></div>

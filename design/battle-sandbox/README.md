@@ -25,6 +25,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Click a slab | Select it: hold Q or E to turn it; drag to move it |
 | Double-click an item | Select it: hold to fire or throw it from where it lies; drag to move it |
 | Right-click | Unit or door options |
+| Inspector (right column) | Shows the selected unit, or an opened chest, desk, shelf or rack with the selected unit beneath it when it stands beside it. Click an item to move it to the other box, drag it across, drag it out to drop it, Shift+click to drop it; click a unit's slot to draw it |
 
 ## Rules worth knowing
 
@@ -45,7 +46,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Textures are built from a few elements (wood, stone, metal, soil, grass), each with one core texture; variants are a tint plus an overlay laid on the cell grid with no offsets: half-cell planks, full-cell flagstones, key-pattern marble tiles, metal plates with an outer bezel, riveted plates and sunken panels, white and green marble, framed panels, riveted plates, dark iron, brass and tread plate. Every surface gets a soft edge where it meets a different one. Half walls fill half a cell; slabs and doors are half a cell thick.
 - Walls darken towards black from about three pixels in from their faces, so only their edges show; damage exposes new edges.
 - A broad soft light stays fixed to the screen, so it moves only when the camera pans; metal, marble, gold and armour brighten as it passes. Slab and door edges are lit from the same side whatever way they face, so paired doors match.
-- Furniture and fixtures (tables, desks, chairs, vault shelving, chests, rifle racks) are part of the room: they sit above the floor, block walking, and bullets pass over them. Click one with a unit beside it to open it; its contents show next to the unit's inventory and items move by clicking. Blasts break them, and one broken badly spills what it holds. There are no loose crates.
+- Furniture and fixtures (tables, desks, chairs, vault shelving, chests, rifle racks) are part of the room: they sit above the floor, block walking, and bullets pass over them. Click one to open it in the inspector; a selected unit standing beside it shows underneath to trade with. Blasts break them, and one broken badly spills what it holds. There are no loose crates.
 - Doorways split down the middle: each half carries on the floor of the room on its side, with a threshold strip under the door itself.
 - A unit can be tied to the nearest wall with rope or chain (right-click). The line runs straight from a ring on the wall face; it gives a little, then stops the unit. Rope snaps from any nearby blast, chain only from a close one; either snaps if the ring's wall is shot or broken.
 - Doors snap to the middle of their wall line and meet the wall ends. Rugs are laid on marble with a woven border; desks are dark mahogany with a brass inlay line.
