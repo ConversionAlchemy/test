@@ -272,7 +272,7 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
   return 'gstone'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
-const EXITS={vault:{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'← Counting house',lx:4,ly:386},count:{dir:'n',cell:[2,0],to:'vault',arrive:[40,22],label:'↑ The Aurum',lx:52,ly:4}};
+const EXITS={vault:{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392},count:{dir:'n',cell:[2,0],to:'vault',arrive:[40,22],label:'The Aurum',lx:51,ly:3}};
 const STATE={},PEND={};
 function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of document.querySelectorAll('#sm .xlab'))e.remove();
  STATE[curMap]={CW,CH,map,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,TF,SF,SS,ST,BURN,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
@@ -912,6 +912,7 @@ function render(){
  exitFade();
  {const ch=!panKey&&!pan&&tool==='move'&&mouse.in&&!drag&&armed().length>0;if(ch)crosshair();const cc=pan?'grabbing':panKey?'grab':ch?'none':tool==='move'?'default':'crosshair';if(cv.style.cursor!==cc)cv.style.cursor=cc}
  ctx.putImageData(img,0,0);
+ {const x=EXITS[curMap],e=x&&document.querySelector('#sm .xlab');if(e){e.style.left=x.lx*S+'px';e.style.top=x.ly*S+'px'}}
  for(const b of bodies){if(b.mv>0)b.mv--;if(b.lab){b.lab.style.left=(Math.round(b.x)+.5)*S+'px';b.lab.style.top=(Math.round(b.y)+10)*S+'px';b.lab.style.color=natLabel(b);b.lab.style.zIndex=b.status==='dead'?0:1}}
  stage.style.transform=shake>0?`translate(${(Math.random()-.5)*shake}px,${(Math.random()-.5)*shake}px)`:'';if(shake>0)shake--}
 function veil(){const G=24,gw=(W/G|0)+3,gh=(H/G|0)+3,ox=tick/500,fx0=Math.floor(ox),fr=ox-fx0,g=new Float32Array(gw*gh);for(let y=0;y<gh;y++)for(let x=0;x<gw;x++)g[y*gw+x]=hh(x+fx0,y,77);
