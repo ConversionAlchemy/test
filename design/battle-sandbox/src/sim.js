@@ -2,13 +2,13 @@
 const $=id=>document.getElementById(id);
 let S=2;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/2,N=W*H,NB=BW*BH;
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
-let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N);
+let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N);
 const FX={blood:new Float32Array(NB),fire:new Float32Array(NB),smoke:new Float32Array(NB)};
 let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
 let WH=new Float32Array(N);let whOn=false;
 let fxLow=new Uint32Array(N),fxTop=new Uint32Array(N),fxA=new Uint8Array(N),HZ=new Float32Array(NB),OPEN=new Uint8Array(NB);let hzOn=false;let fxDirty=true;
 function alloc(cw,ch){CW=cw;CH=ch;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
- SH=new Uint8Array(N);solDirty=true;GOLD=new Uint8Array(N);floor=new Uint32Array(N);sol=new Uint8Array(N);shp=new Uint8Array(N);scol=new Uint32Array(N);crk=new Uint8Array(N);slabG=new Int32Array(N);GT=new Uint8Array(N);SHN=new Uint8Array(N);DS=new Uint8Array(N);
+ SH=new Uint8Array(N);solDirty=true;GOLD=new Uint8Array(N);floor=new Uint32Array(N);sol=new Uint8Array(N);shp=new Uint8Array(N);scol=new Uint32Array(N);crk=new Uint8Array(N);slabG=new Int32Array(N);GT=new Uint8Array(N);SHN=new Uint8Array(N);DS=new Uint8Array(N);NOD=new Uint8Array(N);
  for(const k in FX)FX[k]=new Float32Array(NB);TF=new Float32Array(NB);SF=new Float32Array(NB);SS=new Float32Array(NB);ST=new Float32Array(NB);BURN=new Float32Array(NB);FV=new Float32Array(NB);SV=new Float32Array(NB);DV=new Float32Array(NB);TMP=new Float32Array(NB);
  WH=new Float32Array(N);fxLow=new Uint32Array(N);fxTop=new Uint32Array(N);fxA=new Uint8Array(N);HZ=new Float32Array(NB);OPEN=new Uint8Array(NB)}
 const rgb=(r,g,b)=>((255<<24)|(b<<16)|(g<<8)|r)>>>0;
@@ -41,13 +41,21 @@ function tilePix(key,cx,cy){if(TEX[key]){const d=new Uint8ClampedArray(T*T*4);fo
  for(let i=0;i<d.length;i+=4){r+=d[i];gg+=d[i+1];b+=d[i+2]}r/=T*T;gg/=T*T;b/=T*T;
  for(let i=0;i<d.length;i+=4){d[i]=cl((d[i]+(r-d[i])*k)*lift);d[i+1]=cl((d[i+1]+(gg-d[i+1])*k)*lift);d[i+2]=cl((d[i+2]+(b-d[i+2])*k)*lift)}return d}
 const WMAT={stone:1,gstone:1,pillar:1,berm:1,rail:2,wood:2,dwood:2,metal:3,mplate:3,iron:3,brass:3};
-const SHINE={metal:3,mplate:3,iron:2,brass:3,mfloor:2,marble:2,dmarble:2,gfloor:2,gstone:1};
-function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=key;const half=key.length>1&&key.endsWith('H')&&WMAT[key.slice(0,-1)],bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix('dirt',cx,cy):null,m=WMAT[bk]||0,gk=bk==='gstone'?1:0;
- for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&x>=T/2,c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;
+const SHINE={metal:40,mplate:40,iron:26,brass:44,mfloor:30,marble:10,dmarble:12,gfloor:50,gstone:10,pillar:10,desk:8};
+function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=key;const half=key.length>1&&key.endsWith('H')&&WMAT[key.slice(0,-1)],bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix('dirt',cx,cy):null,m=WMAT[bk]||0,gk=bk==='gstone'?1:0;let dav=0;for(let i=0;i<d.length;i+=4)dav+=d[i]+d[i+1]+d[i+2];dav/=T*T;
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&x>=T/2,c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;{const b0=hf?0:SHINE[bk]||0,l=d[i]+d[i+1]+d[i+2],av=dav;SHN[j]=b0?Math.min(255,b0+(l>av*1.12?110:0)+(hh(X,Y,79)>.96?150:0)):0}NOD[j]=bk==='pillar'?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;shp[j]=MAT[m].hp;scol[j]=c;floor[j]=mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
-function build(){(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank)();blendGround()}
+function build(){(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank)();blendGround();regions()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
+// rugs get a border, tables and desks an edge and an inlay line
+function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(k!=='carpet'&&k!=='table'&&k!=='desk')continue;const o=(x,y)=>!map[y]||map[y][x]!==k&&!(k==='carpet'&&(map[y][x]==='desk'||map[y][x]==='table'));
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99),j=(cy*T+y)*W+cx*T+x;let c=floor[j];
+  if(k==='carpet'){if(d===0)c=mul(c,.6);else if(d<=3)c=mix(mul(c,.9),rgb(150,104,60),(x+y)%3?.5:.62);else if(d===4)c=mul(c,.72)}
+  else{if(d===0)c=mul(c,.5);else if(d===1)c=mul(c,.82);else if(d===3)c=mix(c,k==='desk'?rgb(210,168,100):rgb(170,120,80),k==='desk'?.4:.22)}floor[j]=c}}}
+// doors sit centred in the wall line and meet the wall ends
+function snapDoors(){for(const d of bodies){if(d.type!=='slab'||d.free)continue;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){x0=Math.min(x0,bx+p[0]);x1=Math.max(x1,bx+p[0]);y0=Math.min(y0,by+p[1]);y1=Math.max(y1,by+p[1])}
+ let sx,sy;if(x1-x0>y1-y0){sx=Math.round(x0/T)*T-x0;sy=Math.floor((y0+y1)/2/T)*T+T/2-(d.th||8)/2-y0}else{sy=Math.round(y0/T)*T-y0;sx=Math.floor((x0+x1)/2/T)*T+T/2-(d.th||8)/2-x0}d.x=bx+sx;d.y=by+sy;orient(d)}}
 function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k of r)if(k==='grass'){any=true;break}if(!any)return;
  const R=6,ind=new Float32Array(N),tmp=new Float32Array(N);for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){const k=map[Y/T|0][X/T|0];ind[Y*W+X]=k==='grass'?1:k==='dirt'||k.endsWith('H')?0:.5}
  for(let Y=0;Y<H;Y++){let a=0;for(let X=-R;X<W;X++){if(X+R<W)a+=ind[Y*W+X+R];if(X-R-1>=0)a-=ind[Y*W+X-R-1];if(X>=0)tmp[Y*W+X]=a}}
@@ -65,9 +73,8 @@ function crater(x,y,s){const r=6.5*s,rr=s>1.5?.72:.4;for(let Y=Math.floor(y-r*2)
   if(!c)continue;const n=rgb(cl(c[0]),cl(c[1]),cl(c[2])),o=floor[j],lum=v=>(v&255)+(v>>8&255)+(v>>16&255);floor[j]=GT[j]===2&&q<1&&lum(o)<lum(n)?o:n;GT[j]=2}}
 function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
  const F=(cx,cy)=>{if(cy===12)return 'flag';if(cy===13)return 'stone';if(cy===11)return cx===8||cx===9||cx===1?'marble':'gstone';
-  if(cx>=3&&cx<=14&&cy>=3&&cy<=10)return cx>=7&&cx<=10&&(cy===6||cy===7)?'table':'carpet';if(cx===2&&cy===6)return 'marble';if(cx===1&&cy>=2&&cy<=10)return 'marble';return 'gstone'};
+  if(cx>=3&&cx<=14&&cy>=3&&cy<=10)return cx>=7&&cx<=10&&(cy===6||cy===7)?'desk':cx>=4&&cx<=13&&cy>=4&&cy<=9?'carpet':'marble';if(cx===2&&cy===6)return 'marble';if(cx===1&&cy>=2&&cy<=10)return 'marble';return 'gstone'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));
- for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='table')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='table';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 // proving yard: unit lane, long lane, eight material lanes, a texture yard and a grenade field
 const RLANE=['stone','stoneH','stone2','wood','woodH','metal','metalH','door'];
@@ -98,11 +105,11 @@ function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;retu
 function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
  const F=(cx,cy)=>{if(cy===39||cy===40)return 'flag';if(cy===41)return 'stone';if(cy===38)return cx>=13?'marble':'gstone';if(cx<=2||cy<=1)return 'gstone';
   if(cy>=2&&cy<=6&&cx>=8)return cx===10&&cy===4?'pillar':'marble';if(cy===7)return cx>=13?'marble':'gstone';
-  if(cy>=8&&cy<=18){if(cx>=11)return cx===12&&(cy===10||cy===16)?'pillar':'marble';if(cx===10)return cy===13?'marble':'gstone';if(cx>=3&&cy>=9&&cy<=17)return 'carpet';return 'gstone'}
+  if(cy>=8&&cy<=18){if(cx>=11)return cx===12&&(cy===10||cy===16)?'pillar':'marble';if(cx===10)return cy===13?'marble':'gstone';if(cx>=3&&cy>=9&&cy<=17)return cy===10&&cx>=5&&cx<=7?'desk':cx>=4&&cx<=8&&cy>=11&&cy<=16?'carpet':'marble';return 'gstone'}
   if(cy===19)return cx>=13?'marble':'gstone';
   if(cy>=20&&cy<=30){if((cx===6||cx===10)&&(cy===22||cy===28))return 'pillar';if(cy===25&&cx>=5&&cx<=9)return 'gfloor';return 'marble'}
   if(cy===31)return cx>=13?'marble':'gstone';
-  if(cy>=32&&cy<=37){if(cx>=11)return cx===12&&(cy===33||cy===36)?'pillar':'marble';if(cx===10)return cy===34?'marble':'gstone';if(cx>=3)return 'carpet';return 'gstone'}
+  if(cy>=32&&cy<=37){if(cx>=11)return cx===12&&(cy===33||cy===36)?'pillar':'marble';if(cx===10)return cy===34?'marble':'gstone';if(cx>=3)return cy===33&&cx>=5&&cx<=6?'desk':cx>=4&&cx<=8&&cy>=34&&cy<=36?'carpet':'marble';return 'gstone'}
   return 'gstone'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,cx<=14?F(cx,cy):F(29-cx,cy));
  for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='gfloor')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='gfloor';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
@@ -144,7 +151,6 @@ function buildSewer(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
  const F=(cx,cy)=>{if(cx<=1&&cy===2)return 'flag';if(cy===12&&cx>0)return 'dmarble';if(cy===11&&cx>0)return 'flag';if(cx===2&&cy>=1&&cy<=11)return 'flag';if(cx===3&&cy===5)return 'flag';if(cx===4&&cy===5)return 'flag';
   if(cx>=5&&cx<=12&&cy>=3&&cy<=9)return (cx===8||cx===9)&&(cy===5||cy===6)?'table':'flag';if((cx===8||cx===9)&&cy===10)return 'flag';if(cx===13&&cy===4)return 'flag';if(cx>=14&&cx<=16&&cy>=3&&cy<=8)return 'planks';return 'stone'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));
- for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='table')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='table';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsSewer(){const face=(t,a)=>{t.ang=a;return t};
  slab(2,68,80,1);slab(2,212,64,1);
@@ -158,7 +164,6 @@ function buildTavern(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
    if(((cx===3||cx===4)&&cy===6)||((cx===8||cx===9)&&cy===6)||((cx===10||cx===11)&&cy===2))k='table';if((cx===5&&cy===6)||(cx===7&&cy===6)||(cx===2&&cy===6))k='seat'}
   if((cx===0||cx===CW-1)&&(cy===11||cy===12))k='flag';
   paintCell(cx,cy,k)}
- for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='table')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='table';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsTavern(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
  for(let x=34;x<=94;x+=12)crate(x,40,[]);crate(240,130,[{k:'pistol',n:3,ammo:18,res:18}]);crate(252,130,[{k:'musket',n:1,ammo:12,res:12}]);
@@ -193,7 +198,6 @@ function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
   if(cx>=15&&cx<=16&&cy===2)k='table';
   if(cy===10&&cx>11&&cx<CW-1)k=(cx===14||cx===15)?'flag':'stone';
   paintCell(cx,cy,k)}
- for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='table')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='table';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);fxDirty=true}
 
 // units and nations
@@ -258,8 +262,8 @@ function weapon(kind,x,y,a=0){const b={id:uid++,type:'weapon',kind,x,y,vx:0,vy:0
 function reshape(b,a){b.ang=a;if(b.kind==='bomb'||b.kind==='crate')return;b.px=shape(b.kind,a,rodFill(b));mkSet(b);if(b.spent)spend(b);if(solidHits(b,0,0))b.ghost=true}
 function slabPix(m,len=16,th=8){const px=[],hp=(m===2?2:7)+(len>16?(m===2?1:4):0);for(let y=-th;y<=-1;y++)for(let x=0;x<len;x++){let c;const e=y===-th||y===-1||x===0||x===len-1;
  const ed=Math.min(x,len-1-x,y+th,-1-y),sd=uid*37;let q;
- if(m===2){q=woodT(x+sd,y+sd,WOOD.oak,1);if(ed===0)q=sc(q,.62);else if(ed===1&&(x===1||y===-th+1))q=sc(q,1.08)}
- else{const b0=metalCore(x+sd,y+sd);q=b0;if(ed===0)q=sc(b0,.42);else if(ed===1)q=x===1||y===-th+1?sc(b0,1.38):sc(b0,.68);else if(ed===2&&(x===2||x===len-3)&&(y===-th+2||y===-3))q=sc(b0,1.45);else if(ed===1&&len>16&&(x===2||y===-th+2))q=sc(b0,1.2)}
+ if(m===2)q=woodT(x+sd,y+sd,WOOD.oak,1);
+ else{q=metalCore(x+sd,y+sd);if(ed===2&&(x===2||x===len-3)&&(y===-th+2||y===-3))q=sc(q,1.4)}
  c=rgb(cl(q[0]),cl(q[1]),cl(q[2]));
  px.push([x,y,c,hp,m,0,hp,'x',x,y])}return px}
 function swingPt(b,lx,ly,a){const B=b.rot*Math.PI/2+(b.spin||0),cb=Math.cos(B),sb=Math.sin(B),ca=Math.cos(a),sa=Math.sin(a),hx=-(b.th||8)/2-1,hy=-(b.th||8)/2,dx=lx-hx,dy=ly-hy,qx=hx+dx*ca-dy*sa,qy=hy+dx*sa+dy*ca;return[qx*cb-qy*sb,qx*sb+qy*cb]}
@@ -640,14 +644,14 @@ const HAZE=rgb(198,203,212),VEIL=rgb(190,196,206);
 let sel=new Set(),hover=null,charge=null,box=null,moveSel=null,pend=null,drag=null,stepAcc=0;const keys=new Set();
 function inDrag(b){return !!drag&&drag.group.includes(b)}
 let SHX=new Float32Array(0),SHC=new Float32Array(0),shY=[0,0];
-function sheenFrame(){if(SHX.length!==W){SHX=new Float32Array(W);SHC=new Float32Array(W)}const ax=.55*S*.0042,lp=(mouse.x+mouse.y)*.004;for(let X=0;X<W;X++){SHX[X]=Math.sin(ax*X);SHC[X]=Math.cos(ax*X)}shY=[.83*S*.0042,(cam.x*.55+cam.y*.83)*.0042+lp]}
-function shine(c,X,Y,k){const a=shY[0]*Y+shY[1],v=SHX[X]*Math.cos(a)+SHC[X]*Math.sin(a);return v>0?mul(c,1+v*v*v*k*.14):c}
+function sheenFrame(){if(SHX.length!==W){SHX=new Float32Array(W);SHC=new Float32Array(W)}const ax=.55*S*.0042,lp=(mouse.x*.55+mouse.y*.83)*.014;for(let X=0;X<W;X++){SHX[X]=Math.sin(ax*X);SHC[X]=Math.cos(ax*X)}shY=[.83*S*.0042,(cam.x*.55+cam.y*.83)*.0042+lp]}
+function shine(c,X,Y,k){const a=shY[0]*Y+shY[1],v=SHX[X]*Math.cos(a)+SHC[X]*Math.sin(a);if(v<=0)return c;const w=v*v*v*v;return mix(c,rgb(255,255,250),Math.min(.7,w*k/255*.75))}
 function drawBody(b,lift){if(b.kind==='arc'){const s=Math.hypot(b.vx,b.vy)||1,wd=b.big?1:0;[rgb(230,245,255),rgb(150,205,255),rgb(90,150,255),rgb(50,90,200),rgb(40,70,160)].slice(0,b.big?5:4).forEach((c,i)=>{for(let o=-wd;o<=wd;o++){const X=Math.round(b.x-b.vx/s*i-b.vy/s*o),Y=Math.round(b.y-b.vy/s*i+b.vx/s*o);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=o?mul(c,.8):c}});return}if(WP[b.kind]&&WP[b.kind].bullet&&!WP[b.kind].rod)return;const bx=Math.round(b.x),by=Math.round(b.y),st=b.status,dyn=b.type!=='weapon',hl=sel.has(b)?1.25:b===hover?1.12:1;
  const sh=lift?[3,4]:b.stuck||b.fallen||st==='dead'?null:[1,2];
  if(sh)for(const p of b.px){const X=bx+p[0]+sh[0],Y=by+p[1]+sh[1];if(X<0||Y<0||X>=W||Y>=H||b.set.has(K(p[0]+sh[0],p[1]+sh[1]))||sol[Y*W+X])continue;out[Y*W+X]=mul(out[Y*W+X],.62)}
  for(const p of b.px){const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H)continue;let c=pcol(b,p);
-  if(p[7]==='m'||p[7]==='a'||(b.type==='slab'&&b.mat===3))c=shine(c,X,Y,UNITS[b.unit]&&UNITS[b.unit].dark?1.2:3);
-  if(dyn){const e=!b.set.has(K(p[0]+1,p[1]))||!b.set.has(K(p[0]-1,p[1]))||!b.set.has(K(p[0],p[1]+1))||!b.set.has(K(p[0],p[1]-1));if(e)c=mul(c,b.type==='slab'?.55:.36)}
+  if(p[7]==='m'||p[7]==='a'||b.type==='slab'&&(b.mat===3||b.gold))c=shine(c,X,Y,(UNITS[b.unit]&&UNITS[b.unit].dark?25:60)+(hh(p[8],p[9],3)>.9?120:0));
+  if(dyn){const l=!b.set.has(K(p[0]-1,p[1]))||!b.set.has(K(p[0],p[1]-1)),r=!b.set.has(K(p[0]+1,p[1]))||!b.set.has(K(p[0],p[1]+1));if(b.type==='slab'){if(r)c=mul(c,.5);else if(l)c=mul(c,.8);else if(!b.set.has(K(p[0]-2,p[1]))||!b.set.has(K(p[0],p[1]-2)))c=mul(c,1.22);else if(!b.set.has(K(p[0]+2,p[1]))||!b.set.has(K(p[0],p[1]+2)))c=mul(c,.82)}else if(l||r)c=mul(c,.36)}
   if(b.kind==='sspear'&&b.glw>.01){const g=b.glw,f=.5+.5*Math.sin(tick*(.15+g*.9)+p[8]*.35);c=mix(c,g<.6?rgb(80,140,255):mix(rgb(80,140,255),rgb(235,245,255),(g-.6)/.4),Math.min(1,.25+g*1.1)*(.7+.3*f))}
   if(st==='dead'&&!(b.type==='token'&&p[7]==='x'))c=mix(mix(grey(c),rgb(122,120,116),.28),natc(b),.16);else if(st==='captured')c=mul(c,.68);if(b.fallen)c=mul(c,.5);if(hl>1)c=mul(c,hl);out[Y*W+X]=c}
 
@@ -669,7 +673,7 @@ function render(){
  for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}
  for(const b of bodies)if((b.stuck&&!b.att)||b.fallen)drawBody(b);
- for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,.5);else if(k===2)c=mul(c,1.1);c=mul(c,DF[Math.min(8,DS[j])]);if(SHN[j]&&DS[j]<4)c=shine(c,X,Y,SHN[j]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}
+ for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,.5);else if(k===2)c=mul(c,1.1);if(!NOD[j])c=mul(c,DF[Math.min(8,DS[j])]);if(SHN[j]&&(DS[j]<4||NOD[j]))c=shine(c,X,Y,SHN[j]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}
  for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!inDrag(b))drawBody(b);
  for(const b of bodies)if(!b.stuck&&b.type!=='slab'&&!inDrag(b)&&b.status==='dead')drawBody(b);for(const b of bodies)if(!b.stuck&&b.type!=='slab'&&!inDrag(b)&&b.status!=='dead')drawBody(b);
  for(const b of bodies)if(b.att)drawBody(b);
@@ -966,7 +970,7 @@ function listPeople(){const l=$('ppl');l.innerHTML='';for(const b of bodies.filt
  d.innerHTML=`<span class="dot" style="background:${nc}"></span><span style="color:${natLabel(b)}">${b.name}</span>${b.status==='dead'?' ✝':b.status==='captured'?' ⛓':''}`;d.onclick=e=>clickBody(b,e.ctrlKey||e.metaKey);l.appendChild(d)}}
 
 function dbl(m,x1,y1,x2,y2,r1,r2,lk,len,th){const a=slab(m,x1,y1,r1,len,th),b=slab(m,x2,y2,r2,len,th);a.pair=b;b.pair=a;a.locked=b.locked=lk;return[a,b]}
-function goldify(d){for(const p of d.px){const c=p[2],l=((c&255)+(c>>8&255)+(c>>16&255))/765;p[2]=mix(rgb(110,84,26),rgb(252,232,160),Math.min(1,l*1.25))}}
+function goldify(d){d.gold=true;for(const p of d.px){const c=p[2],l=((c&255)+(c>>8&255)+(c>>16&255))/765;p[2]=mix(rgb(110,84,26),rgb(252,232,160),Math.min(1,l*1.25))}}
 const MAPSZ={vault:[30,42],range:[40,40],air:[34,20]};
 function reset(){{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz[1]!==CH){alloc(sz[0],sz[1]);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);camInit=true}setTimeout(fit,0)}for(const b of bodies)if(b.lab)b.lab.remove();bodies=[];parts=[];drag=null;charge=null;box=null;moveSel=null;sel.clear();build();HZ.fill(0);hzOn=false;if(curMap==='air'){unitsAir();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='range'){unitsRange();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='count'){unitsCount();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='vault'){unitsVault();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='sewer'){unitsSewer();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='tavern'){unitsTavern();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}if(curMap==='docks'){unitsDocks();for(const t of bodies)if(t.type==='token')t.hc=null;listPeople();return}
  token('Aldric','Goldbank','guard',36,40,true);token('Bryn','Goldbank','rifle',62,40);token('Pell','Goldbank','rifle',88,40);
@@ -978,6 +982,6 @@ function reset(){{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz[1]!==CH){all
  slab(2,180,32,1);dbl(3,180,96,187,127,1,3,false);dbl(3,224,171,255,164,0,2,true);
  weapon('grenade',120,196,0);weapon('bomb',60,200,0);weapon('sspear',236,104,.3);
  for(const t of bodies)if(t.type==='token')t.hc=null;listPeople()}
-{const r0=reset;reset=function(){r0();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
+{const r0=reset;reset=function(){r0();snapDoors();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
 reset();loop();
 })();
