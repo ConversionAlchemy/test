@@ -30,19 +30,16 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 
 - Everyone starts sheathed; the first shot or blast draws every weapon.
 - Armour is per pixel. Shock troopers are weak at the back, commandos strong only at the front. Hit angle and distance change penetration.
-- Muskets 12 rounds, pistols 18, blunderbusses 8, shock spears 4 bolts, Bolters 3, shown as loaded/spare. Units carry one of each gun.
+- Muskets 12 rounds, pistols 18, blunderbusses 8, Lancers 4 bolts, Bolters 3, shown as loaded/spare. Units carry one of each gun.
 - Items on the floor and in open crates are picked up automatically if there is room. Crates hold one kind of item. Solari are an item.
 - Doors swing on their hinge; double doors open together; hitting the lock bursts it, hitting the hinge drops the leaf. Heavy doors are two cells long and thicker.
 - Fire catches a unit on the side that touched it and works inward; it only spreads round the whole body after long contact or when standing in it. It eats the outer rings; hot plate cracks; sewer water puts it out.
 - Hot stone and metal cool slowly through yellow, orange and red, and give off steam while they do.
 - Thrown spears glance off when they strike a surface at a shallow angle and lodge along their line of flight when they strike it squarely.
-- Plain spears stack like grenades; a stack holds four, anyone armed with them starts with four, and loose spears top the stack up.
-- Shock spears only charge on metal: lodged in a guard rifleman's or shock trooper's plate, a metal door or a metal crate they hum for about two seconds and blow. A hit on the back plate is an instant critical blast that kills the wearer. Stone, wood, flesh and light armour drain the charge, leaving an ordinary spear that still lodges a little deeper than the plain one.
+- Spears stack like grenades; a stack holds four, anyone armed with them starts with four, and loose spears top the stack up.
+- The Lancer is a short dark-metal spear with a plasma emitter behind its head. It fires blue bolts that blast on impact and spark off metal, four to a load, reloaded from cell boxes. Once it is fired out the head goes plain steel and it can be thrown like a spear.
 - The Bolter fires iron rods from a three-rod chamber, visible down the barrel slot. Tap to fire a cold rod: it gets about two-thirds into a stone wall, stops halfway in a unit (killing light troops straight on), and guard riflemen's and shock troopers' plate catches it or glances it off, sparking and sometimes starting a fire or tearing plate away. Hold to heat every rod in the chamber, dull red to orange to white: released orange, a hot rod goes through units and about one wall's thickness plus a fifth to two-fifths more, leaving a glowing cut, a scorch line, smoke and embers, and cools in flight; released white, all the rods fire fused into one heavy slug that goes through about two walls and hits much harder. Rods cool in the chamber when not held. Holding past white makes the whole gun glow, and it can burst in the shooter's hands. Only guard riflemen, shock troopers and commandos can charge it; anyone else holding it only fires cold rods; its recoil throws them and makes them drop it every shot. Rods lose energy over distance and push a unit into a wall to crush it there. Carriers walk slower, slower still while aiming.
-- Charging needs a plasma pod: a canister of blue liquid worn on the back, drained as the weapon heats (about four full Bolter charges), shown as a percentage in the inventory and as the liquid level on the token. Shock troopers start with one; the proving yard has two on the ground. It slows the wearer a little. Hits from behind can catch it: it leaks, or under a hard hit (a rod, a spear) bursts in a blue plasma blast that kills the wearer and hurts and throws those nearby, and can set off other pods. Blasts nearby can set it off too.
-- The shock spear's bolts charge the same way: hold to fire every cell as one big arc; overhold and the charge bursts at the tip.
 - Slabs placed from the Cover list are free barricades: no hinge, no lock, never open. Units push them by walking into them, slowed by the weight: wood a little, metal more, the heavy slab most, armoured units less than light ones.
-- The plasma cutter cuts through walls, doors and plate where you hold it.
 - The simulation runs at a fixed 60 steps a second whatever the frame rate.
 
 ## Maps
