@@ -25,6 +25,8 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Click a slab | Select it: hold Q or E to turn it; drag to move it |
 | Double-click an item | Select it: hold to fire or throw it from where it lies; drag to move it |
 | Right-click | Unit or door options |
+| Tools: Rope, Chain | Drag onto a unit, or click the tool then a unit, to tie it to the nearest wall; Esc cancels |
+| Side headings | Click Weapons, Cover, Tools, Markers or Inspector to fold it away |
 | Inspector (right column) | Shows the selected unit, or an opened chest, desk, shelf or rack with the selected unit beneath it when it stands beside it. Click an item to move it to the other box, drag it across, drag it out to drop it, Shift+click to drop it; click a unit's slot to draw it |
 
 ## Rules worth knowing
@@ -48,7 +50,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - A broad soft light stays fixed to the screen, so it moves only when the camera pans; metal, marble, gold and armour brighten as it passes. Slab and door edges are lit from the same side whatever way they face, so paired doors match.
 - Furniture and fixtures (tables, desks, chairs, vault shelving, chests, rifle racks) are part of the room: they sit above the floor, block walking, and bullets pass over them. Click one to open it in the inspector; a selected unit standing beside it shows underneath to trade with. Blasts break them, and one broken badly spills what it holds. There are no loose crates.
 - Doorways split down the middle: each half carries on the floor of the room on its side, with a threshold strip under the door itself.
-- A unit can be tied to the nearest wall with rope or chain (right-click). The line runs straight from a ring on the wall face; it gives a little, then stops the unit. Rope snaps from any nearby blast, chain only from a close one; either snaps if the ring's wall is shot or broken.
+- A unit can be tied to the nearest wall with rope or chain (Tools, or right-click). The line runs straight from a ring on the wall face; it gives a little, then stops the unit. Rope snaps from any nearby blast, chain only from a close one; either snaps if the ring's wall is shot or broken.
 - Doors snap to the middle of their wall line and meet the wall ends. Rugs are laid on marble with a woven border; desks are dark mahogany with a brass inlay line.
 - A blast strong enough breaks laid floors and shows dark gritty foundation; a heavy grenade breaks a wide patch, a grenade a small one.
 - Blasts on grass or soil tear up the grass, dig a soft crater, throw soil round it and scorch the ground; the crater stays.
