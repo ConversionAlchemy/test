@@ -132,11 +132,11 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
  for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='table')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='table';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
  for(const a of [...Object.values(FX),TF,SF,SS,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
- for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='flag';if(cx===0||cy===0||cx===CW-1||cy===CH-1||(cx===11&&(cy<=3||cy===11)))k='stone';paintCell(cx,cy,k)}
+ for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='flag';if(cx===0||cy===0||cx===CW-1||cy===CH-1||(cx===11&&(cy<=3||cy===11))||(cx===14&&cy===2))k='stone';paintCell(cx,cy,k)}
  for(const a of [...Object.values(FX),TF,SF,SS,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsRange(){slab(3,180,192,1).locked=true;
  for(const[n,u,y,w]of[['Vey','home',72,'rod'],['Oren','home',104,'prod'],['Pip','civ',136,'rod'],['Lask','guard',168,'prod']])token(n,'Astia',u,104,y,false,w);
- for(const[n,u,y]of[['Rask','rifle',40],['Silas','civ',72],['Gull','home',104],['Brant','guard',136],['Tam','shock',168],['Varo','shock',199]]){const t=token(n,'Reapers',u,248,y,false,null);t.ang=Math.PI}}
+ for(const[n,u,y,x]of[['Rask','rifle',40,252],['Silas','civ',72],['Gull','home',104],['Brant','guard',136],['Tam','shock',168],['Varo','shock',199]]){const t=token(n,'Reapers',u,x||248,y,false,null);t.ang=Math.PI}}
 function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
  dbl(3,128,187,159,180,0,2,false);slab(3,36,96,1);for(const o of bodies)if(o.type==='slab')goldify(o);
  for(const[x,y]of[[128,104],[144,104],[160,112]])crate(x,y,[{k:'gold',n:300}]);for(const o of bodies)if(o.kind==='crate')o.metal=true;
@@ -468,10 +468,12 @@ function rodHeat(b){b.glw=b.hot?Math.min(1,Math.max(0,1.3-(b.dist||0)/HOTD)):0;f
 function rodTick(){for(const b of bodies){if(b.kind==='rodp'){if(b.stuck){if(b.glw>0){b.glw=Math.max(0,b.glw-.01);for(const p of b.px)p[5]=b.glw*1.2}}else{rodHeat(b);if(b.glw>.3&&Math.random()<.6)spark(b.x-b.vx*.3,b.y-b.vy*.3,Math.random()<.5?rgb(255,200,110):rgb(255,140,50),0,0,.5,4)}}
  if(b.knock>0)b.knock--;if(b.pinned){if(!b.stuck)b.pinned=false;else if(b.status!=='dead'&&--b.pinT<=0)unpin(b)}}}
 function rodWall(b,h,axis,mx,cx,cy,dx,dy){const cos=Math.abs(axis?dy:dx);
- if(rodHot(b)&&b.E>0){for(const[X,Y]of h)for(const[i,j]of[[0,0],[-dy,dx]]){const x=Math.round(X+i),y=Math.round(Y+j);damagePixel(x,y,99,dx,dy);for(let v=-1;v<=1;v++)for(let u=-1;u<=1;u++){const q=(y+v)*W+x+u;if(x+u>0&&y+v>0&&x+u<W&&y+v<H&&sol[q]){WH[q]=Math.min(1.1,WH[q]+.4);whOn=true}}}
+ if(rodHot(b)&&b.E>0){if(!b.lw||Math.hypot(cx-b.lw[0],cy-b.lw[1])>4){b.walls=(b.walls||0)+1;if(b.walls===2)b.wb=Math.round(16*(.2+Math.random()*.2))}b.lw=[cx,cy];
+  if(b.walls>=2&&--b.wb<0){b.hot=0;b.vx=b.vy=0;b.stuck=true;b.x+=dx*2;b.y+=dy*2;for(let i=0;i<8;i++)spark(cx,cy,Math.random()<.5?rgb(255,226,150):rgb(255,140,50),-dx*2,-dy*2,2,8+(Math.random()*8|0));sfx('sizzle');sfx('crack');return true}
+  for(const[X,Y]of h)for(const[i,j]of[[0,0],[-dy,dx]]){const x=Math.round(X+i),y=Math.round(Y+j);damagePixel(x,y,99,dx,dy);for(let v=-1;v<=1;v++)for(let u=-1;u<=1;u++){const q=(y+v)*W+x+u;if(x+u>0&&y+v>0&&x+u<W&&y+v<H&&sol[q]){WH[q]=Math.min(1.1,WH[q]+.4);whOn=true}}}
   b.E-=mx===3?.6:.3;if(Math.random()<.5)spark(cx,cy,Math.random()<.5?rgb(255,226,150):rgb(255,140,50),-dx*1.5,-dy*1.5,1.8,8+(Math.random()*8|0));if(Math.random()<.2)sfx('sizzle');return true}
  if((mx===1||mx===3)&&cos<.4){if(axis){b.vy*=-.8;b.vx*=.9}else{b.vx*=-.8;b.vy*=.9}b.x-=dx*2;b.y-=dy*2;rodPx(b,Math.atan2(b.vy,b.vx));b.E*=.75;for(let i=0;i<8;i++)spark(cx,cy,Math.random()<.5?rgb(255,226,140):rgb(255,170,70),-dx*2,-dy*2,2.2,6+(Math.random()*8|0));sfx('rico');return true}
- for(const[X,Y]of h){const eff=(mx===3?9:mx===2?1.2:5)/Math.max(cos,.4);if(b.E>=eff){b.E-=eff;damagePixel(X,Y,99,dx,dy)}else{damagePixel(X,Y,2,dx,dy);b.E=0}}
+ for(const[X,Y]of h){const eff=(mx===3?4.5:mx===2?.6:2.5)/Math.max(cos,.4);if(b.E>=eff){b.E-=eff;damagePixel(X,Y,99,dx,dy)}else{damagePixel(X,Y,2,dx,dy);b.E=0}}
  hitFx(cx,cy,mx,dx,dy);if(b.E<=.01){b.vx=b.vy=0;b.stuck=true;b.x+=dx*2;b.y+=dy*2;for(let i=0;i<6;i++)spark(cx,cy,mx===3?rgb(255,220,140):scol[Math.round(cy)*W+Math.round(cx)]||rgb(150,146,138),-dx*2,-dy*2,2.2);sfx(mx===3?'clink':'crack');shake=Math.max(shake,2)}return true}
 function rodBody(b,o,s){const dx=b.vx/(s||1),dy=b.vy/(s||1),u=UNITS[o.unit]||UNITS.civ;const rx0=b.x-o.x,ry0=b.y-o.y,t0=rx0*dx+ry0*dy,d=Math.min(8.3,Math.abs(rx0*dy-ry0*dx)),cos=Math.sqrt(1-(d/8.3)**2),ex=rx0-t0*dx-dx*8.3*cos,ey=ry0-t0*dy-dy*8.3*cos,nx=ex/8.3,ny=ey/8.3,hot=rodHot(b);
  const held=hot&&o.unit==='shock'&&Math.random()<.2;
@@ -489,7 +491,7 @@ function pinTo(b,cx,cy){b.vx=b.vy=0;b.knock=0;const r=b.rod&&byId(b.rod);if(!r||
  b.stuck=true;b.pinned=true;b.pinT=240;r.att.dx+=r.dir[0]*4;r.att.dy+=r.dir[1]*4;dab(SF,cx,cy,.5,2);for(let i=0;i<6;i++)spark(cx,cy,rgb(150,146,138),0,0,1.6);sfx('thunk');sfx('clink');shake=Math.max(shake,3)}
 function unpin(b){b.pinned=false;b.stuck=false;const r=b.rod&&byId(b.rod);if(r&&r.att&&r.att.id===b.id){r.att=null;r.stuck=true}sfx('clink')}
 function recoilHurt(b,c,s){const u=UNITS[b.unit];if(b.type!=='token'||!(u.arm===0||u.leather))return;const sd=Math.sign(sideOf(b))||1,px=-s*sd,py=c*sd;
- const cand=b.px.filter(p=>(p[7]==='c'||p[7]==='a')&&Math.hypot(p[0],p[1])>6.3&&p[0]*px+p[1]*py>3);for(let i=0;i<(u.arm?3:5)&&cand.length;i++){const p=cand.splice((Math.random()*cand.length)|0,1)[0];b.set.delete(K(p[0],p[1]))}
+ const cand=b.px.filter(p=>(p[7]==='c'||p[7]==='a')&&Math.hypot(p[0],p[1])>6.3&&p[0]*px+p[1]*py>3);for(let i=0;i<(u.arm?6:9)&&cand.length;i++){const p=cand.splice((Math.random()*cand.length)|0,1)[0];b.set.delete(K(p[0],p[1]))}
  dab(FX.blood,b.x+px*7,b.y+py*7,.35,2);sfx('squish');settle(b)}
 function pierce(o,x,y,dx,dy,E,ap,maxD){const ox=Math.round(o.x),oy=Math.round(o.y);let ex=null,ey=0;
  for(let i=0;i<24&&o.set.has(K(Math.round(x)-ox,Math.round(y)-oy));i++){x-=dx;y-=dy}
@@ -659,7 +661,7 @@ function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;raiseAlarm();if(b.t
  if(WP[inf.kind].proj==='rodp'){sfx('rodshot');shake=Math.max(shake,5);dab(SF,mx,my,.5,2);if(w.hot){sfx('hiss');flash(mx,my,1,.6,.25,2,4,.75);for(let i=0;i<10;i++)spark(mx,my,Math.random()<.4?rgb(255,240,200):rgb(255,150,60),c*2,s*2,2.4,8)}else for(let i=0;i<5;i++)spark(mx,my,rgb(200,200,200),c*2,s*2,2,5);recoilHurt(b,c,s)}
  else if(inf.kind==='sspear'){sfx('arcshot');dab(SF,mx,my,.9,3);for(let i=0;i<8;i++)spark(mx,my,rgb(140,200,255),-c*2,-s*2,2.2,10);shake=Math.max(shake,4)}
  else if(w.smoke){sfx(inf.kind==='pistol'?'pshot':'shot');plume(mx,my,a0,w.smoke);room(b.x,b.y,.035*w.smoke);shake=Math.max(shake,inf.kind==='pistol'?1:2)}else sfx('twang');
- if(tok){const k=w.rec*(1-UNITS[b.unit].arm*.22);b.vx-=c*k;b.vy-=s*k}}
+ if(tok){const u=UNITS[b.unit],k=w.rec*(1-u.arm*.22)*(w.proj==='rodp'&&(u.arm===0||u.leather)?1.9:1);b.vx-=c*k;b.vy-=s*k}}
 function fireGroup(x,y){const ar=armed(),vol=ar.length>1;ar.forEach(b=>setTimeout(()=>fire(b,x,y,vol),vol?Math.random()*260:0))}
 // input
 let lastHint='';
