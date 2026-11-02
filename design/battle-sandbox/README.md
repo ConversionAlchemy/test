@@ -21,6 +21,8 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | E / Esc | Deselect |
 | F / G | Switch hand / drop |
 | Space + drag, middle drag | Pan the camera on big maps |
+| Shift + drag | Lift anything and carry it over walls; drop it outside the map to delete it |
+| Click an item | Select it: WASD nudges it, hold to fire or throw it from where it lies |
 | Right-click | Unit or door options |
 
 ## Rules worth knowing
@@ -33,7 +35,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Fire catches a unit on the side that touched it and works inward; it only spreads round the whole body after long contact or when standing in it. It eats the outer rings; hot plate cracks; sewer water puts it out.
 - Hot stone and metal cool slowly through yellow, orange and red, and give off steam while they do.
 - Plain spears stack like grenades; a stack holds six, anyone armed with them starts with six, and loose spears top the stack up.
-- Shock spears lodged in metal or stone count down and blow; several in a shock trooper overload him.
+- Shock spears only charge on metal: lodged in a guard rifleman's or shock trooper's plate, a metal door or a metal crate they hum for about two seconds and blow. A hit on the back plate is an instant critical blast that kills the wearer. Stone, wood, flesh and light armour drain the charge, leaving an ordinary spear with a long tip that lodges deeper.
 - Rod launchers fire an iron rod. It gets about two-thirds into a stone wall and can punch through a metal door. In a unit it stops halfway, which kills light troops straight on. Guard riflemen's and shock troopers' plate catches it or glances it off; only about one shot in fourteen goes through. Hits on plate always spark, and three times in ten the sparks start a small fire. It throws the target back and can pin them to a wall. Recoil shoves the shooter; civilians and homeguard are thrown much further and wounded, and a civilian drops it half the time. The launcher is heavy: carriers walk slower and slower still while aiming, elite units less so. A unit thrown into a wall is driven into it and crushed flat on that side, leaving blood on the wall; worst for the lightly armoured. Hitting metal heats it with sparks and one time in ten the rod bursts in a spray of sparks and small fires; glancing hits tear chunks of plate off.
 - Rods lose energy over distance: past a few cells they hit softer, push less and pin less, down to about a third at long range.
 - Plasma rod launchers fire the rod white-hot. While hot it goes through units without glancing off and burns through about one wall's thickness of stone or plate plus 20–40% more, then cools and sticks, leaving a glowing cut, a scorch line, smoke and embers on the ground where it hit; it also cools in flight, though one shot in five sticks in a shock trooper's plate. Once cool it acts like a plain rod. Civilians and homeguard firing it may set themselves alight.
@@ -41,7 +43,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 
 ## Maps
 
-Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest), Astia proving yard (outdoor test range: a lane of every unit type, a long lane where the plasma rod has cooled, and lanes of stone, double stone, wood, metal, half slab and heavy door with a target behind each).
+Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Havenport sewer (lone ranger), Goldbank Aurum heist (30×42, mirrored, pannable), Goldbank counting house (sheathed arrest), Astia proving yard (outdoor test range, everyone unarmed, one rod launcher and one plasma rod launcher on the ground with spare rods in crates: a lane of every unit type, a long lane where the plasma rod has cooled, and lanes of stone, double stone, wood, metal, half slab and heavy door with a target behind each).
 
 ## Planned
 
