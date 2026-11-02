@@ -56,7 +56,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - A blast strong enough breaks laid floors and shows dark gritty foundation; a heavy grenade breaks a wide patch, a grenade a small one.
 - Blasts on grass or soil tear up the grass, dig a soft crater, throw soil round it and scorch the ground; the crater stays.
 - Slabs placed from the Cover list are free barricades: no hinge, no lock, never open. Units push them by walking into them, slowed by the weight: wood a little, metal more, the heavy slab most, armoured units less than light ones.
-- Goldbank plate is gold metal. Goldbank shock troopers wear banded gold plate in front with a ridge down the middle and a green cape over the back that trails out behind them and sways as they walk.
+- Goldbank plate is gold metal. Goldbank shock troopers wear banded gold plate in front with a ridge down the middle and a square green cape over the back that hangs just behind them and sways only while they walk or turn.
 - Footsteps sound like the ground: hollow on planks, a hard tap on stone, brighter on marble, a clank on metal plate, a swish on grass, a crunch on soil, muffled on rugs; armoured units add a chink.
 - The simulation runs at a fixed 60 steps a second whatever the frame rate.
 

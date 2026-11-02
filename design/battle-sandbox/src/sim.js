@@ -421,9 +421,10 @@ function dab(a,px,py,amt=1,R=8){for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){con
 // colours
 const glow=h=>h>.6?mix(rgb(242,122,40),rgb(255,232,160),Math.min(1,(h-.6)/.5)):h>.25?mix(rgb(150,34,16),rgb(242,122,40),(h-.25)/.35):rgb(150,34,16);
 const frontOf=(o,p)=>p[8]*Math.cos(o.ang||0)+p[9]*Math.sin(o.ang||0)>Math.hypot(p[8],p[9])*.7;
-function drawCape(b,lift){const a=b.ang||0,c=Math.cos(a),s=Math.sin(a),bx=Math.round(b.x),by=Math.round(b.y),sw=(b.mv>0?1.2:.4)*Math.sin(tick*.15+b.id),o=lift?3:0;
- for(let f=-11;f<=-6;f+=.5)for(let u=-6.5;u<=6.5;u+=.5){const w=5+(-6-f)*.5;if(Math.abs(u)>w)continue;const uu=u+sw*(-6-f)/5,X=Math.round(bx+c*f-s*uu)+o,Y=Math.round(by+s*f+c*uu)+o;if(X<0||Y<0||X>=W||Y>=H||b.set.has(K(X-bx-o,Y-by-o)))continue;
-  let col=mul(rgb(42,94,62),.78+.22*Math.cos(u*1.6)+(f<-10?-.25:0));if(Math.abs(u)>w-.6||f<-10.5)col=mul(col,.6);if(b.status==='dead')col=grey(col);out[Y*W+X]=col}}
+function drawCape(b,lift){const a=b.ang||0,c=Math.cos(a),s=Math.sin(a),bx=Math.round(b.x),by=Math.round(b.y),o=lift?3:0,da=Math.abs(Math.atan2(Math.sin(a-(b.capeA0??a)),Math.cos(a-(b.capeA0??a))));b.capeA0=a;
+ b.capeS=(b.capeS||0)+(((b.mv>0?1:0)+Math.min(1,da*10))-(b.capeS||0))*.08;const sw=b.capeS*1.1*Math.sin(tick*.18+b.id);
+ for(let f=-10;f<=-5;f+=.5)for(let u=-6.5;u<=6.5;u+=.5){const uu=u+sw*(-5-f)/5,X=Math.round(bx+c*f-s*uu)+o,Y=Math.round(by+s*f+c*uu)+o;if(X<0||Y<0||X>=W||Y>=H||b.set.has(K(X-bx-o,Y-by-o)))continue;
+  let col=mul(rgb(42,94,62),.8+.2*Math.cos(u*1.4));if(Math.abs(u)>6||f<-9.5)col=mul(col,.6);if(b.status==='dead')col=grey(col);out[Y*W+X]=col}}
 const cape=(ox,oy)=>{const v=vn(ox/2,oy*1.5,77);return mul(rgb(42,94,62),.82+v*.3)};
 function pcol(b,p){let c;const r=p[7],ox=p[8],oy=p[9],u=UNITS[b.unit]||UNITS.civ;
  if(r==='x'||b.type==='weapon'){c=p[2];if(b.kind==='crate'&&b.metal&&!(b.open&&Math.abs(ox)<5&&Math.abs(oy)<5))c=mix(grey(c),rgb(152,158,170),.45);if(b.kind==='crate'&&b.open&&Math.abs(ox)<5&&Math.abs(oy)<5)c=Math.abs(ox)===4||Math.abs(oy)===4?mul(C.woodD,.75):(oy+5)%3===0?mul(C.woodD,.45):mul(C.woodD,.6);const sth=b.th||8,sln=b.len||16;if(b.type==='slab'&&!b.free&&ox>=0&&oy>=-(sth>>1)-1&&oy<=-(sth>>1)){if(ox>=1&&ox<=2)c=b.mat===3?rgb(62,64,70):rgb(170,172,176);else if(ox>=sln-5&&ox<=sln-4&&!b.lockBroken)c=b.locked?rgb(240,140,40):rgb(150,92,44)}}
