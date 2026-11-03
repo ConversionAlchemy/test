@@ -104,4 +104,4 @@ Any unit can carry two pistols, one in each of the first two slots, and fires bo
 
 A unit short of rounds strips them from a matching gun lying nearby or in an open chest, and the gun is used up.
 
-The hand button under a unit's inventory turns off picking up new weapons; with it off the unit still takes ammo and tops up grenades and spears it already carries.
+The hand button under a unit's inventory turns off picking up new weapons (off from the start for civilians and anyone placed unarmed); with it off the unit still takes ammo and tops up grenades and spears it already carries.

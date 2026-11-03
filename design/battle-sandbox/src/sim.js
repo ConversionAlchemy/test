@@ -1000,7 +1000,7 @@ function moveItem(from,i,to){const q=from.inv&&from.inv[i];if(!q||!to.inv)return
 function slotEl(b,q,i,on,click){const e=document.createElement('span');e.className='it'+(on?' on':'');if(click){e.style.cursor='pointer';e.onclick=click}if(q){e.appendChild(icon(shape(q.k,0),q.k==='spear'||q.k==='sspear'?.6:1));const t=document.createElement('span');if(CAP[q.k]){const v=q.ammo??CAP[q.k];t.textContent=(q.n>1?q.n+'× ':'')+v+'/'+(q.res||0);if(v===0)t.className='out';else if(v/CAP[q.k]<.25)t.className='lo'}else t.textContent=q.k==='gold'?'§'+q.n:q.n;e.appendChild(t)}else e.classList.add('nil');return e}
 // inspector: the open fixture on top, the selected unit beneath it when standing beside it
 function hud(){const tk=[...sel].find(o=>o.type==='token');if(openCrate&&!bodies.includes(openCrate))openCrate=null;const c=openCrate,boxes=c?[c,tk&&tk.status==='free'&&near(tk,c)?tk:null].filter(Boolean):tk?[tk,...(tk.status==='free'?bodies.filter(o=>o.hidden&&near(tk,o)).slice(0,2):[])]:[];
- const key=JSON.stringify(boxes.map(b=>[b.id,b.si,b.inv,b.status,b.nat,b.name,b.noAuto]));if(key===lastHud)return;lastHud=key;const el=$('insp'),hd=$('ihd');if(!el)return;el.innerHTML='';
+ if(tk)autoOff(tk);const key=JSON.stringify(boxes.map(b=>[b.id,b.si,b.inv,b.status,b.nat,b.name,b.noAuto]));if(key===lastHud)return;lastHud=key;const el=$('insp'),hd=$('ihd');if(!el)return;el.innerHTML='';
  const nm=b=>{const n=document.createElement('span');n.textContent=b.name;n.style.color=b.type==='token'?natLabel(b):'#e6d9b8';return n};hd.textContent='';const hw=document.createElement('span');if(boxes[0])hw.append(nm(boxes[0]));else hw.append('Inventory');hd.append(hw);if(tk&&tk.id!==mkSynced){mkSynced=tk.id;syncMarker(tk)}
  boxes.forEach((b,bi)=>{const bx=document.createElement('div');bx.className='ibox wp';bx.dataset.id=b.id;if(bi){const h=document.createElement('div');h.className='isub';h.style.background='none';h.style.border='0';h.style.cursor='default';h.append(document.createElement('span'),nm(b));bx.appendChild(h)}
   const inv=b.type==='token'?b.inv:b.inv.filter(Boolean);if(!inv.length){const e=document.createElement('div');e.className='dim';e.append(document.createElement('span'),'Empty');bx.appendChild(e)}
@@ -1061,8 +1061,10 @@ const needRes=(t,k)=>{const g=gunsOf(t,k);return g.length&&g.reduce((a,z)=>a+(z.
 function strip(t,k,ammo,res){if(!CAP[k]||!needRes(t,k))return false;const n=(ammo||0)+(res||0);if(n<=0)return false;addRes(t,k,n);sfx('reload');return true}
 const fullRes=(t,k)=>CAP[k]*(t.unit==='guard'||t.unit==='cmd'?2:1)*(k==='pgun'&&t.unit==='cmd'?1.75:1)|0,fullN=(t,k)=>k==='spear'||k==='sspear'?4:k==='grenade'||k==='bomb'?(k==='grenade'?3:1)*(t.unit==='cmd'?2:1):1;
 function refill(t,k){const h=t.inv.find(z=>z&&z.k===k);if(!h||k==='gold')return false;if(k==='pistol'&&gunsOf(t,k).length<2&&slotFor(t,k)>=0)return false;if(k==='pistol'&&gunsOf(t,k).length>1){for(const z of gunsOf(t,k)){z.ammo=CAP[k];z.res=Math.max(z.res||0,fullRes(t,k))}t.hc=null;return true}if(CAP[k]){h.ammo=CAP[k];h.res=Math.max(h.res||0,CAP[k]*(t.unit==='guard'||t.unit==='cmd'?2:1)*(k==='pgun'&&t.unit==='cmd'?1.75:1)|0);h.spent=false;delete h.mode}else if(k==='spear'||k==='sspear')h.n=4;else h.n=Math.max(h.n||1,fullN(t,k));if(t.held===h)t.hc=null;return true}
-const mayTake=(t,k)=>!t.noAuto||k==='gold'||k==='cell'||k.endsWith('box')||!CAP[k]&&gunsOf(t,k).length>0;
-function autoPick(){for(const t of bodies){if(t.type!=='token'||t.status!=='free'||!t.inv||inDrag(t))continue;
+// civilians and units that start unarmed don't scoop up weapons unless switched on
+const autoOff=t=>t.noAuto??(t.noAuto=t.unit==='civ'||!(t.inv||[]).some(q=>q&&WP[q.k]));
+const mayTake=(t,k)=>!autoOff(t)||k==='gold'||k==='cell'||k.endsWith('box')||!CAP[k]&&gunsOf(t,k).length>0;
+function autoPick(){for(const t of bodies){if(t.type!=='token'||!t.inv)continue;autoOff(t);if(t.status!=='free'||inDrag(t))continue;
   for(const w of [...bodies]){if(w.type!=='weapon'||!PICK.has(w.kind)||w.stuck||w.att||w.fuse||inDrag(w)||(w.noPick&&w.noPick>tick)||Math.hypot(w.vx,w.vy)>.3||Math.hypot(w.x-t.x,w.y-t.y)>13)continue;
    if(w.byHand&&refill(t,w.kind)){remove(w);sfx('reload');continue}
    if(w.byHand&&w.kind!=='gold'&&addItem(t,{k:w.kind,n:fullN(t,w.kind),ammo:CAP[w.kind]||undefined,res:CAP[w.kind]?fullRes(t,w.kind):undefined})){remove(w);sfx('flick');continue}
