@@ -833,11 +833,11 @@ function rodHeat(b){b.glw=b.hot?Math.min(1,Math.max(0,1.3-(b.dist||0)/(b.hotd||H
 const HUM=new Map();
 function hum(b,k,h){if(mute||!gest)return;const a=au(),t=a.currentTime;let n=HUM.get(b);
  if(!n){const o=a.createOscillator(),o2=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain();o.type='sawtooth';o2.type='sine';f.type='lowpass';f.Q.value=.7;g.gain.value=0;o.connect(f);o2.connect(f);f.connect(g).connect(MS);const w=a.createGain();w.gain.value=.3;g.connect(w).connect(RV);o.start();o2.start();n={o,o2,f,g,k};HUM.set(b,n)}
- n.seen=tick;const lo=k==='rod'?48:82,hi=k==='rod'?150:250,p=Math.min(h,1.1),wob=h>1?Math.sin(tick*.9)*(h-1)*40:0;
+ n.seen=tick;const lo=k==='rod'?48:k==='pgun'?70:82,hi=k==='rod'?150:k==='pgun'?320:250,p=Math.min(h,1.1),wob=h>1?Math.sin(tick*.9)*(h-1)*40:0;
  n.o.frequency.setTargetAtTime(lo+(hi-lo)*p*p+wob,t,.08);n.o2.frequency.setTargetAtTime((lo+(hi-lo)*p*p)*2.01,t,.08);n.f.frequency.setTargetAtTime(220+p*p*2200,t,.1);n.g.gain.setTargetAtTime(.015+.075*p,t,.12)}
 function humEnd(){for(const[b,n]of HUM)if(n.seen!==tick){const t=au().currentTime;n.g.gain.setTargetAtTime(0,t,.06);n.o.stop(t+.4);n.o2.stop(t+.4);HUM.delete(b)}}
 function heatTick(){const ch=charge?new Set(armed()):null;
- for(const b of [...bodies]){if(b.type!=='token'||!b.held||!bodies.includes(b))continue;const h=b.held,k=h.k;if(k!=='rod'&&k!=='pgun'&&k!=='sspear')continue;if(b.burst){if(--b.burst.t<=0){b.burst.n--;b.burst.t=7;b.inB=1;fire(b,b.burst.x,b.burst.y);b.inB=0;if(b.burst&&b.burst.n<=0)b.burst=null}continue}if(k==='pgun'){h.heat=0;continue}
+ for(const b of [...bodies]){if(b.type!=='token'||!b.held||!bodies.includes(b))continue;const h=b.held,k=h.k;if(k!=='rod'&&k!=='pgun'&&k!=='sspear')continue;if(b.burst){if(--b.burst.t<=0){b.burst.n--;b.burst.t=7;b.inB=1;fire(b,b.burst.x,b.burst.y);b.inB=0;if(b.burst&&b.burst.n<=0)b.burst=null}continue}if(k==='pgun'){h.heat=0;if(ch&&ch.has(b)&&b.status==='free'&&(h.ammo??CAP[k])>0)hum(b,k,Math.min(1,(performance.now()-charge.t)/charge.need));continue}
   const on=ch&&ch.has(b)&&b.status==='free'&&(k==='sspear'||(h.ammo??CAP[k])>0);
   if(!on){if(h.heat>0)h.heat=Math.max(0,h.heat-1/240);continue}
   const u=UNITS[b.unit],t=tipOf(b);if(!(b.unit==='guard'||b.unit==='shock'||b.unit==='cmd')){h.heat=0;continue}
