@@ -109,3 +109,15 @@ The hand button under a unit's inventory turns off picking up new weapons (off f
 The plasma gun holds three shots, one burst, then vents with a hiss and must be reloaded by hand (R).
 
 Shift dashes the selected units along WASD, or the way they face: up to 2.5 tiles for commandos, less the heavier the unit. One dash (two for commandos) then a 10 s recharge, shown as a thin bar under the name. AI units sidestep thrown weapons.
+
+AI mode (the AI button) hands every other side to the computer; your side is the one selected when you switch it on. It needs no setup per map:
+- rooms, doors and blasted holes are read from the map and re-read every two seconds;
+- units see in a cone (walls and closed doors block it), hear shots, explosions, footsteps, dashes, reloads and dry clicks through walls (thicker walls muffle more), remember what they saw, and share it with friends nearby;
+- each side weighs its strength (class, weapon, ammo, wounds) against the enemies it knows of: no contact keeps it calm, a noise sends it to look, better odds make it hunt, slightly worse odds make it hold, bad odds send it to the safest room to lock the doors and hold;
+- a side with a protected unit (Protect, under the inventory) defends that unit's room and locks its doors;
+- hunters shoot out a locked door that stands in their way; unarmed units go for the nearest loose weapon.
+
+With AI on you see only what your units see: the rest keeps its last picture and fades to black over five seconds. Sounds you hear through walls show as faint rings. Your units that are not selected fire at enemies they can see if they have a gun drawn.
+
+Hold C to crouch: slower, no dash, dimmed. A crouched unit behind a desk or table can't be seen or shot past it, and can't see or shoot over it either; stand to fire.
+
