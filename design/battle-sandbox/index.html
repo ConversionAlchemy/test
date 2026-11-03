@@ -1133,7 +1133,7 @@ function heldBlocked(b,sx,sy){if(!b.held)return false;for(const p of heldPix(b))
 function tryStep(b,sx,sy,depth=0){if(b.ghost){b.x+=sx;b.y+=sy;return true}
  const h=solidHits(b,sx,sy);if(h){if(b.type==='token'&&pushSlabs(b,h,sx,sy)){b.x+=sx;b.y+=sy;return true}pushDoor(b,h);const h0=b.type==='token'&&solidHits(b,0,0);if(h0&&h.length<h0.length){b.x+=sx;b.y+=sy;return true}return false}
  const hx=Math.round(b.x+sx)-Math.round(b.x),hy=Math.round(b.y+sy)-Math.round(b.y);if(heldBlocked(b,hx,hy)&&!heldBlocked(b,0,0)){pushDoor(b,heldPix(b).map(p=>[p[0]+hx,p[1]+hy]));return false}
- const o=tokHit(b,sx,sy);if(o){if(depth>2||(o.mass||1)>(b.mass||1)*1.05||!tryStep(o,sx,sy,depth+1))return false;o.mv=6}
+ const o=tokHit(b,sx,sy);if(o){if(depth>2||(o.mass||1)>(b.mass||1)*1.05&&!(b.flee&&o.type==='token'&&teamOf(o)===teamOf(b))||!tryStep(o,sx,sy,depth+1))return false;o.mv=6}
  b.x+=sx;b.y+=sy;return true}
 function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=tx-b.x,dy=ty-b.y;if(Math.abs(dx)<.01&&Math.abs(dy)<.01)break;const sx=Math.max(-1,Math.min(1,dx)),sy=Math.max(-1,Math.min(1,dy));let moved=false;
   if(sx&&tryStep(b,sx,0))moved=true;if(sy&&tryStep(b,0,sy))moved=true;if(!moved)break}
@@ -1450,9 +1450,9 @@ function autoFire(b){const a=b.pa||(b.pa={cd:30}),rng=k=>!k?110:WP[k].melee?110:
  if(k==='grenade'||k==='bomb'){turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));if(--a.cd>0)return;const np=nadePlan(b,tg,true);if(np){throwNade(b,np.i,np.tg);a.cd=120}else a.cd=20;return}
  if(td>rng(k)+40){turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));return}aiShoot(b,tg,a)}
 // grenades: anyone in the blast who can see it runs, away from the bomb and from known enemies
-function bombFlee(b,enemies){if(b.direct||b.status!=='free')return false;if(b.flee){if(tick>b.flee.t||!bodies.includes(b.flee.g)){b.flee=null;return false}aiGo(b,b.flee.x,b.flee.y,b.fa||(b.fa={}));return true}
+function bombFlee(b,enemies){if(b.direct||b.status!=='free')return false;if(b.flee){if(tick>b.flee.t||!bodies.includes(b.flee.g)){b.flee=null;return false}if((b.fa.stk||0)>5){b.fleeBad=Math.atan2(b.flee.y-b.y,b.flee.x-b.x);b.flee=null}else{aiGo(b,b.flee.x,b.flee.y,b.fa);return true}}
  for(const g of bodies){if(!(g.fuse>0)||g.kind!=='grenade'&&g.kind!=='bomb')continue;const R=g.kind==='bomb'?60:44,d=Math.hypot(g.x-b.x,g.y-b.y);if(d>R||!losClear(b.x,b.y,g.x,g.y,false,false))continue;
-  let best=null,bs=-1e9;for(let k=0;k<16;k++){const an=k*.3927,X=b.x+Math.cos(an)*(R+8-d+8),Y=b.y+Math.sin(an)*(R+8-d+8);if(!wOpen(X,Y)||!losClear(b.x,b.y,X,Y,false,false))continue;let sc=Math.hypot(X-g.x,Y-g.y);for(const e of enemies){const ed=Math.hypot(e.x-X,e.y-Y);if(ed<80)sc-=(80-ed)*1.5}if(sc>bs){bs=sc;best=[X,Y]}}
+  let best=null,bs=-1e9;for(let k=0;k<16;k++){const an=k*.3927,X=b.x+Math.cos(an)*(R+8-d+8),Y=b.y+Math.sin(an)*(R+8-d+8);if(!wOpen(X,Y)||!losClear(b.x,b.y,X,Y,false,false))continue;let sc=Math.hypot(X-g.x,Y-g.y);if(b.fleeBad!==undefined&&Math.cos(an-b.fleeBad)>.7)sc-=60;for(const o of bodies){if(o===b||o.type!=='token'||o.status==='dead')continue;const tx=o.flee?o.flee.x:o.x,ty=o.flee?o.flee.y:o.y,dd=Math.hypot(tx-X,ty-Y);if(dd<24)sc-=(24-dd)*2;const vx=X-b.x,vy=Y-b.y,L=vx*vx+vy*vy||1,t=Math.max(0,Math.min(1,((o.x-b.x)*vx+(o.y-b.y)*vy)/L));if(Math.hypot(b.x+vx*t-o.x,b.y+vy*t-o.y)<12)sc-=40}for(const e of enemies){const ed=Math.hypot(e.x-X,e.y-Y);if(ed<80)sc-=(80-ed)*1.5}if(sc>bs){bs=sc;best=[X,Y]}}
   if(best){b.flee={x:best[0],y:best[1],t:tick+g.fuse+20,g};say(b,'Run!',true);b.fa={};b.crouch=false;if(Math.hypot(best[0]-g.x,best[1]-g.y)>R&&dashUnit(b,best[0]-b.x,best[1]-b.y))sfx('dash');return true}}return false}
 // arms: a unit with nothing usable takes a spare from a friend beside it (weapon, spear, or half his rounds)
 const usableQ=q=>q&&WP[q.k]&&!WP[q.k].hide&&q.k!=='grenade'&&q.k!=='bomb'&&!(CAP[q.k]&&empty(q));
