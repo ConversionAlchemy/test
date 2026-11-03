@@ -1092,7 +1092,7 @@ function srcInfo(b){if(!b||!bodies.includes(b))return null;
  if(b.type==='weapon'&&!b.att&&!b.wedged&&(b.kind==='grenade'||b.kind==='bomb'||b.kind==='sbomb'||WP[b.kind].melee))return{kind:b.kind,sp:1,throw:1,hold:500,spread:.05,range:200};return null}
 const gauss=()=>{const u=Math.random()||1e-9,v=Math.random();return Math.max(-2.2,Math.min(2.2,Math.sqrt(-2*Math.log(u))*Math.cos(6.283*v)))};
 function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.type==='weapon'&&b.kind==='sspear'&&!inf.throw){b.ammo=(b.ammo??CAP.sspear)-1;if(b.ammo<=0)spend(b)}cmdFollow(b,x,y);boltShot=null;raiseAlarm();if(b.type==='token'&&!inf.throw){const h=b.held;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(h.k==='pgun'||!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry')}return}h.ammo--}const a0=Math.atan2(y-b.y,x-b.x),tok=b.type==='token';
- if(tok)turnTo(b,a0);else reshape(b,a0);
+ if(tok)turnTo(b,a0,true);else reshape(b,a0);
  const c=Math.cos(a0),s=Math.sin(a0),sd=tok?sideOf(b):0;
  if(inf.throw&&b.type==='weapon'){const k=b.kind,a=a0+gauss()*inf.spread,sp=k==='grenade'||k==='sbomb'?15:k==='bomb'?8:27;let v=sp;if(k==='grenade'||k==='bomb'||k==='sbomb'){if(!b.fuse&&k!=='sbomb'){b.fuse=k==='bomb'?200:150;sfx('pin')}v=Math.min(sp,Math.hypot(x-b.x,y-b.y)*(1-WP[k].fr))}
   b.stuck=false;b.vx=Math.cos(a)*v;b.vy=Math.sin(a)*v;b.thrown=true;b.noPick=tick+40;b.sx=b.x;b.sy=b.y;b.hit=null;if(k!=='bomb')reshape(b,a);sfx('whoosh');return}
@@ -1136,7 +1136,11 @@ function tryStep(b,sx,sy,depth=0){if(b.ghost){b.x+=sx;b.y+=sy;return true}
 function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=tx-b.x,dy=ty-b.y;if(Math.abs(dx)<.01&&Math.abs(dy)<.01)break;const sx=Math.max(-1,Math.min(1,dx)),sy=Math.max(-1,Math.min(1,dy));let moved=false;
   if(sx&&tryStep(b,sx,0))moved=true;if(sy&&tryStep(b,0,sy))moved=true;if(!moved)break}
  if(b.ghost&&!solidHits(b,0,0))b.ghost=false;return Math.hypot(b.x-x0,b.y-y0)}
-function turnTo(b,a){const a0=b.ang,d=Math.atan2(Math.sin(a-a0),Math.cos(a-a0));b.ang=a0+d;if(!heldBlocked(b,0,0))return;pushDoor(b,heldPix(b));b.ang=a0;if(heldBlocked(b,0,0)){b.ang=a0+d;return}for(let i=1;i<=8;i++){b.ang=a0+d*i/8;if(heldBlocked(b,0,0)){b.ang=a0+d*(i-1)/8;return}}}
+const TURN={civ:.18,home:.17,rifle:.16,guard:.12,shock:.1,cmd:.26};
+function turnTo(b,a,now){if(now||b.type!=='token'||b.status!=='free')return turnNow(b,a);b.faceT=a}
+function turnTick(){for(const b of bodies){if(b.faceT==null)continue;if(b.status!=='free'){b.faceT=null;continue}const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang)),r=(TURN[b.unit]||.14)*(b.crouch?.7:1);if(Math.abs(d)<=r){turnNow(b,b.faceT);b.faceT=null}else turnNow(b,b.ang+Math.sign(d)*r)}}
+const facing=(b,x,y)=>Math.abs(Math.atan2(Math.sin(Math.atan2(y-b.y,x-b.x)-b.ang),Math.cos(Math.atan2(y-b.y,x-b.x)-b.ang)))<.35;
+function turnNow(b,a){const a0=b.ang,d=Math.atan2(Math.sin(a-a0),Math.cos(a-a0));b.ang=a0+d;if(!heldBlocked(b,0,0))return;pushDoor(b,heldPix(b));b.ang=a0;if(heldBlocked(b,0,0)){b.ang=a0+d;return}for(let i=1;i<=8;i++){b.ang=a0+d*i/8;if(heldBlocked(b,0,0)){b.ang=a0+d*(i-1)/8;return}}}
 function pushDoor(b,h){if(b.type!=='token')return;for(const[X,Y]of h){if(X<0||Y<0||X>=W||Y>=H)continue;const d=slabG[Y*W+X]&&byId(slabG[Y*W+X]);if(!d||d.free||d.locked||d.tgt!==0)continue;if(d.ang!==0){d.tgt=Math.sign(d.ang)*Math.PI/2;sfx('door');continue}
   openGroup(d,b);sfx('door')}}
 function leafShift(q,dl){const L=(q.len||16)/2,T=-(q.th||8)/2,c0=swingPt(q,L,T,0),c1=swingPt(q,L,T,dl);return[c1[0]-c0[0],c1[1]-c0[1]]}
@@ -1309,7 +1313,7 @@ function aiStep(b,x,y,a=b.ai){const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy);if(d<2
  if(m>.15){b.mv=6;a.stk=0;if(!a.tg&&!(b.pa&&b.pa.tg))turnTo(b,Math.atan2(dy,dx))}else a.stk=(a.stk||0)+1;return false}
 function aiGo(b,x,y,a=b.ai){if(!a.path||!a.wp||Math.hypot(a.wp[0]-x,a.wp[1]-y)>12||tick-a.pt>90){a.path=aiPath(b,x,y);a.wp=[x,y];a.pt=tick;a.door=null;
   if(!a.path){const p0=aiPath(b,x,y,true),p=p0&&p0.raw;const d=p&&bodies.find(o=>isDoor(o)&&o.locked&&!o.lockBroken&&p.some(q=>onDoor(o,q[0],q[1])));if(d){a.door=d;const i=p.findIndex(q=>onDoor(d,q[0],q[1]));a.path=p.slice(0,Math.max(0,i-2))}else a.path=[]}}
- const n=a.path[0];if(!n)return true;if(aiStep(b,n[0],n[1],a)||Math.hypot(n[0]-b.x,n[1]-b.y)<(a.stk>2?10:3)){a.path&&a.path.shift();a.stk=0}else if(a.stk>40){a.path=null;a.stk=0;return false}return !a.path||!a.path.length}
+ const n=a.path[0];if(!n){if(a.door&&a.door.locked&&!a.door.lockBroken){breach(b,a.door,a);return false}return true}if(aiStep(b,n[0],n[1],a)||Math.hypot(n[0]-b.x,n[1]-b.y)<(a.stk>2?10:3)){a.path&&a.path.shift();a.stk=0}else if(a.stk>40){a.path=null;a.stk=0;return false}return !a.path||!a.path.length}
 
 // rooms: flood-fill open tiles, doors split them; redone every couple of seconds so blasted walls open new ways
 let ROOMS=null;
@@ -1360,6 +1364,10 @@ function aiSense(b){const a=b.ai;let tg=null,td=1e9;
  a.tg=tg;a.td=td}
 function aiShare(us){for(const a of us)for(const b of us){if(a===b||Math.hypot(a.x-b.x,a.y-b.y)>140&&roomAt(a.x,a.y)!==roomAt(b.x,b.y))continue;for(const[id,m]of a.ai.mem){const o=b.ai.mem.get(id);if(!o||o.t<m.t)b.ai.mem.set(id,{...m})}if(a.ai.nz&&(!b.ai.nz||b.ai.nz.t<a.ai.nz.t))b.ai.nz={...a.ai.nz}}}
 const nearObj=b=>{for(let r=4;r<=12;r+=4)for(let k=0;k<8;k++){const X=Math.round(b.x+Math.cos(k*.785)*r),Y=Math.round(b.y+Math.sin(k*.785)*r);if(X>=0&&Y>=0&&X<W&&Y<H&&OBJ[Y*W+X])return true}return false};
+function breach(b,d,a){if(Math.hypot(d.x-b.x,d.y-b.y)>44){a.path=null;return}const lv=d.pair?[d,d.pair]:[d],tm=teamOf(b);
+ const kh=bodies.find(o=>o.type==='token'&&o.status==='free'&&teamOf(o)===tm&&hasKey(d,tm)&&Math.hypot(o.x-d.x,o.y-d.y)<70);if(kh){for(const q of lv)q.locked=false;sfx('lock');a.door=null;a.path=null;return}
+ turnTo(b,Math.atan2(d.y-b.y,d.x-b.x));if(--a.cd>0)return;const h=b.held;if(h&&CAP[h.k]&&h.ammo>0&&facing(b,d.x,d.y)){fire(b,d.x,d.y);a.cd=50}else{sfx('thunk');shake=Math.max(shake,2);a.cd=40}
+ d.kicks=(d.kicks||0)+1;hear(d.x,d.y,120,b);if(d.kicks>=8){for(const q of lv){q.lockBroken=true;q.locked=false}sfx('door');for(let i=0;i<8;i++)spark(d.x,d.y,rgb(214,176,70),0,0,2.4);a.door=null;a.path=null}}
 function aiLock(b,e,home){const d=e.d,lv=d.pair?[d,d.pair]:[d];let tgt=[d.x,d.y];if(d.dt)for(const c of d.dt){const cx=c%CW,cy=c/CW|0;for(const[a,q]of[[1,0],[-1,0],[0,1],[0,-1]]){const f=(cy+q)*CW+cx+a;if(ROOMS.R[f]===home&&aiOpen(cx+a,cy+q)){tgt=aiOpen(cx+2*a,cy+2*q)&&ROOMS.R[(cy+2*q)*CW+cx+2*a]===home?[(cx+2*a)*T+8,(cy+2*q)*T+8]:[(cx+a)*T+8,(cy+q)*T+8]}}}const dd=Math.hypot(tgt[0]-b.x,tgt[1]-b.y);if(dd>6){aiGo(b,tgt[0],tgt[1]);return false}turnTo(b,Math.atan2(d.y-b.y,d.x-b.x));
  for(const q of lv)q.tgt=0;if(lv.every(q=>q.ang===0)){for(const q of lv){q.locked=true;q.keys=teamOf(b)}sfx('lock');hear(d.x,d.y,70,b);return true}return false}
 function aiArm(b){if(!b.held&&!(b.ai.sheath>tick&&!b.ai.tg)){const i=b.inv.findIndex((q,i)=>q&&i<2&&WP[q.k]&&!WP[q.k].hide);if(i>=0)selectSlot(b,i)}}
@@ -1370,11 +1378,11 @@ function nadePlan(b,tg0,force){if(tick-(b.nadeT||-1e9)<180||tick-(NADEL[teamOf(b
  const foes=bodies.filter(o=>o.type==='token'&&o.status==='free'&&teamOf(o)!==teamOf(b)&&teamOf(o)!=='Neutral'),t=tipOf(b);let best=null,bs=0;
  for(const tg of foes){if(tg!==tg0&&!canSee(b,tg))continue;const td=Math.hypot(tg.x-b.x,tg.y-b.y);if(td>150||!losClear(b.x,b.y,tg.x,tg.y,false,false))continue;
   const near=r=>foes.filter(f=>Math.hypot(f.x-tg.x,f.y-tg.y)<r).length,friend=r=>bodies.some(o=>o!==b&&o.type==='token'&&o.status==='free'&&teamOf(o)===teamOf(b)&&Math.hypot(o.x-tg.x,o.y-tg.y)<r),heavy=(UNITS[tg.unit].arm||0)>=2,covered=tg.crouch||!losClear(t[0],t[1],tg.x,tg.y,b.crouch,tg.crouch);
-  if(bi>=0&&td>72&&!friend(68)){const sc=near(52)*2+(heavy&&covered?2:0)+(force?1:0);if(sc>=3&&sc>bs){bs=sc;best={i:bi,tg}}}
-  if(gi>=0&&td>52&&!friend(48)){const sc=near(36)*2+(covered?1:0)+(heavy?1:0)+(force?1:0);if(sc>=3&&sc>bs){bs=sc;best={i:gi,tg}}}}
+  if(bi>=0&&td>72&&!friend(68)){const n=near(52),sc=n*2+(heavy?1:0)+(covered?1:0);if((n>=2||force)&&sc>bs){bs=sc;best={i:bi,tg}}}
+  if(gi>=0&&td>52&&!friend(48)){const n=near(36),sc=n*2+(covered?1:0);if((n>=2||force)&&sc>bs+.5){bs=sc;best={i:gi,tg}}}}
  return best}
 function throwNade(b,i,tg){const pi=b.si;selectSlot(b,i);turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));fire(b,tg.x+(Math.random()-.5)*6,tg.y+(Math.random()-.5)*6);b.nadeT=tick;NADEL[teamOf(b)]=tick;setTimeout(()=>{if(b.status==='free'&&pi>=0&&b.inv[pi]&&b.si!==pi)selectSlot(b,pi)},400)}
-function aiShoot(b,tg,a=b.ai){const td=Math.hypot(tg.x-b.x,tg.y-b.y);turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));flipFor(b,tg);if(--a.cd>0)return;const h=b.held;if(!h)return;const w=WP[h.k];
+function aiShoot(b,tg,a=b.ai){const td=Math.hypot(tg.x-b.x,tg.y-b.y);turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));if(!facing(b,tg.x,tg.y))return;flipFor(b,tg);if(--a.cd>0)return;const h=b.held;if(!h)return;const w=WP[h.k];
  if(w.melee){if(td>110){a.cd=10;return}}else if(CAP[h.k]&&!(h.ammo>0)){b.crouch=nearObj(b);if(!reload(b))a.cd=999;else a.cd=90;return}
  if(bodies.some(o=>o!==b&&o.ai&&teamOf(o)===teamOf(b)&&o.status==='free'&&(()=>{const vx=tg.x-b.x,vy=tg.y-b.y,L=vx*vx+vy*vy||1,t=((o.x-b.x)*vx+(o.y-b.y)*vy)/L;return t>0&&t<1&&Math.hypot(b.x+vx*t-o.x,b.y+vy*t-o.y)<9})())){a.cd=20;return}
  
@@ -1400,7 +1408,7 @@ function aiTick(){if(!aiOn)return;if(!ROOMS||tick-ROOMS.t>120)aiRooms();
   const home=g.home,known=[...(g.known||new Map()).values()].sort((p,q)=>q.t-p.t),last=known[0];
   if(g.mode==='calm'){b.crouch=false;if(a.idle==='patrol'){if(!a.spot||aiGo(b,a.spot[0],a.spot[1])){if(!a.wait)a.wait=tick+60+Math.random()*120;if(tick>a.wait){a.wait=0;a.spot=aiWander(b,roomAt(b.x,b.y))}}}else if(tick%90===0&&Math.random()<.4)turnTo(b,b.ang+(Math.random()-.5)*1.6);continue}
   if(g.mode==='seek'){const z=g.heard;if(z){if(aiGo(b,z.x,z.y)){turnTo(b,b.ang+.05);if(!a.look)a.look=tick+90;if(tick>a.look){a.look=0;b.ai.nz=null}}}continue}
-  if(g.mode==='hunt'){b.crouch=false;if(last){if(aiGo(b,last.x,last.y)){if(a.door);else last.t-=600;turnTo(b,b.ang+.06)}if(a.door&&Math.hypot(a.door.x-b.x,a.door.y-b.y)<44&&!a.door.lockBroken){turnTo(b,Math.atan2(a.door.y-b.y,a.door.x-b.x));if(--a.cd<=0&&b.held&&!WP[b.held.k].melee){fire(b,a.door.x,a.door.y);a.cd=60}}}continue}
+  if(g.mode==='hunt'){b.crouch=false;if(last){if(aiGo(b,last.x,last.y)){last.t-=600;turnTo(b,b.ang+.06)}}continue}
   if(g.mode==='hold'){if(!a.spot||roomAt(a.spot[0],a.spot[1])!==roomAt(b.x,b.y))a.spot=[b.x,b.y];if(last&&tick%60===b.id%60&&!losClear(a.spot[0],a.spot[1],last.x,last.y)){const r=roomAt(b.x,b.y);for(let k=0;k<16;k++){const p=aiWander(b,r);if(p&&losClear(p[0],p[1],last.x,last.y)&&Math.hypot(p[0]-last.x,p[1]-last.y)>50&&!bodies.some(o=>o!==b&&o.ai&&Math.hypot(o.x-p[0],o.y-p[1])<18)){a.spot=p;break}}}aiGo(b,a.spot[0],a.spot[1]);b.crouch=nearObj(b)&&(tick+b.id*13)%120>40;if(last)turnTo(b,Math.atan2(last.y-b.y,last.x-b.x));continue}
   if(g.mode==='fall'||g.mode==='defend'){if(home<0)continue;if(roomAt(b.x,b.y)!==home){b.crouch=false;const c=ROOMS.cen[home];aiGo(b,c[0],c[1]);continue}
    const w=ways(home);
@@ -1453,7 +1461,7 @@ function ringFor(z){if(!fogOn()||z.src&&teamOf(z.src)===aiMe||z.src&&!z.src.fogH
 function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||Y>=H||!OBJ[Y*W+X])return false;
  if(!b.low&&!bodies.some(t=>t.type==='token'&&t.crouch&&t.status!=='dead'&&Math.hypot(t.x-b.x,t.y-b.y)<26&&(t.x-b.x)*b.vx+(t.y-b.y)*b.vy>0))return false;
  const s=Math.hypot(b.vx,b.vy)||1;hitFx(X,Y,2,b.vx/s,b.vy/s,b.kind==='pel');remove(b);return true}
-function update(){tick++;try{aiTick();if(fogOn()&&tick%2===0)fogTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.cock>0)b.cock--;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
+function update(){tick++;turnTick();try{aiTick();if(fogOn()&&tick%2===0)fogTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.cock>0)b.cock--;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=i.heat?Math.min(1,.35+(b.held.heat||0)*.65):pr*pr}}
  if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);charge=null}
