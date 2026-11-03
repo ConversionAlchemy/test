@@ -96,11 +96,63 @@ const ELEM={
  Wood:{vars:{planks:'Planks',boards:'Boards',panel:'Panelled'},mats:{oak:['Oak',WOOD.oak],pine:['Pine',WOOD.pine],teak:['Teak',WOOD.teak],walnut:['Walnut',WOOD.walnut],mahog:['Mahogany',MAHOG],ebony:['Ebony',EBONY]}},
  Metal:{vars:{panel:'Panels',rivet:'Riveted plate',smooth:'Smooth'},mats:{steel:['Steel'],iron:['Iron',[70,78,82]],brass:['Brass',[184,150,84]],gold:['Gold',[226,186,96]],umbra:['Umbra',[40,42,48]]}},
  Cloth:{vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:['Crimson',[128,34,38]],verdant:['Verdant',[34,82,56]],purple:['Imperial purple',[58,30,78]]}}};
+// each material's own two variations: plain, crude patterns for cheap materials, ornate ones for rare
+const XV={Stone:{grey:{rubble:'Rubble',setts:'Setts'},sand:{ashlar:'Ashlar',crazy:'Crazy paving'},lime:{herring:'Herringbone',basket:'Basketweave'},gold:{rosette:'Rosette',lattice:'Lattice'},aur:{checker:'Checker',medallion:'Medallion'},ver:{quatre:'Quatrefoil',band:'Banded'},night:{stars:'Starfield',sectile:'Opus sectile'}},
+ Wood:{pine:{rough:'Rough sawn',logs:'Split logs'},oak:{herring:'Herringbone',pegged:'Pegged boards'},teak:{deck:'Ship deck',basket:'Basketweave'},walnut:{chevron:'Chevron',brick:'Brick parquet'},mahog:{inlay:'Strung inlay',parquet:'Versailles'},ebony:{marq:'Marquetry',fret:'Fretwork'}},
+ Metal:{iron:{grate:'Cast grating',hammer:'Hammered'},steel:{tread:'Tread plate',louvre:'Louvred'},brass:{filigree:'Filigree',grille:'Studded grille'},gold:{engraved:'Engraved',scale:'Scaled'},umbra:{runes:'Runed',veined:'Veined'}}};
+const varsOf=(el,mat)=>({...ELEM[el].vars,...((XV[el]||{})[mat]||{})});
 const CATN={};
+const GOLDL=[214,176,96],VOID=[110,150,220];
+function vor(X,Y,S,s){const gx=Math.floor(X/S),gy=Math.floor(Y/S);let d1=1e9,d2=1e9,id=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const cx=gx+i,cy=gy+j,px=(cx+.15+hh(cx,cy,s)*.7)*S,py=(cy+.15+hh(cx,cy,s+1)*.7)*S,d=Math.hypot(X+.5-px,Y+.5-py);if(d<d1){d2=d1;d1=d;id=cx*977+cy}else if(d<d2)d2=d}return[d2-d1,id]}
+const tone=(id,s,a)=>1+(hh(id%9973,(id/9973|0)+s,s)-.5)*a;
+// herringbone of 8x4 blocks in staggered 8-wide columns
+function herring(X,Y){const c=X>>3,x=X&7,d=Y+(c&1?7-x:x)+(c&1?2:0);return[(d&3)===0||x===0,c*977+(d>>2)]}
+function basket(X,Y){const q=((X>>3)+(Y>>3))&1,x=X&7,y=Y&7;return[x===0||y===0||(q?y===4:x===4),((Y>>3)*977+(X>>3))*2+(q?y>>2:x>>2)]}
+function special(el,mat,v,c,s){const A=(X,Y)=>[X&15,Y&15];
+ if(el==='Stone'){const m=!!ELEM.Stone.mats[mat][2],S=(X,Y)=>softStone(X,Y,c,s,m);
+  if(v==='rubble')return(X,Y)=>{const[e,id]=vor(X,Y,7,s);return sc(S(X,Y),e<1.1?.66:e<2?.9:tone(id,s,.24))};
+  if(v==='setts')return(X,Y)=>{const r=Math.floor(Y/5),o=(hh(r,0,s)*6)|0,xx=X+o,cw=6,sx=Math.floor(xx/cw);return sc(S(X,Y),Y%5===0||xx%cw===0?.7:tone(r*977+sx,s,.2))};
+  if(v==='ashlar')return(X,Y)=>{const r=Y>>3,xx=X+(r&1?8:0),y=Y&7,x=xx&15;return sc(S(X,Y),y===0||x===0?.8:y===1||x===1?1.07:tone(r*977+(xx>>4),s,.08))};
+  if(v==='crazy')return(X,Y)=>{const[e,id]=vor(X,Y,10,s);return sc(S(X,Y),e<1.1?1.12:tone(id,s,.12))};
+  if(v==='herring')return(X,Y)=>{const[j,id]=herring(X,Y);return sc(S(X,Y),j?.86:tone(id,s,.08))};
+  if(v==='basket')return(X,Y)=>{const[j,id]=basket(X,Y);return sc(S(X,Y),j?.86:tone(id,s,.08))};
+  if(v==='rosette')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx);let k=S(X,Y);if(x===0||y===0)return sc(k,.86);if(Math.abs(r-6)<.6)return mx(k,GOLDL,.35);if(r<5.5&&Math.cos(a*6)>.2)return mx(k,[252,236,170],.3+(r<2?.2:0));return k};
+  if(v==='lattice')return(X,Y)=>{const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;let k=S(X,Y);if(u===0&&w===0)return mx(k,GOLDL,.6);if(u===0||w===0)return sc(k,.84);return k};
+  if(v==='checker')return(X,Y)=>{const a=Math.floor((X+Y)/8),b=Math.floor((X-Y)/8),q=(a+b)&1,u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;let k=S(X,Y);if(q)k=sc(mx(k,[200,198,192],.5),.96);if(u===0||w===0)k=mx(k,GOLDL,.25);return k};
+  if(v==='medallion')return(X,Y)=>{const x=X&31,y=Y&31,dx=x-15.5,dy=y-15.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx);let k=S(X,Y);if(Math.abs(r-12)<.7||Math.abs(r-9.5)<.6)return mx(k,GOLDL,.38);if(r<9&&Math.abs(Math.cos(a*4))*9>r*1.4)return mx(k,[214,190,150],.28);if(r<1.5)return mx(k,GOLDL,.5);return k};
+  if(v==='quatre')return(X,Y)=>{const[x,y]=A(X,Y);let k=S(X,Y),inn=false,ring=false;for(const[a,b]of[[8,4.5],[8,11.5],[4.5,8],[11.5,8]]){const d=Math.hypot(x+.5-a,y+.5-b);if(d<3.4)inn=true;else if(d<4.2)ring=true}if(inn)return mx(k,[232,230,222],.3);if(ring)return mx(k,GOLDL,.28);return x===0||y===0?sc(k,.88):k};
+  if(v==='band')return(X,Y)=>{const y=Y&15;let k=S(X,Y);if(y>=6&&y<=9)return y===6||y===9?mx(k,GOLDL,.28):mx(k,[232,230,222],.3);return k};
+  if(v==='stars')return(X,Y)=>{const[x,y]=A(X,Y),dx=Math.abs(x-7.5),dy=Math.abs(y-7.5);let k=S(X,Y);if((X&31)===0||(Y&31)===0)return mx(k,GOLDL,.3);if(dx<.6&&dy<2.6||dy<.6&&dx<2.6)return mx(k,GOLDL,.6);return k};
+  if(v==='sectile')return(X,Y)=>{const[x,y]=A(X,Y),dx=Math.abs(x-7.5),dy=Math.abs(y-7.5);let k=S(X,Y);if(Math.max(dx,dy)<2.6)return mx(k,[232,230,222],.35);if(dx+dy<7)return mx(k,[92,124,110],.4);if(Math.abs(dx+dy-7)<.6)return mx(k,GOLDL,.3);return x===0||y===0?sc(k,.85):k}}
+ if(el==='Wood'){const W0=(X,Y,q)=>woodT(X,Y,c,s+q);
+  if(v==='rough')return(X,Y)=>{const r=Math.floor((Y+Math.floor(hh(X>>5,Y>>3,s)*3))/6),y=(Y+Math.floor(hh(X>>5,Y>>3,s)*3))%6;let k=sc(W0(X,Y,r*5),tone(r,s,.2));if(y===0)k=sc(k,.62);if(hh(X>>1,Y,s+9)>.985)k=sc(k,.7);return k};
+  if(v==='logs')return(X,Y)=>{const y=Y&7,f=Math.sin(Math.PI*(y+.5)/8);let k=sc(W0(X,Y,(Y>>3)*7),.72+.36*f);if(y===0)k=mx(k,[52,36,24],.6);return k};
+  if(v==='herring')return(X,Y)=>{const[j,id]=herring(X,Y);return sc(W0(X,Y,id%7),j?.72:tone(id,s,.12))};
+  if(v==='pegged')return(X,Y)=>{const r=Y>>4,y=Y&15,xx=(X+r*11)&31;let k=sc(W0(X,Y,r*3),tone(r,s,.08));if(y===15)return sc(k,.74);if(xx===0)return sc(k,.76);if((xx===2||xx===29)&&(y===4||y===11))return sc(k,.5);return k};
+  if(v==='deck')return(X,Y)=>{const r=Y>>3,y=Y&7,xx=(X+r*13)&31;let k=sc(W0(X,Y,r*3),tone(r*31+((X+r*13)>>5),s,.1));if(y===7||xx===0)return mx(k,[24,20,16],.75);return k};
+  if(v==='basket')return(X,Y)=>{const[j,id]=basket(X,Y);return sc(W0(X,Y,id%5),j?.72:tone(id,s,.12))};
+  if(v==='chevron')return(X,Y)=>{const cc=X>>3,x=X&7,d=Y+(cc&1?7-x:x);return sc(W0(X,Y,(d>>2)%9),(d&3)===0||x===0&&cc&1?.72:tone(cc*977+(d>>2),s,.12))};
+  if(v==='brick')return(X,Y)=>{const r=Y>>2,xx=X+(r&1?4:0);return sc(W0(X,Y,(xx>>3)%7),(Y&3)===0||(xx&7)===0?.72:tone(r*977+(xx>>3),s,.12))};
+  if(v==='inlay')return(X,Y)=>{const y=Y&15;let k=sc(W0(X,Y,(Y>>3)*3),tone(Y>>3,s,.06));if((Y&7)===7)k=sc(k,.8);if(y===2||y===13)k=mx(k,[220,186,126],.45);return k};
+  if(v==='parquet')return(X,Y)=>{const[x,y]=A(X,Y),e=Math.min(x,y,15-x,15-y),u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;let k=W0(X,Y,((X>>4)+(Y>>4))*3);if(e===0)return sc(k,.66);if(e===1)return mx(k,[220,186,126],.3);if(u===0||w===0)return sc(k,.8);return k};
+  if(v==='marq')return(X,Y)=>{const x=X&15,y=Y&15,dx=Math.abs(x-7.5),dy=Math.abs(y-7.5),d=dx+dy;let k=W0(X,Y,0);if(Math.abs(d-6)<.6)return mx(k,GOLDL,.5);if(d<6)return(dx<.6||dy<.6)?mx(k,GOLDL,.35):mx(woodT(X,Y,WOOD.pine,s+3),k,.25);return x===0||y===0?sc(k,.7):k};
+  if(v==='fret')return(X,Y)=>{const x=X&15,y=Y&15,qx=x<8?x:15-x,qy=y<8?y:15-y,on=KEYQ[qy][qx]==='#'||KEYQ[qx][qy]==='#'&&qx===qy;let k=W0(X,Y,0);if(on)return mx(woodT(X,Y,WOOD.ash,s+4),k,.35);return x===0||y===0?sc(k,.72):k}}
+ if(el==='Metal'){const M=(X,Y)=>metalOf(mat,X,Y);
+  if(v==='grate')return(X,Y)=>{const x=X&3,y=Y&3;let k=M(X,Y);if(x===0||y===0)return sc(k,x===0&&y===0?1.25:1.08);return sc(k,x===3||y===3?.32:.45)};
+  if(v==='hammer')return(X,Y)=>{const d=vn(X/2.6,Y/2.6,s+40),k=M(X,Y),e=Math.min(X&31,Y&31);if(e===0)return sc(k,.62);return sc(k,.84+d*.3+(hh(X,Y,s)>.96?.1:0))};
+  if(v==='tread')return(X,Y)=>{const b=((X>>2)+(Y>>2))&1,x=X&3,y=Y&3,k=M(X,Y),lug=b?x===y:x+y===3;return lug?sc(k,1.28):(b?x===y+1:x+y===4)?sc(k,.78):k};
+  if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.78);if(x>=3&&x<=12&&(y===4||y===8||y===12))return sc(k,.3);if(x>=3&&x<=12&&(y===5||y===9||y===13))return sc(k,1.22);return k};
+  if(v==='filigree')return(X,Y)=>{const[x,y]=A(X,Y),e=Math.min(x,y,15-x,15-y),k=M(X,Y);if(e===0)return sc(k,.6);if(e===1)return sc(k,x===1||y===1?1.2:.85);const cx=x<8?2:13,cy=y<8?2:13,r=Math.hypot(x-cx,y-cy);if(Math.abs(r-4.2)<.5&&Math.abs(x-cx)<5&&Math.abs(y-cy)<5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
+  if(v==='grille')return(X,Y)=>{const u=((X+Y)%6+6)%6,w=((X-Y)%6+6)%6,k=M(X,Y);if(u===0&&w===0)return sc(k,1.4);if(u===0||w===0)return sc(k,.74);return k};
+  if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),k=sc(M(X,Y),1.03);if(x===0||y===0)return sc(k,.72);if(Math.abs(r-6.5)<.5)return sc(k,.82);if(r>2&&r<6&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
+  if(v==='scale')return(X,Y)=>{const r=Y>>2,u=(X+(r&1?3:0))%6,y=Y&3,d=Math.hypot(u-2.5,y+.5),k=M(X,Y);if(Math.abs(d-2.7)<.55)return sc(k,.72);if(d<2)return sc(k,1.1);return k};
+  if(v==='runes')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y),cx=X>>4,cy=Y>>4;if(x===0||y===0)return sc(mx(k,VOID,.25),.85);const gx=[4,8,11],seg=(a,b,i)=>hh(cx*7+i,cy*5,s)>.45&&a&&b;const on=seg(x===4&&y>=4&&y<=11,1,0)||seg(x===11&&y>=4&&y<=11,1,1)||seg(y===4&&x>=4&&x<=11,1,2)||seg(y===11&&x>=4&&x<=11,1,3)||seg(x===y&&x>=4&&x<=11,1,4)||seg(x+y===15&&x>=4&&x<=11,1,5)||seg(y===8&&x>=4&&x<=11,1,6);return on?mx(k,VOID,.3):k};
+  if(v==='veined')return(X,Y)=>{const k=M(X,Y),d=Math.abs(vn(X/9,Y/9,s+50)-.5);return d<.018?mx(k,VOID,.45):d<.04?mx(k,VOID,.15):k}}
+ return null}
 const cellE=(X,Y)=>{const x=X&15,y=Y&15;return[x,y,Math.min(x,y,15-x,15-y)]};
 const softStone=(X,Y,c,s,m)=>m?mx(stoneT(X,Y,c,11+s),sc(c,1.04),.45):mx(stoneT(X,Y,c,s),sc(c,.93+fbm(X/14,Y/14,s+60)*.14),.4);
 function metalOf(mat,X,Y){const m=metalCore(X,Y),t=ELEM.Metal.mats[mat][1];if(!t)return m;if(mat==='umbra')return sc(mx(m,t,.82),.92);if(mat==='gold')return mx(m,t,.8);return mx(m,t,.55)}
-function genTex(el,mat,v,wall){const E=ELEM[el],M=E.mats[mat],c=M[1],s=(Object.keys(E.mats).indexOf(mat)+1)*7;
+function genTex(el,mat,v,wall){const E=ELEM[el],M=E.mats[mat],c=M[1],s=(Object.keys(E.mats).indexOf(mat)+1)*7;{const f=special(el,mat,v,c,s);if(f)return f}
  if(el==='Earth'){const worn=v==='worn';
   if(mat==='grass')return wall?(X,Y)=>bushT(X,Y):(X,Y)=>{const g=grassT(X,Y);if(!worn)return g;const f=fbm(X/9,Y/9,64);return f>.56?mx(g,soilT(X,Y),Math.min(1,(f-.56)*5)):g};
   if(mat==='dirt')return wall?(X,Y)=>{let k=soilT(X,Y);k=sc(k,.86);return Y%5===0&&hh(X>>2,Y,13)>.5?sc(k,.85):k}:(X,Y)=>{const k=soilT(X,Y);return worn&&Math.abs(vn(X/40,Y/6,65)-.5)<.06?sc(k,.88):k};
@@ -126,7 +178,7 @@ function genTex(el,mat,v,wall){const E=ELEM[el],M=E.mats[mat],c=M[1],s=(Object.k
   if(e===0)return sc(mx(k,[90,110,140],.3),.85);if(y===8)return sc(mx(k,[90,110,140],.18),.92);return k}}
  return(X,Y)=>{let k=sc(c,(.9+fbm(X/8,Y/8,32+s)*.14)*((X+Y)&1?.98:1.02));
   if(wall)return sc(k,.86+.14*Math.sin(X/2.4));if(v==='diamond'){const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;if(u===0||w===0)k=mx(k,[176,140,82],.22);else if(u===4&&w===4)k=mx(k,[196,160,96],.3)}return k}}
-for(const el in ELEM)for(const mat in ELEM[el].mats)for(const v in ELEM[el].vars)for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
+for(const el in ELEM)for(const mat in ELEM[el].mats)for(const v in varsOf(el,mat))for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
  if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k)}
 const OLDK={marble:'stone.aur.block',dmarble:'stone.ver.block',flag:'stone.sand.flags',stone:'stone.grey.block.w',gstone:'stone.gold.block.w',pillar:'stone.aur.block.w',pave:'stone.lime.paving',omarble:'stone.aur.key',gtile:'stone.ver.key',bkmarble:'stone.night.block',bkslab:'stone.night.slabs',slab:'stone.grey.slabs',
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.walnut.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.smooth.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mpanel:'metal.steel.panel.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',

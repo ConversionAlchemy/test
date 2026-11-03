@@ -22,7 +22,7 @@ const TNAME={marble:'White marble',dmarble:'Green marble',flag:'Flagstone',plank
  stone:'Stone',gstone:'Gold stone',pillar:'Pillar',berm:'Earth bank',rail:'Fence',wood:'Oak',dwood:'Walnut',ewood:'Ebony',metal:'Metal',mplate:'Riveted plate',iron:'Iron',brass:'Brass',mpanel:'Metal panel',bush:'Hedge'};
 TNAME.slab='Stone slabs';
 for(const k in CATN){const[el,mat,v,w]=CATN[k];if(w)WMAT[k]=el==='Stone'?1:el==='Metal'?3:el==='Earth'&&mat==='dirt'?1:2;if(el==='Metal')SHINE[k]=mat==='umbra'?25:mat==='gold'||mat==='brass'?80:60;else if(el==='Stone'&&ELEM.Stone.mats[mat][2])SHINE[k]=mat==='night'?22:28;if(!w&&(el==='Earth'||el==='Cloth'))NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
-const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w]=c;return ELEM[el].mats[mat][0]+' · '+ELEM[el].vars[v]+(w?' wall':'')};
+const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w]=c;return ELEM[el].mats[mat][0]+' · '+varsOf(el,mat)[v]+(w?' wall':'')};
 const tName=k=>MODS.tex[k]?MODS.tex[k].name:catName(k)||TNAME[k]||k;
 const TS=32,enc=a=>{let s='';for(const v of a)s+=(v<16?'0':'')+v.toString(16);return s},dec=s=>{const a=new Uint8ClampedArray(s.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(s.substr(i*2,2),16);return a};
 const rootOf=k=>MODS.tex[k]?MODS.tex[k].from:k;
@@ -65,7 +65,7 @@ function tilePicker(host,onPick,isOn){host.innerHTML='';host.classList.add('mk')
  const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)),els=[...EORDER,...(mods.length?['Mods']:[])];
  row('Element',els.map(e=>[e,e]),PK.el,v=>{PK.el=v;if(v==='Mods')PK.mat=mods[0];else{PK.mat=Object.keys(ELEM[v].mats)[0];PK.v=Object.keys(ELEM[v].vars)[0]}});
  if(PK.el==='Mods'){if(!MODS.tex[PK.mat])PK.mat=mods[0];row('Texture',mods.map(k=>[k,MODS.tex[k].name]),PK.mat,v=>PK.mat=v)}
- else{const E=ELEM[PK.el];if(!E.mats[PK.mat])PK.mat=Object.keys(E.mats)[0];if(!E.vars[PK.v])PK.v=Object.keys(E.vars)[0];row('Material',Object.entries(E.mats).map(([k,m])=>[k,m[0]]),PK.mat,v=>PK.mat=v);row('Variation',Object.entries(E.vars),PK.v,v=>PK.v=v);
+ else{const E=ELEM[PK.el];if(!E.mats[PK.mat])PK.mat=Object.keys(E.mats)[0];if(!varsOf(PK.el,PK.mat)[PK.v])PK.v=Object.keys(E.vars)[0];row('Material',Object.entries(E.mats).map(([k,m])=>[k,m[0]]),PK.mat,v=>PK.mat=v);row('Variation',Object.entries(varsOf(PK.el,PK.mat)),PK.v,v=>PK.v=v);
   const d=mk('div');d.append(mk('span','ml','Type'));const tb=mk('span');tb.style.cssText='display:flex;gap:3px';for(const[w,n]of[[0,'Floor'],[1,'Wall']]){const b=mk('button',null,n);b.style.cssText='font-size:15px;padding:0 6px;line-height:18px';if(PK.w===w)b.classList.add('on');b.onclick=()=>{PK.w=w;tilePicker(host,onPick,isOn);onPick(pkKey(),true)};tb.appendChild(b)}d.append(tb,mk('span'));host.appendChild(d)}
  const k=pkKey(),pv=mk('div');pv.id='tpv';pv.style.cssText='height:74px;display:flex;align-items:center;justify-content:center;cursor:var(--c-grab)';const c=swatch(bake(k),32,32);c.style.cssText='width:64px;height:64px;image-rendering:pixelated;outline:'+(isOn(k)?'2px solid #e0a040':'1px solid #000');pv.appendChild(c);pv.onpointerdown=e=>{e.preventDefault();onPick(k,false)};host.appendChild(pv);
  if(RECENT.length){const r=mk('div');r.style.cssText='display:flex;gap:3px;justify-content:center;height:auto;padding:3px 0;cursor:var(--c-arrow)';for(const q of RECENT){const sw=swatch(bake(q),16,16);sw.title=tName(q);sw.style.cssText='width:24px;height:24px;image-rendering:pixelated;cursor:pointer;outline:'+(isOn(q)?'2px solid #e0a040':'1px solid #000');sw.onpointerdown=e=>{e.preventDefault();pkFrom(q);tilePicker(host,onPick,isOn);onPick(q,true)};r.appendChild(sw)}host.appendChild(r)}}
@@ -79,10 +79,10 @@ const natK=k=>{const m=MODS.tex[k];if(m&&m.rec)return m.rec.mat==='grass'||m.rec
 function autoOut(){let nat=0,open=0,cells=0,bd=0,bo=0;for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){const k=map[y][x],w=!!WMAT[k]||/[HNS]$/.test(k)&&!!WMAT[k.slice(0,-1)];if(!w){open++;if(natK(k))nat++}if(x===0||y===0||x===CW-1||y===CH-1){bd++;if(!w||k==='bush')bo++}}return nat/(open||1)>.3||bo/(bd||1)>.3}
 function envCalc(){const e=ENVSET[curMap]||'auto';OUTD=e==='out'||e==='auto'&&autoOut()}
 // the Atelier: every element's materials in alcoves, walls above floors, with doors and furniture
-const ATL=(()=>{const rows=EORDER.map(el=>{const E=ELEM[el],nv=Object.keys(E.vars).length;return{el,mats:Object.keys(E.mats),vars:Object.keys(E.vars),w:Object.keys(E.mats).length*(nv+1)}});return{rows,CW:Math.max(...rows.map(r=>r.w))+3,CH:2+rows.length*4+1}})();
+const ATL=(()=>{const rows=EORDER.map(el=>{const E=ELEM[el],mats=Object.keys(E.mats),vars=mats.map(m=>Object.keys(varsOf(el,m)));return{el,mats,vars,w:vars.reduce((a,v)=>a+v.length+1,0)}});return{rows,CW:Math.max(...rows.map(r=>r.w))+3,CH:2+rows.length*4+1}})();
 MAPSZ.atelier=[ATL.CW,ATL.CH];TITLE.atelier='Fluoria · The Atelier';
 NBM.atelier=()=>{const g=Array.from({length:ATL.CH},(_,y)=>Array.from({length:ATL.CW},(_,x)=>x===0||y===0||x===ATL.CW-1||y===ATL.CH-1?'stone.grey.block.w':'stone.lime.paving'));
- ATL.rows.forEach((r,i)=>{const y0=2+i*4;let x=2;for(const m of r.mats){r.vars.forEach((v,j)=>{const b=r.el.toLowerCase()+'.'+m+'.'+v;g[y0][x+j]=b+'.w';g[y0+1][x+j]=b;g[y0+2][x+j]=b});x+=r.vars.length+1}});
+ ATL.rows.forEach((r,i)=>{const y0=2+i*4;let x=2;r.mats.forEach((m,mi)=>{const vs=r.vars[mi];vs.forEach((v,j)=>{const b=r.el.toLowerCase()+'.'+m+'.'+v;g[y0][x+j]=b+'.w';g[y0+1][x+j]=b;g[y0+2][x+j]=b});x+=vs.length+1})});
  const fx=ATL.rows[0].w+3,fy=3;[['table',2],['desk',2],['edesk',2],['books',2],['shelf',2],['chest',1],['rack',2],['seat',1],['wagon',2]].reduce((x,[k,n])=>{for(let i=0;i<n;i++)g[fy][x+i]=k;return x+n+1},fx);
  const dy=2+4,dx=ATL.rows[1].w+3;for(let x=dx;x<dx+Object.keys(DOORK).length*2+1&&x<ATL.CW-1;x++)g[dy][x]=(x-dx)%2?'stone.lime.paving':'stone.grey.block.w';paintAll((cx,cy)=>g[cy][cx])};
 NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i)=>{const cx=dx+1+i*2;if(cx<ATL.CW-1)mkDoor(k,cx*T,dy*T+T/2+4,0)});const t=U('Curator',null,'civ',2,1.5,0,null,'Clerk')};

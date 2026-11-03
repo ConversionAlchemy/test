@@ -184,6 +184,10 @@ Tiles are organised as Element → Material → Variation, and every one can be 
 - Stone: Greystone, Sandstone, Limestone, Goldstone, Aurelian marble, Verdant marble, Nightstone — Block, Flagstones, Slabs, Paving, Key tile. Key tiles draw a soft meander band along the edge of the floor area.
 - Wood: Oak, Pine, Teak, Walnut, Mahogany, Ebony — Planks, Boards, Panelled.
 - Cloth: Crimson, Verdant, Imperial purple — Plain, Bordered, Diamond weave.
+Each stone, wood and metal also has two variations of its own, crude for common materials and ornate for rare ones:
+- Stone: Greystone rubble and setts; Sandstone ashlar and crazy paving; Limestone herringbone and basketweave; Goldstone rosette and lattice; Aurelian marble checker and medallion; Verdant marble quatrefoil and banded; Nightstone starfield and opus sectile.
+- Wood: Pine rough sawn and split logs; Oak herringbone and pegged boards; Teak ship deck and basketweave; Walnut chevron and brick parquet; Mahogany strung inlay and Versailles; Ebony marquetry and fretwork.
+- Metal: Iron cast grating and hammered; Steel tread plate and louvred; Brass filigree and studded grille; Gold engraved and scaled; Umbra runed and veined.
 The old texture names still work and now draw with their new tile. The Atelier map shows every tile, door and piece of furniture.
 
 Plank floors run as full-length boards across each floor area. Stone slabs is a floor with one bevelled slab per cell.
