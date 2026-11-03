@@ -202,7 +202,7 @@ Plank floors run as full-length boards across each floor area. Stone slabs is a 
 - Interior / Outdoor / Auto (saved with the map). Interior maps darken the inside of thick walls; outdoor maps show wall tops. Auto picks outdoor when much of the floor is grass or earth or the map edge is open. Every wall, hedges included, casts the same shadow onto the floor.
 - Wall tops (on by default) shows the tops of all walls while editing. It's a view setting only.
 - WASD pans the view.
-- Clean: each tool has its own cursor with a yellow working tip. Vacuum (hold) pulls loose debris and spent shot in with a hum, and every piece it catches rattles, so silence means the area is clear. Sponge works as you move it: wet scrub sounds and a faint damp trail that dries within a few seconds; it lifts blood, scorch, flames and stains, squeaks once when a cell comes clean, and keeps squeaking softly as you rub clean floor. Wand highlights the cells under it; drag over an area and on release each damaged cell is restored in turn with one chime and lingering coloured sparkles. Brush size sets the tool size.
+- Clean: each tool has its own cursor with a yellow working tip. Vacuum (hold) pulls loose debris, spent shot, the specks and grit thrown out by blasts, and lingering smoke and dust in with a hum; every piece it catches rattles, so silence means the area is clear. Broad scorch and blood are left for the sponge. Sponge works as you move it and puts out fire and embers with a hiss and a puff of steam: water sounds and a faint damp trail that dries within a few seconds; it lifts blood, scorch, flames and stains, squeaks once when a cell comes clean, and keeps squeaking softly as you rub clean floor. Wand highlights the cells under it; drag over an area and on release each damaged cell is restored in turn with one chime and lingering coloured sparkles. Brush size sets the tool size.
 - Stone and metal walls add a soft low thud when placed.
 - Placing tiles gives a soft dust puff in the tile's colours and a quiet sound for its material (stone, tile, wood, metal, cloth, earth). Fills ripple out from where you clicked.
 - The grid shows on light and dark floors; the hovered cell has a black and white border.
@@ -221,3 +221,6 @@ Plank floors run as full-length boards across each floor area. Stone slabs is a 
 - Previews show the texture tiled, in a room with a unit for scale, and in the dark. Compare adds the original.
 - Unsaved edits stay as drafts while you switch textures. Saved mods appear in the Map Editor straight away.
 - Copy code gives a short snippet of the texture; Load code reads one back.
+
+
+Sponge sounds use short clips from freesound.org: "working with a plunger" by tosha73, "tube squeak multiple" by uwesoundboiz and "shoe sole rubber squeak" by pipelyd.
