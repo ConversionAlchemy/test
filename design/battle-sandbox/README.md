@@ -171,3 +171,24 @@ With several units selected, right-clicking one of them opens a menu for all of 
 While you control a unit (E), clicking a name label fires instead of selecting, and a right-click or stray click on the floor does not drop it; Esc does. A unit you let go of stands still for a second before acting on its own again.
 
 V: the selected units look at the cursor (Shift+V: all face that way). A faint blue line shows it. Units on a move order look there when they arrive; your idle units hold the look until an enemy shows; autonomous units hold it for 4 s. A move order that stops getting closer for about a second ends where the unit stands, so crowds settle instead of shuffling.
+
+## Editors
+
+The top bar switches between Play, Map Editor and Asset Editor. Both editors pause the game and turn the AI off; Play turns it back on if it was on.
+
+Base maps and textures can't be changed. Saving one always makes a mod: a separate copy marked "Mod" that remembers what it came from. Mods are kept in the browser and can be exported, imported or copied as code.
+
+**Map Editor.** Map tools sits above Weapons, with Floors, Walls, Doors, Furniture and Size.
+- Pick a tile to arm it as a brush. Drag to paint, Ctrl-drag to fill a rectangle, Shift-click to flood-fill, and right-click to paint the map's main floor. Brush sizes are 1, 2 or 3 cells.
+- Click a door type onto a doorway to place a door; it lines up with the wall. Right-clicking a door gives Locked and key options.
+- Ctrl+Z and Ctrl+Y undo and redo painting. Esc drops the brush.
+- Weapons, Cover, Items, Tethers and Markers work as in Play. Items (Solari and ammo) can be dropped on a unit, onto furniture or onto the floor. Dropping a weapon or item on a chest, shelf or desk stores it there.
+- Save writes the current scenario: tiles, units with their gear and status, doors, cover, items and containers. On a base map, Save makes a new mod map. New starts a blank room.
+
+**Asset Editor.** Textures are listed as Floors, Walls and Furniture, each with base (locked) and mod entries.
+- Tools: pen, fill, line, rectangle (Shift for filled), pick (Alt-click with any tool also picks), select, and mirror X/Y. Arrow keys shift the texture to check seams.
+- Hue, Saturation and Light sliders adjust the whole texture. Click a palette colour to paint with it; right-click it to recolour every pixel close to it.
+- Patterns: the base patterns behind the built-in textures, plus your own. Click one to lay it over the texture (Overlay keeps the colours, Fill uses the texture's own tone ramp), at 1× or 2× with optional variation. Select an area and save it as a pattern.
+- Previews show the texture tiled, in a room with a unit for scale, and in the dark. Compare adds the original.
+- Unsaved edits stay as drafts while you switch textures. Saved mods appear in the Map Editor straight away.
+- Copy code gives a short snippet of the texture; Load code reads one back.

@@ -54,16 +54,45 @@
 #sm .menu button{border:0;border-bottom:1px solid #333;text-align:left;background:#232323}
 #sm .menu button:hover{background:#3a3a3a}
 #sm .menu button.on{background:#3a3a3a;color:#f2efe6}
-#sm .menu .mh{padding:3px 8px;color:#8f8b80;font-size:14px}</style>
-<div id="sm">
+#sm .menu .mh{padding:3px 8px;color:#8f8b80;font-size:14px}#sm[data-mode="asset"] .side>.sec:not([data-m="asset"]),#sm:not([data-mode="asset"]) .side>.sec[data-m="asset"],#sm:not([data-mode="map"]) .side>.sec[data-m="map"],#sm:not([data-mode="play"]) .play-only{display:none}
+#sm:not([data-mode="play"]) .hint{visibility:hidden}
+#sm .sec.sub{margin-left:10px;border-top:0;padding-top:0}#sm .sec.sub .sh{grid-template-columns:24px 1fr}
+#sm .ef{display:flex;flex-direction:column;gap:4px;font-size:16px}#sm .ef .er{display:flex;gap:4px;align-items:center;flex-wrap:wrap}#sm .ef .er>span{color:#8f8b80;min-width:44px}
+#sm .ef button{font-size:16px;padding:0 6px}#sm .ef input[type=text],#sm .ef input[type=number]{font-size:16px;min-width:0;flex:1;padding:0 4px}#sm .ef input[type=number]{max-width:56px}
+#sm .ef input[type=range]{flex:1;min-width:0;accent-color:#c9c5b8}#sm .ef textarea{font:14px/1.1 monospace;background:#181818;color:#c9c5b8;border:1px solid #444;height:70px;resize:vertical;width:100%}
+#sm .wp>div .c.md{color:#7fb2e0;font-size:14px}#sm .wp>div .c.lk{color:#6f6b62;font-size:14px}#sm .wp>div.on .c{color:#f2efe6}
+#sm .wp .isep{height:1px;background:#3a3a3a;border:0;padding:0;margin:2px 0}
+#sm #ae{position:absolute;inset:0;display:none;overflow:auto;padding:10px;gap:8px;flex-direction:column;align-items:flex-start}
+#sm[data-mode="asset"] #ae{display:flex}#sm[data-mode="asset"] .stage{visibility:hidden}
+#sm #ae .at{display:flex;gap:3px;flex-wrap:wrap;align-items:center;font-size:16px}#sm #ae .at button{font-size:16px;padding:0 6px}
+#sm #ae .am{display:flex;gap:8px;align-items:flex-start}#sm #aec{image-rendering:pixelated;cursor:crosshair;border:1px solid #000;touch-action:none}
+#sm #ae .pal{display:grid;grid-template-columns:repeat(2,18px);gap:3px}#sm #ae .pal span{width:18px;height:18px;border:1px solid #000;cursor:pointer}#sm #ae .pal span.on{outline:2px solid #fff}
+#sm #ae .cur{width:26px;height:26px;border:1px solid #000;display:inline-block;cursor:pointer;vertical-align:middle}
+#sm #ae .pv{display:flex;gap:8px;flex-wrap:wrap}#sm #ae .pv canvas{width:192px;height:192px;image-rendering:pixelated;border:1px solid #000}
+#sm #ae input[type=color]{width:0;height:0;padding:0;border:0;opacity:0;position:absolute}
+</style>
+<div id="sm" data-mode="play">
  <header><span>Goldbank · Back room</span><span id="snd" style="cursor:pointer">♪</span></header>
  <div class="bar" id="bar"></div>
  <div class="main">
   <div class="view"><div class="stage" id="stage"><canvas id="sb"></canvas></div></div>
   <div class="side">
+   <div class="sec" data-k="mt" data-m="map"><b class="sh">Map tools</b><div class="ef" id="mfile"></div>
+    <div class="sec sub" data-k="mtf"><b class="sh">Floors</b><div class="wp" id="ed-fl"></div></div>
+    <div class="sec sub" data-k="mtw"><b class="sh">Walls</b><div class="wp" id="ed-wl"></div></div>
+    <div class="sec sub" data-k="mtd"><b class="sh">Doors</b><div class="wp" id="ed-dr"></div></div>
+    <div class="sec sub" data-k="mtu"><b class="sh">Furniture</b><div class="wp" id="ed-fu"></div></div>
+    <div class="sec sub" data-k="mts"><b class="sh">Size</b><div class="ef" id="ed-sz"></div></div></div>
+   <div class="sec" data-k="atx" data-m="asset"><b class="sh">Textures</b>
+    <div class="sec sub" data-k="atf"><b class="sh">Floors</b><div class="wp" id="ae-fl"></div></div>
+    <div class="sec sub" data-k="atw"><b class="sh">Walls</b><div class="wp" id="ae-wl"></div></div>
+    <div class="sec sub" data-k="atu"><b class="sh">Furniture</b><div class="wp" id="ae-fu"></div></div></div>
+   <div class="sec" data-k="apt" data-m="asset"><b class="sh">Patterns</b><div class="ef" id="ae-po"></div><div class="wp" id="ae-pt"></div></div>
+   <div class="sec" data-k="aas" data-m="asset"><b class="sh">Asset</b><div class="ef" id="ae-as"></div></div>
    <div class="sec" data-k="wp"><b class="sh">Weapons</b><div class="wp" id="wp"></div></div>
    <div class="sec" data-k="cov"><b class="sh">Cover</b><div class="wp" id="cov"></div></div>
-   <div class="sec" data-k="tools"><b class="sh">Tools</b><div class="wp" id="tools"></div></div>
+   <div class="sec" data-k="it"><b class="sh">Items</b><div class="wp" id="items"></div></div>
+   <div class="sec" data-k="tools"><b class="sh">Tethers</b><div class="wp" id="tools"></div></div>
    <div class="sec" data-k="mk"><b class="sh">Markers</b><div class="wp mk"><div><span class="ml">Name</span><input id="fn" value="Edda"></div><div><span class="ml">Faction</span><select id="fnat"></select><span class="c">▾</span></div><div><span class="ml">Type</span><select id="fu"></select><span class="c">▾</span></div><div><span class="ml">Arms</span><select id="fw"></select><span class="c">▾</span></div><div id="tpr"><canvas id="tp" width="17" height="17"></canvas><canvas id="dice" width="9" height="9"></canvas></div></div></div>
    <div class="sec" data-k="insp"><b class="sh" id="ihd">Inspector</b><div id="insp"></div></div>
   </div>

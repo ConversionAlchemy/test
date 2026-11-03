@@ -1,6 +1,6 @@
 (()=>{
 const $=id=>document.getElementById(id);
-let S=2;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/2,N=W*H,NB=BW*BH;
+let S=2,EM=null;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/2,N=W*H,NB=BW*BH;
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
 let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),OBJC=new Uint32Array(N);
 const FX={blood:new Float32Array(NB),fire:new Float32Array(NB),smoke:new Float32Array(NB)};
@@ -929,7 +929,7 @@ function veil(){const G=24,gw=(W/G|0)+3,gh=(H/G|0)+3,ox=tick/500,fx0=Math.floor(
  for(let Y=0;Y<H;Y++){const gy=Y/G,y0=gy|0,ty=gy-y0;for(let X=0;X<W;X++){const h=HZ[(Y>>1)*BW+(X>>1)];if(h<.003)continue;const gx=X/G+fr,x0=gx|0,tx=gx-x0;
   const n=(g[y0*gw+x0]*(1-tx)+g[y0*gw+x0+1]*tx)*(1-ty)+(g[(y0+1)*gw+x0]*(1-tx)+g[(y0+1)*gw+x0+1]*tx)*ty;const j=Y*W+X;out[j]=mix(out[j],VEIL,Math.min(.4,h)*(.6+.8*n))}}}
 const cmdMode=b=>b.type==='token'&&!b.direct,canOrder=b=>b.type==='token'&&b.status==='free'&&!b.direct&&(!aiOn||teamOf(b)===aiMe);
-const armed=()=>[...sel].filter(b=>srcInfo(b)&&!cmdMode(b));
+const armed=()=>EM?[]:[...sel].filter(b=>srcInfo(b)&&!cmdMode(b));
 function crosshair(){const ar=armed();if(!ar.length)return;const b0=ar[0],inf=srcInfo(b0),X=Math.round(mouse.x),Y=Math.round(mouse.y),d=Math.hypot(mouse.x-b0.x,mouse.y-b0.y);
  const dry=ar.every(o=>o.held&&CAP[o.held.k]&&!(o.held.ammo>0)),g=Math.max(2,Math.round(d*inf.spread*inf.sp*1.6)),col=dry?rgb(84,82,78):d>inf.range?rgb(150,150,150):inf.heat&&b0.held&&(b0.held.heat||0)>.15?heatCol(b0.held.heat,rgb(250,250,246)):rgb(250,250,246);
  const put=(x,y,c)=>{if(x>=0&&y>=0&&x<W&&y<H)out[y*W+x]=c};
@@ -1414,7 +1414,7 @@ window.addEventListener('pointerup',e=>{holdFire=false;if(pan){pan=null;return}c
  if(pend){clickBody(pend.b,pend.add);pend=null;return}
  if(!drag)return;const b=drag.b,[x,y]=toBoard(e),grp=drag.group.length>1;
  if(drag.panel){if(!inBoard(e)){remove(b);drag=null;return}b.ghost=false;if(solidHits(b,0,0)&&!nudge(b)){remove(b);drag=null;return}}
- if(drag.free){const g=drag.group;drag=null;if(!inBoard(e)){for(const o of g)remove(o);sfx('whoosh');return}for(const o of g){o.ghost=false;if(solidHits(o,0,0)&&!nudge(o))o.ghost=true}sfx('drop');return}
+ if(drag.free){const g=drag.group;drag=null;if(!inBoard(e)){for(const o of g)remove(o);sfx('whoosh');return}if(EM&&g.length===1&&edGive(g[0]))return;for(const o of g){o.ghost=false;if(solidHits(o,0,0)&&!nudge(o))o.ghost=true}sfx('drop');return}
  const t=performance.now(),s=drag.smp.filter(q=>t-q[0]<80);let vx=0,vy=0;if(s.length>1){const a=s[0],z=s[s.length-1],dt=Math.max(8,z[0]-a[0]);vx=(z[1]-a[1])/dt*23;vy=(z[2]-a[2])/dt*23}
  let sp=Math.hypot(vx,vy);drag=null;if(grp||b.type==='slab')return;
  const onTok=()=>bodyAt(Math.round(x),Math.round(y),2,b,o=>o.type==='token'&&o.status!=='dead');
@@ -1463,6 +1463,7 @@ function openMenu(b,e){if(b.type==='token'&&sel.has(b)&&[...sel].filter(o=>o.typ
   const s=document.createElement('select');for(const n of Object.keys(NAT)){const o=document.createElement('option');o.textContent=n;if((b.nat||'Neutral')===n)o.selected=true;s.appendChild(o)}s.onchange=()=>{b.nat=s.value==='Neutral'?null:s.value;closeMenu();listPeople()};menu.appendChild(s);
   if(b.held)it('Drop weapon',0,()=>dropHeld(b))}
  if((b.kind==='grenade'||b.kind==='bomb')&&!b.fuse)it('Pull pin',0,()=>{b.fuse=150;sfx('pin')});
+ if(b.type==='slab'&&!b.free&&!b.fallen){const lv=b.pair?[b,b.pair]:[b];it('Locked',b.locked,()=>{for(const q of lv)q.locked=!b.locked;sfx('lock')});const s=document.createElement('select');for(const n of ['',...Object.keys(NAT)]){const o=document.createElement('option');o.value=n;o.textContent=n?n+' keys':'Auto keys';if((b.keys||'')===n)o.selected=true;s.appendChild(o)}s.onchange=()=>{for(const q of lv)q.keys=s.value||undefined;closeMenu()};menu.appendChild(s)}
  if(b.type==='slab')it('Rotate',0,()=>{b.rot=(b.rot+1)%4;orient(b)});
  it('Delete',0,()=>remove(b));$('sm').appendChild(menu)}
 document.addEventListener('pointerdown',e=>{if(menu&&!menu.contains(e.target)&&e.target!==cv)closeMenu()});
@@ -1542,4 +1543,3 @@ function reset(){ds0Need=true;EDG.clear();{const sz=MAPSZ[curMap]||[18,14];if(sz
 const NAMED={count:{'Lord Vane':'Bank Lord','Archivist Lell':'Head Clerk','Master Orsk':'Banker',Corvo:'Reaper'},vault:{'Master Corwin':'Banker','Manager Vance':'Bank Lord',Dorran:'Merchant',Lyse:'Noble',Sora:'Noble',Merrit:'Merchant'},sewer:{Ash:'Reaper'},bank:{}};
 {const r0=reset;reset=function(){r0();setTimeout(aiSetup,0);for(const t of bodies)if(t.type==='token'&&NAMED[curMap]&&NAMED[curMap][t.name])t.look=NAMED[curMap][t.name];snapDoors();sills();arrivals();exitLabels();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
 reset();loop();
-})();
