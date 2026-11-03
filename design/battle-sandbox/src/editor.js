@@ -51,14 +51,19 @@ function regTex(id){const m=MODS.tex[id],p=m.from;BAKE.delete(id);if(m.rec){TEX[
 for(const id in MODS.tex)try{regTex(id)}catch(e){delete MODS.tex[id]}
 const validK=k=>!!k&&(!!TEX[k]||!!P[k]||/[HNS]$/.test(k)&&!!WMAT[k.slice(0,-1)]);
 function swatch(px,w=28,h=20){const c=mk('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),id=g.createImageData(w,h);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const o=(y*TS+x)*3,i=(y*w+x)*4;id.data[i]=px[o];id.data[i+1]=px[o+1];id.data[i+2]=px[o+2];id.data[i+3]=255}g.putImageData(id,0,0);return c}
-const baseKeys=kind=>Object.keys(KIND).filter(k=>!MODS.tex[k]&&TNAME[k]&&k!=='sill'&&k!=='msill'&&(kind==='furn'?furnK(k):!furnK(k)&&KIND[k]===kind));
+const baseKeys=kind=>Object.keys(KIND).filter(k=>!MODS.tex[k]&&TNAME[k]&&k!=='sky'&&k!=='sill'&&k!=='msill'&&(kind==='furn'?furnK(k):!furnK(k)&&KIND[k]===kind));
 const modKeys=kind=>Object.keys(MODS.tex).filter(k=>kind==='furn'?furnK(k):!furnK(k)&&KIND[k]===kind);
 function texRows(host,kind,click,isOn,badge){host.innerHTML='';const add=(k,mod)=>{const d=mk('div');d.dataset.k=k;d.append(swatch(bake(k)),mk('span','n',tName(k)),mk('span','c '+(mod?'md':'lk'),badge(k,mod)));if(isOn(k))d.classList.add('on');d.onpointerdown=e=>{e.preventDefault();click(k,d)};host.appendChild(d)};
  for(const k of baseKeys(kind))add(k,false);const mods=modKeys(kind);if(mods.length){host.appendChild(mk('div','isep'));for(const k of mods)add(k,true)}}
 
 // maps
+// interior maps hide the inside of thick walls; outdoor maps (and the editor's wall-tops view) show their tops
+const ENVSET={};let edTops=true;
+const natK=k=>{const m=MODS.tex[k];if(m&&m.rec)return m.rec.mat==='grass'||m.rec.mat==='soil';return/^(grass|dirt|crop|sky|bush)$/.test(rootOf(k))};
+function autoOut(){let nat=0,open=0,cells=0,bd=0,bo=0;for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){const k=map[y][x],w=!!WMAT[k]||/[HNS]$/.test(k)&&!!WMAT[k.slice(0,-1)];if(!w){open++;if(natK(k))nat++}if(x===0||y===0||x===CW-1||y===CH-1){bd++;if(!w||k==='bush')bo++}}return nat/(open||1)>.3||bo/(bd||1)>.3}
+function envCalc(){const e=ENVSET[curMap]||'auto';OUTD=e==='out'||e==='auto'&&autoOut()}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
-function regMap(id){const d=MODS.maps[id];MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k});NUM[id]=()=>spawnMap(d)}
+function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k});NUM[id]=()=>spawnMap(d)}
 for(const id in MODS.maps)regMap(id);
 function fillMapSel(){const ms=$('msel');ms.innerHTML='';const g1=mk('optgroup');g1.label='Base';for(const[v,n]of MAPBASE){const o=mk('option',null,n);o.value=v;g1.appendChild(o)}ms.appendChild(g1);const ids=Object.keys(MODS.maps);if(ids.length){const g2=mk('optgroup');g2.label='Mods';for(const id of ids){const o=mk('option',null,MODS.maps[id].name);o.value=id;g2.appendChild(o)}ms.appendChild(g2)}ms.value=curMap}
 fillMapSel();
@@ -68,7 +73,7 @@ function serMap(){const src=map.map((r,y)=>r.map((k,x)=>OM[y]&&OM[y][x]||k)),tex
  for(const b of bodies){if(b.type==='token')B.push({t:'u',name:b.name,nat:b.nat,unit:b.unit,x:r1(b.x),y:r1(b.y),ang:r1(b.ang||0),look:b.look,tone:b.tone,status:b.status,guard:b.guard||undefined,leader:b.leader||undefined,auto:b.auto,neutral:b.neutral||undefined,inv:cp(b.inv),si:b.si>=0?b.si:b.psi??-1,teth:b.tether&&!b.tether.broken?b.tether.kind:undefined});
   else if(b.type==='slab'){if(b.fallen)continue;const a=b.ang;if(a){b.ang=0;orient(b)}B.push({t:'s',mat:b.mat,x:r1(b.x),y:r1(b.y),rot:b.rot,len:b.len,th:b.th,free:b.free||undefined,locked:b.locked||undefined,keys:b.keys||undefined,gold:b.gold||undefined,pair:b.pair?sl.indexOf(b.pair):undefined,col:b.src.map(q=>q[2])});if(a){b.ang=a;orient(b)}}
   else if(b.type==='weapon'){if(WP[b.kind]&&WP[b.kind].bullet)continue;if(b.hidden){B.push({t:'c',cx:b.cells[0][0],cy:b.cells[0][1],name:b.name,inv:cp(b.inv)});continue}B.push({t:'w',kind:b.kind,x:r1(b.x),y:r1(b.y),ang:r1(b.ang||0),ammo:b.ammo,res:b.res,amt:b.amt,inv:cp(b.inv)})}}
- return{v:1,CW,CH,map:src,tex,bodies:B}}
+ return{v:1,CW,CH,env:ENVSET[curMap]||'auto',map:src,tex,bodies:B}}
 function spawnMap(d){const sl=[];for(const o of d.bodies)try{
  if(o.t==='u'){const b=token(o.name,o.nat,o.unit,o.x,o.y,o.guard,null);Object.assign(b,{ang:o.ang||0,look:o.look,tone:o.tone,status:o.status||'free',leader:o.leader,auto:o.auto!==false,neutral:o.neutral});b.inv=cp(o.inv)||[];while(b.inv.length<6)b.inv.push(null);b.si=o.si>=0&&b.inv[o.si]?o.si:-1;b.held=b.si>=0?b.inv[b.si]:null;b.hc=null;if(o.teth)tie(b,o.teth)}
  else if(o.t==='s'){const s=slab(o.mat,o.x,o.y,o.rot,o.len,o.th);if(o.free)s.free=true;s.locked=!!o.locked;if(o.keys)s.keys=o.keys;if(o.gold)s.gold=true;if(o.col&&o.col.length===s.src.length){o.col.forEach((c,i)=>s.src[i][2]=c);s.used=null;s.px=[];orient(s)}sl.push([s,o.pair])}
@@ -83,8 +88,8 @@ const MB={};{const sep=mk('span','sep');const add=(m,t)=>{const b=mk('button',nu
 function setMode(m){if(m===EM)return;const was=EM;if(was==='asset')aeStash();EM=m;$('sm').dataset.mode=m||'play';for(const k in MB)MB[k].classList.toggle('on',k===(m||'play'));
  if(!was&&m){aiWas=aiOn;if(aiOn)aiBtn().click()}if(was&&!m&&aiWas&&!aiOn)aiBtn().click();
  sel.clear();drag=null;charge=null;box=null;moveSel=null;openCrate=null;closeMenu();edBrush=null;edStroke=null;lastHud='';
- if(m==='map'){edSrc=null;fillMapTools()}if(m==='asset')aeOpen();setTimeout(fit,0)}
-{const u0=update;update=function(){if(!EM)return u0();tick++;if(drag)dragStep();if(tick%6===0)hud();doors();dustTick()}}
+ TOPS=m==='map'&&edTops;if(m==='map'){edSrc=null;fillMapTools()}if(m==='asset')aeOpen();setTimeout(fit,0)}
+{const u0=update;update=function(){if(!EM)return u0();tick++;if(drag)dragStep();if(tick%6===0)hud();doors();dustTick();plopTick();edPan()}}
 // placing tiles: a soft puff from the tile's own colours and a quiet sound for its material
 const DUST=[];
 function matOf(k){const m=MODS.tex[k];if(m&&m.rec){const t=m.rec.mat;return t==='wood'||t==='metal'||t==='cloth'?t:t==='grass'||t==='soil'?'soft':t==='marble'?'tile':'stone'}let r=rootOf(k);if(/[HNS]$/.test(r)&&WMAT[r.slice(0,-1)])r=r.slice(0,-1);
@@ -94,15 +99,30 @@ function puff(cx,cy,k,delay=0){if(DUST.length>600)return;const m=matOf(k),n=m===
  if(m!=='metal')for(let i=0;i<3;i++){const a=Math.random()*6.283,j=(cy*T+8)*W+cx*T+8;DUST.push({x:cx*T+5+Math.random()*6,y:cy*T+5+Math.random()*6,vx:Math.cos(a)*.18,vy:Math.sin(a)*.18-.05,g:0,c:mix(sol[j]?scol[j]:floor[j],rgb(255,250,240),.6),l:0,L:26+Math.random()*10,d:delay,z:3,a:.3})}}
 function dustTick(){for(const d of DUST){if(d.d>0){d.d--;continue}d.x+=d.vx;d.y+=d.vy;d.vy+=d.g;d.vx*=.93;if(!d.g)d.vy*=.93;d.l++}for(let i=DUST.length-1;i>=0;i--)if(DUST[i].l>DUST[i].L)DUST.splice(i,1)}
 let sndT=0,sndRun=0;
-function edSnd(m,p=1,v=1){if(mute||!gest)return;const t=performance.now();if(t-sndT<35)return;sndT=t;p*=.94+Math.random()*.12;try{SVOL=v;
- if(m==='stone'){noise(.09,650*p,1,.24,'lowpass');tone(150*p,.07,.05)}else if(m==='tile'){noise(.03,3600*p,1.2,.12,'bandpass');tone(880*p,.05,.022)}else if(m==='wood'){tone(230*p,.08,.08);noise(.05,1200*p,2,.12,'bandpass')}
- else if(m==='furn'){tone(140*p,.12,.11);noise(.07,700*p,1.5,.16,'bandpass')}else if(m==='metal'){noise(.03,2600*p,2,.08,'bandpass');tone(520*p,.05,.025)}else if(m==='cloth'){noise(.12,420*p,.7,.22,'lowpass')}
- else if(m==='soft'){noise(.08,1800*p,.8,.1,'bandpass');noise(.06,500*p,1,.08,'lowpass')}else if(m==='erase'){noise(.1,2400*p,.6,.06,'highpass')}}catch(e){}SVOL=1}
-function strokeSnd(k,erase){const t=performance.now();if(t-sndT>400)sndRun=0;sndRun++;edSnd(erase?'erase':matOf(k),1+Math.min(.3,sndRun*.025),sndRun>1?.7:1)}
-function cascade(cells,k,x0,y0,erase){let mx=0;for(const[x,y]of cells){const d=Math.abs(x-x0)+Math.abs(y-y0);mx=Math.max(mx,d);puff(x,y,k,d*2)}const n=Math.min(6,mx+1);for(let i=0;i<n;i++)setTimeout(()=>{sndT=0;edSnd(erase?'erase':matOf(k),1+i*.05,.8-i*.08)},i*55)}
+// sounds follow the in-game hits for each material, softened; heavy walls add a low muffled thud
+function edSnd(m,p=1,v=1,heavy){if(mute||!gest)return;const t=performance.now();if(t-sndT<35)return;sndT=t;p*=.94+Math.random()*.12;try{SVOL=v;
+ if(m==='stone'){noise(.09,900*p,1.2,.16,'bandpass');noise(.16,240*p,.8,.16,'lowpass');noise(.03,4200,.7,.04,'highpass')}
+ else if(m==='tile'){noise(.03,3600*p,1.2,.12,'bandpass');tone(880*p,.05,.02);noise(.08,500*p,1,.06,'lowpass')}
+ else if(m==='wood'){tone((190+Math.random()*60)*p,.08,.09);noise(.05,1300*p,2.5,.16,'bandpass');noise(.03,4200,1,.04,'highpass')}
+ else if(m==='furn'){tone(140*p,.12,.1);noise(.07,700*p,1.5,.15,'bandpass')}
+ else if(m==='metal'){const f=(700+Math.random()*200)*p;noise(.04,3200*p,1.5,.12,'bandpass');tone(f,.07,.03);tone(f*1.73,.05,.012);tone(f*.5,.09,.025)}
+ else if(m==='cloth'){noise(.12,420*p,.7,.22,'lowpass')}
+ else if(m==='soft'){noise(.08,1800*p,.8,.1,'bandpass');noise(.06,500*p,1,.08,'lowpass')}
+ else if(m==='erase'){noise(.1,2400*p,.6,.06,'highpass')}
+ if(heavy){tone(64*p,.2,.09);noise(.18,160*p,.7,.2,'lowpass')}}catch(e){}SVOL=1}
+const heavyK=k=>{let r=rootOf(k);if(/[HNS]$/.test(r)&&WMAT[r.slice(0,-1)])r=r.slice(0,-1);return WMAT[r]===1||WMAT[r]===3};
+// strokes show a grey plan first, then the tiles go down one by one on release
+let PLOP=null;const GHOST=new Map();
+function ghostOf(k){if(GHOST.has(k))return GHOST.get(k);const p=bake(k),c=mk('canvas');c.width=c.height=T;const g=c.getContext('2d'),im=g.createImageData(T,T);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const o=(y*TS+x)*3,i=(y*T+x)*4,l=lum(p[o],p[o+1],p[o+2])*.7+60;im.data[i]=im.data[i+1]=im.data[i+2]=l;im.data[i+3]=255}g.putImageData(im,0,0);GHOST.set(k,c);return c}
+function edCells(cx,cy){const o=Math.floor((edSize-1)/2),r=[];for(let y=cy-o;y<cy-o+edSize;y++)for(let x=cx-o;x<cx-o+edSize;x++)if(x>=0&&y>=0&&x<CW&&y<CH)r.push([x,y]);return r}
+function addPend(st,cx,cy){for(const c of edCells(cx,cy)){const id=c[1]*CW+c[0];if(!st.seen.has(id)){st.seen.add(id);st.cells.push(c)}}}
+function plop(cells,k,er){flushPlop();const s=srcNow();cells=cells.filter(([x,y])=>s[y][x]!==k);if(!cells.length)return;PLOP={k,er,q:cells,per:Math.max(1,Math.ceil(cells.length/45)),run:0,heavy:!er&&heavyK(k),m:er?'erase':matOf(k)}}
+function plopTick(){const p=PLOP;if(!p)return;const s=srcNow();for(let i=0;i<p.per&&p.q.length;i++){const[x,y]=p.q.shift();s[y][x]=p.k;paintCell(x,y,p.k);puff(x,y,p.k)}p.run++;edSnd(p.m,1+Math.min(.25,p.run*.01),.8,p.heavy);if(!p.q.length){PLOP=null;refinish()}}
+function flushPlop(){const p=PLOP;if(!p)return;PLOP=null;const s=srcNow();for(const[x,y]of p.q)s[y][x]=p.k;refinish()}
 {const s0=startDrag;startDrag=function(...a){s0(...a);if(EM&&drag)drag.free=true}}
-{const r0=reset;reset=function(){edSrc=null;edUndo=[];edRedo=[];r0();if(EM==='map')fillMapTools()}}
-{const g0=goMap;goMap=function(v){edSrc=null;edUndo=[];edRedo=[];g0(v);if(EM==='map')fillMapTools()}}
+{const r0=reset;reset=function(){PLOP=null;edSrc=null;edUndo=[];edRedo=[];r0();envCalc();if(EM==='map')fillMapTools()}}
+{const g0=goMap;goMap=function(v){flushPlop();edSrc=null;edUndo=[];edRedo=[];g0(v);envCalc();if(EM==='map')fillMapTools()}}
+envCalc();
 
 // map editor
 let edBrush=null,edSize=1,edStroke=null,edSrc=null,edUndo=[],edRedo=[];
@@ -112,9 +132,8 @@ function edFloor(){const n={};for(const r of srcNow())for(const k of r)if(!isWal
 function floorNear(cx,cy){const s=srcNow();for(const[a,b]of[[0,1],[0,-1],[1,0],[-1,0]]){const k=s[cy+b]&&s[cy+b][cx+a];if(k&&!isWallK(k)&&!furnK(k)&&k!=='sill'&&k!=='msill')return k}return edFloor()}
 function edPush(){edUndo.push(srcNow().map(r=>r.slice()));if(edUndo.length>60)edUndo.shift();edRedo=[]}
 function refinish(){const s=srcNow();map=s.map(r=>r.slice());for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);EDG.clear();blendGround();objects();boards();borders();regions();
- for(const c of bodies.filter(o=>o.hidden))if(!c.cells.every(([a,b])=>OM[b]&&OM[b][a]))remove(c);snapDoors();sills();ds0Need=true;solDirty=true;fxDirty=true;if(ROOMS)ROOMS.t=-1e9}
+ for(const c of bodies.filter(o=>o.hidden))if(!c.cells.every(([a,b])=>OM[b]&&OM[b][a]))remove(c);snapDoors();sills();ds0Need=true;solDirty=true;fxDirty=true;if(ROOMS)ROOMS.t=-1e9;envCalc()}
 function edPaint(cx,cy,k){const s=srcNow(),o=Math.floor((edSize-1)/2);for(let y=cy-o;y<cy-o+edSize;y++)for(let x=cx-o;x<cx-o+edSize;x++){if(x<0||y<0||x>=CW||y>=CH||s[y][x]===k)continue;s[y][x]=k;paintCell(x,y,k);puff(x,y,k)}}
-function edFill(cx,cy,k){const s=srcNow(),k0=s[cy][cx];if(k0===k)return[];const q=[[cx,cy]],out=[[cx,cy]];s[cy][cx]=k;while(q.length){const[a,b]=q.pop();for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const x=a+dx,y=b+dy;if(x<0||y<0||x>=CW||y>=CH||s[y][x]!==k0)continue;s[y][x]=k;q.push([x,y]);out.push([x,y])}}return out}
 const slabCell=d=>{let x=0,y=0;for(const p of d.px){x+=p[0];y+=p[1]}const n=d.px.length||1,X=Math.round(d.x)+x/n,Y=Math.round(d.y)+y/n;return(Y/T|0)*CW+(X/T|0)};
 const DOORK={wood:['Wood door',2],iron:['Iron door',3],gold:['Gold door',3],ebony:['Ebony door',2],mahog:['Mahogany door',2]};
 function mkDoor(k,x,y,rot){const d=slab(DOORK[k][1],x,y,rot);if(k==='gold'){goldify(d);orient(d)}else if(k==='ebony')mahogany(d,EBONY);else if(k==='mahog')mahogany(d);return d}
@@ -131,12 +150,13 @@ function boxAt(X,Y){if(X<0||Y<0||X>=W||Y>=H||!OBJ[Y*W+X])return null;const c=con
 function putIn(c,k,n,w){const m=!CAP[k]&&c.inv.find(q=>q&&q.k===k);if(m){m.n=(m.n||1)+n;return}const it={k,n};if(CAP[k]){it.ammo=w&&w.ammo!==undefined?w.ammo:CAP[k];it.res=w&&w.res||RCAP(k)}const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=it;else c.inv.push(it)}
 
 function fillMapTools(){const f=$('mfile');f.innerHTML='';const mod=MODS.maps[curMap];
+ const r5=mk('div','er');for(const[v,t]of[['auto','Auto'],['in','Interior'],['out','Outdoor']]){const x=mk('button',null,t);if((ENVSET[curMap]||'auto')===v)x.classList.add('on');x.onclick=()=>{ENVSET[curMap]=v;envCalc();fillMapTools()};r5.appendChild(x)}r5.appendChild(mk('span','sep'));{const x=mk('button',null,'Wall tops');if(edTops)x.classList.add('on');x.onclick=()=>{edTops=!edTops;TOPS=edTops;fillMapTools()};r5.appendChild(x)}
  const r1=mk('div','er'),ni=mk('input');ni.type='text';ni.id='mname';ni.value=mod?mod.name:(TITLE[curMap]||'Map')+' (mod)';r1.append(ni);
  const r2=mk('div','er'),b=(t,fn)=>{const x=mk('button',null,t);x.onclick=()=>fn(x);r2.appendChild(x);return x};
  b('Save',x=>{mapSave(false);flashB(x,'Saved')});b('Save as',x=>{mapSave(true);flashB(x,'Saved')});b('New',()=>mapNew());b('Export',()=>{const d=serMap();d.name=ni.value;download((ni.value||'map').replace(/\W+/g,'-')+'.json',{fluoria:1,maps:{[MODS.maps[curMap]?curMap:'mod:'+uidS()]:d},tex:usedTex(d)})});b('Import',()=>pickFile(o=>{const ids=importPack(o);if(ids.length)goMap(ids[0])}));
  if(mod)b('Delete',x=>confirmB(x,()=>{const id=curMap;goMap(mod.from&&!mod.from.startsWith('mod:')&&TITLE[mod.from]?mod.from:'bank');delete MODS.maps[id];delete STATE[id];saveMods();fillMapSel()}));
  const r3=mk('div','er');r3.append(mk('span',null,'Brush'));for(const n of[1,2,3]){const x=mk('button',null,n);if(n===edSize)x.classList.add('on');x.onclick=()=>{edSize=n;for(const y of r3.querySelectorAll('button'))y.classList.toggle('on',y===x)};r3.appendChild(x)}
- f.append(r1,r2,r3);
+ f.append(r1,r2,r3,r5);
  const on=k=>edBrush&&edBrush.k===k,pick=(t,k,d)=>{edBrush=on(k)?null:{t,k};for(const x of document.querySelectorAll('#sm [id^=ed-] .wp>div,#sm [id^=ed-]>div'))x.classList.toggle('arm',!!edBrush&&x.dataset.k===edBrush.k)};
  texRows($('ed-fl'),'floor',(k,d)=>pick('tile',k,d),on,(k,m)=>m?'Mod':'');texRows($('ed-wl'),'wall',(k,d)=>pick('tile',k,d),on,(k,m)=>m?'Mod':'');texRows($('ed-fu'),'furn',(k,d)=>pick('tile',k,d),on,(k,m)=>m?'Mod':'');
  for(const x of document.querySelectorAll('#ed-fl>div,#ed-wl>div,#ed-fu>div'))x.classList.toggle('arm',on(x.dataset.k));
@@ -158,17 +178,23 @@ function importPack(o){const ids=[];if(!o||typeof o!=='object')return ids;if((o.
 const view=stage.parentElement;view.style.position='relative';
 view.addEventListener('pointerdown',e=>{if(EM!=='map'||panKey||e.button===1)return;if(!edBrush){if(e.button===0&&inBoard(e)){const[x,y]=toBoard(e),X=x|0,Y=y|0;if(!bodyAt(X,Y,1))boxAt(X,Y)}return}if(!inBoard(e))return;e.stopImmediatePropagation();e.preventDefault();closeMenu();
  const[x,y]=toBoard(e),cx=x/T|0,cy=y/T|0;if(edBrush.t==='door'){if(e.button===2)clearDoor(cx,cy);else placeDoor(edBrush.k.slice(5),cx,cy);return}
- const k=e.button===2?edFloor():edBrush.k;edPush();if(e.shiftKey){const c=edFill(cx,cy,k);refinish();cascade(c,k,cx,cy,e.button===2);return}
- edStroke={k,er:e.button===2,rect:e.ctrlKey||e.metaKey,x0:cx,y0:cy,x1:cx,y1:cy,last:[cx,cy]};if(!edStroke.rect){edPaint(cx,cy,k);strokeSnd(k,edStroke.er)}},true);
-window.addEventListener('pointermove',e=>{if(!edStroke)return;const[x,y]=toBoard(e),cx=Math.max(0,Math.min(CW-1,x/T|0)),cy=Math.max(0,Math.min(CH-1,y/T|0));edStroke.x1=cx;edStroke.y1=cy;if(edStroke.rect)return;const[a,b]=edStroke.last,n=Math.max(Math.abs(cx-a),Math.abs(cy-b));for(let i=1;i<=n;i++)edPaint(Math.round(a+(cx-a)*i/n),Math.round(b+(cy-b)*i/n),edStroke.k);if(n)strokeSnd(edStroke.k,edStroke.er);edStroke.last=[cx,cy]});
-window.addEventListener('pointerup',()=>{if(!edStroke)return;const s=edStroke;edStroke=null;const cells=[];if(s.rect){const src=srcNow();for(let y=Math.min(s.y0,s.y1);y<=Math.max(s.y0,s.y1);y++)for(let x=Math.min(s.x0,s.x1);x<=Math.max(s.x0,s.x1);x++){src[y][x]=s.k;cells.push([x,y])}}refinish();if(cells.length)cascade(cells,s.k,s.x0,s.y0,s.er)});
+ flushPlop();const k=e.button===2?edFloor():edBrush.k;edPush();if(e.shiftKey){const c=fillCells(cx,cy);plop(c,k,e.button===2);return}
+ edStroke={k,er:e.button===2,rect:e.ctrlKey||e.metaKey,x0:cx,y0:cy,x1:cx,y1:cy,last:[cx,cy],cells:[],seen:new Set()};if(!edStroke.rect)addPend(edStroke,cx,cy)},true);
+window.addEventListener('pointermove',e=>{if(!edStroke)return;const[x,y]=toBoard(e),cx=Math.max(0,Math.min(CW-1,x/T|0)),cy=Math.max(0,Math.min(CH-1,y/T|0));edStroke.x1=cx;edStroke.y1=cy;if(edStroke.rect)return;const[a,b]=edStroke.last,n=Math.max(Math.abs(cx-a),Math.abs(cy-b));for(let i=1;i<=n;i++)addPend(edStroke,Math.round(a+(cx-a)*i/n),Math.round(b+(cy-b)*i/n));edStroke.last=[cx,cy]});
+const rectCells=s=>{const c=[];for(let y=Math.min(s.y0,s.y1);y<=Math.max(s.y0,s.y1);y++)for(let x=Math.min(s.x0,s.x1);x<=Math.max(s.x0,s.x1);x++)c.push([x,y]);return c.sort((a,b)=>Math.abs(a[0]-s.x0)+Math.abs(a[1]-s.y0)-Math.abs(b[0]-s.x0)-Math.abs(b[1]-s.y0))};
+function fillCells(cx,cy){const s=srcNow(),k0=s[cy][cx],seen=new Set([cy*CW+cx]),q=[[cx,cy]],out=[];while(q.length){const c=q.shift();out.push(c);for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const x=c[0]+dx,y=c[1]+dy;if(x<0||y<0||x>=CW||y>=CH||seen.has(y*CW+x)||s[y][x]!==k0)continue;seen.add(y*CW+x);q.push([x,y])}}return out}
+window.addEventListener('pointerup',()=>{if(!edStroke)return;const s=edStroke;edStroke=null;plop(s.rect?rectCells(s):s.cells,s.k,s.er)});
 window.addEventListener('keydown',e=>{if(!EM||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase(),z=(e.ctrlKey||e.metaKey)&&k==='z',y=(e.ctrlKey||e.metaKey)&&k==='y';
  if(EM==='asset'){if(z||y){aeUndo(y||e.shiftKey);e.preventDefault();e.stopImmediatePropagation()}else if(k.startsWith('arrow')){aeShift(k==='arrowleft'?-1:k==='arrowright'?1:0,k==='arrowup'?-1:k==='arrowdown'?1:0);e.preventDefault();e.stopImmediatePropagation()}return}
- if(z||y){const a=y||e.shiftKey?edRedo:edUndo,b=a===edRedo?edUndo:edRedo;if(a.length){b.push(srcNow().map(r=>r.slice()));edSrc=a.pop();refinish()}e.preventDefault();e.stopImmediatePropagation();return}
+ if(z||y){flushPlop();const a=y||e.shiftKey?edRedo:edUndo,b=a===edRedo?edUndo:edRedo;if(a.length){b.push(srcNow().map(r=>r.slice()));edSrc=a.pop();refinish()}e.preventDefault();e.stopImmediatePropagation();return}
+ if('wasd'.includes(k)&&k.length===1&&!e.ctrlKey&&!e.metaKey){PANK.add(k);e.preventDefault();e.stopImmediatePropagation();return}
  if(k==='escape'&&edBrush){edBrush=null;fillMapTools()}},true);
+const PANK=new Set();window.addEventListener('keyup',e=>PANK.delete(e.key.toLowerCase()),true);window.addEventListener('blur',()=>PANK.clear());
+function edPan(){if(EM!=='map'||!PANK.size)return;const v=9;cam.x+=(PANK.has('a')?v:0)-(PANK.has('d')?v:0);cam.y+=(PANK.has('w')?v:0)-(PANK.has('s')?v:0);applyCam()}
 {const rn0=render;render=function(){rn0();if(EM!=='map')return;ctx.save();ctx.fillStyle='rgba(120,120,120,.32)';for(let x=T;x<W;x+=T)ctx.fillRect(x,0,1,H);for(let y=T;y<H;y+=T)ctx.fillRect(0,y,W,1);
  for(const d of DUST){if(d.d>0)continue;ctx.globalAlpha=Math.max(0,1-d.l/d.L)*d.a;ctx.fillStyle=css(d.c);const z=d.z>1?d.z+(d.l/d.L*2|0):1;ctx.fillRect((d.x|0)-(z>>1),(d.y|0)-(z>>1),z,z)}ctx.globalAlpha=1;
- const box2=(x,y,w,h)=>{ctx.strokeStyle='#000';ctx.strokeRect(x-.5,y-.5,w+1,h+1);ctx.strokeStyle='#fff';ctx.strokeRect(x+.5,y+.5,w-1,h-1)};ctx.lineWidth=1;const s=edStroke;if(s&&s.rect){const x0=Math.min(s.x0,s.x1),y0=Math.min(s.y0,s.y1);box2(x0*T,y0*T,(Math.abs(s.x1-s.x0)+1)*T,(Math.abs(s.y1-s.y0)+1)*T)}
+ const box2=(x,y,w,h)=>{ctx.strokeStyle='#000';ctx.strokeRect(x-.5,y-.5,w+1,h+1);ctx.strokeStyle='#fff';ctx.strokeRect(x+.5,y+.5,w-1,h-1)};ctx.globalAlpha=.72;const gh=(cells,k)=>{const g=ghostOf(k);for(const[x,y]of cells)ctx.drawImage(g,x*T,y*T)};if(PLOP)gh(PLOP.q,PLOP.k);if(edStroke)gh(edStroke.rect?rectCells(edStroke):edStroke.cells,edStroke.k);ctx.globalAlpha=1;
+ ctx.lineWidth=1;const s=edStroke;if(s&&s.rect){const x0=Math.min(s.x0,s.x1),y0=Math.min(s.y0,s.y1);box2(x0*T,y0*T,(Math.abs(s.x1-s.x0)+1)*T,(Math.abs(s.y1-s.y0)+1)*T)}
  else if(edBrush&&mouse.in){const n=edBrush.t==='door'?1:edSize,o=Math.floor((n-1)/2),cx=(mouse.x/T|0)-o,cy=(mouse.y/T|0)-o;box2(cx*T,cy*T,n*T,n*T)}ctx.restore()}}
 
 // items
