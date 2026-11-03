@@ -138,3 +138,9 @@ Units turn at a set speed rather than snapping: commandos fastest (about a quart
 Every gun reloads itself a moment after its chamber runs dry, if there are spare rounds; R still reloads early. With AI on, nothing about a unit you cannot see shows: no weapon stuck in it, no glow, no flames. Your autonomous units know every enemy your side can see, and your side's strength counts all your units.
 
 With AI on, units call out what they are doing above their heads when they change their mind (Push!, Hold here, Fall back!, Locking up, Breaking in, Grenade!, Run!, Reloading, Empty!, Need arms, Here, I yield, There!, Moving, On it). Urgent ones show in amber. Only one callout at a time per unit; a side calls out a change of plan once, through its senior unit. Enemy callouts show only while you can see them.
+
+A room where enemies were seen or heard is marked hostile until someone has stood in it a few seconds and found nobody. Once the shooting stops, a side with two or more fighters sends its stronger half in to clear the nearest hostile room ("Clear that room", "Moving in") while the rest cover it.
+
+Leader (under the inventory): one per side, shown by a small gold crown before the name. While he stands his side fights a little bolder and he gives its orders; when he falls the side is shaken for half a minute ("He's down!").
+
+Units at close quarters fire even if their weapon cannot swing round fully, and an order to a spot already taken by someone ends when the unit gets close.
