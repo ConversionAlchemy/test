@@ -71,6 +71,8 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Portsbridge | Factor, Company Clerk | Company Guard | Company Rifles | Company Ironside | | |
 | Great Keys | Burgher, Fisher | Key Warden | Keys Rifles | Gatekeeper | | |
 | Neutral | Peasant, Merchant, Priest, Noble, Noblewoman | | | | | |
+
+Neutral civilians wear muted browns, ochres, rusts and greys (eight variants, picked per person) so they never read as a faction, even when they use a faction's civilian look. Imperial Striped Guards carry spears and officers pistols by default.
 - Footsteps sound like the ground: hollow on planks, a hard tap on stone, brighter on marble, a clank on metal plate, a swish on grass, a crunch on soil, muffled on rugs; armoured units add a chink.
 - Debris that has come to rest lies under units; flying debris, sparks, smoke and light stay above them.
 - The simulation runs at a fixed 60 steps a second whatever the frame rate.
