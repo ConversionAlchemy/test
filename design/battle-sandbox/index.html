@@ -192,11 +192,11 @@ function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.ha
  cache.set(ck,cv);return cv}
 // tile catalogue: element > material > variation, each as floor and wall ('.w'); old keys point at their new tile
 const FLB2=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];
-const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
+const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
 const ELEM={
  Earth:{vars:{plain:'Plain',worn:'Worn'},mats:{grass:['Meadow grass'],dirt:['Packed dirt'],wheat:['Wheat'],hedge:['Hedge']}},
  Stone:{vars:{block:'Block',flags:'Flagstones',slabs:'Slabs',paving:'Paving',key:'Key tile'},mats:{grey:['Greystone',[124,119,111]],sand:['Sandstone',[172,154,122]],lime:['Limestone',[208,204,194]],gold:['Goldstone',[200,170,100]],aur:['Aurelian marble',[236,234,228],1],ver:['Verdant marble',[92,124,110],1],night:['Nightstone',[50,64,58],1]}},
- Wood:{vars:{planks:'Planks',boards:'Boards',panel:'Panelled'},mats:{oak:['Oak',WOOD.oak],pine:['Pine',WOOD.pine],teak:['Teak',WOOD.teak],walnut:['Walnut',WOOD.walnut],mahog:['Mahogany',MAHOG],ebony:['Ebony',EBONY]}},
+ Wood:{vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:['Oak',WOOD.oak],pine:['Pine',WOOD.pine],teak:['Teak',WOOD.teak],walnut:['Walnut',WOOD.walnut],mahog:['Mahogany',MAHOG],ebony:['Ebony',EBONY]}},
  Metal:{vars:{panel:'Panels',rivet:'Riveted plate',smooth:'Smooth'},mats:{steel:['Steel'],iron:['Iron',[70,78,82]],brass:['Brass',[184,150,84]],gold:['Gold',[226,186,96]],umbra:['Umbra',[40,42,48]]}},
  Cloth:{vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:['Crimson',[128,34,38]],verdant:['Verdant',[34,82,56]],purple:['Imperial purple',[58,30,78]]}}};
 // each material's own two variations: plain, crude patterns for cheap materials, ornate ones for rare
@@ -270,7 +270,7 @@ function genTex(el,mat,v,wall){const E=ELEM[el],M=E.mats[mat],c=M[1],s=(Object.k
  if(el==='Wood'){return(X,Y)=>{const[x,y,e]=cellE(X,Y);
   if(v==='planks')return wall?sc(plankT(X,Y,c,s),1):plankT(X,Y,c,s);
   if(v==='boards'){let k=woodT(X,Y,c,s+(Y>>4)*3);k=sc(k,1+(hh(Y>>4,s,9)-.5)*.08);if((Y&15)===15)k=sc(k,.84);else if((Y&15)===0)k=sc(k,1.04);return k}
-  let k=woodT(X,Y,c,s);if(e===0)return sc(k,.62);if(e===1)return sc(k,x===1||y===1?1.1:.86);if(e===3)return sc(k,x===3||y===3?.86:1.06);if(e>3)return sc(woodT(X,Y,c,s+5),.97);return k}}
+  return woodT(X,Y,c,s+13)}}
  if(el==='Metal'){return(X,Y)=>{const[x,y,e]=cellE(X,Y);let k=metalOf(mat,X,Y);
   if(v==='smooth'){return x===0||y===0?sc(k,.86):x===1||y===1?sc(k,1.07):k}
   if(v==='rivet'){if(e===0)return sc(k,.68);if(e===1)k=sc(k,x===1||y===1?1.14:.9);for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12],[8,3],[8,12]]){if(x===rx&&y===ry)return sc(k,1.32);if(x===rx+1&&y===ry+1)return sc(k,.8)}return k}
@@ -282,7 +282,7 @@ function genTex(el,mat,v,wall){const E=ELEM[el],M=E.mats[mat],c=M[1],s=(Object.k
  return(X,Y)=>{let k=sc(c,(.9+fbm(X/8,Y/8,32+s)*.14)*((X+Y)&1?.98:1.02));
   if(wall)return sc(k,.86+.14*Math.sin(X/2.4));if(v==='diamond'){const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;if(u===0||w===0)k=mx(k,[176,140,82],.22);else if(u===4&&w===4)k=mx(k,[196,160,96],.3)}return k}}
 for(const el in ELEM)for(const mat in ELEM[el].mats)for(const v in varsOf(el,mat))for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
- if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k)}
+ if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k);if(el==='Wood'&&v==='panel')POLT.add(k)}
 const OLDK={marble:'stone.aur.block',dmarble:'stone.ver.block',flag:'stone.sand.flags',stone:'stone.grey.block.w',gstone:'stone.gold.block.w',pillar:'stone.aur.block.w',pave:'stone.lime.paving',omarble:'stone.aur.key',gtile:'stone.ver.key',bkmarble:'stone.night.block',bkslab:'stone.night.slabs',slab:'stone.grey.slabs',
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.walnut.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.smooth.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mpanel:'metal.steel.panel.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};
@@ -338,7 +338,7 @@ function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=k
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;shp[j]=MAT[m].hp;scol[j]=c;floor[j]=mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){(NBM[curMap]||(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();blendGround();objects();boards();borders();regions();keyBands()}
+function build(){(NBM[curMap]||(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();blendGround();objects();boards();borders();regions();keyBands();polish()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(rug&&OM[y]&&OM[y][x]);
@@ -1313,8 +1313,8 @@ function aiDodge(){for(const w of bodies){if(w.type!=='weapon'||!w.thrown||w.stu
 function wasd(){slabTurn();let dx=(keys.has('d')?1:0)-(keys.has('a')?1:0),dy=(keys.has('s')?1:0)-(keys.has('w')?1:0);if(!dx&&!dy)return;const l=Math.hypot(dx,dy);dx/=l;dy/=l;let moved=0,arm=0,gx=0,gy=0;
  for(const b of sel){if(b.type!=='token'||b.status==='dead'||inDrag(b)||b.pinned||cmdMode(b))continue;const u=UNITS[b.unit],hv=b.held&&(b.held.k==='rod'||b.held.k==='prod'),el=b.unit==='guard'||b.unit==='shock'||b.unit==='cmd',sp=.85*(1-u.arm*.07)*(!hv?1:b.unit==='civ'?(charge?.3:.55):el?(charge?.6:.92):(charge?.42:.8))*(b.pushT>=tick-2?(u.arm<=1?[.75,.45,.3]:[.85,.7,.55])[(b.pushM||1)-1]:1);b.glide=null;const cr=b.crouch?.4:1,md=moveToward(b,b.x+dx*sp*cr,b.y+dy*sp*cr);if(md>.1){moved=Math.max(moved,md);b.mv=6;arm=Math.max(arm,u.arm);gx=b.x;gy=b.y}}
  if(moved){stepAcc+=moved;if(stepAcc>=28+Math.random()*3){stepAcc=0;sfx('st_'+groundEl(gx,gy));if(arm)sfx('jingle')}}}
-const GEL={bkmarble:'marble',bkslab:'marble',gtile:'marble',gcarpet:'carpet',pcarpet:'carpet',crop:'grass',planks:'wood',pplanks:'wood',dplanks:'wood',mfloor:'metal',marble:'marble',dmarble:'marble',omarble:'marble',msill:'marble',carpet:'carpet',grass:'grass',dirt:'dirt'};
-function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return GEL[k]||(k&&k.endsWith('H')?'dirt':'stone')}
+const GEL={gfloor:'metal',bkmarble:'marble',bkslab:'marble',gtile:'marble',gcarpet:'carpet',pcarpet:'carpet',crop:'grass',planks:'wood',pplanks:'wood',dplanks:'wood',mfloor:'metal',marble:'marble',dmarble:'marble',omarble:'marble',msill:'marble',carpet:'carpet',grass:'grass',dirt:'dirt'};
+function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return GEL[k]||stepEl(k)||(k&&k.endsWith('H')?'dirt':'stone')}
 let lastHud='';
 let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
 function moveItem(from,i,to){const q=from.inv&&from.inv[i];if(!q||!to.inv)return;const one={k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}
@@ -1855,7 +1855,7 @@ function pickFile(f){const i=document.createElement('input');i.type='file';i.acc
 const TNAME={marble:'White marble',dmarble:'Green marble',flag:'Flagstone',planks:'Oak planks',pplanks:'Pine planks',dplanks:'Teak planks',table:'Table',seat:'Chair',carpet:'Red carpet',gcarpet:'Green carpet',pcarpet:'Purple carpet',gfloor:'Gold floor',grass:'Grass',dirt:'Dirt',sky:'Sky',mfloor:'Metal floor',desk:'Desk',edesk:'Ebony desk',sill:'Sill',msill:'Marble sill',omarble:'Key marble',gtile:'Green key tile',bkmarble:'Black marble',bkslab:'Black slab',books:'Bookshelf',pave:'Paving',shelf:'Vault shelf',chest:'Chest',rack:'Rack',crop:'Wheat',wagon:'Wagon',
  stone:'Stone',gstone:'Gold stone',pillar:'Pillar',berm:'Earth bank',rail:'Fence',wood:'Oak',dwood:'Walnut',ewood:'Ebony',metal:'Metal',mplate:'Riveted plate',iron:'Iron',brass:'Brass',mpanel:'Metal panel',bush:'Hedge'};
 TNAME.slab='Stone slabs';
-for(const k in CATN){const[el,mat,v,w]=CATN[k];if(w)WMAT[k]=el==='Stone'?1:el==='Metal'?3:el==='Earth'&&mat==='dirt'?1:2;if(el==='Metal')SHINE[k]=mat==='umbra'?25:mat==='gold'||mat==='brass'?80:60;else if(el==='Stone'&&ELEM.Stone.mats[mat][2])SHINE[k]=mat==='night'?22:28;if(!w&&(el==='Earth'||el==='Cloth'))NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
+for(const k in CATN){const[el,mat,v,w]=CATN[k];if(w)WMAT[k]=el==='Stone'?1:el==='Metal'?3:el==='Earth'&&mat==='dirt'?1:2;if(el==='Metal')SHINE[k]=mat==='umbra'?25:mat==='gold'||mat==='brass'?80:60;else if(el==='Stone'&&ELEM.Stone.mats[mat][2])SHINE[k]=mat==='night'?22:28;if(!w&&(el==='Earth'||el==='Cloth')||el==='Wood'&&v==='panel')NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
 const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w]=c;return ELEM[el].mats[mat][0]+' · '+varsOf(el,mat)[v]+(w?' wall':'')};
 const tName=k=>MODS.tex[k]?MODS.tex[k].name:catName(k)||TNAME[k]||k;
 const TS=32,enc=a=>{let s='';for(const v of a)s+=(v<16?'0':'')+v.toString(16);return s},dec=s=>{const a=new Uint8ClampedArray(s.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(s.substr(i*2,2),16);return a};
@@ -1992,7 +1992,7 @@ const isWallK=k=>!!k&&!!WMAT[k];
 function edFloor(){const n={};for(const r of srcNow())for(const k of r)if(!isWallK(k)&&!furnK(k)&&KIND[k]==='floor'&&k!=='sill'&&k!=='msill')n[k]=(n[k]||0)+1;return Object.entries(n).sort((a,b)=>b[1]-a[1])[0]?.[0]||'flag'}
 function floorNear(cx,cy){const s=srcNow();for(const[a,b]of[[0,1],[0,-1],[1,0],[-1,0]]){const k=s[cy+b]&&s[cy+b][cx+a];if(k&&!isWallK(k)&&!furnK(k)&&k!=='sill'&&k!=='msill')return k}return edFloor()}
 function edPush(){edUndo.push(srcNow().map(r=>r.slice()));if(edUndo.length>60)edUndo.shift();edRedo=[]}
-function refinish(){const s=srcNow();map=s.map(r=>r.slice());for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);EDG.clear();blendGround();objects();boards();borders();regions();keyBands();
+function refinish(){const s=srcNow();map=s.map(r=>r.slice());for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);EDG.clear();blendGround();objects();boards();borders();regions();keyBands();polish();
  for(const c of bodies.filter(o=>o.hidden))if(!c.cells.every(([a,b])=>OM[b]&&OM[b][a]))remove(c);snapDoors();sills();ds0Need=true;solDirty=true;fxDirty=true;if(ROOMS)ROOMS.t=-1e9;envCalc()}
 function edPaint(cx,cy,k){const s=srcNow(),o=Math.floor((edSize-1)/2);for(let y=cy-o;y<cy-o+edSize;y++)for(let x=cx-o;x<cx-o+edSize;x++){if(x<0||y<0||x>=CW||y>=CH||s[y][x]===k)continue;s[y][x]=k;paintCell(x,y,k);puff(x,y,k)}}
 const slabCell=d=>{let x=0,y=0;for(const p of d.px){x+=p[0];y+=p[1]}const n=d.px.length||1,X=Math.round(d.x)+x/n,Y=Math.round(d.y)+y/n;return(Y/T|0)*CW+(X/T|0)};
@@ -2060,6 +2060,12 @@ window.addEventListener('pointermove',e=>{if(EM!=='map')return;const h=$('hint')
  ctx.lineWidth=1;const s=edStroke;if(s&&s.rect){const x0=Math.min(s.x0,s.x1),y0=Math.min(s.y0,s.y1);box2(x0*T,y0*T,(Math.abs(s.x1-s.x0)+1)*T,(Math.abs(s.y1-s.y0)+1)*T)}
  else if(edBrush&&mouse.in){const n=edBrush.t==='door'?1:edSize,o=Math.floor((n-1)/2),cx=(mouse.x/T|0)-o,cy=(mouse.y/T|0)-o;box2(cx*T,cy*T,n*T,n*T)}ctx.restore()}}
 
+// polished wood: the furniture finish (dark rim, light bevel, inlay line), measured from the edge of each area
+function polish(){const st=(x,y,k)=>map[y]&&map[y][x]===k;for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!POLT.has(k))continue;const L=!st(cx-1,cy,k),R=!st(cx+1,cy,k),U=!st(cx,cy-1,k),D=!st(cx,cy+1,k);if(!L&&!R&&!U&&!D)continue;
+ const mat=CATN[k][1],gl=mat==='mahog'||mat==='ebony'?rgb(210,168,100):rgb(176,126,84),gt=mat==='mahog'||mat==='ebony'?.4:.25;
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(L?x:99,R?15-x:99,U?y:99,D?15-y:99);if(d>3)continue;const j=(cy*T+y)*W+cx*T+x,w=!!sol[j];let c=w?scol[j]:floor[j];
+  if(d===0)c=mul(c,.5);else if(d===1)c=mul(c,L&&x===1||U&&y===1?1.12:.82);else if(d===3)c=mix(c,gl,gt);else continue;if(w)scol[j]=c;else floor[j]=c}}}
+const stepEl=k=>{if(!k)return null;let r=null;try{r=CATN[k]?k:MODS.tex[k]?MODS.tex[k].from:null}catch(e){}if(!r||!CATN[r])return null;const[el,mat]=CATN[r];return el==='Stone'?(ELEM.Stone.mats[mat][2]?'marble':'stone'):el==='Wood'?'wood':el==='Metal'?'metal':el==='Cloth'?'carpet':mat==='dirt'?'dirt':'grass'};
 // key tiles: a soft meander band along the edge of each key-tile floor
 function keyBands(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!KEYT.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>!map[y]||map[y][x]!==k,L=o(cx-1,cy),R=o(cx+1,cy),U=o(cx,cy-1),D=o(cx,cy+1);if(!L&&!R&&!U&&!D)continue;
  const g=/aur|omarble/.test(k)?rgb(190,152,94):/ver|gtile/.test(k)?rgb(210,172,96):null;

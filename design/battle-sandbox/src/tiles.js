@@ -89,11 +89,11 @@ function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.ha
  cache.set(ck,cv);return cv}
 // tile catalogue: element > material > variation, each as floor and wall ('.w'); old keys point at their new tile
 const FLB2=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];
-const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
+const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
 const ELEM={
  Earth:{vars:{plain:'Plain',worn:'Worn'},mats:{grass:['Meadow grass'],dirt:['Packed dirt'],wheat:['Wheat'],hedge:['Hedge']}},
  Stone:{vars:{block:'Block',flags:'Flagstones',slabs:'Slabs',paving:'Paving',key:'Key tile'},mats:{grey:['Greystone',[124,119,111]],sand:['Sandstone',[172,154,122]],lime:['Limestone',[208,204,194]],gold:['Goldstone',[200,170,100]],aur:['Aurelian marble',[236,234,228],1],ver:['Verdant marble',[92,124,110],1],night:['Nightstone',[50,64,58],1]}},
- Wood:{vars:{planks:'Planks',boards:'Boards',panel:'Panelled'},mats:{oak:['Oak',WOOD.oak],pine:['Pine',WOOD.pine],teak:['Teak',WOOD.teak],walnut:['Walnut',WOOD.walnut],mahog:['Mahogany',MAHOG],ebony:['Ebony',EBONY]}},
+ Wood:{vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:['Oak',WOOD.oak],pine:['Pine',WOOD.pine],teak:['Teak',WOOD.teak],walnut:['Walnut',WOOD.walnut],mahog:['Mahogany',MAHOG],ebony:['Ebony',EBONY]}},
  Metal:{vars:{panel:'Panels',rivet:'Riveted plate',smooth:'Smooth'},mats:{steel:['Steel'],iron:['Iron',[70,78,82]],brass:['Brass',[184,150,84]],gold:['Gold',[226,186,96]],umbra:['Umbra',[40,42,48]]}},
  Cloth:{vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:['Crimson',[128,34,38]],verdant:['Verdant',[34,82,56]],purple:['Imperial purple',[58,30,78]]}}};
 // each material's own two variations: plain, crude patterns for cheap materials, ornate ones for rare
@@ -167,7 +167,7 @@ function genTex(el,mat,v,wall){const E=ELEM[el],M=E.mats[mat],c=M[1],s=(Object.k
  if(el==='Wood'){return(X,Y)=>{const[x,y,e]=cellE(X,Y);
   if(v==='planks')return wall?sc(plankT(X,Y,c,s),1):plankT(X,Y,c,s);
   if(v==='boards'){let k=woodT(X,Y,c,s+(Y>>4)*3);k=sc(k,1+(hh(Y>>4,s,9)-.5)*.08);if((Y&15)===15)k=sc(k,.84);else if((Y&15)===0)k=sc(k,1.04);return k}
-  let k=woodT(X,Y,c,s);if(e===0)return sc(k,.62);if(e===1)return sc(k,x===1||y===1?1.1:.86);if(e===3)return sc(k,x===3||y===3?.86:1.06);if(e>3)return sc(woodT(X,Y,c,s+5),.97);return k}}
+  return woodT(X,Y,c,s+13)}}
  if(el==='Metal'){return(X,Y)=>{const[x,y,e]=cellE(X,Y);let k=metalOf(mat,X,Y);
   if(v==='smooth'){return x===0||y===0?sc(k,.86):x===1||y===1?sc(k,1.07):k}
   if(v==='rivet'){if(e===0)return sc(k,.68);if(e===1)k=sc(k,x===1||y===1?1.14:.9);for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12],[8,3],[8,12]]){if(x===rx&&y===ry)return sc(k,1.32);if(x===rx+1&&y===ry+1)return sc(k,.8)}return k}
@@ -179,7 +179,7 @@ function genTex(el,mat,v,wall){const E=ELEM[el],M=E.mats[mat],c=M[1],s=(Object.k
  return(X,Y)=>{let k=sc(c,(.9+fbm(X/8,Y/8,32+s)*.14)*((X+Y)&1?.98:1.02));
   if(wall)return sc(k,.86+.14*Math.sin(X/2.4));if(v==='diamond'){const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;if(u===0||w===0)k=mx(k,[176,140,82],.22);else if(u===4&&w===4)k=mx(k,[196,160,96],.3)}return k}}
 for(const el in ELEM)for(const mat in ELEM[el].mats)for(const v in varsOf(el,mat))for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
- if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k)}
+ if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k);if(el==='Wood'&&v==='panel')POLT.add(k)}
 const OLDK={marble:'stone.aur.block',dmarble:'stone.ver.block',flag:'stone.sand.flags',stone:'stone.grey.block.w',gstone:'stone.gold.block.w',pillar:'stone.aur.block.w',pave:'stone.lime.paving',omarble:'stone.aur.key',gtile:'stone.ver.key',bkmarble:'stone.night.block',bkslab:'stone.night.slabs',slab:'stone.grey.slabs',
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.walnut.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.smooth.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mpanel:'metal.steel.panel.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};

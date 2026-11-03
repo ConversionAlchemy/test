@@ -49,7 +49,7 @@ function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=k
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;shp[j]=MAT[m].hp;scol[j]=c;floor[j]=mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){(NBM[curMap]||(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();blendGround();objects();boards();borders();regions();keyBands()}
+function build(){(NBM[curMap]||(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();blendGround();objects();boards();borders();regions();keyBands();polish()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(rug&&OM[y]&&OM[y][x]);
@@ -1024,8 +1024,8 @@ function aiDodge(){for(const w of bodies){if(w.type!=='weapon'||!w.thrown||w.stu
 function wasd(){slabTurn();let dx=(keys.has('d')?1:0)-(keys.has('a')?1:0),dy=(keys.has('s')?1:0)-(keys.has('w')?1:0);if(!dx&&!dy)return;const l=Math.hypot(dx,dy);dx/=l;dy/=l;let moved=0,arm=0,gx=0,gy=0;
  for(const b of sel){if(b.type!=='token'||b.status==='dead'||inDrag(b)||b.pinned||cmdMode(b))continue;const u=UNITS[b.unit],hv=b.held&&(b.held.k==='rod'||b.held.k==='prod'),el=b.unit==='guard'||b.unit==='shock'||b.unit==='cmd',sp=.85*(1-u.arm*.07)*(!hv?1:b.unit==='civ'?(charge?.3:.55):el?(charge?.6:.92):(charge?.42:.8))*(b.pushT>=tick-2?(u.arm<=1?[.75,.45,.3]:[.85,.7,.55])[(b.pushM||1)-1]:1);b.glide=null;const cr=b.crouch?.4:1,md=moveToward(b,b.x+dx*sp*cr,b.y+dy*sp*cr);if(md>.1){moved=Math.max(moved,md);b.mv=6;arm=Math.max(arm,u.arm);gx=b.x;gy=b.y}}
  if(moved){stepAcc+=moved;if(stepAcc>=28+Math.random()*3){stepAcc=0;sfx('st_'+groundEl(gx,gy));if(arm)sfx('jingle')}}}
-const GEL={bkmarble:'marble',bkslab:'marble',gtile:'marble',gcarpet:'carpet',pcarpet:'carpet',crop:'grass',planks:'wood',pplanks:'wood',dplanks:'wood',mfloor:'metal',marble:'marble',dmarble:'marble',omarble:'marble',msill:'marble',carpet:'carpet',grass:'grass',dirt:'dirt'};
-function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return GEL[k]||(k&&k.endsWith('H')?'dirt':'stone')}
+const GEL={gfloor:'metal',bkmarble:'marble',bkslab:'marble',gtile:'marble',gcarpet:'carpet',pcarpet:'carpet',crop:'grass',planks:'wood',pplanks:'wood',dplanks:'wood',mfloor:'metal',marble:'marble',dmarble:'marble',omarble:'marble',msill:'marble',carpet:'carpet',grass:'grass',dirt:'dirt'};
+function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return GEL[k]||stepEl(k)||(k&&k.endsWith('H')?'dirt':'stone')}
 let lastHud='';
 let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
 function moveItem(from,i,to){const q=from.inv&&from.inv[i];if(!q||!to.inv)return;const one={k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}
