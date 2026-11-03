@@ -108,4 +108,4 @@ The hand button under a unit's inventory turns off picking up new weapons (off f
 
 The plasma gun holds three shots, one burst, then vents with a hiss and must be reloaded by hand (R).
 
-Shift dashes the selected units along WASD, or the way they face: up to 2.5 tiles for commandos, less the heavier the unit, with a short cooldown.
+Shift dashes the selected units along WASD, or the way they face: up to 2.5 tiles for commandos, less the heavier the unit. One dash (two for commandos) then a 10 s recharge, shown as a thin bar under the name. AI units sidestep thrown weapons.
