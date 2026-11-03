@@ -106,7 +106,7 @@ A unit short of rounds strips them from a matching gun lying nearby or in an ope
 
 The hand button under a unit's inventory turns off picking up new weapons (off from the start for civilians and anyone placed unarmed); with it off the unit still takes ammo and tops up grenades and spears it already carries.
 
-The plasma gun holds three shots, one burst, then vents with a hiss and must be reloaded by hand (R).
+The plasma gun holds three shots, one burst, then vents with a hiss.
 
 Shift dashes the selected units along WASD, or the way they face: up to 2.5 tiles for commandos, less the heavier the unit. One dash (two for commandos) then a 10 s recharge, shown as a thin bar under the name. AI units sidestep thrown weapons.
 
@@ -134,3 +134,5 @@ Grenades: a unit throws one when it pays off: two or more enemies inside the bla
 Keys: a door locked from the start belongs to the side whose units stand beside it, and a door a unit locks belongs to its side. Units with the key unlock it as they pass; others have to break it.
 
 Units turn at a set speed rather than snapping: commandos fastest (about a quarter second for a half turn), shocktroopers slowest (about half a second); AI units fire only once they face the target. Grenades go to tight groups of two or more. A unit whose way is barred by a door locked against it breaks in: a friend with the key nearby unlocks it, otherwise it shoots or forces the door until the lock gives, and anyone stuck behind it joins in.
+
+Every gun reloads itself a moment after its chamber runs dry, if there are spare rounds; R still reloads early. With AI on, nothing about a unit you cannot see shows: no weapon stuck in it, no glow, no flames. Your autonomous units know every enemy your side can see, and your side's strength counts all your units.
