@@ -95,3 +95,7 @@ The counting house and the Aurum are joined: the passage west out of the Aurum's
 - Wall collapse: a wall cell under about 8% left, or any isolated fragment, crumbles to rubble; pillars give way earlier.
 - Fire spreading between units.
 - Squads on the region map opening this view for fights; goods as literal arms and Solari, recruitment and Reaper mercenary prices, black market through Goldbank and Havenport.
+
+Hold the mouse to charge a Lancer and release to throw it. Keep holding past full charge and it overcharges in the hand.
+
+Bullets hitting stone, wood or metal each have their own sparks, chips and sound; blunderbuss pellets sound as a scatter of separate hits.
