@@ -24,7 +24,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Shift + drag | Lift anything and carry it over walls; drop it outside the map to delete it |
 | Click a slab | Select it: hold Q or E to turn it; drag to move it |
 | Double-click an item | Select it: hold to fire or throw it from where it lies; drag to move it |
-| Right-click | Unit or door options; Refill ammo tops up every gun, or gives back the unit's default kit if it carries nothing (works on a group too) |
+| Right-click | Unit or door options; Refill ammo restores what the unit was last kitted with (its starting kit, plus anything you gave it) and fills every gun; works on a group too |
 | Tools: Rope, Chain | Drag onto a unit, or click the tool then a unit, to tie it to the nearest wall; Esc cancels |
 | Side headings | Click Weapons, Cover, Tools, Markers or Inspector to fold it away |
 | Inspector (right column) | Shows the selected unit, or an opened chest, desk, shelf or rack with the selected unit beneath it when it stands beside it. Click an item to move it to the other box, drag it across, drag it out to drop it, Shift+click to drop it; click a unit's slot to draw it |
@@ -152,6 +152,8 @@ Units at close quarters fire even if their weapon cannot swing round fully, and 
 Every side always has one leader. The back room starts with Rook leading Goldbank and Ivo, now an Imperial officer with a pistol, leading the Imperium. When a leader falls the role passes to the best unit left (highest tier, then strongest), who calls "On me!".
 
 Units start on Autonomous; switch it off per unit to keep one on hold.
+
+Shots and throws from a group pass over units of the shooters' own side, except the one you aimed at.
 
 Slow-mo (Z), in the top bar, runs the battle at a third of normal speed and draws streaks behind bullets and bolts.
 
