@@ -403,14 +403,15 @@ const THR={civ:.5,home:.7,rifle:.8,guard:.9,cmd:1.25,shock:1};
 const C={lw:rgb(198,164,112),lwD:rgb(160,126,80),wood:rgb(...PAL.oak[2]),woodH:rgb(...PAL.oak[3]),woodD:rgb(...PAL.oak[1]),iron:rgb(138,150,144),ironH:rgb(196,206,200),ironD:rgb(86,98,92),ironK:rgb(40,46,44),lead:rgb(78,80,86),clay:rgb(156,82,60),clayD:rgb(104,50,36),cloth:rgb(214,204,180),fuse:rgb(230,170,60)};
 const rodFill=it=>it&&(it.k==='rod'||it.kind==='rod')?Math.ceil((it.ammo??CAP[it.k||it.kind])/CAP[it.k||it.kind]*3-1e-9)/3:1;
 const HEAT=[[0,null],[.18,rgb(118,72,64)],[.34,rgb(150,44,28)],[.5,rgb(206,62,26)],[.66,rgb(250,118,38)],[.82,rgb(255,190,90)],[1,rgb(255,244,214)]];
-function heatCol(h,cold){if(h<=0)return cold;h=Math.min(1.05,h);for(let i=1;i<HEAT.length;i++)if(h<=HEAT[i][0]||i===HEAT.length-1){const a=HEAT[i-1],b=HEAT[i],t=Math.min(1,(h-a[0])/(b[0]-a[0])),e=t*t*(3-2*t);return mix(a[1]||cold,b[1],e)}return cold}
+const PHEAT=[[0,null],[.2,rgb(64,52,92)],[.4,rgb(100,62,168)],[.6,rgb(146,84,236)],[.8,rgb(196,146,255)],[1,rgb(244,234,255)]];
+function heatCol(h,cold,R=HEAT){if(h<=0)return cold;h=Math.min(1.05,h);for(let i=1;i<R.length;i++)if(h<=R[i][0]||i===R.length-1){const a=R[i-1],b=R[i],t=Math.min(1,(h-a[0])/(b[0]-a[0])),e=t*t*(3-2*t);return mix(a[1]||cold,b[1],e)}return cold}
 const sh3=(c,u)=>u<-.2?mul(c,1.16):u>.2?mul(c,.72):c;
 const SPRT=new Set(['pgun','musket','blunder','pistol','rod','sspear','spear','grenade','bomb','shield','sword']);
 function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(a);
  const st=(t0,t1,w,f)=>{for(let t=t0;t<=t1;t+=.5)for(let u=-w;u<=w+.01;u+=.5)m.set(K(Math.round(c*t-s*u),Math.round(s*t+c*u)),f(t,u))};
  const disc=(r,f)=>{for(let y=-6;y<=6;y++)for(let x=-6;x<=6;x++){const d=Math.hypot(x,y);if(d<=r)m.set(K(x,y),f(x,y,d))}};
  if(kind==='spear')st(-12.8,12.4,0,t=>t>11?C.ironH:(t*2|0)%7===0?C.ironD:C.iron);
- if(kind==='sspear')st(-12,11.5,0,t=>t>8?((t*2|0)%2?rgb(196,140,255):rgb(240,226,255)):(t*2|0)%7===0?rgb(26,27,31):rgb(48,50,57));
+ if(kind==='sspear')st(-12,11.5,0,t=>{if(t>8)return(t*2|0)%2?rgb(196,140,255):rgb(240,226,255);const base=(t*2|0)%7===0?rgb(26,27,31):rgb(48,50,57);if(!heat)return base;const c=heatCol(heat*(.8+.25*(t+12)/20)+(hh(t*2|0,7,3)-.5)*.05*Math.min(1,heat*3),base,PHEAT);return heat>1?mix(c,rgb(255,255,255),Math.min(.7,(heat-1)*2.5)):c});
  if(kind==='pgun'){const dm=rgb(44,46,54);st(-10,-5,1,(t,u)=>sh3(dm,u));st(-5,6,.5,(t,u)=>sh3(rgb(54,56,66),u));st(6,8,1,(t,u)=>sh3(rgb(50,54,66),u));st(8.5,10,1.5,(t,u)=>t>=10&&Math.abs(u)<.3?rgb(220,170,255):sh3(rgb(58,60,68),u))}
  if(kind==='sbomb'){disc(3.2,(x,y,d)=>d>2.6?rgb(70,96,120):d<1.4?rgb(200,230,255):x+y<-1?rgb(120,180,240):rgb(70,120,210));m.set(K(0,-3),C.lwD);m.set(K(0,-4),C.lwD)}
  if(kind==='arc')m.set(K(0,0),rgb(200,230,255));
@@ -669,6 +670,12 @@ const HOTD=150;
 const rodHot=b=>b.hot&&(b.dist||0)<(b.hotd||HOTD)&&!b.stuck;
 function rodPx(b,a){b.ang=a;b.px=shape('rodp',a,b.salvo?2:1);mkSet(b);for(const p of b.px)p[5]=(b.glw||0)*1.2}
 function rodHeat(b){b.glw=b.hot?Math.min(1,Math.max(0,1.3-(b.dist||0)/(b.hotd||HOTD))):0;for(const p of b.px)p[5]=b.glw*1.2}
+const HUM=new Map();
+function hum(b,k,h){if(mute||!gest)return;const a=au(),t=a.currentTime;let n=HUM.get(b);
+ if(!n){const o=a.createOscillator(),o2=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain();o.type='sawtooth';o2.type='sine';f.type='lowpass';f.Q.value=.7;g.gain.value=0;o.connect(f);o2.connect(f);f.connect(g).connect(MS);const w=a.createGain();w.gain.value=.3;g.connect(w).connect(RV);o.start();o2.start();n={o,o2,f,g,k};HUM.set(b,n)}
+ n.seen=tick;const lo=k==='rod'?48:82,hi=k==='rod'?150:250,p=Math.min(h,1.1),wob=h>1?Math.sin(tick*.9)*(h-1)*40:0;
+ n.o.frequency.setTargetAtTime(lo+(hi-lo)*p*p+wob,t,.08);n.o2.frequency.setTargetAtTime((lo+(hi-lo)*p*p)*2.01,t,.08);n.f.frequency.setTargetAtTime(220+p*p*2200,t,.1);n.g.gain.setTargetAtTime(.015+.075*p,t,.12)}
+function humEnd(){for(const[b,n]of HUM)if(n.seen!==tick){const t=au().currentTime;n.g.gain.setTargetAtTime(0,t,.06);n.o.stop(t+.4);n.o2.stop(t+.4);HUM.delete(b)}}
 function heatTick(){const ch=charge?new Set(armed()):null;
  for(const b of [...bodies]){if(b.type!=='token'||!b.held||!bodies.includes(b))continue;const h=b.held,k=h.k;if(k!=='rod'&&k!=='pgun'&&k!=='sspear')continue;if(b.burst){if(--b.burst.t<=0){b.burst.n--;b.burst.t=7;b.inB=1;fire(b,b.burst.x,b.burst.y);b.inB=0;if(b.burst&&b.burst.n<=0)b.burst=null}continue}if(k==='pgun'){h.heat=0;continue}
   const on=ch&&ch.has(b)&&b.status==='free'&&(k==='sspear'||(h.ammo??CAP[k])>0);
@@ -677,7 +684,7 @@ function heatTick(){const ch=charge?new Set(armed()):null;
   h.heat=(h.heat||0)+1/210;
   if(h.heat>1&&(Math.random()<(h.heat-1)*.035||h.heat>1.4)){overcharge(b);continue}
   if(Math.random()<h.heat*.25)spark(t[0],t[1],k==='rod'?(h.heat>.95?rgb(255,250,236):rgb(255,170,70)):(Math.random()<.5?rgb(196,140,255):rgb(240,226,255)),0,0,.6+h.heat,6);
-  if(h.heat>.3&&tick%(h.heat>1?5:16)===0)sfx(k==='rod'?'sizzle':'zap');if(h.heat>1)shake=Math.max(shake,(h.heat-1)*6)}}
+  hum(b,k,h.heat);if(h.heat>1)shake=Math.max(shake,(h.heat-1)*6)}humEnd()}
 function overcharge(b){const h=b.held,t=tipOf(b),c=Math.cos(b.ang),s=Math.sin(b.ang),sd=sideOf(b),gx=b.x+c*6-s*sd,gy=b.y+s*6+c*sd;
  if(h.k==='pgun'){h.heat=0;h.ammo=0;b.hc=null;arcBlast(t[0],t[1],2.5);cut(b,Math.round(gx),Math.round(gy),3,true,3);settle(b);return}
  if(h.k==='sspear'){h.heat=0;b.hc=null;if(sel.has(b))charge=null;arcBlast(t[0],t[1],2.5);lancerDebris(t[0],t[1],3);consume(b);cut(b,Math.round(gx),Math.round(gy),3,true,3);settle(b);return}
@@ -1029,7 +1036,7 @@ function lightPass(){if(PBX){const[x0,y0,x1,y1]=PBX;for(let Y=y0;Y<=y1;Y++){cons
  for(const z of zaps){addL(z.x1,z.y1,z.b?.45:.75,z.b?.75:.45,1,.8);any=true}
  const pul=.85+.15*Math.sin(tick*.12);for(const b of bodies){if(b.kind==='arc'){addL(b.x,b.y,b.blue?.45:.75,b.blue?.75:.45,1,1.2);any=true}else if(b.kind==='sspear'&&!b.spent){const[x,y]=spearTip(b);addL(x,y,.75,.45,1,b.timer>0?.6+.7*(1-b.timer/b.timer0):b.fizz>0?.3+.4*b.fizz/150:.9*pul,2);any=true}
   else if(b.type==='token'&&b.held&&b.held.k==='rod'&&(b.held.heat||0)>.15&&b.status!=='dead'){const t=tipOf(b),h=b.held.heat;addL(t[0],t[1],1,.6+Math.min(.35,h*.3),.28+Math.max(0,h-.7)*.6,h*1.3,1.5+h);any=true}
-  else if(b.type==='token'&&b.held&&b.held.k==='sspear'&&!b.held.spent&&b.status!=='dead'){const t=tipOf(b);addL(t[0],t[1],.75,.45,1,pul,2);any=true}
+  else if(b.type==='token'&&b.held&&b.held.k==='sspear'&&!b.held.spent&&b.status!=='dead'){const t=tipOf(b),h=b.held.heat||0;addL(t[0],t[1],.75,.45,1,pul*.7+h*1.3,2+h*1.5);any=true}
   if(b.kind==='rodp'&&b.glw>.05){addL(b.x,b.y,1,.6,.28,b.glw*1.3,2);any=true}if(b.surge>0){addL(b.x,b.y,.5,.75,1,(1-b.surge/240)*2,4);any=true}if(b.burn>.04){addL(b.x,b.y,1,.6,.25,b.burn*.8,3);any=true}}
  for(const t of tls){addL(t.x,t.y,t.r,t.g,t.b,t.i,t.rad);t.i*=t.d}tls=tls.filter(t=>t.i>.03);if(tls.length)any=true;
  if(!any||LBX[2]<0)return;const bx0=Math.max(0,LBX[0]-8),by0=Math.max(0,LBX[1]-8),bx1=Math.min(BW-1,LBX[2]+8),by1=Math.min(BH-1,LBX[3]+8);PBX=[bx0,by0,bx1,by1];blurL(LR,bx0,by0,bx1,by1);blurL(LG,bx0,by0,bx1,by1);blurL(LB,bx0,by0,bx1,by1)
@@ -1150,7 +1157,7 @@ const boardDown=e=>{au();closeMenu();if(panKey||e.button===1){pan={x:e.clientX,y
   if(b){if(b.status==='dead'||b.kind==='crate'){clickBody(b,e.ctrlKey||e.metaKey);return}pend={b,x,y,add:e.ctrlKey||e.metaKey};return}
   box={x0:x,y0:y,x1:x,y1:y}}
  else if(tool==='chip'){chipLast=[X,Y];chip(X,Y)}};
-cv.addEventListener('pointerdown',boardDown);
+cv.addEventListener('pointerdown',e=>{const a=document.activeElement;if(a&&/INPUT|SELECT/.test(a.tagName))a.blur();boardDown(e)});
 // the dark space around the board works like the board: box-select, pan, aim
 stage.parentElement.addEventListener('pointerdown',e=>{if(e.target===stage.parentElement||e.target===stage)boardDown(e)});
 window.addEventListener('pointermove',e=>{if(pan){cam.x=pan.cx+e.clientX-pan.x;cam.y=pan.cy+e.clientY-pan.y;applyCam();return}const[x,y]=toBoard(e);mouse.x=x;mouse.y=y;mouse.in=inBoard(e);
@@ -1190,7 +1197,7 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName))r
  if(k==='f'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}
  if(k==='delete'||k==='backspace'){for(const b of [...sel])remove(b);e.preventDefault()}});
 window.addEventListener('keyup',e=>{if(e.key===' ')panKey=false;keys.delete(e.key.toLowerCase())});
-window.addEventListener('blur',()=>keys.clear());
+window.addEventListener('blur',()=>{keys.clear();panKey=false});
 function chip(X,Y){if(X<0||Y<0||X>=W||Y>=H)return;const b=bodyAt(X,Y,0,null,o=>true);
  if(b){if(hitPix(b,X,Y,1)===2)settle(b);sfx('tick');return}
  const j=Y*W+X;if(sol[j]){damagePixel(X,Y,1);sfx('tick');return}
