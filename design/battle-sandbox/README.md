@@ -166,6 +166,8 @@ Name colours show diplomacy relative to your side (the one you control with AI o
 Units ignore neutrals' footsteps and other routine noise from anyone who is not an enemy. A side falling back fills its chosen room only as far as it comfortably holds; the rest hold where they are. Units pick spots apart from each other inside a room.
 
 
+With several units selected, right-clicking one of them opens a menu for all of them: Free, Captured, Dead, Restore health, Duplicate and Delete. Dead units can be right-clicked too.
+
 While you control a unit (E), clicking a name label fires instead of selecting, and a right-click or stray click on the floor does not drop it; Esc does. A unit you let go of stands still for a second before acting on its own again.
 
 V: the selected units look at the cursor (Shift+V: all face that way). A faint blue line shows it. Units on a move order look there when they arrive; your idle units hold the look until an enemy shows; autonomous units hold it for 4 s. A move order that stops getting closer for about a second ends where the unit stands, so crowds settle instead of shuffling.
