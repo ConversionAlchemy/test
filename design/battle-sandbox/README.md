@@ -167,3 +167,5 @@ Units ignore neutrals' footsteps and other routine noise from anyone who is not 
 
 
 While you control a unit (E), clicking a name label fires instead of selecting, and a right-click or stray click on the floor does not drop it; Esc does. A unit you let go of stands still for a second before acting on its own again.
+
+V: the selected units look at the cursor (Shift+V: all face that way). A faint blue line shows it. Units on a move order look there when they arrive; your idle units hold the look until an enemy shows; autonomous units hold it for 4 s. A move order that stops getting closer for about a second ends where the unit stands, so crowds settle instead of shuffling.
