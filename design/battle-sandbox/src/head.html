@@ -54,7 +54,7 @@
 #sm .menu button{border:0;border-bottom:1px solid #333;text-align:left;background:#232323}
 #sm .menu button:hover{background:#3a3a3a}
 #sm .menu button.on{background:#3a3a3a;color:#f2efe6}
-#sm .menu .mh{padding:3px 8px;color:#8f8b80;font-size:14px}#sm[data-mode="asset"] .side>.sec:not([data-m="asset"]),#sm:not([data-mode="asset"]) .side>.sec[data-m="asset"],#sm:not([data-mode="map"]) .side>.sec[data-m="map"],#sm:not([data-mode="play"]) .play-only{display:none}
+#sm .menu .mh{padding:3px 8px;color:#8f8b80;font-size:14px}#sm[data-mode="asset"] .side>.sec:not([data-m="asset"]),#sm:not([data-mode="asset"]) .side>.sec[data-m="asset"],#sm:not([data-mode="map"]) .side>.sec[data-m="map"],#sm:not([data-mode="play"]) .side>.sec[data-m="play"],#sm:not([data-mode="play"]) .play-only{display:none}
 #sm[data-mode="asset"] .hint{visibility:hidden}
 #sm #ed-fl.mk>div,#sm #ae-fl.mk>div{grid-template-columns:84px 1fr auto}
 #sm .sec.sub{margin-left:10px;border-top:0;padding-top:0}#sm .sec.sub .sh{grid-template-columns:24px 1fr}
@@ -63,7 +63,7 @@
 #sm .ef input[type=range]{flex:1;min-width:0;accent-color:#c9c5b8}#sm .ef textarea{font:14px/1.1 monospace;background:#181818;color:#c9c5b8;border:1px solid #444;height:70px;resize:vertical;width:100%}
 #sm .wp>div .c.md{color:#7fb2e0;font-size:14px}#sm .wp>div .c.lk{color:#6f6b62;font-size:14px}#sm .wp>div.on .c{color:#f2efe6}
 #sm .wp .isep{height:1px;background:#3a3a3a;border:0;padding:0;margin:2px 0}
-#sm #ae{position:absolute;inset:0;display:none;overflow:auto;padding:10px;gap:8px;flex-direction:column;align-items:flex-start}
+#sm #ae{position:absolute;inset:0;display:none;overflow:auto;padding:16px;gap:12px;flex-direction:column;align-items:center;justify-content:center}
 #sm[data-mode="asset"] #ae{display:flex}#sm[data-mode="asset"] .stage{visibility:hidden}
 #sm #ae .at{display:flex;gap:3px;flex-wrap:wrap;align-items:center;font-size:16px}#sm #ae .at button{font-size:16px;padding:0 6px}
 #sm #ae .am{display:flex;gap:8px;align-items:flex-start}#sm #aec{image-rendering:pixelated;cursor:crosshair;border:1px solid #000;touch-action:none}
@@ -71,30 +71,44 @@
 #sm #ae .cur{width:26px;height:26px;border:1px solid #000;display:inline-block;cursor:pointer;vertical-align:middle}
 #sm #ae .pv{display:flex;gap:8px;flex-wrap:wrap}#sm #ae .pv canvas{width:192px;height:192px;image-rendering:pixelated;border:1px solid #000}
 #sm #ae input[type=color]{width:0;height:0;padding:0;border:0;opacity:0;position:absolute}
+#sm .bar{background:#111;padding:6px 6px 6px 10px;flex-wrap:nowrap}#sm .bar>select{display:none}
+#sm .bar .tabs{margin-left:auto;width:308px;flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}#sm .bar .tabs button{font-size:17px;padding:1px 0;white-space:nowrap;overflow:hidden}#sm .bar>button{white-space:nowrap}
+#sm .bar .gap{width:10px;flex:none}#sm button:disabled{opacity:.35;cursor:var(--c-arrow)}#sm button:disabled:hover{border-color:#555}
+#sm .dd{min-width:240px;display:flex;justify-content:space-between;gap:12px;text-align:left}#sm .dd .c{color:#c9c5b8}
+#sm .mod{color:#e0533f}#sm .menu.ddm{max-height:70vh;overflow:auto;min-width:240px}#sm .menu.ddm button{white-space:nowrap}
+#sm .wp>div .n{line-height:1.5}#sm .opt{color:#8f8b80;text-decoration:underline;text-underline-offset:3px;cursor:pointer;margin-left:6px}#sm .opt:hover{color:#f2efe6}
+#sm .wp.kv>div{grid-template-columns:auto 1fr;padding-left:12px;cursor:var(--c-arrow)}#sm .wp.kv>div.act{cursor:pointer}
+#sm .wp.kv input[type=text],#sm .wp.kv input[type=number]{font-size:16px;padding:0 4px;background:#181818;border:1px solid #555;min-width:0;width:100%}#sm .wp.kv input[type=number]{width:52px}
+#sm .wp.kv input[type=range]{min-width:0;width:100%;accent-color:#c9c5b8}#sm .wp.kv textarea{font:13px/1.1 monospace;background:#181818;color:#c9c5b8;border:1px solid #444;height:64px;width:100%;resize:vertical}
+#sm .wp.kv>div.tall{height:auto;padding:4px 4px 4px 12px}
+#sm .wp>div.grp{background:none;border-color:transparent;color:#8f8b80;cursor:pointer;margin-top:3px}#sm .wp>div.grp:hover{border-color:transparent;color:#f2efe6}#sm .wp>div.grp::before{content:'▾';justify-self:center;color:#6f6b62}#sm .wp>div.grp.shut::before{content:'▸'}
+#sm .wp>div.tall30{height:30px}#sm .wp canvas#aes{width:192px;height:192px;justify-self:center}#sm .wp>div .c.mod{color:#e0533f}#sm .wp canvas.pi{width:24px;height:24px}#sm .wp canvas.ui{width:26px;height:26px}
 </style>
 <div id="sm" data-mode="play">
- <header><span>Goldbank · Back room</span><span id="snd" style="cursor:pointer">♪</span></header>
- <div class="bar" id="bar"></div>
+ <div class="bar" id="bar"><button id="snd" aria-label="Sound">♪</button></div>
  <div class="main">
   <div class="view"><div class="stage" id="stage"><canvas id="sb"></canvas></div></div>
   <div class="side">
-   <div class="sec" data-k="mt" data-m="map"><b class="sh">Map tools</b><div class="ef" id="mfile"></div>
-    <div class="sec sub" data-k="mtf"><b class="sh">Tiles</b><div class="wp" id="ed-fl"></div></div>
-    <div class="sec sub" data-k="mtd"><b class="sh">Doors</b><div class="wp" id="ed-dr"></div></div>
-    <div class="sec sub" data-k="mtu"><b class="sh">Furniture</b><div class="wp" id="ed-fu"></div></div>
-    <div class="sec sub" data-k="mts"><b class="sh">Size</b><div class="ef" id="ed-sz"></div></div></div>
-   <div class="sec" data-k="atx" data-m="asset"><b class="sh">Textures</b>
-    <div class="sec sub" data-k="atf"><b class="sh">Tiles</b><div class="wp" id="ae-fl"></div></div>
-    <div class="sec sub" data-k="atw"><b class="sh">Mods</b><div class="wp" id="ae-wl"></div></div>
-    <div class="sec sub" data-k="atu"><b class="sh">Furniture</b><div class="wp" id="ae-fu"></div></div></div>
-   <div class="sec" data-k="apt" data-m="asset"><b class="sh">Patterns</b><div class="ef" id="ae-po"></div><div class="wp" id="ae-pt"></div></div>
-   <div class="sec" data-k="aas" data-m="asset"><b class="sh">Asset</b><div class="ef" id="ae-as"></div></div>
-   <div class="sec" data-k="wp"><b class="sh">Weapons</b><div class="wp" id="wp"></div></div>
-   <div class="sec" data-k="cov"><b class="sh">Cover</b><div class="wp" id="cov"></div></div>
-   <div class="sec" data-k="it"><b class="sh">Items</b><div class="wp" id="items"></div></div>
-   <div class="sec" data-k="tools"><b class="sh">Tethers</b><div class="wp" id="tools"></div></div>
-   <div class="sec" data-k="mk"><b class="sh">Markers</b><div class="wp mk"><div><span class="ml">Name</span><input id="fn" value="Edda"></div><div><span class="ml">Faction</span><select id="fnat"></select><span class="c">▾</span></div><div><span class="ml">Type</span><select id="fu"></select><span class="c">▾</span></div><div><span class="ml">Arms</span><select id="fw"></select><span class="c">▾</span></div><div id="tpr"><canvas id="tp" width="17" height="17"></canvas><canvas id="dice" width="9" height="9"></canvas></div></div></div>
-   <div class="sec" data-k="insp"><b class="sh" id="ihd">Inspector</b><div id="insp"></div></div>
+   <div class="sec" data-k="mtt" data-m="map"><b class="sh">Tools</b><div class="wp" id="ed-tl"></div></div>
+   <div class="sec" data-k="mtf" data-m="map"><b class="sh">Tiles</b><div class="wp" id="ed-fl"></div></div>
+   <div class="sec" data-k="mtd" data-m="map"><b class="sh">Doors</b><div class="wp" id="ed-dr"></div></div>
+   <div class="sec" data-k="mtu" data-m="map"><b class="sh">Furniture</b><div class="wp" id="ed-fu"></div></div>
+   <div class="sec" data-k="mts" data-m="map"><b class="sh">Map settings</b><div class="wp kv" id="ed-set"></div></div>
+   <div class="sec closed" data-k="mtx" data-m="map"><b class="sh">Share</b><div class="wp kv" id="ed-sh"></div></div>
+   <div class="sec" data-k="atx" data-m="asset"><b class="sh">Texture</b><div class="wp" id="ae-tx"></div><div class="wp kv" id="ae-tn"></div></div>
+   <div class="sec" data-k="aly" data-m="asset"><b class="sh" id="ae-lh">Layers</b><div class="wp kv" id="ae-ly"></div></div>
+   <div class="sec closed" data-k="aad" data-m="asset"><b class="sh">Adjust</b><div class="wp kv" id="ae-ad"></div></div>
+   <div class="sec closed" data-k="awr" data-m="asset"><b class="sh">Wear</b><div class="wp kv" id="ae-wr"></div></div>
+   <div class="sec closed" data-k="ast" data-m="asset"><b class="sh">Stamp</b><div class="wp kv" id="ae-st"></div></div>
+   <div class="sec closed" data-k="apt" data-m="asset"><b class="sh">Patterns</b><div class="ef" id="ae-po"></div><div class="wp" id="ae-pt"></div></div>
+   <div class="sec" data-k="apv" data-m="asset"><b class="sh">Preview</b><div class="wp kv" id="ae-pv"></div></div>
+   <div class="sec closed" data-k="aas" data-m="asset"><b class="sh">Share</b><div class="wp kv" id="ae-as"></div></div>
+   <div class="sec" data-k="wp" data-m="play"><b class="sh">Weapons</b><div class="wp" id="wp"></div></div>
+   <div class="sec" data-k="cov" data-m="play"><b class="sh">Cover</b><div class="wp" id="cov"></div></div>
+   <div class="sec" data-k="it" data-m="play"><b class="sh">Items</b><div class="wp" id="items"></div></div>
+   <div class="sec" data-k="tools" data-m="play"><b class="sh">Tethers</b><div class="wp" id="tools"></div></div>
+   <div class="sec" data-k="mk" data-m="play"><b class="sh">Units</b><div class="wp kv" id="ukv"></div><div class="wp" id="units"></div><div style="display:none"><div class="wp mk"><div><span class="ml">Name</span><input id="fn" value="Edda"></div><div><span class="ml">Faction</span><select id="fnat"></select><span class="c">▾</span></div><div><span class="ml">Type</span><select id="fu"></select><span class="c">▾</span></div><div><span class="ml">Arms</span><select id="fw"></select><span class="c">▾</span></div><div id="tpr"><canvas id="tp" width="17" height="17"></canvas><canvas id="dice" width="9" height="9"></canvas></div></div></div></div>
+   <div class="sec" data-k="insp" data-m="play"><b class="sh" id="ihd">Inspector</b><div id="insp"></div></div>
   </div>
  </div>
  <div class="hint" id="hint"></div>

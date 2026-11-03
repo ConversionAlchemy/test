@@ -26,7 +26,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Double-click an item | Select it: hold to fire or throw it from where it lies; drag to move it |
 | Right-click | Unit or door options |
 | Tools: Rope, Chain | Drag onto a unit, or click the tool then a unit, to tie it to the nearest wall; Esc cancels |
-| Side headings | Click Weapons, Cover, Tools, Markers or Inspector to fold it away |
+| Side headings | Click any panel heading to fold it away |
 | Inspector (right column) | Shows the selected unit, or an opened chest, desk, shelf or rack with the selected unit beneath it when it stands beside it. Click an item to move it to the other box, drag it across, drag it out to drop it, Shift+click to drop it; click a unit's slot to draw it |
 
 ## Rules worth knowing
@@ -61,7 +61,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Explosions leave scorch rays: dark streaks of random length and thickness spreading out from the blast, tapering to points, over floor and furniture alike, and they stay. Furniture broken by a blast gets real cut edges (shaded to the light) and, for wood, short splinters along the grain.
 - Blasts on grass or soil tear up the grass, dig a soft crater, throw soil round it and scorch the ground; the crater stays.
 - Slabs placed from the Cover list are free barricades: no hinge, no lock, never open. Units push them by walking into them, slowed by the weight: wood a little, metal more, the heavy slab most, armoured units less than light ones.
-- Units are drawn from pixel sprites, front up, turned to face the way the unit faces; damage, burns and death still mark each pixel. Each side has its own look per class (civilian, base, riflemen, heavy, shock, commando); the class names come from Imperial ranks. Sides: Imperium, Sanctis, Goldbank, Reapers, Havenport, Portsbridge Trade Company, Great Keys, plus neutral civilians. Markers picks a Faction, then a Type from that faction's roster: Military first (Conscript, Musketeer, Praetorian…), then Civilians. Neutrals are civilians only, under plain trade names (Townsman, Labourer, Moneylender…) so none read as a faction. Arms lists Unarmed, then Spears, Firearms and Heavy arms, cheapest first, and starts on the type's default kit.
+- Units are drawn from pixel sprites, front up, turned to face the way the unit faces; damage, burns and death still mark each pixel. Each side has its own look per class (civilian, base, riflemen, heavy, shock, commando); the class names come from Imperial ranks. Sides: Imperium, Sanctis, Goldbank, Reapers, Havenport, Portsbridge Trade Company, Great Keys, plus neutral civilians. Units lists each side's roster under its name: Military first (Conscript, Musketeer, Praetorian…), then Civilians. Drag a row onto the board to place one; the chosen row shows its weapon in brackets, which cycles on click, and Name sets the next unit's name. Neutrals are civilians only, under plain trade names (Townsman, Labourer, Moneylender…) so none read as a faction. Arms lists Unarmed, then Spears, Firearms and Heavy arms, cheapest first, and starts on the type's default kit.
 | Side | Civilian | Base | Riflemen | Heavy | Shock | Commando |
 |---|---|---|---|---|---|---|
 | Imperium | Officer, Imperial Clerk, Imperial Striped Guard, Imperial Noble | Conscript | Musketeer | Praetorian | Shocktrooper | Commando |
@@ -84,7 +84,7 @@ Goldbank back room, Havenport warehouse (Imperial raid), Havenport tavern, Haven
 
 ## AI
 
-The AI button hands one side to the computer (for now only the Havenport warehouse, where it plays the Reapers). Each reset its leader rolls fresh orders: hold position, defend a zone (main floor, back room, bomb stash), protect the stash or the leader, or attack. Units stay sheathed until they see an enemy or hear the alarm, then turn, aim and fire, reload, throw a grenade at a bunch of enemies, hold fire when a friend is in the way, open unlocked doors on their way, and fall back to the back room when badly hurt. If the leader goes down, some of them pull back. Hover a name to see its order.
+The ▶ button hands one side to the computer (for now only the Havenport warehouse, where it plays the Reapers). Each reset its leader rolls fresh orders: hold position, defend a zone (main floor, back room, bomb stash), protect the stash or the leader, or attack. Units stay sheathed until they see an enemy or hear the alarm, then turn, aim and fire, reload, throw a grenade at a bunch of enemies, hold fire when a friend is in the way, open unlocked doors on their way, and fall back to the back room when badly hurt. If the leader goes down, some of them pull back. Hover a name to see its order.
 
 ## Linked maps
 
@@ -110,7 +110,7 @@ The plasma gun holds three shots, one burst, then vents with a hiss.
 
 Shift dashes the selected units along WASD, or the way they face: up to 2.5 tiles for commandos, less the heavier the unit. One dash (two for commandos) then a 10 s recharge, shown as a thin bar under the name. AI units sidestep thrown weapons.
 
-AI mode (the AI button) hands every other side to the computer; your side is the one selected when you switch it on. It needs no setup per map:
+AI mode (▶ in the top bar) hands every other side to the computer; your side is the one selected when you switch it on. It needs no setup per map:
 - rooms, doors and blasted holes are read from the map and re-read every two seconds;
 - units see in a cone (walls and closed doors block it), hear shots, explosions, footsteps, dashes, reloads and dry clicks through walls (thicker walls muffle more), remember what they saw, and share it with friends nearby;
 - each side weighs its strength (class, weapon, ammo, wounds) against the enemies it knows of: no contact keeps it calm, a noise sends it to look, better odds make it hunt, slightly worse odds make it hold, bad odds send it to the safest room to lock the doors and hold;
@@ -153,7 +153,7 @@ Every side always has one leader. The back room starts with Rook leading Goldban
 
 Units start on Autonomous; switch it off per unit to keep one on hold.
 
-Slow-mo (Z), in the top bar, runs the battle at a third of normal speed and draws streaks behind bullets and bolts.
+Slow-mo (Z) runs the battle at a third of normal speed and draws streaks behind bullets and bolts.
 
 With AI on and one of your units selected, what it sees stays at full brightness and what only its allies see is dimmed slightly.
 
@@ -178,9 +178,11 @@ V: the selected units look at the cursor (Shift+V: all face that way). A faint b
 
 ## Editors
 
-The top bar switches between Play, Map Editor and Asset Editor. Both editors pause the game and turn the AI off; Play turns it back on if it was on.
+One screen, three tabs at the top right: Playground, Map Editor and Asset Editor. Each tab swaps the panel below it; the map stays as it is. Both editors pause the game and turn the AI off; Playground turns it back on if it was on. Maps you leave keep their state.
 
-Base maps and textures can't be changed. Saving one always makes a mod: a separate copy marked "Mod" that remembers what it came from. Mods are kept in the browser and, when you're signed in, in your own private store on the page, so they survive a cleared browser. They can also be exported, imported or copied as code.
+The top bar holds ▶ (Playground only), the map drop-down (the texture drop-down in the Asset Editor), ↶ ↷ (editors only), Reset, New, Delete, Save and ♪. Mods show "(mod)" in red; Delete only works on a mod. Panel rows show a setting in grey brackets after the name, underlined; click it to change it.
+
+Base maps and textures can't be changed. Saving one always makes a mod: a separate copy marked "(mod)" that remembers what it came from. Mods are kept in the browser and, when you're signed in, in your own private store on the page, so they survive a cleared browser. They can also be exported, imported or copied as code.
 
 Tiles are organised as Element → Material → Variation, and every one can be laid as a floor or a wall:
 - Earth: Meadow grass, Packed dirt, Wheat, Hedge — Plain, Worn.
@@ -197,30 +199,33 @@ The old texture names still work and now draw with their new tile. The Atelier m
 
 Plank floors run as full-length boards across each floor area. Stone slabs is a floor with one bevelled slab per cell.
 
-**Map Editor.** Map tools sits above Weapons, with Tiles, Doors, Furniture and Size. Tiles has Element, Material and Variation selectors, Floor/Wall, a preview you click to arm, and the last eight tiles you used. The bottom bar names the tile under the cursor.
+**Map Editor.** The panel has Tools, Tiles, Doors, Furniture, Map settings and Share. The bottom bar names the tile under the cursor.
+- Tools: Paint, Vacuum, Sponge, Wand. The chosen tool shows its size, (1×1), (2×2) or (3×3); click to step up, back to 1×1 after the largest.
+- Tiles: one folder per element, every variation as a row. The chosen tile shows (floor) or (wall); click it to switch.
+- Map settings: Name, Location (outdoor, indoor or auto), Size, Grid and Wall tops. Share exports or imports a map.
 - Strokes, rectangles and fills show as a grey plan while you drag. On release the tiles go down one by one in drawing order, each with dust and its own sound. Plops speed up from 70 ms to 30 ms apart; big areas place up to 12 tiles per plop, still one sound each plop. Undo takes back the whole batch.
-- Interior / Outdoor / Auto (saved with the map). Interior maps darken the inside of thick walls; outdoor maps show wall tops. Auto picks outdoor when much of the floor is grass or earth or the map edge is open. Every wall, hedges included, casts the same shadow onto the floor.
+- Location (saved with the map). Interior maps darken the inside of thick walls; outdoor maps show wall tops. Auto picks outdoor when much of the floor is grass or earth or the map edge is open. Every wall, hedges included, casts the same shadow onto the floor.
 - Wall tops (on by default) shows the tops of all walls while editing. It's a view setting only.
 - WASD pans the view.
-- Clean: each tool has its own cursor with a yellow working tip. Vacuum (hold) pulls loose debris, spent shot, the specks and grit thrown out by blasts, and lingering smoke and dust in with a hum; every piece it catches rattles, so silence means the area is clear. Broad scorch and blood are left for the sponge. Sponge works as you move it and puts out fire and embers with a hiss and a puff of steam: water sounds and a faint damp trail that dries within a few seconds; it lifts blood, scorch, flames and stains, squeaks once when a cell comes clean, and keeps squeaking softly as you rub clean floor. Wand highlights the cells under it; drag over an area and on release each damaged cell is restored in turn with one chime and lingering coloured sparkles. Brush size sets the tool size.
+- Clean: each tool has its own cursor with a yellow working tip. Vacuum (hold) pulls loose debris, spent shot, the specks and grit thrown out by blasts, and lingering smoke and dust in with a hum; every piece it catches rattles, so silence means the area is clear. Broad scorch and blood are left for the sponge. Sponge works as you move it and puts out fire and embers with a hiss and a puff of steam: water sounds and a faint damp trail that dries within a few seconds; it lifts blood, scorch, flames and stains, squeaks once when a cell comes clean, and keeps squeaking softly as you rub clean floor. Wand highlights the cells under it; drag over an area and on release each damaged cell is restored in turn with one chime and lingering coloured sparkles.
 - Stone and metal walls add a soft low thud when placed.
 - Placing tiles gives a soft dust puff in the tile's colours and a quiet sound for its material (stone, tile, wood, metal, cloth, earth). Fills ripple out from where you clicked.
 - The grid shows on light and dark floors; the hovered cell has a black and white border.
 - Pick a tile to arm it as a brush. Drag to paint, Ctrl-drag to fill a rectangle, Shift-click to flood-fill, and right-click to paint the map's main floor. Brush sizes are 1, 2 or 3 cells.
 - Click a door type onto a doorway to place a door; it lines up with the wall. Right-clicking a door gives Locked and key options.
-- Ctrl+Z and Ctrl+Y undo and redo painting. Esc drops the brush.
-- Weapons, Cover, Items, Tethers and Markers work as in Play. Items (Solari and ammo) can be dropped on a unit, onto furniture or onto the floor. Dropping a weapon or item on a chest, shelf or desk stores it there.
-- Save writes the current scenario: tiles, units with their gear and status, doors, cover, items and containers. On a base map, Save makes a new mod map. New starts a blank room.
+- ↶ ↷, or Ctrl+Z and Ctrl+Y, undo and redo painting. Esc drops the brush.
+- Save writes the current scenario: tiles, units with their gear and status, doors, cover, items and containers. Units, weapons and items are placed in the Playground; Save there writes the scenario too. On a base map, Save makes a new mod map. New map starts a blank room.
+- Items (Solari and ammo) can be dropped on a unit, onto furniture or onto the floor. Dropping a weapon or item on a chest, shelf or desk stores it there.
 
-**Asset Editor.** Textures are listed as Floors, Walls and Furniture, each with base (locked) and mod entries.
-- Layers (the default): base colour with Hue, Saturation and Light; material (stone, marble, wood, metal, plaster, cloth, grass, soil, flat); layout (none, planks, slabs, flagstones, bricks, tiles, or any pattern) with joint width and depth; Variation with Shuffle; edge wear, scuffs and cracks; and a 16×16 stamp painted once per cell. Layered textures are drawn across the whole map like the built-in ones, so they join up with no visible repeat. Base textures open as the nearest layer recipe; Compare shows the original.
-- Paint: the pixel editor below. Switching to Paint turns the current layers into pixels.
-- Tools: pen, fill, line, rectangle (Shift for filled), pick (Alt-click with any tool also picks), select, and mirror X/Y. Arrow keys shift the texture to check seams.
+**Asset Editor.** The drop-down picks the texture. The panel has Texture (Floor or Wall, Name, Edit: layers or pixels), Layers or Paint, Adjust, Wear, Stamp, Patterns, Preview and Share. New texture saves a copy as a new mod; Reset drops unsaved changes.
+- Layers (the default): base colour, material (stone, marble, wood, metal, plaster, cloth, grass, soil, flat); layout (none, planks, slabs, flagstones, bricks, tiles, or any pattern) with joint width and depth; Variation with Shuffle; Hue, Saturation and Light under Adjust; edge wear, scuffs and cracks; and a 16×16 stamp painted once per cell. Layered textures are drawn across the whole map like the built-in ones, so they join up with no visible repeat. Base textures open as the nearest layer recipe; Compare shows the original.
+- Edit (pixels): the pixel editor. Switching turns the current layers into pixels.
+- Tool: pen, fill, line, rectangle (Shift for filled), pick (Alt-click with any tool also picks), select; Mirror: off, x, y or both. Arrow keys shift the texture to check seams.
 - Hue, Saturation and Light sliders adjust the whole texture. Click a palette colour to paint with it; right-click it to recolour every pixel close to it.
 - Patterns: the base patterns behind the built-in textures, plus your own. Click one to lay it over the texture (Overlay keeps the colours, Fill uses the texture's own tone ramp), at 1× or 2× with optional variation. Select an area and save it as a pattern.
 - Previews show the texture tiled, in a room with a unit for scale, and in the dark. Compare adds the original.
 - Unsaved edits stay as drafts while you switch textures. Saved mods appear in the Map Editor straight away.
-- Copy code gives a short snippet of the texture; Load code reads one back.
+- Share: Copy code gives a short snippet of the texture; Load code reads one back; mods can be exported and imported as a file.
 
 
 Sponge sounds use short clips from freesound.org: "working with a plunger" by tosha73, "tube squeak multiple" by uwesoundboiz and "shoe sole rubber squeak" by pipelyd.
