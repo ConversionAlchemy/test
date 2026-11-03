@@ -165,3 +165,5 @@ Name colours show diplomacy relative to your side (the one you control with AI o
 
 Units ignore neutrals' footsteps and other routine noise from anyone who is not an enemy. A side falling back fills its chosen room only as far as it comfortably holds; the rest hold where they are. Units pick spots apart from each other inside a room.
 
+
+While you control a unit (E), clicking a name label fires instead of selecting, and a right-click or stray click on the floor does not drop it; Esc does. A unit you let go of stands still for a second before acting on its own again.
