@@ -1370,18 +1370,19 @@ window.addEventListener('pointerup',e=>{if(!tdrag)return;const t=tdrag;tdrag=nul
 const fu=$('fu'),fnat=$('fnat'),fw=$('fw'),tp=$('tp');
 // marker roster: civilians first, then each class under its own side's name
 const CIVS=['Peasant','Merchant','Priest','Noble','Noblewoman'];
-const ROSTER={Imperium:[['Officer','civ'],['Imperial Clerk','civ'],['Imperial Noble','civ'],['Overseer','civ'],['Imperial Striped Guard','rifle'],['Conscript','home'],['Musketeer','rifle'],['Praetorian','guard'],['Shocktrooper','shock'],['Commando','cmd']],
+const ROSTER={Imperium:[['Officer','civ'],['Imperial Clerk','civ'],['Imperial Noble','civ'],['Overseer','civ'],['Conscript','home'],['Musketeer','rifle'],['Imperial Striped Guard','rifle'],['Praetorian','guard'],['Shocktrooper','shock'],['Commando','cmd']],
  Sanctis:[['Emperor','civ'],['Hierarch','civ'],['Acolyte','civ'],['Sanctis Guard','rifle'],['Eternal','guard']],
  Goldbank:[['Clerk','civ'],['Head Clerk','civ'],['Banker','civ'],['Bank Lord','civ'],['Watchman','home'],['Stockman','rifle'],['Aurum Guard','guard'],['Aurum Knight','shock'],['Gilded Hand','cmd']],
  Reapers:[['Thug','home'],['Cutthroat','rifle'],['Raider','guard'],['Blademaster','shock'],['Reaper','cmd']],
  Havenport:[['Dockhand','civ'],['Harbourmaster','civ'],['Harbour Watch','home'],['Marine','rifle'],['Harbour Guard','guard']],
  Portsbridge:[['Factor','civ'],['Company Clerk','civ'],['Company Guard','home'],['Company Rifles','rifle'],['Company Ironside','guard']],
  'Great Keys':[['Burgher','civ'],['Fisher','civ'],['Key Warden','home'],['Keys Rifles','rifle'],['Gatekeeper','guard']]};
-ROSTER.Neutrals=[...CIVS,...Object.values(ROSTER).flatMap(r=>r.filter(e=>e[1]==='civ').map(e=>e[0]))].map(n=>[n,'civ']);
-for(const k of ['','rod','pgun','sspear','musket','blunder','pistol','spear']){const o=document.createElement('option');o.value=k;o.textContent=k?WP[k].n:'Unarmed';fw.appendChild(o)}
+// neutrals reuse faction civilian looks under plain trade names (worn in muted colours)
+ROSTER.Neutrals=[...CIVS.map(n=>[n,'civ']),['Townsman','civ','Burgher'],['Fisherman','civ','Fisher'],['Labourer','civ','Dockhand'],['Sea captain','civ','Harbourmaster'],['Trader','civ','Factor'],['Bookkeeper','civ','Company Clerk'],['Scribe','civ','Clerk'],['Steward','civ','Head Clerk'],['Moneylender','civ','Banker'],['Magnate','civ','Bank Lord']].map(([n,u,l])=>[l||n,u,n]);
+{const o=document.createElement('option');o.value='';o.textContent='Unarmed';fw.appendChild(o)}for(const[gn,ks]of[['Spears',['spear','sspear']],['Firearms',['pistol','blunder','musket']],['Heavy arms',['pgun','rod']]]){const g=document.createElement('optgroup');g.label=gn;for(const k of ks){const o=document.createElement('option');o.value=k;o.textContent=WP[k].n;g.appendChild(o)}fw.appendChild(g)}
 for(const n of ['Neutrals',...Object.keys(ROSTER).filter(n=>n!=='Neutrals')]){const o=document.createElement('option');o.textContent=n;fnat.appendChild(o)}
 const fnatv=()=>fnat.value==='Neutrals'?null:fnat.value,fsel=()=>(ROSTER[fnat.value]||[])[+fu.value]||['Peasant','civ'];
-function fillTypes(){fu.innerHTML='';(ROSTER[fnat.value]||[]).forEach(([n],i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;fu.appendChild(o)});setArms()}
+function fillTypes(){fu.innerHTML='';const R=ROSTER[fnat.value]||[];for(const[gn,civ]of[['Military',false],['Civilians',true]]){const ix=R.map((e,i)=>i).filter(i=>(R[i][1]==='civ')===civ);if(!ix.length)continue;const g=document.createElement('optgroup');g.label=gn;for(const i of ix){const o=document.createElement('option');o.value=i;o.textContent=R[i][2]||R[i][0];g.appendChild(o)}fu.appendChild(g)}fu.value=fu.options[0]?fu.options[0].value:0;setArms()}
 function setArms(){const[l,u]=fsel(),nat=fnatv();let k=LOOKKIT[l]!==undefined?LOOKKIT[l]:KIT[nat]&&KIT[nat][u];if(typeof k==='function')k='spear';fw.value=k!==undefined?k||'':UNITS[u].w||'';fw.dataset.def=fw.value;preview()}
 function preview(){const[l,un]=fsel(),g=tp.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:-Math.PI/2,look:l,unit:un,nat:fnatv(),guard:false,tone:pTone},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));
  for(const p of px){let c=pcol(t,p);if(c===0)continue;if(!sprG(lookOf(t))&&(!set.has(K(p[0]+1,p[1]))||!set.has(K(p[0]-1,p[1]))||!set.has(K(p[0],p[1]+1))||!set.has(K(p[0],p[1]-1))))c=mul(c,.36);u[(p[1]+8)*17+p[0]+8]=c}g.putImageData(id,0,0)}
