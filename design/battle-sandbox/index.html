@@ -1735,12 +1735,20 @@ reset();loop();
 // editors: base content is read-only; every save is a mod kept apart from it
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
 const MODS={tex:LS.get('bs.tex',{}),pat:LS.get('bs.pat',{}),maps:LS.get('bs.maps',{})};
-const saveMods=()=>LS.set('bs.tex',MODS.tex)&&LS.set('bs.pat',MODS.pat)&&LS.set('bs.maps',MODS.maps);
+// mods live in the browser and, when signed in, in the viewer's private store
+let CLOUD=null;const SYNC={};
+function saveMods(){const ok=LS.set('bs.tex',MODS.tex)&&LS.set('bs.pat',MODS.pat)&&LS.set('bs.maps',MODS.maps);cloudPush();return ok}
+function cloudPush(){if(!CLOUD)return;const now={};for(const k of['tex','pat','maps'])for(const id in MODS[k])now[k+'~'+id]=JSON.stringify(MODS[k][id]);
+ for(const d in now)if(SYNC[d]!==now[d]){SYNC[d]=now[d];CLOUD.doc(d).set({v:now[d]}).catch(()=>{delete SYNC[d]})}for(const d in SYNC)if(!(d in now)){delete SYNC[d];CLOUD.doc(d).delete().catch(()=>{})}}
+setTimeout(async()=>{const db=await capUse('db'),u=await capUse('user');if(!db||!u)return;try{const id=await u.id();if(!id)return;const col=db.collection('data/users/'+id),q=await col.get();let add=false;
+ for(const d of q.docs){const[k,mid]=d.id.split('~');if(!MODS[k])continue;let v;try{v=JSON.parse(d.data().v)}catch(e){continue}SYNC[d.id]=JSON.stringify(v);if(!MODS[k][mid]){MODS[k][mid]=v;add=true;if(k==='tex')regTex(mid);if(k==='maps')regMap(mid)}}
+ CLOUD=col;if(add){LS.set('bs.tex',MODS.tex);LS.set('bs.pat',MODS.pat);LS.set('bs.maps',MODS.maps);fillMapSel();if(EM==='map')fillMapTools();if(EM==='asset')aeLists()}cloudPush()}catch(e){}},0);
 const uidS=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const mk=(t,cls,txt)=>{const e=document.createElement(t);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e};
 const flashB=(b,t)=>{const o=b.dataset.t||b.textContent;b.dataset.t=o;b.textContent=t;setTimeout(()=>b.textContent=o,900)};
 function confirmB(b,f){if(b.dataset.arm){delete b.dataset.arm;b.textContent=b.dataset.t;f();return}b.dataset.t=b.textContent;b.dataset.arm=1;b.textContent='Sure?';setTimeout(()=>{if(b.dataset.arm){delete b.dataset.arm;b.textContent=b.dataset.t}},2500)}
-function download(name,obj){try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(obj)],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove()}catch(e){}}
+const capUse=n=>window.claude&&window.claude.use?window.claude.use(n).catch(()=>null):Promise.resolve(null);
+async function download(name,obj){const dl=await capUse('downloads');if(dl){try{await dl.save({filename:name,data:JSON.stringify(obj)})}catch(e){}return}try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(obj)],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove()}catch(e){}}
 function pickFile(f){const i=document.createElement('input');i.type='file';i.accept='.json,application/json,text/plain';i.onchange=()=>{const r=new FileReader();r.onload=()=>{try{f(JSON.parse(r.result))}catch(e){}};if(i.files[0])r.readAsText(i.files[0])};i.click()}
 
 // textures

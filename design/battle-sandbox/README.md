@@ -176,7 +176,7 @@ V: the selected units look at the cursor (Shift+V: all face that way). A faint b
 
 The top bar switches between Play, Map Editor and Asset Editor. Both editors pause the game and turn the AI off; Play turns it back on if it was on.
 
-Base maps and textures can't be changed. Saving one always makes a mod: a separate copy marked "Mod" that remembers what it came from. Mods are kept in the browser and can be exported, imported or copied as code.
+Base maps and textures can't be changed. Saving one always makes a mod: a separate copy marked "Mod" that remembers what it came from. Mods are kept in the browser and, when you're signed in, in your own private store on the page, so they survive a cleared browser. They can also be exported, imported or copied as code.
 
 **Map Editor.** Map tools sits above Weapons, with Floors, Walls, Doors, Furniture and Size.
 - Pick a tile to arm it as a brush. Drag to paint, Ctrl-drag to fill a rectangle, Shift-click to flood-fill, and right-click to paint the map's main floor. Brush sizes are 1, 2 or 3 cells.
