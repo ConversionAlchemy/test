@@ -632,7 +632,7 @@ function shockTick(){for(const b of [...bodies]){if(!bodies.includes(b))continue
    else if(!b.spent&&!b.att&&!b.stuck&&tick%12===0&&Math.random()<.6)spark(x,y,Math.random()<.5?TIPA:TIPB,0,0,.8,6)}
   if(b.type==='token'&&b.held&&b.held.k==='sspear'&&!b.held.spent&&b.status==='free'&&Math.random()<.3){const t=tipOf(b);arcWeld(t[0],t[1],3,.015)}
   if(b.type==='token'&&b.held&&b.held.k==='sspear'&&!b.held.spent&&tick%24===0&&Math.random()<.5){const t=tipOf(b);spark(t[0],t[1],rgb(196,140,255),0,0,.8,6)}}}
-function give(t,k,am,rs){const it={k,n:1,ammo:am!==undefined?am:CAP[k],res:rs||0};if(!t.inv)t.inv=[];while(t.inv.length<6)t.inv.push(null);let i=slotFor(t,k);if(i<0)i=SEC.has(k)&&slotOK(t,1)?1:CAP[k]||WP[k].melee?0:GREN.has(k)?2:k==='bomb'?3:4;t.inv[i]=it;t.si=i;t.held=it;t.hc=null;sfx('flick')}
+function give(t,k,am,rs){if(!t.inv)t.inv=[];while(t.inv.length<6)t.inv.push(null);if(refill(t,k)){sfx('reload');return}const it={k,n:fullN(t,k),ammo:CAP[k]||undefined,res:CAP[k]?fullRes(t,k):undefined};while(t.inv.length<6)t.inv.push(null);let i=slotFor(t,k);if(i<0)i=SEC.has(k)&&slotOK(t,1)?1:CAP[k]||WP[k].melee?0:GREN.has(k)?2:k==='bomb'?3:4;t.inv[i]=it;t.si=i;t.held=it;t.hc=null;sfx('flick')}
 function dropHeld(t){const w=weapon(t.held.k,t.x+Math.cos(t.ang)*14,t.y+Math.sin(t.ang)*14,t.ang);w.ghost=!!solidHits(w,0,0);w.noPick=tick+120;w.ammo=t.held.ammo;w.res=t.held.res;reshape(w,w.ang);if(t.held.spent)spend(w);consume(t)}
 
 // physics
