@@ -55,7 +55,8 @@
 #sm .menu button:hover{background:#3a3a3a}
 #sm .menu button.on{background:#3a3a3a;color:#f2efe6}
 #sm .menu .mh{padding:3px 8px;color:#8f8b80;font-size:14px}#sm[data-mode="asset"] .side>.sec:not([data-m="asset"]),#sm:not([data-mode="asset"]) .side>.sec[data-m="asset"],#sm:not([data-mode="map"]) .side>.sec[data-m="map"],#sm:not([data-mode="play"]) .play-only{display:none}
-#sm:not([data-mode="play"]) .hint{visibility:hidden}
+#sm[data-mode="asset"] .hint{visibility:hidden}
+#sm #ed-fl.mk>div,#sm #ae-fl.mk>div{grid-template-columns:84px 1fr auto}
 #sm .sec.sub{margin-left:10px;border-top:0;padding-top:0}#sm .sec.sub .sh{grid-template-columns:24px 1fr}
 #sm .ef{display:flex;flex-direction:column;gap:4px;font-size:16px}#sm .ef .er{display:flex;gap:4px;align-items:center;flex-wrap:wrap}#sm .ef .er>span{color:#8f8b80;min-width:44px}
 #sm .ef button{font-size:16px;padding:0 6px}#sm .ef input[type=text],#sm .ef input[type=number]{font-size:16px;min-width:0;flex:1;padding:0 4px}#sm .ef input[type=number]{max-width:56px}
@@ -78,14 +79,13 @@
   <div class="view"><div class="stage" id="stage"><canvas id="sb"></canvas></div></div>
   <div class="side">
    <div class="sec" data-k="mt" data-m="map"><b class="sh">Map tools</b><div class="ef" id="mfile"></div>
-    <div class="sec sub" data-k="mtf"><b class="sh">Floors</b><div class="wp" id="ed-fl"></div></div>
-    <div class="sec sub" data-k="mtw"><b class="sh">Walls</b><div class="wp" id="ed-wl"></div></div>
+    <div class="sec sub" data-k="mtf"><b class="sh">Tiles</b><div class="wp" id="ed-fl"></div></div>
     <div class="sec sub" data-k="mtd"><b class="sh">Doors</b><div class="wp" id="ed-dr"></div></div>
     <div class="sec sub" data-k="mtu"><b class="sh">Furniture</b><div class="wp" id="ed-fu"></div></div>
     <div class="sec sub" data-k="mts"><b class="sh">Size</b><div class="ef" id="ed-sz"></div></div></div>
    <div class="sec" data-k="atx" data-m="asset"><b class="sh">Textures</b>
-    <div class="sec sub" data-k="atf"><b class="sh">Floors</b><div class="wp" id="ae-fl"></div></div>
-    <div class="sec sub" data-k="atw"><b class="sh">Walls</b><div class="wp" id="ae-wl"></div></div>
+    <div class="sec sub" data-k="atf"><b class="sh">Tiles</b><div class="wp" id="ae-fl"></div></div>
+    <div class="sec sub" data-k="atw"><b class="sh">Mods</b><div class="wp" id="ae-wl"></div></div>
     <div class="sec sub" data-k="atu"><b class="sh">Furniture</b><div class="wp" id="ae-fu"></div></div></div>
    <div class="sec" data-k="apt" data-m="asset"><b class="sh">Patterns</b><div class="ef" id="ae-po"></div><div class="wp" id="ae-pt"></div></div>
    <div class="sec" data-k="aas" data-m="asset"><b class="sh">Asset</b><div class="ef" id="ae-as"></div></div>

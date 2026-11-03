@@ -178,9 +178,17 @@ The top bar switches between Play, Map Editor and Asset Editor. Both editors pau
 
 Base maps and textures can't be changed. Saving one always makes a mod: a separate copy marked "Mod" that remembers what it came from. Mods are kept in the browser and, when you're signed in, in your own private store on the page, so they survive a cleared browser. They can also be exported, imported or copied as code.
 
+Tiles are organised as Element → Material → Variation, and every one can be laid as a floor or a wall:
+- Earth: Meadow grass, Packed dirt, Wheat, Hedge — Plain, Worn.
+- Metal: Steel, Iron, Brass, Gold, Umbra — Panels, Riveted plate, Smooth. Each metal has its own panel design. Umbra is the dark commando metal; its walls are as strong as iron and its door is lighter.
+- Stone: Greystone, Sandstone, Limestone, Goldstone, Aurelian marble, Verdant marble, Nightstone — Block, Flagstones, Slabs, Paving, Key tile. Key tiles draw a soft meander band along the edge of the floor area.
+- Wood: Oak, Pine, Teak, Walnut, Mahogany, Ebony — Planks, Boards, Panelled.
+- Cloth: Crimson, Verdant, Imperial purple — Plain, Bordered, Diamond weave.
+The old texture names still work and now draw with their new tile. The Atelier map shows every tile, door and piece of furniture.
+
 Plank floors run as full-length boards across each floor area. Stone slabs is a floor with one bevelled slab per cell.
 
-**Map Editor.** Map tools sits above Weapons, with Floors, Walls, Doors, Furniture and Size.
+**Map Editor.** Map tools sits above Weapons, with Tiles, Doors, Furniture and Size. Tiles has Element, Material and Variation selectors, Floor/Wall, a preview you click to arm, and the last eight tiles you used. The bottom bar names the tile under the cursor.
 - Strokes, rectangles and fills show as a grey plan while you drag. On release the tiles go down one by one in drawing order, each with dust and its own sound. Plops speed up from 70 ms to 30 ms apart; big areas place up to 12 tiles per plop, still one sound each plop. Undo takes back the whole batch.
 - Interior / Outdoor / Auto (saved with the map). Interior maps darken the inside of thick walls; outdoor maps show wall tops. Auto picks outdoor when much of the floor is grass or earth or the map edge is open. Every wall, hedges included, casts the same shadow onto the floor.
 - Wall tops (on by default) shows the tops of all walls while editing. It's a view setting only.
