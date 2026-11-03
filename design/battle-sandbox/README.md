@@ -126,3 +126,5 @@ With AI on, right-click a cell to send the selected units of yours there, if the
 A unit that is hopelessly outmatched with an enemy close by surrenders: it drops its weapon and becomes a neutral captive. With AI on, your units not under direct control hold where they are, turn towards enemies the team can see, and fight with what they carry: guns, spears, Lancers, and grenades when no friend is near the target.
 
 Units who see a lit grenade or heavy grenade in blast range run clear of it, picking the way out that keeps furthest from known enemies (commandos dash if they can). A unit left with no usable weapon or rounds takes a spare from a friend beside it: half his rounds for the same gun, one spear from a stack, or his lesser weapon if he carries two; in a fight AI units walk to the nearest friend with a spare or a loose weapon.
+
+Autonomous (under the inventory) lets one of your units act on its own with the same rules as the AI: look into noises, hunt, hold or fall back with its side. A right-click order still comes first, and E still takes direct control. Your units never surrender.
