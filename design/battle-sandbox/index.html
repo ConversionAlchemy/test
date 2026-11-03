@@ -1132,7 +1132,9 @@ function hint(){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free')
 let tool='move',chipLast=null,cellDrag=null,spinning=false;
 let mouse={x:0,y:0,in:false};
 function tokHit(b,sx,sy){if(b.type!=='token'&&b.type!=='part')return null;const bx=Math.round(b.x+sx),by=Math.round(b.y+sy);
- for(const o of bodies){if(o===b||(o.type!=='token'&&o.type!=='part'&&o.kind!=='crate')||o.att||o.status==='dead'||Math.abs(o.x-b.x)>18||Math.abs(o.y-b.y)>18||inDrag(o))continue;const ox=Math.round(o.x),oy=Math.round(o.y);for(const p of b.px)if(o.set.has(K(bx+p[0]-ox,by+p[1]-oy)))return o}return null}
+ for(const o of bodies){if(o===b||(o.type!=='token'&&o.type!=='part'&&o.kind!=='crate')||o.att||o.status==='dead'||Math.abs(o.x-b.x)>18||Math.abs(o.y-b.y)>18||inDrag(o))continue;const ox=Math.round(o.x),oy=Math.round(o.y);for(const p of rimOf(b))if(o.set.has(K(bx+p[0]-ox,by+p[1]-oy)))return o}return null}
+// a token's outer ring is enough for body-to-body contact
+const rimOf=b=>b.type!=='token'?b.px:b.rimN===b.px.length?b.rim:(b.rimN=b.px.length,b.rim=b.px.filter(p=>p[0]*p[0]+p[1]*p[1]>30));
 function heldBlocked(b,sx,sy){if(!b.held||b.raised)return false;for(const p of heldPix(b)){const X=p[0]+sx,Y=p[1]+sy;if(X<0||Y<0||X>=W||Y>=H)return true;const j=Y*W+X;if(sol[j]||slabG[j])return true}return false}
 function tryStep(b,sx,sy,depth=0){if(b.ghost){b.x+=sx;b.y+=sy;return true}
  const h=solidHits(b,sx,sy);if(h){if(b.type==='token'&&pushSlabs(b,h,sx,sy)){b.x+=sx;b.y+=sy;return true}pushDoor(b,h);const h0=b.type==='token'&&solidHits(b,0,0);if(h0&&h.length<h0.length){b.x+=sx;b.y+=sy;return true}return false}
@@ -1296,7 +1298,7 @@ const teamOf=b=>b.nat?SIDE[b.nat]||b.nat:'Neutral',aiUnit=b=>b.type==='token'&&a
 function aiSetup(){for(const b of bodies)b.ai=null;GS={};NZ=[];RINGS=[];ROOMS=null;SEEN.fill(-1e9);if(!aiOn)return;
  if(!aiMe){const t=[...sel].find(o=>o.type==='token');aiMe=t?teamOf(t):lastSide||teamOf(bodies.find(o=>o.type==='token'&&o.nat)||{})}aiRooms()}
 const aiOpen=(cx,cy)=>{if(cx<0||cy<0||cx>=CW||cy>=CH||map[cy][cx]==='sky')return false;const j=(cy*T+8)*W+cx*T+8;return !sol[j]&&!OBJ[j]};
-const isDoor=o=>o.type==='slab'&&!o.free&&!o.fallen;
+const isDoor=o=>o.type==='slab'&&!o.free&&!o.fallen;let DL=[];const doorsNow=()=>DL.filter(o=>bodies.includes(o)&&!o.fallen);
 const onDoor=(o,x,y)=>o.dt?o.dt.has((y/T|0)*CW+(x/T|0)):Math.abs(o.x-x)<12&&Math.abs(o.y-y)<12;
 const hasKey=(o,tm)=>tm&&(o.keys===tm||o.pair&&o.pair.keys===tm);
 function lockedAt(nx,ny,tm){return bodies.some(o=>isDoor(o)&&o.locked&&!o.lockBroken&&!hasKey(o,tm)&&onDoor(o,nx*T+8,ny*T+8))}
@@ -1305,7 +1307,7 @@ const G=8;let WG=null,GW=0,GH=0;
 function walkGrid(){GW=W/G|0;GH=H/G|0;WG=new Uint8Array(GW*GH);const P=[[0,0],[5,0],[-5,0],[0,5],[0,-5],[4,4],[-4,4],[4,-4],[-4,-4]];
  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const cx=x*G+4,cy=y*G+4;if(map[cy/T|0][cx/T|0]==='sky')continue;let ok=1;for(const[a,b]of P){const X=cx+a,Y=cy+b;if(X<0||Y<0||X>=W||Y>=H){ok=0;break}const j=Y*W+X;if(sol[j]||OBJ[j]){ok=0;break}}WG[y*GW+x]=ok}}
 const wOpen=(x,y)=>{if(!WG)walkGrid();const gx=x/G|0,gy=y/G|0;return gx>=0&&gy>=0&&gx<GW&&gy<GH&&WG[gy*GW+gx]===1};
-function aiPath(b,tx,ty,anyLock){if(!WG||WG.length!==(W/G|0)*(H/G|0))walkGrid();const N=GW*GH,tm=teamOf(b),blk=n=>!WG[n]||!anyLock&&lockedAt((n%GW)*G/T|0,(n/GW|0)*G/T|0,tm);
+function aiPath(b,tx,ty,anyLock){if(!WG||WG.length!==(W/G|0)*(H/G|0))walkGrid();const N=GW*GH,tm=teamOf(b),LK=new Set();if(!anyLock)for(const o of doorsNow())if(o.locked&&!o.lockBroken&&!hasKey(o,tm)){if(o.dt)for(const c of o.dt)LK.add(c);else LK.add((o.y/T|0)*CW+(o.x/T|0))}const blk=n=>!WG[n]||LK.has(((n/GW|0)*G/T|0)*CW+((n%GW)*G/T|0));
  const near=(x,y)=>{let gx=x/G|0,gy=y/G|0,best=-1,bd=1e9;for(let r=0;r<=3&&best<0;r++)for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++){const X=gx+i,Y=gy+j;if(X<0||Y<0||X>=GW||Y>=GH||blk(Y*GW+X))continue;const d=i*i+j*j;if(d<bd){bd=d;best=Y*GW+X}}return best};
  const s0=near(b.x,b.y),g=near(tx,ty);if(s0<0||g<0)return null;const prev=new Int32Array(N).fill(-1),q=[s0];prev[s0]=s0;let h=0;
  while(h<q.length){const c=q[h++];if(c===g)break;const cx=c%GW,cy=c/GW|0;for(const[a,d]of[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){const nx=cx+a,ny=cy+d,n=ny*GW+nx;if(nx<0||ny<0||nx>=GW||ny>=GH||prev[n]>=0||blk(n))continue;if(a&&d&&(blk(cy*GW+nx)||blk(ny*GW+cx)))continue;prev[n]=c;q.push(n)}}
@@ -1314,15 +1316,15 @@ function aiPath(b,tx,ty,anyLock){if(!WG||WG.length!==(W/G|0)*(H/G|0))walkGrid();
  const out=[];let px=b.x,py=b.y,i=0;while(i<raw.length){let j=raw.length-1;while(j>i&&!clear(px,py,raw[j][0],raw[j][1]))j--;out.push(raw[j]);px=raw[j][0];py=raw[j][1];i=j+1}
  if(Math.hypot(tx-out[out.length-1][0],ty-out[out.length-1][1])<12&&wOpen(tx,ty))out[out.length-1]=[tx,ty];out.raw=raw;return out}
 function aiStep(b,x,y,a=b.ai){const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy);if(d<2)return true;const u=UNITS[b.unit],sp=.85*(1-u.arm*.07)*(b.held?.8:1)*(b.crouch?.4:1);
- for(const o of bodies)if(isDoor(o)&&o.locked&&!o.lockBroken&&hasKey(o,teamOf(b))&&Math.hypot(o.x-b.x,o.y-b.y)<24&&(onDoor(o,x,y)||onDoor(o,b.x,b.y))){for(const q of o.pair?[o,o.pair]:[o])q.locked=false;sfx('lock')}
- for(const o of bodies)if(isDoor(o)&&!o.locked&&o.tgt===0&&o.ang===0&&Math.hypot(o.x-b.x,o.y-b.y)<24&&(onDoor(o,x,y)||onDoor(o,b.x,b.y)))openGroup(o,b);
+ for(const o of DL)if(isDoor(o)&&o.locked&&!o.lockBroken&&hasKey(o,teamOf(b))&&Math.hypot(o.x-b.x,o.y-b.y)<24&&(onDoor(o,x,y)||onDoor(o,b.x,b.y))){for(const q of o.pair?[o,o.pair]:[o])q.locked=false;sfx('lock')}
+ for(const o of DL)if(isDoor(o)&&!o.locked&&o.tgt===0&&o.ang===0&&Math.hypot(o.x-b.x,o.y-b.y)<24&&(onDoor(o,x,y)||onDoor(o,b.x,b.y)))openGroup(o,b);
  const gain=()=>d-Math.hypot(x-b.x,y-b.y);moveToward(b,b.x+dx/d*sp,b.y+dy/d*sp);let m=gain();
  if(m<=.15&&b.held&&!a.tg&&b.ai){b.psi=b.si;b.si=-1;b.held=null;b.hc=null;a.sheath=tick+90;moveToward(b,b.x+dx/d*sp,b.y+dy/d*sp);m=gain()}
  if(m<=.15){const k=b.id%2?1:-1;moveToward(b,b.x-dy/d*sp*k,b.y+dx/d*sp*k)}
  if(m>.15){b.mv=6;a.stk=0;if(!a.tg&&!(b.pa&&b.pa.tg))turnTo(b,Math.atan2(dy,dx))}else a.stk=(a.stk||0)+1;return false}
 function aiGo(b,x,y,a=b.ai){if(!a.path||!a.wp||Math.hypot(a.wp[0]-x,a.wp[1]-y)>12||tick-a.pt>90){a.path=aiPath(b,x,y);a.wp=[x,y];a.pt=tick;a.door=null;
-  if(!a.path){const p0=aiPath(b,x,y,true),p=p0&&p0.raw;const d=p&&bodies.find(o=>isDoor(o)&&o.locked&&!o.lockBroken&&p.some(q=>onDoor(o,q[0],q[1])));if(d){a.door=d;const i=p.findIndex(q=>onDoor(d,q[0],q[1]));a.path=p.slice(0,Math.max(0,i-2))}else a.path=[]}}
- const n=a.path[0];if(!n){if(a.door&&a.door.locked&&!a.door.lockBroken){breach(b,a.door,a);return false}return true}if(aiStep(b,n[0],n[1],a)||Math.hypot(n[0]-b.x,n[1]-b.y)<(a.stk>2?10:3)){a.path&&a.path.shift();a.stk=0}else if(a.stk>40){a.path=null;a.stk=0;return false}return !a.path||!a.path.length}
+  if(!a.path){const p0=aiPath(b,x,y,true),p=p0&&p0.raw;const d=p&&DL.find(o=>isDoor(o)&&o.locked&&!o.lockBroken&&p.some(q=>onDoor(o,q[0],q[1])));if(d){a.door=d;const i=p.findIndex(q=>onDoor(d,q[0],q[1]));a.path=p.slice(0,Math.max(0,i-2))}else a.path=[]}}
+ if(!Array.isArray(a.path))a.path=[];const n=a.path.length?a.path[0]:null;if(!n||n[0]===undefined){if(a.door&&a.door.locked&&!a.door.lockBroken){breach(b,a.door,a);return false}return true}if(aiStep(b,n[0],n[1],a)||Math.hypot(n[0]-b.x,n[1]-b.y)<(a.stk>2?10:3)){a.path&&a.path.shift();a.stk=0}else if(a.stk>40){a.path=null;a.stk=0;return false}return !a.path||!a.path.length}
 
 // rooms: flood-fill open tiles, doors split them; redone every couple of seconds so blasted walls open new ways
 let ROOMS=null;
@@ -1334,7 +1336,7 @@ function aiRooms(){const n=CW*CH,R=new Int16Array(n).fill(-1),dt=new Map();
   cen.push([sx/m*T+8,sy/m*T+8,m]);k++}
  const doors=[];for(const d of new Set(dt.values())){const rs=new Set();for(const c of d.dt){const cx=c%CW,cy=c/CW|0;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const f=(cy+b)*CW+cx+a;if(R[f]>=0)rs.add(R[f])}}doors.push({d,rooms:[...rs]});
   if(d.keys===undefined){d.keys=null;if(d.locked){const n={};for(const t of bodies)if(t.type==='token'&&t.nat&&t.status!=='dead'){const c=(t.y/T|0)*CW+(t.x/T|0);if(rs.has(R[c]))n[teamOf(t)]=(n[teamOf(t)]||0)+1}const top=Object.entries(n).sort((p,q)=>q[1]-p[1])[0];if(top)d.keys=top[0]}}}
- ROOMS={R,n:k,cen,doors,t:tick};walkGrid()}
+ ROOMS={R,n:k,cen,doors,t:tick};DL=bodies.filter(isDoor);walkGrid();for(const g of Object.values(GS)){if(g.home>=k)g.home=-1;if(g.tgtR>=k)g.tgtR=-1;if(g.hostile)for(const r of [...g.hostile.keys()])if(r>=k)g.hostile.delete(r)}}
 function roomAt(x,y){if(!ROOMS)return -1;const cx=x/T|0,cy=y/T|0,c=cy*CW+cx,r=ROOMS.R[c];if(r>=0)return r;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const f=(cy+b)*CW+cx+a;if(f>=0&&f<ROOMS.R.length&&ROOMS.R[f]>=0)return ROOMS.R[f]}return -1}
 const ways=r=>ROOMS.doors.filter(e=>e.rooms.includes(r));
 
@@ -1427,7 +1429,7 @@ function aiTick(){if(!aiOn)return;if(!ROOMS||tick-ROOMS.t>120)aiRooms();
   if((gm==='defend'||gm==='fall')&&g.home>=0&&roomAt(b.x,b.y)===g.home){const op=ways(g.home).filter(e=>!e.d.locked&&!e.d.lockBroken&&!(e.d.pair&&e.d.pair.lockBroken)&&!(e.skip>tick));
    if(op.length&&(!g.locker||g.locker.status!=='free'||!g.locker.ai||roomAt(g.locker.x,g.locker.y)!==g.home))g.locker=b;
    if(g.locker===b&&op.length){let e=a.lockE&&op.includes(a.lockE)?a.lockE:null;if(e&&tick-a.lockT>300){e.skip=tick+600;e=null}if(!e){e=a.lockE=op.sort((p,q)=>Math.hypot(p.d.x-b.x,p.d.y-b.y)-Math.hypot(q.d.x-b.x,q.d.y-b.y))[0];a.lockT=tick;say(b,'Locking up')}b.crouch=false;if(aiLock(b,e,g.home))a.lockE=null;continue}}
-  {const L=g.locker,e=L&&L!==b&&L.ai&&L.ai.lockE;if(e&&Math.hypot(e.d.x-b.x,e.d.y-b.y)<44&&g.home>=0){const c=ROOMS.cen[g.home];b.crouch=false;aiGo(b,c[0],c[1]);if(tg)turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));continue}}
+  {const L=g.locker,e=L&&L!==b&&L.ai&&L.ai.lockE;if(e&&Math.hypot(e.d.x-b.x,e.d.y-b.y)<44&&g.home>=0){const c=ROOMS.cen[g.home];b.crouch=false;if(c)aiGo(b,c[0],c[1]);if(tg)turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));continue}}
   if(tg){if(b.crouch&&!canSeeUp(b,tg))b.crouch=false;aiShoot(b,tg);
    const far=b.held&&(WP[b.held.k].melee?a.td>100:a.td>(WP[b.held.k].range||200)*.8);if((gm==='hunt'||gm==='hold')&&far)aiGo(b,tg.x,tg.y);continue}
   const home=g.home,known=[...(g.known||new Map()).values()].sort((p,q)=>q.t-p.t),last=known[0];
@@ -1436,7 +1438,7 @@ function aiTick(){if(!aiOn)return;if(!ROOMS||tick-ROOMS.t>120)aiRooms();
   if(gm==='clear'){const R=g.tgtR;if(R===undefined||R<0)continue;if(g.clr&&g.clr.has(b)){b.crouch=false;if(!a.spot||roomAt(a.spot[0],a.spot[1])!==R){a.spot=aiWander(b,R);say(b,'Moving in')}if(a.spot&&aiGo(b,a.spot[0],a.spot[1])){turnTo(b,b.ang+.08);if(!a.wait)a.wait=tick+40;if(tick>a.wait){a.wait=0;a.spot=aiWander(b,R)}}}else if(tick%60===b.id%60){const c=ROOMS.cen[R];if(c)turnTo(b,Math.atan2(c[1]-b.y,c[0]-b.x))}continue}
   if(gm==='hunt'){b.crouch=false;if(last){if(aiGo(b,last.x,last.y)){last.t-=600;turnTo(b,b.ang+.06)}}continue}
   if(gm==='hold'){if(!a.spot||roomAt(a.spot[0],a.spot[1])!==roomAt(b.x,b.y))a.spot=[b.x,b.y];if(last&&tick%60===b.id%60&&!losClear(a.spot[0],a.spot[1],last.x,last.y)){const r=roomAt(b.x,b.y);for(let k=0;k<16;k++){const p=aiWander(b,r);if(p&&losClear(p[0],p[1],last.x,last.y)&&Math.hypot(p[0]-last.x,p[1]-last.y)>50&&!bodies.some(o=>o!==b&&o.ai&&Math.hypot(o.x-p[0],o.y-p[1])<18)){a.spot=p;break}}}aiGo(b,a.spot[0],a.spot[1]);b.crouch=nearObj(b)&&(tick+b.id*13)%120>40;if(last)turnTo(b,Math.atan2(last.y-b.y,last.x-b.x));continue}
-  if(gm==='fall'||gm==='defend'){if(home<0)continue;if(roomAt(b.x,b.y)!==home){b.crouch=false;const c=ROOMS.cen[home];aiGo(b,c[0],c[1]);continue}
+  if(gm==='fall'||gm==='defend'){if(home<0)continue;if(roomAt(b.x,b.y)!==home){b.crouch=false;const c=ROOMS.cen[home];if(c)aiGo(b,c[0],c[1]);continue}
    const w=ways(home);
    const weak=w.filter(e=>e.d.lockBroken||e.d.pair&&e.d.pair.lockBroken||!e.d.locked),foc=weak[0]||w[0];
    if(!a.spot||roomAt(a.spot[0],a.spot[1])!==home)a.spot=aiWander(b,home);if(aiGo(b,a.spot[0],a.spot[1])){b.crouch=nearObj(b)&&(tick+b.id*13)%150>50;const f=foc?foc.d:last;if(f)turnTo(b,Math.atan2(f.y-b.y,f.x-b.x))}continue}}}
@@ -1456,10 +1458,10 @@ function autoFire(b){const a=b.pa||(b.pa={cd:30}),rng=k=>!k?110:WP[k].melee?110:
  if(k==='grenade'||k==='bomb'){turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));if(--a.cd>0)return;const np=nadePlan(b,tg,true);if(np){throwNade(b,np.i,np.tg);a.cd=120}else a.cd=20;return}
  if(td>rng(k)+40){turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));return}aiShoot(b,tg,a)}
 // grenades: anyone in the blast who can see it runs, away from the bomb and from known enemies
-function bombFlee(b,enemies){if(b.direct||b.status!=='free')return false;if(b.flee){if(tick>b.flee.t||!bodies.includes(b.flee.g)){b.flee=null;return false}if((b.fa.stk||0)>5){b.fleeBad=Math.atan2(b.flee.y-b.y,b.flee.x-b.x);b.flee=null}else{aiGo(b,b.flee.x,b.flee.y,b.fa);return true}}
+function bombFlee(b,enemies){if(b.direct||b.status!=='free')return false;if(b.flee){if(tick>b.flee.t||!bodies.includes(b.flee.g)){b.flee=null;return false}if(((b.fls||{}).stk||0)>5){b.fleeBad=Math.atan2(b.flee.y-b.y,b.flee.x-b.x);b.flee=null}else{aiGo(b,b.flee.x,b.flee.y,b.fls||(b.fls={}));return true}}
  for(const g of bodies){if(!(g.fuse>0)||g.kind!=='grenade'&&g.kind!=='bomb')continue;const R=g.kind==='bomb'?60:44,d=Math.hypot(g.x-b.x,g.y-b.y);if(d>R||!losClear(b.x,b.y,g.x,g.y,false,false))continue;
   let best=null,bs=-1e9;for(let k=0;k<16;k++){const an=k*.3927,X=b.x+Math.cos(an)*(R+8-d+8),Y=b.y+Math.sin(an)*(R+8-d+8);if(!wOpen(X,Y)||!losClear(b.x,b.y,X,Y,false,false))continue;let sc=Math.hypot(X-g.x,Y-g.y);if(b.fleeBad!==undefined&&Math.cos(an-b.fleeBad)>.7)sc-=60;for(const o of bodies){if(o===b||o.type!=='token'||o.status==='dead')continue;const tx=o.flee?o.flee.x:o.x,ty=o.flee?o.flee.y:o.y,dd=Math.hypot(tx-X,ty-Y);if(dd<24)sc-=(24-dd)*2;const vx=X-b.x,vy=Y-b.y,L=vx*vx+vy*vy||1,t=Math.max(0,Math.min(1,((o.x-b.x)*vx+(o.y-b.y)*vy)/L));if(Math.hypot(b.x+vx*t-o.x,b.y+vy*t-o.y)<12)sc-=40}for(const e of enemies){const ed=Math.hypot(e.x-X,e.y-Y);if(ed<80)sc-=(80-ed)*1.5}if(sc>bs){bs=sc;best=[X,Y]}}
-  if(best){b.flee={x:best[0],y:best[1],t:tick+g.fuse+20,g};say(b,'Run!',true);b.fa={};b.crouch=false;if(Math.hypot(best[0]-g.x,best[1]-g.y)>R&&dashUnit(b,best[0]-b.x,best[1]-b.y))sfx('dash');return true}}return false}
+  if(best){b.flee={x:best[0],y:best[1],t:tick+g.fuse+20,g};say(b,'Run!',true);b.fls={};b.crouch=false;if(Math.hypot(best[0]-g.x,best[1]-g.y)>R&&dashUnit(b,best[0]-b.x,best[1]-b.y))sfx('dash');return true}}return false}
 // arms: a unit with nothing usable takes a spare from a friend beside it (weapon, spear, or half his rounds)
 const usableQ=q=>q&&WP[q.k]&&!WP[q.k].hide&&q.k!=='grenade'&&q.k!=='bomb'&&!(CAP[q.k]&&empty(q));
 const needsArms=b=>b.inv&&!b.inv.some(usableQ);
@@ -1476,15 +1478,15 @@ const fogOn=()=>aiOn&&!!aiMe;
 function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Array(NB).fill(-1e9)}if(SNAP.length!==W*H)SNAP=new Uint32Array(W*H);VIS.fill(0);
  const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status!=='dead');
  if(VS.length!==NB){VS=new Uint8Array(NB);VSF=new Float32Array(NB)}VS.fill(0);fSel=me.some(b=>sel.has(b));
- for(const b of me){const low=!!b.crouch,sb=sel.has(b),cast=(a,R)=>{const c=Math.cos(a),s=Math.sin(a);for(let r=0;r<R;r+=1.5){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X,q=(Y>>1)*BW+(X>>1);VIS[q]=1;if(sb)VS[q]=1;if(sol[j]||slabG[j])return;if(low&&OBJ[j]&&r>5)return}};
-  for(let i=0;i<=220;i++)cast(b.ang-.96+1.92*i/220,VR);for(let i=0;i<48;i++)cast(i/48*6.283,22)}
+ for(const b of me){const low=!!b.crouch,sb=sel.has(b),cast=(a,R)=>{const c=Math.cos(a),s=Math.sin(a);for(let r=0;r<R;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X,q=(Y>>1)*BW+(X>>1);VIS[q]=1;if(sb)VS[q]=1;if(sol[j]||slabG[j])return;if(low&&OBJ[j]&&r>5)return}};
+  const nr=me.length<=6?130:Math.max(40,780/me.length|0);for(let i=0;i<=nr;i++)cast(b.ang-.96+1.92*i/nr,VR);for(let i=0;i<24;i++)cast(i/24*6.283,22)}
  for(let y=1;y<BH-1;y++)for(let x=1;x<BW-1;x++){const q=y*BW+x;if(!VIS[q]&&(VIS[q-1]&1&&VIS[q+1]&1||VIS[q-BW]&1&&VIS[q+BW]&1))VIS[q]=2}
  for(let q=0;q<NB;q++)if(VIS[q])SEEN[q]=tick;
  // soft edge: blur the view mask a few cells
  if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VIS[q]?1:0;blurMask(VF);if(fSel){for(let q=0;q<NB;q++)VSF[q]=VS[q]?1:0;blurMask(VSF)}
- for(const o of bodies)if(o.type==='token')o.fogH=teamOf(o)!==aiMe&&o.status!=='dead'&&!me.some(b=>canSee(b,o))}
-function blurMask(A){for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o=y*BW;for(let x=0;x<BW;x++){let s=0,n=0;for(let k=-2;k<=2;k++){const X=x+k;if(X>=0&&X<BW){s+=A[o+X];n++}}VT[o+x]=s/n}}
-  for(let x=0;x<BW;x++)for(let y=0;y<BH;y++){let s=0,n=0;for(let k=-2;k<=2;k++){const Y=y+k;if(Y>=0&&Y<BH){s+=VT[Y*BW+x];n++}}A[y*BW+x]=s/n}}}
+ for(const o of bodies)if(o.type==='token')o.fogH=teamOf(o)!==aiMe&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>canSee(b,o)))}
+function blurMask(A){for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o=y*BW;let sum=0;for(let k=0;k<=2&&k<BW;k++)sum+=A[o+k];for(let x=0;x<BW;x++){const n=Math.min(BW-1,x+2)-Math.max(0,x-2)+1;VT[o+x]=sum/n;if(x+3<BW)sum+=A[o+x+3];if(x-2>=0)sum-=A[o+x-2]}}
+  for(let x=0;x<BW;x++){let sum=0;for(let k=0;k<=2&&k<BH;k++)sum+=VT[k*BW+x];for(let y=0;y<BH;y++){const n=Math.min(BH-1,y+2)-Math.max(0,y-2)+1;A[y*BW+x]=sum/n;if(y+3<BH)sum+=VT[(y+3)*BW+x];if(y-2>=0)sum-=VT[(y-2)*BW+x]}}}}
 // with one of your units selected, what the others see is dimmed slightly
 function fogPass(){const sl=fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===aiMe);const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const age=(tick-SEEN[q])/300,m=age>=1?F:mix(mul(SNAP[j],.6),F,Math.max(0,age));out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
  for(const z of RINGS){const k=(tick-z.t)/40,rad=2+k*7;for(let i=0;i<28;i++){const X=Math.round(z.x+Math.cos(i*.2244)*rad),Y=Math.round(z.y+Math.sin(i*.2244)*rad);if(X>=0&&Y>=0&&X<W&&Y<H){const j=Y*W+X;out[j]=mix(out[j],rgb(230,226,214),.5*(1-k))}}}RINGS=RINGS.filter(z=>tick-z.t<40)}
@@ -1493,12 +1495,12 @@ function ringFor(z){if(!fogOn()||z.src&&teamOf(z.src)===aiMe||z.src&&!z.src.fogH
 function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||Y>=H||!OBJ[Y*W+X])return false;
  if(!b.low&&!bodies.some(t=>t.type==='token'&&t.crouch&&t.status!=='dead'&&Math.hypot(t.x-b.x,t.y-b.y)<26&&(t.x-b.x)*b.vx+(t.y-b.y)*b.vy>0))return false;
  const s=Math.hypot(b.vx,b.vy)||1;hitFx(X,Y,2,b.vx/s,b.vy/s,b.kind==='pel');remove(b);return true}
-function update(){tick++;if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%2===0)fogTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
+function update(){tick++;if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%3===0)fogTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=i.heat?Math.min(1,.35+(b.held.heat||0)*.65):pr*pr}}
- if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);charge=null}
+ if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);if(holdFire&&armed().length&&armed().every(o=>{const i=srcInfo(o);return i&&!i.throw&&!i.heat}))charge={...charge,t:performance.now()};else charge=null}
  for(const b of [...bodies])if(bodies.includes(b))step(b);tetherTick();if(tick%4===0)exitTick();if(curMap==='air'&&tick%5===0)overboard();stepParts();cool();fxTick()}
-let lastT=performance.now(),acc=0,slowMo=false;
+let lastT=performance.now(),acc=0,slowMo=false,holdFire=false;
 function loop(){const now=performance.now();acc+=Math.min(120,now-lastT)*(slowMo?.3:1);lastT=now;let n=0;while(acc>=16.667&&n<6){update();acc-=16.667;n++}if(n)render();requestAnimationFrame(loop)}
 
 const toBoard=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H]};
@@ -1532,7 +1534,7 @@ const boardDown=e=>{au();closeMenu();if(panKey||e.button===1){pan={x:e.clientX,y
   const b=bodyAt(X,Y,1)||(X>=0&&Y>=0&&X<W&&Y<H?containerAt(X,Y):null);lastClick={X,Y};
   if(e.shiftKey){if(b&&b.type!=='slab')startDrag(b,x,y,false,true);return}
   const ar=armed();
-  if(ar.length&&!(b&&(sel.has(b)||b.kind==='crate'))){charge={t:performance.now(),need:Math.max(...ar.map(o=>srcInfo(o).hold)),x,y,b};return}
+  if(ar.length&&!(b&&(sel.has(b)||b.kind==='crate'))){charge={t:performance.now(),need:Math.max(...ar.map(o=>srcInfo(o).hold)),x,y,b};holdFire=true;return}
   if(b){if(b.status==='dead'||b.kind==='crate'){clickBody(b,e.ctrlKey||e.metaKey);return}pend={b,x,y,add:e.ctrlKey||e.metaKey};return}
   box={x0:x,y0:y,x1:x,y1:y}}
  else if(tool==='chip'){chipLast=[X,Y];chip(X,Y)}};
@@ -1548,7 +1550,7 @@ window.addEventListener('pointermove',e=>{if(pan){cam.x=pan.cx+e.clientX-pan.x;c
   const b=drag.b;if(b.type==='weapon'&&!WP[b.kind].gun){const s0=drag.smp[0],dx=x-s0[1],dy=y-s0[2];if(Math.hypot(dx,dy)>3){const a=Math.atan2(dy,dx);let d=a-b.ang;d=Math.atan2(Math.sin(d),Math.cos(d));if(Math.abs(d)>.2)reshape(b,b.ang+d*.6)}}return}
  if(tool==='chip'&&chipLast&&(e.buttons&1)){const X=x|0,Y=y|0;const[x0,y0]=chipLast;const n=Math.max(Math.abs(X-x0),Math.abs(Y-y0));for(let i=1;i<=n;i++)chip(Math.round(x0+(X-x0)*i/n),Math.round(y0+(Y-y0)*i/n));chipLast=[X,Y]}
 });
-window.addEventListener('pointerup',e=>{if(pan){pan=null;return}chipLast=null;if(spinning){spinning=false;return}const add=e.ctrlKey||e.metaKey;
+window.addEventListener('pointerup',e=>{holdFire=false;if(pan){pan=null;return}chipLast=null;if(spinning){spinning=false;return}const add=e.ctrlKey||e.metaKey;
  if(cellDrag){const cd=cellDrag;cellDrag=null;const k=(mouse.y/T|0)*CW+(mouse.x/T|0);if(moveSel&&moveSel.b===cd.b&&moveSel.cells.has(k)){const b=cd.b;b.glide=[(mouse.x/T|0)*T+8,(mouse.y/T|0)*T+8];b.ghost=true;b.stuck=false;b.vx=b.vy=0;moveSel=null;sfx('flick')}return}
  if(charge&&armed().some(o=>{const i=srcInfo(o);return i&&i.heat})&&(performance.now()-charge.t>120||armed().some(o=>o.held&&o.held.k==='sspear'))){fireGroup(mouse.x,mouse.y);charge=null;return}
  if(charge){if(charge.b&&charge.b.type!=='slab'&&charge.b.kind!=='crate'&&Math.hypot(mouse.x-charge.x,mouse.y-charge.y)<3)clickBody(charge.b,add);charge=null;return}

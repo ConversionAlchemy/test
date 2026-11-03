@@ -154,3 +154,5 @@ Slow-mo (Z), in the top bar, runs the battle at a third of normal speed and draw
 With AI on and one of your units selected, what it sees stays at full brightness and what only its allies see is dimmed slightly.
 
 A held weapon that would hit a wall, door or slab is raised: it shows as a small dot at the unit's side, blocks nothing, and is lowered again as soon as there is room. A raised weapon cannot fire until it can be lowered.
+
+Holding the mouse keeps a gun firing shot after shot, reloads included, until you let go (thrown weapons and charged weapons still fire once per press).
