@@ -121,7 +121,7 @@ With AI on you see only what your units see: the rest keeps its last picture and
 
 Hold C to crouch: slower, no dash, dimmed. A crouched unit behind a desk or table can't be seen or shot past it, and can't see or shoot over it either; stand to fire.
 
-With AI on, right-click a cell to send the selected units of yours there, if they can see it; a faint line shows each order. E takes direct control (WASD, aim at the cursor, hold to fire, green outline); E again hands it back. Only units under direct control turn to the cursor. Units walk a half-tile grid that keeps them clear of walls and furniture and cut corners where the way is clear. Units shooting round a corner switch hands so the gun clears the edge.
+Right-click a cell to send the selected units there; they find their own way through doors. With AI on only your units take orders, and only to places your side has seen; a faint line shows each order, red if refused. E takes direct control (WASD, aim at the cursor, hold to fire, green outline); E again hands it back. Only units under direct control turn to the cursor. Units walk a half-tile grid that keeps them clear of walls and furniture and cut corners where the way is clear. Units shooting round a corner switch hands so the gun clears the edge.
 
 A unit that is hopelessly outmatched with an enemy close by surrenders: it drops its weapon and becomes a neutral captive. With AI on, your units not under direct control hold where they are, turn towards enemies the team can see, and fight with what they carry: guns, spears, Lancers, and grenades when no friend is near the target.
 
@@ -160,3 +160,8 @@ Holding the mouse keeps a gun firing shot after shot, reloads included, until yo
 Captives, and anyone who surrenders, count as neutral: nobody targets them and they target nobody. A freed captive stays neutral until it attacks someone, then it is back on its own side.
 
 A unit blocked by a friend no longer shoves him: the friend steps aside (unless under your direct control). Idle units only patrol when the room is not crowded.
+
+Name colours show diplomacy relative to your side (the one you control with AI on, otherwise the one you last selected): light green yours, blue allies, red enemies, white neutrals and captives, dimmed for the dead. Relations follow the regional map adjusted to the lore (Goldbank with the Imperium, Portsbridge and Sanctis; the Imperium with Sanctis and Great Keys; Havenport and Portsbridge at odds; Reapers enemies of Holverland only); sides with no relation are enemies when they share a battlefield. The back room and the council room set allies against each other. Allies never target each other and show through your fog.
+
+Units ignore neutrals' footsteps and other routine noise from anyone who is not an enemy. A side falling back fills its chosen room only as far as it comfortably holds; the rest hold where they are. Units pick spots apart from each other inside a room.
+

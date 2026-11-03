@@ -377,7 +377,14 @@ function neutralTone(b,c,p){if(b.nat||b.unit!=='civ'||Math.hypot(p[8],p[9])<=4.7
 function sprAt(b,p){const g=sprG(lookOf(b));if(!g)return undefined;const a=b.ang||0,c=Math.cos(a),s=Math.sin(a),ox=p[8],oy=p[9],sy=Math.round(-(ox*c+oy*s)),sx=Math.round(-ox*s+oy*c),row=g[9+sy];return row&&row[10+sx]||null}
 const STEEL=rgb(150,154,162),STEEL_A=rgb(116,120,128);
 const natc=b=>b.nat&&NAT[b.nat]?hx(NAT[b.nat]):b.unit==='civ'?rgb(206,202,192):rgb(150,150,150);
-const natLabel=b=>{const c=b.nat&&NAT[b.nat]?hx(NAT[b.nat]):rgb(216,212,202);return css(b.status==='dead'?mix(c,rgb(96,96,96),.25):c)};
+// relations between the sandbox factions (regional map, adjusted to the lore); anything unlisted is neutral
+const REL={'Goldbank|Imperium':'ally','Goldbank|Portsbridge':'ally','Goldbank|Sanctis':'ally','Imperium|Sanctis':'ally','Great Keys|Sanctis':'ally','Havenport|Sanctis':'ally','Great Keys|Imperium':'ally','Havenport|Portsbridge':'enemy','Holverland|Reapers':'enemy'};
+// battles that set allies against each other
+const FIGHT={bank:[['Goldbank','Imperium']],council:[['Sanctis','Imperium'],['Sanctis','Goldbank'],['Imperium','Goldbank']]};
+const relOf=(a,b)=>a===b?'self':a==='Neutral'||b==='Neutral'?'neutral':(FIGHT[curMap]||[]).some(([p,q])=>p===a&&q===b||p===b&&q===a)?'enemy':REL[[a,b].sort().join('|')]==='ally'?'ally':'enemy';
+const foe=(a,b)=>relOf(teamOf(a),teamOf(b))==='enemy';
+const RELC={self:rgb(140,214,120),ally:rgb(110,160,230),enemy:rgb(222,88,72),neutral:rgb(220,216,206)};
+const natLabel=b=>{const me=aiOn&&aiMe?aiMe:lastSide;if(b.type==='token'&&me){const c=RELC[relOf(me,teamOf(b))];return css(b.status==='dead'?mix(c,rgb(70,70,70),.55):c)}const c=b.nat&&NAT[b.nat]?hx(NAT[b.nat]):rgb(216,212,202);return css(b.status==='dead'?mix(c,rgb(96,96,96),.25):c)};
 
 // bodies
 let bodies=[],parts=[],uid=1;
@@ -921,7 +928,7 @@ function render(){
 function veil(){const G=24,gw=(W/G|0)+3,gh=(H/G|0)+3,ox=tick/500,fx0=Math.floor(ox),fr=ox-fx0,g=new Float32Array(gw*gh);for(let y=0;y<gh;y++)for(let x=0;x<gw;x++)g[y*gw+x]=hh(x+fx0,y,77);
  for(let Y=0;Y<H;Y++){const gy=Y/G,y0=gy|0,ty=gy-y0;for(let X=0;X<W;X++){const h=HZ[(Y>>1)*BW+(X>>1)];if(h<.003)continue;const gx=X/G+fr,x0=gx|0,tx=gx-x0;
   const n=(g[y0*gw+x0]*(1-tx)+g[y0*gw+x0+1]*tx)*(1-ty)+(g[(y0+1)*gw+x0]*(1-tx)+g[(y0+1)*gw+x0+1]*tx)*ty;const j=Y*W+X;out[j]=mix(out[j],VEIL,Math.min(.4,h)*(.6+.8*n))}}}
-const cmdMode=b=>b.type==='token'&&!b.direct,canOrder=b=>aiOn&&b.type==='token'&&teamOf(b)===aiMe&&!b.direct;
+const cmdMode=b=>b.type==='token'&&!b.direct,canOrder=b=>b.type==='token'&&b.status==='free'&&!b.direct&&(!aiOn||teamOf(b)===aiMe);
 const armed=()=>[...sel].filter(b=>srcInfo(b)&&!cmdMode(b));
 function crosshair(){const ar=armed();if(!ar.length)return;const b0=ar[0],inf=srcInfo(b0),X=Math.round(mouse.x),Y=Math.round(mouse.y),d=Math.hypot(mouse.x-b0.x,mouse.y-b0.y);
  const dry=ar.every(o=>o.held&&CAP[o.held.k]&&!(o.held.ammo>0)),g=Math.max(2,Math.round(d*inf.spread*inf.sp*1.6)),col=dry?rgb(84,82,78):d>inf.range?rgb(150,150,150):inf.heat&&b0.held&&(b0.held.heat||0)>.15?heatCol(b0.held.heat,rgb(250,250,246)):rgb(250,250,246);
@@ -1197,7 +1204,7 @@ let GS={};
 function aiTeams(){const T0={};for(const b of bodies)if(b.ai&&b.status==='free')(T0[teamOf(b)]||(T0[teamOf(b)]=[])).push(b);
  for(const[t,us]of Object.entries(T0)){const g=GS[t]||(GS[t]={mode:'calm',home:-1,odds:1});const K=new Map();let heard=null;
   for(const b of us){for(const[id,m]of b.ai.mem)if(!m.dead&&tick-m.t<1800&&(!K.has(id)||K.get(id).t<m.t))K.set(id,m);if(b.ai.nz&&tick-b.ai.nz.t<1200&&(!heard||heard.t<b.ai.nz.t))heard=b.ai.nz}
-  if(t===aiMe)for(const o of bodies)if(o.type==='token'&&o.status==='free'&&teamOf(o)!==aiMe&&teamOf(o)!=='Neutral'&&!o.fogH)K.set(o.id,{x:o.x,y:o.y,t:tick,u:o.unit,id:o.id,k:o.held&&WV[o.held.k]?o.held.k:undefined});
+  if(t===aiMe)for(const o of bodies)if(o.type==='token'&&o.status==='free'&&relOf(aiMe,teamOf(o))==='enemy'&&!o.fogH)K.set(o.id,{x:o.x,y:o.y,t:tick,u:o.unit,id:o.id,k:o.held&&WV[o.held.k]?o.held.k:undefined});
   const su=bodies.filter(o=>o.type==='token'&&o.status==='free'&&teamOf(o)===t).reduce((s,b)=>s+strOf(b),0),sk=[...K.values()].reduce((s,m)=>s+(UV[m.u]||1)*(m.k?WV[m.k]||.3:1.1)*(m.e?.3:1),0);const ld=bodies.find(o=>o.leader&&o.type==='token'&&teamOf(o)===t&&o.status==='free'),mor=g.ldDown&&tick-g.ldDown<1800?.75:ld?1.1:1;
   g.odds=su*mor/Math.max(.05,sk);g.known=K;g.heard=heard;
   // rooms where enemies were seen or heard stay hostile until someone has stood in them a while and found nobody
@@ -1209,6 +1216,7 @@ function aiTeams(){const T0={};for(const b of bodies)if(b.ai&&b.status==='free')
   if(vip&&m==='defend')g.home=roomAt(vip.x,vip.y);
   if(m==='fall'&&prev!=='fall'){let best=-1,bs=-1e9;const th=[...K.values()];for(let i=0;i<ROOMS.n;i++){const c=ROOMS.cen[i];if(c[2]<4)continue;const w=ways(i),dd=th.reduce((s,q)=>s+Math.hypot(q.x-c[0],q.y-c[1]),0)/Math.max(1,th.length);const sc=dd/40-w.length*3-w.filter(e=>e.d.lockBroken).length*4;if(sc>bs){bs=sc;best=i}}g.home=best}
   if(m==='fall'&&g.home>=0&&us.filter(b=>roomAt(b.x,b.y)===g.home).length>=us.length*.6)m='defend';
+  if((m==='fall'||m==='defend')&&g.home>=0&&ROOMS.cen[g.home]){const cap=Math.max(2,ROOMS.cen[g.home][2]/3|0),c=ROOMS.cen[g.home];g.inside=new Set(us.slice().sort((p,q)=>Math.hypot(p.x-c[0],p.y-c[1])-Math.hypot(q.x-c[0],q.y-c[1])).slice(0,cap))}else g.inside=null;
   if(m==='defend'&&prev==='fall')g.home=g.home;if(m!==prev&&SAYL[m]&&!(prev==='fall'&&m==='defend')){const sp=ld&&ld.status==='free'&&us.includes(ld)?ld:us.slice().sort((p,q)=>(RANK[q.unit]||0)-(RANK[p.unit]||0))[0];say(sp,m==='defend'&&us.some(o=>o.vip)?'Guard him':SAYL[m],2)}g.mode=m;
   for(const b of us)if(b.lab)b.lab.title=m+(b.vip?' · protected':'')}}
 
@@ -1225,11 +1233,11 @@ const T0={};for(const b of bodies)if(b.type==='token'&&b.nat&&teamOf(b)!=='Neutr
   const nb=free.slice().sort((p,q)=>(TIER[q.unit]||0)-(TIER[p.unit]||0)||strOf(q)-strOf(p))[0];nb.leader=true;if(fell){const g=GS[t]||(GS[t]={mode:'calm',home:-1,odds:1});g.ldDown=tick;const w=free.find(o=>o!==nb);if(w)say(w,"He's down!",true);say(nb,'On me!',2)}}}
 function aiInit(b){b.ai={mem:new Map(),nz:null,cd:30+Math.random()*60|0,path:null,pt:0,wp:null,idle:b.unit==='home'||b.unit==='rifle'?'patrol':'hold',spot:null,look:0,peek:0}}
 function aiSense(b){const a=b.ai;let tg=null,td=1e9;
- const nb=teamOf(b)==='Neutral';for(const o of bodies){if(o.type!=='token'||o===b||teamOf(o)===teamOf(b)||o.status==='captured'||teamOf(o)==='Neutral')continue;if(!canSee(b,o))continue;const m=a.mem.get(o.id)||{};
+ const nb=teamOf(b)==='Neutral';for(const o of bodies){if(o.type!=='token'||o===b||!foe(b,o)||o.status==='captured')continue;if(!canSee(b,o))continue;const m=a.mem.get(o.id)||{};
   if(o.status==='dead'){if(a.mem.has(o.id))m.dead=true;continue}
   if(!m.t||tick-m.t>600)say(b,'There!');Object.assign(m,{x:o.x,y:o.y,t:tick,u:o.unit,id:o.id,dead:false});if(o.held&&WV[o.held.k]){m.k=o.held.k;m.e=empty(o.held)}a.mem.set(o.id,m);
   const d=Math.hypot(o.x-b.x,o.y-b.y);if(!nb&&(o.unit!=='civ'||o.held))if(d<td){td=d;tg=o}}
- for(const z of NZ){if(z.src===b||z.src&&teamOf(z.src)===teamOf(b)&&z.tag!=='shot')continue;if(!heardBy(b,z))continue;if(z.src&&teamOf(z.src)!==teamOf(b)){const m=a.mem.get(z.src.id);if(m){if(z.tag==='dry')m.e=true;else if(z.tag==='shot')m.e=false}}if(!a.nz||a.nz.t<z.t||z.L>a.nz.L)a.nz={x:z.x,y:z.y,t:z.t,L:z.L}}
+ for(const z of NZ){if(z.src===b||z.src&&!foe(b,z.src)&&z.tag!=='shot'&&z.tag!=='boom')continue;if(!heardBy(b,z))continue;if(z.src&&foe(b,z.src)){const m=a.mem.get(z.src.id);if(m){if(z.tag==='dry')m.e=true;else if(z.tag==='shot')m.e=false}}if(!a.nz||a.nz.t<z.t||z.L>a.nz.L)a.nz={x:z.x,y:z.y,t:z.t,L:z.L}}
  a.tg=tg;a.td=td}
 function aiShare(us){for(const a of us)for(const b of us){if(a===b||Math.hypot(a.x-b.x,a.y-b.y)>140&&roomAt(a.x,a.y)!==roomAt(b.x,b.y))continue;for(const[id,m]of a.ai.mem){const o=b.ai.mem.get(id);if(!o||o.t<m.t)b.ai.mem.set(id,{...m})}if(a.ai.nz&&(!b.ai.nz||b.ai.nz.t<a.ai.nz.t))b.ai.nz={...a.ai.nz}}}
 const nearObj=b=>{for(let r=4;r<=12;r+=4)for(let k=0;k<8;k++){const X=Math.round(b.x+Math.cos(k*.785)*r),Y=Math.round(b.y+Math.sin(k*.785)*r);if(X>=0&&Y>=0&&X<W&&Y<H&&OBJ[Y*W+X])return true}return false};
@@ -1244,7 +1252,7 @@ function flipFor(b,tg){if(!b.held||sideOf(b)===0)return;const t=tipOf(b);if(losC
 // grenades: worth it on a cluster, a heavy, or someone in cover; never near a friend or too close to throw safely
 const NADEL={};
 function nadePlan(b,tg0,force){if(tick-(b.nadeT||-1e9)<180||tick-(NADEL[teamOf(b)]||-1e9)<60)return null;const gi=b.inv.findIndex(q=>q&&q.k==='grenade'),bi=b.inv.findIndex(q=>q&&q.k==='bomb');if(gi<0&&bi<0)return null;
- const foes=bodies.filter(o=>o.type==='token'&&o.status==='free'&&teamOf(o)!==teamOf(b)&&teamOf(o)!=='Neutral'),t=tipOf(b);let best=null,bs=0;
+ const foes=bodies.filter(o=>o.type==='token'&&o.status==='free'&&foe(b,o)),t=tipOf(b);let best=null,bs=0;
  for(const tg of foes){if(tg!==tg0&&!canSee(b,tg))continue;const td=Math.hypot(tg.x-b.x,tg.y-b.y);if(td>150||!losClear(b.x,b.y,tg.x,tg.y,false,false))continue;
   const near=r=>foes.filter(f=>Math.hypot(f.x-tg.x,f.y-tg.y)<r).length,friend=r=>bodies.some(o=>o!==b&&o.type==='token'&&o.status==='free'&&teamOf(o)===teamOf(b)&&Math.hypot(o.x-tg.x,o.y-tg.y)<r),heavy=(UNITS[tg.unit].arm||0)>=2,covered=tg.crouch||!losClear(t[0],t[1],tg.x,tg.y,b.crouch,tg.crouch);
   if(bi>=0&&td>72&&!friend(68)){const n=near(52),sc=n*2+(heavy?1:0)+(covered?1:0);if((n>=2||force)&&sc>bs){bs=sc;best={i:bi,tg}}}
@@ -1257,13 +1265,13 @@ function aiShoot(b,tg,a=b.ai){const td=Math.hypot(tg.x-b.x,tg.y-b.y);turnTo(b,Ma
  
  {const np=nadePlan(b,tg,false);if(np){throwNade(b,np.i,np.tg);a.cd=60;return}}
  fire(b,tg.x+(Math.random()-.5)*8,tg.y+(Math.random()-.5)*8);a.cd={musket:80,pistol:45,blunder:85,pgun:95,rod:120,spear:60,sspear:70}[h.k]+(Math.random()*30|0)||70}
-function aiWander(b,r){const c=ROOMS.cen[r];if(!c)return null;for(let k=0;k<12;k++){const x=c[0]+(Math.random()-.5)*Math.sqrt(c[2])*T,y=c[1]+(Math.random()-.5)*Math.sqrt(c[2])*T;if(roomAt(x,y)===r&&aiOpen(x/T|0,y/T|0))return[x,y]}return[c[0],c[1]]}
+function aiWander(b,r){const c=ROOMS.cen[r];if(!c)return null;for(let k=0;k<16;k++){const x=c[0]+(Math.random()-.5)*Math.sqrt(c[2])*T,y=c[1]+(Math.random()-.5)*Math.sqrt(c[2])*T;if(roomAt(x,y)===r&&aiOpen(x/T|0,y/T|0)&&(k>10||!bodies.some(o=>o!==b&&o.type==='token'&&o.status!=='dead'&&Math.hypot((o.ai&&o.ai.spot?o.ai.spot[0]:o.x)-x,(o.ai&&o.ai.spot?o.ai.spot[1]:o.y)-y)<16)))return[x,y]}return[c[0],c[1]]}
 function aiTick(){if(!aiOn)return;if(!ROOMS||tick-ROOMS.t>120)aiRooms();
  for(const b of bodies){if(aiUnit(b)&&!b.ai&&b.status!=='dead')aiInit(b);if(b.ai&&!aiUnit(b))b.ai=null}
- const us=bodies.filter(b=>b.ai&&b.status==='free'&&!inDrag(b));if(tick%30===0)shareTick();for(const b of bodies)if(b.type==='token'&&!b.ai&&teamOf(b)===aiMe&&b.status==='free'&&!inDrag(b)){if(bombFlee(b,bodies.filter(o=>o.type==='token'&&o.status==='free'&&teamOf(o)!==aiMe&&!o.fogH)))continue;ordTick(b);if(!b.direct)autoFire(b)}if(tick%6===0)for(const b of us)aiSense(b);
+ const us=bodies.filter(b=>b.ai&&b.status==='free'&&!inDrag(b));if(tick%30===0)shareTick();for(const b of bodies)if(b.type==='token'&&!b.ai&&teamOf(b)===aiMe&&b.status==='free'&&!inDrag(b)){if(bombFlee(b,bodies.filter(o=>o.type==='token'&&o.status==='free'&&foe(b,o)&&!o.fogH)))continue;ordTick(b);if(!b.direct)autoFire(b)}if(tick%6===0)for(const b of us)aiSense(b);
  if(tick%30===0){const byT={};for(const b of us)(byT[teamOf(b)]||(byT[teamOf(b)]=[])).push(b);for(const g of Object.values(byT))aiShare(g.filter(b=>GS[teamOf(b)]&&GS[teamOf(b)].mode!=='calm'));aiTeams()}
  NZ=NZ.filter(z=>tick-z.t<6);
- for(const b of us){const a=b.ai,g=GS[teamOf(b)]||{mode:'calm'},gm=b.unit==='cmd'&&(GS[teamOf(b)]||{}).mode==='hold'?'hunt':(GS[teamOf(b)]||{mode:'calm'}).mode,tg=a.tg&&a.tg.status==='free'?a.tg:null,civ=b.unit==='civ'&&!b.inv.some(q=>q&&WV[q.k])||teamOf(b)==='Neutral';{const rr=roomAt(b.x,b.y);if(a.inR!==rr){a.inR=rr;a.inT=tick}}if(bombFlee(b,[...(g.known||new Map()).values()]))continue;if(b.ord){ordTick(b);continue}
+ for(const b of us){const a=b.ai,g=GS[teamOf(b)]||{mode:'calm'},gm0=(GS[teamOf(b)]||{mode:'calm'}).mode,gm=b.unit==='cmd'&&gm0==='hold'?'hunt':(gm0==='fall'||gm0==='defend')&&GS[teamOf(b)].inside&&!GS[teamOf(b)].inside.has(b)?'hold':gm0,tg=a.tg&&a.tg.status==='free'?a.tg:null,civ=b.unit==='civ'&&!b.inv.some(q=>q&&WV[q.k])||teamOf(b)==='Neutral';{const rr=roomAt(b.x,b.y);if(a.inR!==rr){a.inR=rr;a.inT=tick}}if(bombFlee(b,[...(g.known||new Map()).values()]))continue;if(b.ord){ordTick(b);continue}
   if(tg&&a.td<70&&teamOf(b)!=='Neutral'&&teamOf(b)!==aiMe&&(civ||g.odds<.5&&(!b.inv.some(q=>q&&WV[q.k]&&!empty(q))||b.px.length<b.n0*.5))){surrender(b);continue}
   if(civ){if(gm!=='calm'||tg){if(!a.spot){const th=[...(g.known||new Map()).values()];let best=roomAt(b.x,b.y),bs=-1e9;for(let i=0;i<ROOMS.n;i++){const c=ROOMS.cen[i];const sc=th.reduce((s,q)=>s+Math.hypot(q.x-c[0],q.y-c[1]),0)-(th.length?0:1e9);if(sc>bs){bs=sc;best=i}}a.spot=aiWander(b,best)}if(a.spot&&aiGo(b,a.spot[0],a.spot[1]))b.crouch=true}continue}
   if(gm!=='calm'||tg)aiArm(b);
@@ -1288,12 +1296,13 @@ function aiTick(){if(!aiOn)return;if(!ROOMS||tick-ROOMS.t>120)aiRooms();
 let ORDL=[];
 function ordGive(g,x,y){const cx=(x/T|0)*T+8,cy=(y/T|0)*T+8,mx=g.reduce((s,b)=>s+b.x,0)/g.length,my=g.reduce((s,b)=>s+b.y,0)/g.length;let n=0;
  for(const b of g){let X=cx,Y=cy;if(g.length>1){X+=Math.max(-T,Math.min(T,(b.x-mx)*.5));Y+=Math.max(-T,Math.min(T,(b.y-my)*.5));if(!wOpen(X,Y)){X=cx;Y=cy}}
-  const ok=X>=0&&Y>=0&&X<W&&Y<H&&wOpen(X,Y)&&losClear(b.x,b.y,X,Y,false,false);ORDL.push({x0:b.x,y0:b.y,x1:X,y1:Y,t:tick,ok});if(ok){b.ord={x:X,y:Y};b.oa={};n++;say(b,'Moving',true)}}sfx(n?'flick':'dry')}
+  ensureRooms();const q=(Y>>1)*BW+(X>>1),ok=X>=0&&Y>=0&&X<W&&Y<H&&wOpen(X,Y)&&(!fogOn()||SEEN[q]>-1e8)&&!!aiPath(b,X,Y);ORDL.push({x0:b.x,y0:b.y,x1:X,y1:Y,t:tick,ok});if(ok){b.ord={x:X,y:Y};b.oa={};n++;say(b,'Moving',true)}}sfx(n?'flick':'dry')}
 function ordDraw(){ORDL=ORDL.filter(l=>tick-l.t<90);for(const l of ORDL){const k=1-(tick-l.t)/90,c=l.ok?rgb(242,239,230):rgb(224,83,63),L=Math.hypot(l.x1-l.x0,l.y1-l.y0)||1;for(let i=0;i<=L;i++){const X=Math.round(l.x0+(l.x1-l.x0)*i/L),Y=Math.round(l.y0+(l.y1-l.y0)*i/L);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=mix(out[Y*W+X],c,.35*k)}}}
+function ensureRooms(){if(!ROOMS||ROOMS.R.length!==CW*CH||tick-ROOMS.t>120)aiRooms()}
 function ordTick(b){if(!b.ord)return;if(b.status!=='free'||!b.oa||(b.oa.stk||0)>45||Math.hypot(b.ord.x-b.x,b.ord.y-b.y)<10||bodies.some(o=>o!==b&&o.type==='token'&&o.status!=='dead'&&Math.hypot(o.x-b.ord.x,o.y-b.ord.y)<12&&Math.hypot(b.ord.x-b.x,b.ord.y-b.y)<30)){b.ord=null;return}if(aiGo(b,b.ord.x,b.ord.y,b.oa))b.ord=null}
 // your unselected units with a gun drawn fire at enemies they can see
 function autoFire(b){const a=b.pa||(b.pa={cd:30}),rng=k=>!k?110:WP[k].melee?110:WP[k].range||200,usable=q=>q&&WP[q.k]&&!WP[q.k].hide&&!(CAP[q.k]&&empty(q));let tg=null,td=1e9,seen=null,sd=200;
- for(const o of bodies){if(o.type!=='token'||o.status!=='free'||teamOf(o)===aiMe||teamOf(o)==='Neutral'||o.unit==='civ'&&!o.held)continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(canSee(b,o)){if(d<td){td=d;tg=o}}else if(!o.fogH&&d<sd&&losClear(b.x,b.y,o.x,o.y,b.crouch,o.crouch)){sd=d;seen=o}}
+ for(const o of bodies){if(o.type!=='token'||o.status!=='free'||!foe(b,o)||o.unit==='civ'&&!o.held)continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(canSee(b,o)){if(d<td){td=d;tg=o}}else if(!o.fogH&&d<sd&&losClear(b.x,b.y,o.x,o.y,b.crouch,o.crouch)){sd=d;seen=o}}
  a.tg=tg;if(!tg){if(seen)turnTo(b,Math.atan2(seen.y-b.y,seen.x-b.x));a.cd=Math.max(a.cd,20);return}
  if(!usable(b.held)){let i=b.inv.findIndex((q,i)=>i<2&&usable(q));if(i<0)i=b.inv.findIndex(q=>q&&(q.k==='grenade'||q.k==='bomb'));if(i<0)return;if(b.si!==i){selectSlot(b,i);a.cd=Math.max(a.cd,20)}}
  const k=b.held&&b.held.k;if(!k)return;
@@ -1326,7 +1335,7 @@ function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Ar
  for(let q=0;q<NB;q++)if(VIS[q])SEEN[q]=tick;
  // soft edge: blur the view mask a few cells
  if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VIS[q]?1:0;blurMask(VF);if(fSel){for(let q=0;q<NB;q++)VSF[q]=VS[q]?1:0;blurMask(VSF)}
- for(const o of bodies)if(o.type==='token')o.fogH=teamOf(o)!==aiMe&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>canSee(b,o)))}
+ for(const o of bodies)if(o.type==='token')o.fogH=relOf(aiMe,teamOf(o))!=='self'&&relOf(aiMe,teamOf(o))!=='ally'&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>canSee(b,o)))}
 function blurMask(A){for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o=y*BW;let sum=0;for(let k=0;k<=2&&k<BW;k++)sum+=A[o+k];for(let x=0;x<BW;x++){const n=Math.min(BW-1,x+2)-Math.max(0,x-2)+1;VT[o+x]=sum/n;if(x+3<BW)sum+=A[o+x+3];if(x-2>=0)sum-=A[o+x-2]}}
   for(let x=0;x<BW;x++){let sum=0;for(let k=0;k<=2&&k<BH;k++)sum+=VT[k*BW+x];for(let y=0;y<BH;y++){const n=Math.min(BH-1,y+2)-Math.max(0,y-2)+1;A[y*BW+x]=sum/n;if(y+3<BH)sum+=VT[(y+3)*BW+x];if(y-2>=0)sum-=VT[(y-2)*BW+x]}}}}
 // with one of your units selected, what the others see is dimmed slightly
@@ -1337,7 +1346,7 @@ function ringFor(z){if(!fogOn()||z.src&&teamOf(z.src)===aiMe||z.src&&!z.src.fogH
 function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||Y>=H||!OBJ[Y*W+X])return false;
  if(!b.low&&!bodies.some(t=>t.type==='token'&&t.crouch&&t.status!=='dead'&&Math.hypot(t.x-b.x,t.y-b.y)<26&&(t.x-b.x)*b.vx+(t.y-b.y)*b.vy>0))return false;
  const s=Math.hypot(b.vx,b.vy)||1;hitFx(X,Y,2,b.vx/s,b.vy/s,b.kind==='pel');remove(b);return true}
-function update(){tick++;if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%3===0)fogTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
+function update(){tick++;if(!aiOn)for(const b of bodies)if(b.ord){ensureRooms();ordTick(b)}if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%3===0)fogTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=i.heat?Math.min(1,.35+(b.held.heat||0)*.65):pr*pr}}
  if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);if(holdFire&&armed().length&&armed().every(o=>{const i=srcInfo(o);return i&&!i.throw&&!i.heat}))charge={...charge,t:performance.now()};else charge=null}
