@@ -103,3 +103,5 @@ Bullets hitting stone, wood, metal or armour each have their own sound; blunderb
 Any unit can carry two pistols, one in each of the first two slots, and fires both together; commandos still fire their faster bursts. Reserve rounds are shared evenly between the pair.
 
 A unit short of rounds strips them from a matching gun lying nearby or in an open chest, and the gun is used up.
+
+The hand button under a unit's inventory turns off picking up new weapons; with it off the unit still takes ammo and tops up grenades and spears it already carries.
