@@ -463,9 +463,9 @@ function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,E
  U('Hierarch Aurex','Sanctis','civ',9.5,2.5,DN,null,'Hierarch');U('Hierarch Senna','Sanctis','civ',14.5,2.5,DN,null,'Hierarch');U('Brother Ilm','Sanctis','civ',2,1.8,DN,null,'Acolyte');
  for(const[n,x,y]of[['Eternal Kael',8.5,1.5],['Eternal Voss',15.5,1.5],['Eternal Ithar',7.5,4.2],['Eternal Mor',16.5,4.2]])U(n,'Sanctis','guard',x,y,DN);
  U('Warder Sel','Sanctis','rifle',10.2,14.2,UP);U('Warder Tane','Sanctis','rifle',13.8,14.2,UP);U('Warder Oss','Sanctis','rifle',1.6,8.5,RT);U('Warder Pell','Sanctis','rifle',22.4,8.5,LF);
- [['Lord Castor','Imperial Noble'],['Lady Ysolde','Imperial Noble'],['Lord Aemon','Imperial Noble'],['Legate Varro','Officer']].forEach(([n,l],i)=>U(n,'Imperium','civ',8.5,6.5+i,RT,null,l));
+ [['Lord Castor','Imperial Noble'],['Lord Ysander','Imperial Noble'],['Lord Aemon','Imperial Noble'],['Legate Varro','Officer']].forEach(([n,l],i)=>U(n,'Imperium','civ',8.5,6.5+i,RT,null,l));
  [['Lord Vane','Bank Lord'],['Master Orsk','Banker'],['Archivist Lell','Head Clerk'],['Clerk Toll','Clerk']].forEach(([n,l],i)=>U(n,'Goldbank','civ',15.5,6.5+i,LF,null,l));
- U('Alba','Imperium','civ',11.5,10.5,UP,'pistol','Officer');U('Mera','Imperium','civ',12.5,10.5,UP,null,'Imperial Noble');
+ U('Alba','Imperium','civ',11.5,10.5,UP,'pistol','Officer');U('Meran','Imperium','civ',12.5,10.5,UP,null,'Imperial Noble');
  for(const[n,x,y,a]of[['Quill',6.2,6.2,RT],['Brask',6.2,9.4,RT],['Hode',10.4,12.6,UP],['Lusk',4.6,13.4,UP]])U(n,'Imperium','rifle',x,y,a,undefined,'Imperial Striped Guard');
  U('Ser Davin','Imperium','civ',19.5,13.5,UP,'pistol','Officer')}
 function buildRoad(){paintAll((cx,cy)=>{if(cx>=13&&cx<=15&&cy>=8&&cy<=9)return 'wagon';if(cy>=8&&cy<=10)return 'dirt';
@@ -495,7 +495,7 @@ function unitsStock(){for(const x of [3,9,15,21]){const d=slab(3,x*T,5*T+8,0);d.
  cap(U('Tobin','Havenport','civ',2,2,DN,null),'chain');cap(U('Wynn','Great Keys','civ',4.6,3.4,UP,null,'Fisher'));
  cap(U('Gull','Reapers','home',8,2,DN,null),'chain');cap(U('Rask','Reapers','rifle',10.8,2.2,DN,null),'chain');cap(U('Crow','Reapers','home',9.5,4,UP,null));
  cap(U('Edda',null,'civ',14,2,DN,null),'rope');cap(U('Hob',null,'civ',16.6,3.6,UP,null));
- cap(U('Mabb','Great Keys','civ',20,2,DN,null),'rope');cap(U('Corr','Great Keys','civ',23,2.4,DN,null,'Fisher'),'chain');cap(U('Lyse',null,'civ',22,4,UP,null,'Noblewoman'));
+ cap(U('Mabb','Great Keys','civ',20,2,DN,null),'rope');cap(U('Corr','Great Keys','civ',23,2.4,DN,null,'Fisher'),'chain');cap(U('Lysander',null,'civ',22,4,UP,null,'Noble'));
  // drawn up in three ranks for inspection, facing the gate
  const col=i=>7+i*1.375,R=[['home',7.2,['Vey','Oren','Brisk','Calo','Dunmer','Fen','Garr','Holm','Iler']],['rifle',8.8,['Aurel','Ivo','Hale','Jory','Kest','Lomas','Merrow','Nolt','Orrin']],['guard',10.4,[null,'Pallas','Quint','Rhun','Sabine','Tarquin','Ulric','Vesk',null]]];
  for(const[u,y,ns]of R)ns.forEach((n,i)=>{if(n)U(n,'Imperium',u,col(i),y,DN)});U('Drust','Imperium','shock',col(0),10.4,DN);U('Ennis','Imperium','shock',col(8),10.4,DN);
@@ -1369,7 +1369,7 @@ window.addEventListener('pointerup',e=>{if(!tdrag)return;const t=tdrag;tdrag=nul
 // people
 const fu=$('fu'),fnat=$('fnat'),fw=$('fw'),tp=$('tp');
 // marker roster: civilians first, then each class under its own side's name
-const CIVS=['Peasant','Merchant','Priest','Noble','Noblewoman'];
+const CIVS=['Peasant','Merchant','Priest','Noble'];
 const ROSTER={Imperium:[['Officer','civ'],['Imperial Clerk','civ'],['Imperial Noble','civ'],['Overseer','civ'],['Conscript','home'],['Musketeer','rifle'],['Imperial Striped Guard','rifle'],['Praetorian','guard'],['Shocktrooper','shock'],['Commando','cmd']],
  Sanctis:[['Emperor','civ'],['Hierarch','civ'],['Acolyte','civ'],['Sanctis Guard','rifle'],['Eternal','guard']],
  Goldbank:[['Clerk','civ'],['Head Clerk','civ'],['Banker','civ'],['Bank Lord','civ'],['Watchman','home'],['Stockman','rifle'],['Aurum Guard','guard'],['Aurum Knight','shock'],['Gilded Hand','cmd']],
@@ -1408,7 +1408,7 @@ function reset(){ds0Need=true;{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz
  slab(2,180,32,1);dbl(3,180,96,187,127,1,3,false);dbl(3,224,171,255,164,0,2,true);
  weapon('grenade',120,196,0);weapon('bomb',60,200,0);weapon('sspear',236,104,.3);
  for(const t of bodies)if(t.type==='token')t.hc=null;listPeople()}
-const NAMED={count:{'Lord Vane':'Bank Lord','Archivist Lell':'Head Clerk','Master Orsk':'Banker',Corvo:'Reaper'},vault:{'Master Corwin':'Banker','Manager Vance':'Bank Lord',Dorran:'Merchant',Lyse:'Noblewoman',Sora:'Noble',Merrit:'Merchant'},sewer:{Ash:'Reaper'},bank:{}};
+const NAMED={count:{'Lord Vane':'Bank Lord','Archivist Lell':'Head Clerk','Master Orsk':'Banker',Corvo:'Reaper'},vault:{'Master Corwin':'Banker','Manager Vance':'Bank Lord',Dorran:'Merchant',Lyse:'Noble',Sora:'Noble',Merrit:'Merchant'},sewer:{Ash:'Reaper'},bank:{}};
 {const r0=reset;reset=function(){r0();setTimeout(aiSetup,0);for(const t of bodies)if(t.type==='token'&&NAMED[curMap]&&NAMED[curMap][t.name])t.look=NAMED[curMap][t.name];snapDoors();sills();arrivals();exitLabels();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
 reset();loop();
 })();

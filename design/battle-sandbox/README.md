@@ -70,7 +70,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Havenport | Dockhand, Harbourmaster | Harbour Watch | Marine | Harbour Guard | | |
 | Portsbridge | Factor, Company Clerk | Company Guard | Company Rifles | Company Ironside | | |
 | Great Keys | Burgher, Fisher | Key Warden | Keys Rifles | Gatekeeper | | |
-| Neutral | Peasant, Merchant, Priest, Noble, Noblewoman | | | | | |
+| Neutral | Peasant, Merchant, Priest, Noble | | | | | |
 
 Neutral civilians wear muted browns, ochres, rusts and greys (eight variants, picked per person) so they never read as a faction, even when they use a faction's civilian look. Imperial Striped Guards carry spears and officers pistols by default.
 - Footsteps sound like the ground: hollow on planks, a hard tap on stone, brighter on marble, a clank on metal plate, a swish on grass, a crunch on soil, muffled on rugs; armoured units add a chink.
