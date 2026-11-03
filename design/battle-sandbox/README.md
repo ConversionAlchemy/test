@@ -150,3 +150,5 @@ Every side always has one leader. The back room starts with Rook leading Goldban
 Units start on Autonomous; switch it off per unit to keep one on hold.
 
 Slow-mo (Z), in the top bar, runs the battle at a third of normal speed and draws streaks behind bullets and bolts.
+
+With AI on and one of your units selected, what it sees stays at full brightness and what only its allies see is dimmed slightly.
