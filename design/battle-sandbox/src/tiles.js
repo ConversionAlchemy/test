@@ -77,6 +77,9 @@ function pcarpetT(X,Y){const f=fbm(X/8,Y/8,32);let c=sc([58,30,78],.9+f*.16);con
 function cropT(X,Y){const r=((X%6)+6)%6,f=fbm(X/5,Y/3,33);let c=r<2?sc([92,72,44],.85+f*.2):sc([196,166,84],.78+f*.3+vn(X/2,Y/1.5,34)*.2);if(r>=2&&hh(X,Y,35)>.9)c=sc(c,1.15);return c}
 function wagonT(X,Y){let c=woodT(X,Y,WOOD.ash,27);if(((X%5)+5)%5===0)c=sc(c,.7);return c}
 Object.assign(TEX,{pcarpet:pcarpetT,crop:cropT,wagon:wagonT});Object.assign(KIND,{pcarpet:'floor',crop:'floor',wagon:'floor'});
+// stone slabs: one bevelled slab per cell
+function slabT(X,Y){let c=sc(stoneT(X,Y,[150,144,132],18),.94+hh(X>>4,Y>>4,48)*.12);const x=X&15,y=Y&15;if(x===0||y===0)c=sc(c,.76);else if(x===1||y===1)c=sc(c,1.08);else if(x===15||y===15)c=sc(c,.93);return c}
+TEX.slab=slabT;KIND.slab='floor';
 const PALOF={planks:'oak',seat:'oak',table:'teak'};
 const cache=new Map();
 function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.has(ck))return cache.get(ck);const cv=document.createElement('canvas');cv.width=cv.height=T;const g=cv.getContext('2d'),im=g.createImageData(T,T);

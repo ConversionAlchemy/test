@@ -178,7 +178,11 @@ The top bar switches between Play, Map Editor and Asset Editor. Both editors pau
 
 Base maps and textures can't be changed. Saving one always makes a mod: a separate copy marked "Mod" that remembers what it came from. Mods are kept in the browser and, when you're signed in, in your own private store on the page, so they survive a cleared browser. They can also be exported, imported or copied as code.
 
+Plank floors run as full-length boards across each floor area. Stone slabs is a floor with one bevelled slab per cell.
+
 **Map Editor.** Map tools sits above Weapons, with Floors, Walls, Doors, Furniture and Size.
+- Placing tiles gives a soft dust puff in the tile's colours and a quiet sound for its material (stone, tile, wood, metal, cloth, earth). Fills ripple out from where you clicked.
+- The grid shows on light and dark floors; the hovered cell has a black and white border.
 - Pick a tile to arm it as a brush. Drag to paint, Ctrl-drag to fill a rectangle, Shift-click to flood-fill, and right-click to paint the map's main floor. Brush sizes are 1, 2 or 3 cells.
 - Click a door type onto a doorway to place a door; it lines up with the wall. Right-clicking a door gives Locked and key options.
 - Ctrl+Z and Ctrl+Y undo and redo painting. Esc drops the brush.
@@ -186,6 +190,8 @@ Base maps and textures can't be changed. Saving one always makes a mod: a separa
 - Save writes the current scenario: tiles, units with their gear and status, doors, cover, items and containers. On a base map, Save makes a new mod map. New starts a blank room.
 
 **Asset Editor.** Textures are listed as Floors, Walls and Furniture, each with base (locked) and mod entries.
+- Layers (the default): base colour with Hue, Saturation and Light; material (stone, marble, wood, metal, plaster, cloth, grass, soil, flat); layout (none, planks, slabs, flagstones, bricks, tiles, or any pattern) with joint width and depth; Variation with Shuffle; edge wear, scuffs and cracks; and a 16×16 stamp painted once per cell. Layered textures are drawn across the whole map like the built-in ones, so they join up with no visible repeat. Base textures open as the nearest layer recipe; Compare shows the original.
+- Paint: the pixel editor below. Switching to Paint turns the current layers into pixels.
 - Tools: pen, fill, line, rectangle (Shift for filled), pick (Alt-click with any tool also picks), select, and mirror X/Y. Arrow keys shift the texture to check seams.
 - Hue, Saturation and Light sliders adjust the whole texture. Click a palette colour to paint with it; right-click it to recolour every pixel close to it.
 - Patterns: the base patterns behind the built-in textures, plus your own. Click one to lay it over the texture (Overlay keeps the colours, Fill uses the texture's own tone ramp), at 1× or 2× with optional variation. Select an area and save it as a pattern.

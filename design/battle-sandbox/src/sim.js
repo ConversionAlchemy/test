@@ -61,7 +61,7 @@ function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[
 const PLK=new Set(['planks','pplanks','dplanks']);
 function boards(){const seen=new Set();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!PLK.has(k))continue;
  for(let y=0;y<T;y+=8){const Y=cy*T+y,id=Y*CW+cx;if(seen.has(id))continue;let a=cx,b=cx;while(map[cy][a-1]===k)a--;while(map[cy][b+1]===k)b++;for(let q=a;q<=b;q++)seen.add(Y*CW+q);
-  const x0=a*T,w=(b-a+1)*T,n=Math.max(1,Math.round(w/44)),row=Y>>3;for(let X=x0;X<x0+w;X++){const bi=Math.floor((X-x0)*n/w),edge=Math.floor((X-x0)*n/w)!==Math.floor((X-x0-1)*n/w)&&X>x0;
+  const x0=a*T,w=(b-a+1)*T,n=1,row=Y>>3;for(let X=x0;X<x0+w;X++){const bi=Math.floor((X-x0)*n/w),edge=Math.floor((X-x0)*n/w)!==Math.floor((X-x0-1)*n/w)&&X>x0;
    for(let yy=0;yy<8;yy++){const j=(Y+yy)*W+X;if(sol[j])continue;let c=mul(floor[j],.95+hh(row,bi,45)*.1);if(edge&&yy<7)c=mul(c,.86);floor[j]=c}}}}}
 // every laid surface gets a soft edge where it meets a different one
 const NOB=new Set(['grass','dirt','sky','bush','carpet','pcarpet','sill','msill']);
