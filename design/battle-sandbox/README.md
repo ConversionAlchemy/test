@@ -144,3 +144,9 @@ A room where enemies were seen or heard is marked hostile until someone has stoo
 Leader (under the inventory): one per side, shown by a small gold crown before the name. While he stands his side fights a little bolder and he gives its orders; when he falls the side is shaken for half a minute ("He's down!").
 
 Units at close quarters fire even if their weapon cannot swing round fully, and an order to a spot already taken by someone ends when the unit gets close.
+
+Every side always has one leader. The back room starts with Rook leading Goldbank and Ivo, now an Imperial officer with a pistol, leading the Imperium. When a leader falls the role passes to the best unit left (highest tier, then strongest), who calls "On me!".
+
+Units start on Autonomous; switch it off per unit to keep one on hold.
+
+Slow-mo (Z), in the top bar, runs the battle at a third of normal speed and draws streaks behind bullets and bolts.
