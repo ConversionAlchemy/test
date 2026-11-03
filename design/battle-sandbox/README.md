@@ -123,4 +123,4 @@ Hold C to crouch: slower, no dash, dimmed. A crouched unit behind a desk or tabl
 
 With AI on, right-click a cell to send the selected units of yours there, if they can see it; a faint line shows each order. E takes direct control (WASD, aim at the cursor, hold to fire, green outline); E again hands it back. Only units under direct control turn to the cursor. Units walk a half-tile grid that keeps them clear of walls and furniture and cut corners where the way is clear. Units shooting round a corner switch hands so the gun clears the edge.
 
-A unit that is hopelessly outmatched with an enemy close by surrenders: it drops its weapon and becomes a neutral captive. With AI on, your units not under direct control fight with what they carry, spears included.
+A unit that is hopelessly outmatched with an enemy close by surrenders: it drops its weapon and becomes a neutral captive. With AI on, your units not under direct control hold where they are, turn towards enemies the team can see, and fight with what they carry: guns, spears, Lancers, and grenades when no friend is near the target.

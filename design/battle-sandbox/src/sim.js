@@ -1240,9 +1240,13 @@ function ordGive(g,x,y){const cx=(x/T|0)*T+8,cy=(y/T|0)*T+8,mx=g.reduce((s,b)=>s
 function ordDraw(){ORDL=ORDL.filter(l=>tick-l.t<90);for(const l of ORDL){const k=1-(tick-l.t)/90,c=l.ok?rgb(242,239,230):rgb(224,83,63),L=Math.hypot(l.x1-l.x0,l.y1-l.y0)||1;for(let i=0;i<=L;i++){const X=Math.round(l.x0+(l.x1-l.x0)*i/L),Y=Math.round(l.y0+(l.y1-l.y0)*i/L);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=mix(out[Y*W+X],c,.35*k)}}}
 function ordTick(b){if(!b.ord)return;if(b.status!=='free'||!b.oa){b.ord=null;return}if(aiGo(b,b.ord.x,b.ord.y,b.oa))b.ord=null}
 // your unselected units with a gun drawn fire at enemies they can see
-function autoFire(b){const a=b.pa||(b.pa={cd:30});let tg=null,td=1e9;const rng=k=>!k?110:WP[k].melee?110:WP[k].range||200;
- for(const o of bodies)if(o.type==='token'&&o.status==='free'&&teamOf(o)!==aiMe&&(o.unit!=='civ'||o.held)&&canSee(b,o)){const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tg=o}}
- a.tg=tg;if(!tg||td>rng(b.held&&b.held.k)+40){a.cd=Math.max(a.cd,20);return}if(!b.held){const i=b.inv.findIndex((q,i)=>q&&i<2&&WP[q.k]&&!WP[q.k].hide);if(i>=0)selectSlot(b,i);return}aiShoot(b,tg,a)}
+function autoFire(b){const a=b.pa||(b.pa={cd:30}),rng=k=>!k?110:WP[k].melee?110:WP[k].range||200,usable=q=>q&&WP[q.k]&&!WP[q.k].hide&&!(CAP[q.k]&&empty(q));let tg=null,td=1e9,seen=null,sd=200;
+ for(const o of bodies){if(o.type!=='token'||o.status!=='free'||teamOf(o)===aiMe||o.unit==='civ'&&!o.held)continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(canSee(b,o)){if(d<td){td=d;tg=o}}else if(!o.fogH&&d<sd&&losClear(b.x,b.y,o.x,o.y,b.crouch,o.crouch)){sd=d;seen=o}}
+ a.tg=tg;if(!tg){if(seen)turnTo(b,Math.atan2(seen.y-b.y,seen.x-b.x));a.cd=Math.max(a.cd,20);return}
+ if(!usable(b.held)){let i=b.inv.findIndex((q,i)=>i<2&&usable(q));if(i<0)i=b.inv.findIndex(q=>q&&(q.k==='grenade'||q.k==='bomb'));if(i<0)return;if(b.si!==i){selectSlot(b,i);a.cd=Math.max(a.cd,20)}}
+ const k=b.held&&b.held.k;if(!k)return;
+ if(k==='grenade'||k==='bomb'){turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));if(--a.cd>0)return;const safe=!bodies.some(o=>o.type==='token'&&teamOf(o)===aiMe&&o.status==='free'&&Math.hypot(o.x-tg.x,o.y-tg.y)<(k==='bomb'?56:40));if(td>40&&td<150&&safe){fire(b,tg.x,tg.y);a.cd=120}else a.cd=20;return}
+ if(td>rng(k)+40){turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));return}aiShoot(b,tg,a)}
 function surrender(b){if(b.held)dropHeld(b);b.status='captured';b.nat=null;b.ai=null;b.crouch=false;b.ord=null;b.hc=null;sfx('flick');if(b.lab)b.lab.title='surrendered'}
 function canSeeUp(b,o){const c=b.crouch;b.crouch=false;const r=canSee(b,o);b.crouch=c;return r}
 // your side's view when AI is on: live where your units look, a fading picture elsewhere (5 s to black)
