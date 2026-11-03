@@ -1203,16 +1203,26 @@ toolItem($('tools'),'Rope','rope');toolItem($('tools'),'Chain','chain');
 window.addEventListener('pointerup',e=>{if(!tdrag)return;const t=tdrag;tdrag=null;if(Math.hypot(e.clientX-t.x,e.clientY-t.y)<5){armT=armT===t.kind?null:t.kind;for(const x of $('tools').children)x.classList.toggle('arm',!!armT&&x===t.d);return}
  if(inBoard(e)){const[x,y]=toBoard(e);let b=null,bd=12;for(const o of bodies)if(o.type==='token'){const d=Math.hypot(o.x-x,o.y-y);if(d<bd){bd=d;b=o}}if(b)tie(b,t.kind)}},true);
 // people
-const fu=$('fu'),fnat=$('fnat'),fw=$('fw'),tp=$('tp'),fl=$('fl');
-{const o=document.createElement('option');o.value='';o.textContent='Default';fl.appendChild(o)}for(const n of Object.keys(SPR)){const o=document.createElement('option');o.value=n;o.textContent=n;fl.appendChild(o)}fl.onchange=()=>preview();
+const fu=$('fu'),fnat=$('fnat'),fw=$('fw'),tp=$('tp');
+// marker roster: civilians first, then each class under its own side's name
+const CIVS=['Peasant','Merchant','Priest','Noble','Noblewoman'];
+const ROSTER={Imperium:[['Officer','civ'],['Imperial Clerk','civ'],['Imperial Noble','civ'],['Overseer','civ'],['Imperial Striped Guard','rifle'],['Conscript','home'],['Musketeer','rifle'],['Praetorian','guard'],['Shocktrooper','shock'],['Commando','cmd']],
+ Sanctis:[['Emperor','civ'],['Hierarch','civ'],['Acolyte','civ'],['Sanctis Guard','rifle'],['Eternal','guard']],
+ Goldbank:[['Clerk','civ'],['Head Clerk','civ'],['Banker','civ'],['Bank Lord','civ'],['Watchman','home'],['Stockman','rifle'],['Aurum Guard','guard'],['Aurum Knight','shock'],['Gilded Hand','cmd']],
+ Reapers:[['Thug','home'],['Cutthroat','rifle'],['Raider','guard'],['Blademaster','shock'],['Reaper','cmd']],
+ Havenport:[['Dockhand','civ'],['Harbourmaster','civ'],['Harbour Watch','home'],['Marine','rifle'],['Harbour Guard','guard']],
+ Portsbridge:[['Factor','civ'],['Company Clerk','civ'],['Company Guard','home'],['Company Rifles','rifle'],['Company Ironside','guard']],
+ 'Great Keys':[['Burgher','civ'],['Fisher','civ'],['Key Warden','home'],['Keys Rifles','rifle'],['Gatekeeper','guard']]};
+ROSTER.Neutrals=[...CIVS,...Object.values(ROSTER).flatMap(r=>r.filter(e=>e[1]==='civ').map(e=>e[0]))].map(n=>[n,'civ']);
 for(const k of ['','rod','pgun','sspear','musket','blunder','pistol','spear']){const o=document.createElement('option');o.value=k;o.textContent=k?WP[k].n:'Unarmed';fw.appendChild(o)}
-for(const[k,u]of Object.entries(UNITS)){const o=document.createElement('option');o.value=k;o.textContent=u.n;fu.appendChild(o)}
-for(const n of Object.keys(NAT)){const o=document.createElement('option');o.textContent=n;fnat.appendChild(o)}
-const fnatv=()=>fnat.value==='Neutral'?null:fnat.value;
-function preview(){const g=tp.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:-Math.PI/2,look:fl.value,unit:fu.value,nat:fnatv(),guard:false},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));
+for(const n of ['Neutrals',...Object.keys(ROSTER).filter(n=>n!=='Neutrals')]){const o=document.createElement('option');o.textContent=n;fnat.appendChild(o)}
+const fnatv=()=>fnat.value==='Neutrals'?null:fnat.value,fsel=()=>(ROSTER[fnat.value]||[])[+fu.value]||['Peasant','civ'];
+function fillTypes(){fu.innerHTML='';(ROSTER[fnat.value]||[]).forEach(([n],i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;fu.appendChild(o)});setArms()}
+function setArms(){const[,u]=fsel(),nat=fnatv();let k=KIT[nat]&&KIT[nat][u];if(typeof k==='function')k='spear';fw.value=k!==undefined?k||'':UNITS[u].w||'';fw.dataset.def=fw.value;preview()}
+function preview(){const[l,un]=fsel(),g=tp.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:-Math.PI/2,look:l,unit:un,nat:fnatv(),guard:false},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));
  for(const p of px){let c=pcol(t,p);if(c===0)continue;if(!sprG(lookOf(t))&&(!set.has(K(p[0]+1,p[1]))||!set.has(K(p[0]-1,p[1]))||!set.has(K(p[0],p[1]+1))||!set.has(K(p[0],p[1]-1))))c=mul(c,.36);u[(p[1]+8)*17+p[0]+8]=c}g.putImageData(id,0,0)}
-fu.onchange=()=>{fw.value=UNITS[fu.value].w||'';preview()};fnat.onchange=preview;fw.value='';preview();
-$('tpr').addEventListener('pointerdown',e=>{au();e.preventDefault();const[x,y]=toBoard(e);charge=null;const b=token($('fn').value||'Unnamed',fnatv(),fu.value,x,y,false,fw.value||null);if(fl.value)b.look=fl.value;startDrag(b,x,y,true);listPeople()});
+fnat.onchange=fillTypes;fu.onchange=setArms;fw.onchange=preview;fillTypes();
+$('tpr').addEventListener('pointerdown',e=>{au();e.preventDefault();const[x,y]=toBoard(e);charge=null;const[l,un]=fsel(),b=token($('fn').value||'Unnamed',fnatv(),un,x,y,false,fw.value===fw.dataset.def&&fw.value?undefined:fw.value||null);b.look=l;startDrag(b,x,y,true);listPeople()});
 for(const sc of document.querySelectorAll('#sm .sec')){const k='bsx:'+sc.dataset.k;try{if(localStorage.getItem(k)==='1')sc.classList.add('closed')}catch(e){}sc.querySelector('.sh').onclick=()=>{sc.classList.toggle('closed');try{localStorage.setItem(k,sc.classList.contains('closed')?'1':'0')}catch(e){}}}
 function listPeople(){const l=$('ppl');if(!l)return;l.innerHTML='';for(const b of bodies.filter(b=>b.type==='token')){const d=document.createElement('div');if(b.status!=='free')d.className='off';const nc=b.nat&&NAT[b.nat]?NAT[b.nat]:'#d8d4ca';
  d.innerHTML=`<span class="dot" style="background:${nc}"></span><span style="color:${natLabel(b)}">${b.name}</span>${b.status==='dead'?' ✝':b.status==='captured'?' ⛓':''}`;d.onclick=e=>clickBody(b,e.ctrlKey||e.metaKey);l.appendChild(d)}}
