@@ -141,7 +141,7 @@ With AI on, units call out what they are doing above their heads when they chang
 
 A room where enemies were seen or heard is marked hostile until someone has stood in it a few seconds and found nobody. Once the shooting stops, a side with two or more fighters sends its stronger half in to clear the nearest hostile room ("Clear that room", "Moving in") while the rest cover it.
 
-Leader (under the inventory): one per side, shown by a small gold crown before the name. While he stands his side fights a little bolder and he gives its orders; when he falls the side is shaken for half a minute ("He's down!").
+Leader (under the inventory): one per side, shown by a small gold triangle before the name. While he stands his side fights a little bolder and he gives its orders; when he falls the side is shaken for half a minute ("He's down!").
 
 Units at close quarters fire even if their weapon cannot swing round fully, and an order to a spot already taken by someone ends when the unit gets close.
 
