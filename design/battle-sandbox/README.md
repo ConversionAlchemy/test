@@ -181,7 +181,7 @@ Base maps and textures can't be changed. Saving one always makes a mod: a separa
 Plank floors run as full-length boards across each floor area. Stone slabs is a floor with one bevelled slab per cell.
 
 **Map Editor.** Map tools sits above Weapons, with Floors, Walls, Doors, Furniture and Size.
-- Strokes, rectangles and fills show as a grey plan while you drag. On release the tiles go down one by one in drawing order, each with dust and a sound; big areas speed up to finish in about a second. Undo takes back the whole batch.
+- Strokes, rectangles and fills show as a grey plan while you drag. On release the tiles go down one by one in drawing order, each with dust and its own sound. Plops speed up from 70 ms to 30 ms apart; big areas place up to 12 tiles per plop, still one sound each plop. Undo takes back the whole batch.
 - Interior / Outdoor / Auto (saved with the map). Interior maps darken the inside of thick walls; outdoor maps show wall tops. Auto picks outdoor when much of the floor is grass or earth or the map edge is open. Every wall, hedges included, casts the same shadow onto the floor.
 - Wall tops (on by default) shows the tops of all walls while editing. It's a view setting only.
 - WASD pans the view.

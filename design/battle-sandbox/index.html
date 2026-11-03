@@ -1853,8 +1853,9 @@ let PLOP=null;const GHOST=new Map();
 function ghostOf(k){if(GHOST.has(k))return GHOST.get(k);const p=bake(k),c=mk('canvas');c.width=c.height=T;const g=c.getContext('2d'),im=g.createImageData(T,T);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const o=(y*TS+x)*3,i=(y*T+x)*4,l=lum(p[o],p[o+1],p[o+2])*.7+60;im.data[i]=im.data[i+1]=im.data[i+2]=l;im.data[i+3]=255}g.putImageData(im,0,0);GHOST.set(k,c);return c}
 function edCells(cx,cy){const o=Math.floor((edSize-1)/2),r=[];for(let y=cy-o;y<cy-o+edSize;y++)for(let x=cx-o;x<cx-o+edSize;x++)if(x>=0&&y>=0&&x<CW&&y<CH)r.push([x,y]);return r}
 function addPend(st,cx,cy){for(const c of edCells(cx,cy)){const id=c[1]*CW+c[0];if(!st.seen.has(id)){st.seen.add(id);st.cells.push(c)}}}
-function plop(cells,k,er){flushPlop();const s=srcNow();cells=cells.filter(([x,y])=>s[y][x]!==k);if(!cells.length)return;PLOP={k,er,q:cells,per:Math.max(1,Math.ceil(cells.length/45)),run:0,heavy:!er&&heavyK(k),m:er?'erase':matOf(k)}}
-function plopTick(){const p=PLOP;if(!p)return;const s=srcNow();for(let i=0;i<p.per&&p.q.length;i++){const[x,y]=p.q.shift();s[y][x]=p.k;paintCell(x,y,p.k);puff(x,y,p.k)}p.run++;edSnd(p.m,1+Math.min(.25,p.run*.01),.8,p.heavy);if(!p.q.length){PLOP=null;refinish()}}
+function plop(cells,k,er){flushPlop();const s=srcNow();cells=cells.filter(([x,y])=>s[y][x]!==k);if(!cells.length)return;PLOP={k,er,q:cells,per:Math.min(12,Math.max(1,Math.ceil(cells.length/60))),run:0,next:0,heavy:!er&&heavyK(k),m:er?'erase':matOf(k)}}
+// one sound per plop; plops speed up from 70 ms to 30 ms apart, and big areas place up to 12 tiles per plop
+function plopTick(){const p=PLOP;if(!p)return;const t=performance.now();if(t<p.next)return;const s=srcNow();for(let i=0;i<p.per&&p.q.length;i++){const[x,y]=p.q.shift();s[y][x]=p.k;paintCell(x,y,p.k);puff(x,y,p.k)}p.run++;sndT=0;edSnd(p.m,1+Math.min(.25,p.run*.012),.75,p.heavy);p.next=t+Math.max(30,70-p.run*4);if(!p.q.length){PLOP=null;refinish()}}
 function flushPlop(){const p=PLOP;if(!p)return;PLOP=null;const s=srcNow();for(const[x,y]of p.q)s[y][x]=p.k;refinish()}
 {const s0=startDrag;startDrag=function(...a){s0(...a);if(EM&&drag)drag.free=true}}
 {const r0=reset;reset=function(){PLOP=null;edSrc=null;edUndo=[];edRedo=[];r0();envCalc();if(EM==='map')fillMapTools()}}
