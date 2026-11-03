@@ -98,4 +98,8 @@ The counting house and the Aurum are joined: the passage west out of the Aurum's
 
 Hold the mouse to charge a Lancer and release to throw it. Keep holding past full charge and it overcharges in the hand.
 
-Bullets hitting stone, wood or metal each have their own sparks, chips and sound; blunderbuss pellets sound as a scatter of separate hits.
+Bullets hitting stone, wood, metal or armour each have their own sound; blunderbuss pellets sound as a scatter of separate hits.
+
+Any unit can carry two pistols, one in each of the first two slots, and fires both together; commandos still fire their faster bursts. Reserve rounds are shared evenly between the pair.
+
+A unit short of rounds strips them from a matching gun lying nearby or in an open chest, and the gun is used up.
