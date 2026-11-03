@@ -129,6 +129,8 @@ Units who see a lit grenade or heavy grenade in blast range run clear of it, pic
 
 Autonomous (under the inventory) lets one of your units act on its own with the same rules as the AI: look into noises, hunt, hold or fall back with its side. A right-click order still comes first, and E still takes direct control. Your units never surrender.
 
+A unit turns slightly further than the cursor so its weapon's line, not its body's centre, passes through the cursor; shots follow the same line. Near a wall the weapon is first drawn back towards the body and is only raised if that isn't enough. Raising and lowering make a soft, muffled rustle.
+
 Grenades: a unit throws one when it pays off: two or more enemies inside the blast, an enemy in cover, or a heavy (the heavy grenade is kept for groups or a heavy in cover). Never at a spot with a friend in the blast, never closer than a safe distance (about 3 tiles, 4.5 for the heavy grenade), only along a clear throw, and at most one per unit every 3 s and one per side every second. A unit with nothing else left throws at a lone enemy under the same safety rules.
 
 Keys: a door locked from the start belongs to the side whose units stand beside it, and a door a unit locks belongs to its side. Units with the key unlock it as they pass; others have to break it.
@@ -198,6 +200,7 @@ Plank floors run as full-length boards across each floor area. Stone slabs is a 
 - Interior / Outdoor / Auto (saved with the map). Interior maps darken the inside of thick walls; outdoor maps show wall tops. Auto picks outdoor when much of the floor is grass or earth or the map edge is open. Every wall, hedges included, casts the same shadow onto the floor.
 - Wall tops (on by default) shows the tops of all walls while editing. It's a view setting only.
 - WASD pans the view.
+- Clean: Vacuum pulls loose debris and spent shot towards it while held, with a hum that rises as it sucks things up. Sponge scrubs blood, scorch, flames and stains back to the clean floor; swipe back and forth, and a cell squeaks when it is fully clean. Wand restores damaged walls, floors and furniture: drag over an area, then on release each damaged cell is repaired in turn with a chime and lingering coloured sparkles. Brush size sets the tool size.
 - Stone and metal walls add a soft low thud when placed.
 - Placing tiles gives a soft dust puff in the tile's colours and a quiet sound for its material (stone, tile, wood, metal, cloth, earth). Fills ripple out from where you clicked.
 - The grid shows on light and dark floors; the hovered cell has a black and white border.
