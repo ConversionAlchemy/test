@@ -24,7 +24,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Shift + drag | Lift anything and carry it over walls; drop it outside the map to delete it |
 | Click a slab | Select it: hold Q or E to turn it; drag to move it |
 | Double-click an item | Select it: hold to fire or throw it from where it lies; drag to move it |
-| Right-click | Unit or door options |
+| Right-click | Unit or door options; Refill ammo tops up every gun, or gives back the unit's default kit if it carries nothing (works on a group too) |
 | Tools: Rope, Chain | Drag onto a unit, or click the tool then a unit, to tie it to the nearest wall; Esc cancels |
 | Side headings | Click Weapons, Cover, Tools, Markers or Inspector to fold it away |
 | Inspector (right column) | Shows the selected unit, or an opened chest, desk, shelf or rack with the selected unit beneath it when it stands beside it. Click an item to move it to the other box, drag it across, drag it out to drop it, Shift+click to drop it; click a unit's slot to draw it |
