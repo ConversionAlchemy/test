@@ -121,5 +121,6 @@ With AI on you see only what your units see: the rest keeps its last picture and
 
 Hold C to crouch: slower, no dash, dimmed. A crouched unit behind a desk or table can't be seen or shot past it, and can't see or shoot over it either; stand to fire.
 
-With AI on, a selected unit of yours takes orders: drag from it to a spot it can see and it walks there (a group keeps its spacing). E takes direct control (WASD, aim at the cursor, hold to fire); E again hands it back. Units walk a half-tile grid that keeps them clear of walls and furniture and cut corners where the way is clear. Units shooting round a corner switch hands so the gun clears the edge.
+With AI on, right-click a cell to send the selected units of yours there, if they can see it; a faint line shows each order. E takes direct control (WASD, aim at the cursor, hold to fire, green outline); E again hands it back. Only units under direct control turn to the cursor. Units walk a half-tile grid that keeps them clear of walls and furniture and cut corners where the way is clear. Units shooting round a corner switch hands so the gun clears the edge.
 
+A unit that is hopelessly outmatched with an enemy close by surrenders: it drops its weapon and becomes a neutral captive. With AI on, your units not under direct control fight with what they carry, spears included.
