@@ -1285,13 +1285,14 @@ function aiSetup(){for(const b of bodies)b.ai=null;GS={};NZ=[];RINGS=[];ROOMS=nu
 const aiOpen=(cx,cy)=>{if(cx<0||cy<0||cx>=CW||cy>=CH||map[cy][cx]==='sky')return false;const j=(cy*T+8)*W+cx*T+8;return !sol[j]&&!OBJ[j]};
 const isDoor=o=>o.type==='slab'&&!o.free&&!o.fallen;
 const onDoor=(o,x,y)=>o.dt?o.dt.has((y/T|0)*CW+(x/T|0)):Math.abs(o.x-x)<12&&Math.abs(o.y-y)<12;
-function lockedAt(nx,ny){return bodies.some(o=>isDoor(o)&&o.locked&&!o.lockBroken&&onDoor(o,nx*T+8,ny*T+8))}
+const hasKey=(o,tm)=>tm&&(o.keys===tm||o.pair&&o.pair.keys===tm);
+function lockedAt(nx,ny,tm){return bodies.some(o=>isDoor(o)&&o.locked&&!o.lockBroken&&!hasKey(o,tm)&&onDoor(o,nx*T+8,ny*T+8))}
 // walk grid: half-tile nodes with room for a body; rebuilt with the rooms
 const G=8;let WG=null,GW=0,GH=0;
 function walkGrid(){GW=W/G|0;GH=H/G|0;WG=new Uint8Array(GW*GH);const P=[[0,0],[5,0],[-5,0],[0,5],[0,-5],[4,4],[-4,4],[4,-4],[-4,-4]];
  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const cx=x*G+4,cy=y*G+4;if(map[cy/T|0][cx/T|0]==='sky')continue;let ok=1;for(const[a,b]of P){const X=cx+a,Y=cy+b;if(X<0||Y<0||X>=W||Y>=H){ok=0;break}const j=Y*W+X;if(sol[j]||OBJ[j]){ok=0;break}}WG[y*GW+x]=ok}}
 const wOpen=(x,y)=>{if(!WG)walkGrid();const gx=x/G|0,gy=y/G|0;return gx>=0&&gy>=0&&gx<GW&&gy<GH&&WG[gy*GW+gx]===1};
-function aiPath(b,tx,ty,anyLock){if(!WG||WG.length!==(W/G|0)*(H/G|0))walkGrid();const N=GW*GH,blk=n=>!WG[n]||!anyLock&&lockedAt((n%GW)*G/T|0,(n/GW|0)*G/T|0);
+function aiPath(b,tx,ty,anyLock){if(!WG||WG.length!==(W/G|0)*(H/G|0))walkGrid();const N=GW*GH,tm=teamOf(b),blk=n=>!WG[n]||!anyLock&&lockedAt((n%GW)*G/T|0,(n/GW|0)*G/T|0,tm);
  const near=(x,y)=>{let gx=x/G|0,gy=y/G|0,best=-1,bd=1e9;for(let r=0;r<=3&&best<0;r++)for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++){const X=gx+i,Y=gy+j;if(X<0||Y<0||X>=GW||Y>=GH||blk(Y*GW+X))continue;const d=i*i+j*j;if(d<bd){bd=d;best=Y*GW+X}}return best};
  const s0=near(b.x,b.y),g=near(tx,ty);if(s0<0||g<0)return null;const prev=new Int32Array(N).fill(-1),q=[s0];prev[s0]=s0;let h=0;
  while(h<q.length){const c=q[h++];if(c===g)break;const cx=c%GW,cy=c/GW|0;for(const[a,d]of[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){const nx=cx+a,ny=cy+d,n=ny*GW+nx;if(nx<0||ny<0||nx>=GW||ny>=GH||prev[n]>=0||blk(n))continue;if(a&&d&&(blk(cy*GW+nx)||blk(ny*GW+cx)))continue;prev[n]=c;q.push(n)}}
@@ -1300,6 +1301,7 @@ function aiPath(b,tx,ty,anyLock){if(!WG||WG.length!==(W/G|0)*(H/G|0))walkGrid();
  const out=[];let px=b.x,py=b.y,i=0;while(i<raw.length){let j=raw.length-1;while(j>i&&!clear(px,py,raw[j][0],raw[j][1]))j--;out.push(raw[j]);px=raw[j][0];py=raw[j][1];i=j+1}
  if(Math.hypot(tx-out[out.length-1][0],ty-out[out.length-1][1])<12&&wOpen(tx,ty))out[out.length-1]=[tx,ty];out.raw=raw;return out}
 function aiStep(b,x,y,a=b.ai){const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy);if(d<2)return true;const u=UNITS[b.unit],sp=.85*(1-u.arm*.07)*(b.held?.8:1)*(b.crouch?.4:1);
+ for(const o of bodies)if(isDoor(o)&&o.locked&&!o.lockBroken&&hasKey(o,teamOf(b))&&Math.hypot(o.x-b.x,o.y-b.y)<24&&(onDoor(o,x,y)||onDoor(o,b.x,b.y))){for(const q of o.pair?[o,o.pair]:[o])q.locked=false;sfx('lock')}
  for(const o of bodies)if(isDoor(o)&&!o.locked&&o.tgt===0&&o.ang===0&&Math.hypot(o.x-b.x,o.y-b.y)<24&&(onDoor(o,x,y)||onDoor(o,b.x,b.y)))openGroup(o,b);
  const gain=()=>d-Math.hypot(x-b.x,y-b.y);moveToward(b,b.x+dx/d*sp,b.y+dy/d*sp);let m=gain();
  if(m<=.15&&b.held&&!a.tg&&b.ai){b.psi=b.si;b.si=-1;b.held=null;b.hc=null;a.sheath=tick+90;moveToward(b,b.x+dx/d*sp,b.y+dy/d*sp);m=gain()}
@@ -1317,7 +1319,8 @@ function aiRooms(){const n=CW*CH,R=new Int16Array(n).fill(-1),dt=new Map();
  let k=0;const cen=[];for(let c=0;c<n;c++){if(R[c]>=0||!open(c)||dt.has(c))continue;const q=[c];R[c]=k;let sx=0,sy=0,m=0;
   while(q.length){const e=q.pop(),ex=e%CW,ey=e/CW|0;sx+=ex;sy+=ey;m++;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=ex+a,ny=ey+b,f=ny*CW+nx;if(nx<0||ny<0||nx>=CW||ny>=CH||R[f]>=0||!open(f)||dt.has(f))continue;R[f]=k;q.push(f)}}
   cen.push([sx/m*T+8,sy/m*T+8,m]);k++}
- const doors=[];for(const d of new Set(dt.values())){const rs=new Set();for(const c of d.dt){const cx=c%CW,cy=c/CW|0;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const f=(cy+b)*CW+cx+a;if(R[f]>=0)rs.add(R[f])}}doors.push({d,rooms:[...rs]})}
+ const doors=[];for(const d of new Set(dt.values())){const rs=new Set();for(const c of d.dt){const cx=c%CW,cy=c/CW|0;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const f=(cy+b)*CW+cx+a;if(R[f]>=0)rs.add(R[f])}}doors.push({d,rooms:[...rs]});
+  if(d.keys===undefined){d.keys=null;if(d.locked){const n={};for(const t of bodies)if(t.type==='token'&&t.nat&&t.status!=='dead'){const c=(t.y/T|0)*CW+(t.x/T|0);if(rs.has(R[c]))n[teamOf(t)]=(n[teamOf(t)]||0)+1}const top=Object.entries(n).sort((p,q)=>q[1]-p[1])[0];if(top)d.keys=top[0]}}}
  ROOMS={R,n:k,cen,doors,t:tick};walkGrid()}
 function roomAt(x,y){if(!ROOMS)return -1;const cx=x/T|0,cy=y/T|0,c=cy*CW+cx,r=ROOMS.R[c];if(r>=0)return r;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const f=(cy+b)*CW+cx+a;if(f>=0&&f<ROOMS.R.length&&ROOMS.R[f]>=0)return ROOMS.R[f]}return -1}
 const ways=r=>ROOMS.doors.filter(e=>e.rooms.includes(r));
@@ -1358,14 +1361,24 @@ function aiSense(b){const a=b.ai;let tg=null,td=1e9;
 function aiShare(us){for(const a of us)for(const b of us){if(a===b||Math.hypot(a.x-b.x,a.y-b.y)>140&&roomAt(a.x,a.y)!==roomAt(b.x,b.y))continue;for(const[id,m]of a.ai.mem){const o=b.ai.mem.get(id);if(!o||o.t<m.t)b.ai.mem.set(id,{...m})}if(a.ai.nz&&(!b.ai.nz||b.ai.nz.t<a.ai.nz.t))b.ai.nz={...a.ai.nz}}}
 const nearObj=b=>{for(let r=4;r<=12;r+=4)for(let k=0;k<8;k++){const X=Math.round(b.x+Math.cos(k*.785)*r),Y=Math.round(b.y+Math.sin(k*.785)*r);if(X>=0&&Y>=0&&X<W&&Y<H&&OBJ[Y*W+X])return true}return false};
 function aiLock(b,e,home){const d=e.d,lv=d.pair?[d,d.pair]:[d];let tgt=[d.x,d.y];if(d.dt)for(const c of d.dt){const cx=c%CW,cy=c/CW|0;for(const[a,q]of[[1,0],[-1,0],[0,1],[0,-1]]){const f=(cy+q)*CW+cx+a;if(ROOMS.R[f]===home&&aiOpen(cx+a,cy+q)){tgt=aiOpen(cx+2*a,cy+2*q)&&ROOMS.R[(cy+2*q)*CW+cx+2*a]===home?[(cx+2*a)*T+8,(cy+2*q)*T+8]:[(cx+a)*T+8,(cy+q)*T+8]}}}const dd=Math.hypot(tgt[0]-b.x,tgt[1]-b.y);if(dd>6){aiGo(b,tgt[0],tgt[1]);return false}turnTo(b,Math.atan2(d.y-b.y,d.x-b.x));
- for(const q of lv)q.tgt=0;if(lv.every(q=>q.ang===0)){for(const q of lv)q.locked=true;sfx('lock');hear(d.x,d.y,70,b);return true}return false}
+ for(const q of lv)q.tgt=0;if(lv.every(q=>q.ang===0)){for(const q of lv){q.locked=true;q.keys=teamOf(b)}sfx('lock');hear(d.x,d.y,70,b);return true}return false}
 function aiArm(b){if(!b.held&&!(b.ai.sheath>tick&&!b.ai.tg)){const i=b.inv.findIndex((q,i)=>q&&i<2&&WP[q.k]&&!WP[q.k].hide);if(i>=0)selectSlot(b,i)}}
 function flipFor(b,tg){if(!b.held||sideOf(b)===0)return;const t=tipOf(b);if(losClear(t[0],t[1],tg.x,tg.y,b.crouch,tg.crouch))return;b.side=-(b.side||1);b.hc=null;const u=tipOf(b);if(!losClear(u[0],u[1],tg.x,tg.y,b.crouch,tg.crouch)){b.side=-b.side;b.hc=null}}
+// grenades: worth it on a cluster, a heavy, or someone in cover; never near a friend or too close to throw safely
+const NADEL={};
+function nadePlan(b,tg0,force){if(tick-(b.nadeT||-1e9)<180||tick-(NADEL[teamOf(b)]||-1e9)<60)return null;const gi=b.inv.findIndex(q=>q&&q.k==='grenade'),bi=b.inv.findIndex(q=>q&&q.k==='bomb');if(gi<0&&bi<0)return null;
+ const foes=bodies.filter(o=>o.type==='token'&&o.status==='free'&&teamOf(o)!==teamOf(b)&&teamOf(o)!=='Neutral'),t=tipOf(b);let best=null,bs=0;
+ for(const tg of foes){if(tg!==tg0&&!canSee(b,tg))continue;const td=Math.hypot(tg.x-b.x,tg.y-b.y);if(td>150||!losClear(b.x,b.y,tg.x,tg.y,false,false))continue;
+  const near=r=>foes.filter(f=>Math.hypot(f.x-tg.x,f.y-tg.y)<r).length,friend=r=>bodies.some(o=>o!==b&&o.type==='token'&&o.status==='free'&&teamOf(o)===teamOf(b)&&Math.hypot(o.x-tg.x,o.y-tg.y)<r),heavy=(UNITS[tg.unit].arm||0)>=2,covered=tg.crouch||!losClear(t[0],t[1],tg.x,tg.y,b.crouch,tg.crouch);
+  if(bi>=0&&td>72&&!friend(68)){const sc=near(52)*2+(heavy&&covered?2:0)+(force?1:0);if(sc>=3&&sc>bs){bs=sc;best={i:bi,tg}}}
+  if(gi>=0&&td>52&&!friend(48)){const sc=near(36)*2+(covered?1:0)+(heavy?1:0)+(force?1:0);if(sc>=3&&sc>bs){bs=sc;best={i:gi,tg}}}}
+ return best}
+function throwNade(b,i,tg){const pi=b.si;selectSlot(b,i);turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));fire(b,tg.x+(Math.random()-.5)*6,tg.y+(Math.random()-.5)*6);b.nadeT=tick;NADEL[teamOf(b)]=tick;setTimeout(()=>{if(b.status==='free'&&pi>=0&&b.inv[pi]&&b.si!==pi)selectSlot(b,pi)},400)}
 function aiShoot(b,tg,a=b.ai){const td=Math.hypot(tg.x-b.x,tg.y-b.y);turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));flipFor(b,tg);if(--a.cd>0)return;const h=b.held;if(!h)return;const w=WP[h.k];
  if(w.melee){if(td>110){a.cd=10;return}}else if(CAP[h.k]&&!(h.ammo>0)){b.crouch=nearObj(b);if(!reload(b))a.cd=999;else a.cd=90;return}
  if(bodies.some(o=>o!==b&&o.ai&&teamOf(o)===teamOf(b)&&o.status==='free'&&(()=>{const vx=tg.x-b.x,vy=tg.y-b.y,L=vx*vx+vy*vy||1,t=((o.x-b.x)*vx+(o.y-b.y)*vy)/L;return t>0&&t<1&&Math.hypot(b.x+vx*t-o.x,b.y+vy*t-o.y)<9})())){a.cd=20;return}
- const gi=a.mem?b.inv.findIndex(q=>q&&q.k==='grenade'):-1,near=[...(a.mem||new Map()).values()].filter(m=>!m.dead&&tick-m.t<60&&Math.hypot(m.x-tg.x,m.y-tg.y)<30).length;
- if(gi>=0&&td>60&&td<140&&near>=2&&Math.random()<.25){const pi=b.si;selectSlot(b,gi);fire(b,tg.x,tg.y);setTimeout(()=>{if(b.status==='free'&&pi>=0&&b.inv[pi])selectSlot(b,pi)},400);a.cd=80;return}
+ 
+ {const np=nadePlan(b,tg,false);if(np){throwNade(b,np.i,np.tg);a.cd=60;return}}
  fire(b,tg.x+(Math.random()-.5)*8,tg.y+(Math.random()-.5)*8);a.cd={musket:80,pistol:45,blunder:85,pgun:95,rod:120,spear:60,sspear:70}[h.k]+(Math.random()*30|0)||70}
 function aiWander(b,r){const c=ROOMS.cen[r];if(!c)return null;for(let k=0;k<12;k++){const x=c[0]+(Math.random()-.5)*Math.sqrt(c[2])*T,y=c[1]+(Math.random()-.5)*Math.sqrt(c[2])*T;if(roomAt(x,y)===r&&aiOpen(x/T|0,y/T|0))return[x,y]}return[c[0],c[1]]}
 function aiTick(){if(!aiOn)return;if(!ROOMS||tick-ROOMS.t>120)aiRooms();
@@ -1406,7 +1419,7 @@ function autoFire(b){const a=b.pa||(b.pa={cd:30}),rng=k=>!k?110:WP[k].melee?110:
  a.tg=tg;if(!tg){if(seen)turnTo(b,Math.atan2(seen.y-b.y,seen.x-b.x));a.cd=Math.max(a.cd,20);return}
  if(!usable(b.held)){let i=b.inv.findIndex((q,i)=>i<2&&usable(q));if(i<0)i=b.inv.findIndex(q=>q&&(q.k==='grenade'||q.k==='bomb'));if(i<0)return;if(b.si!==i){selectSlot(b,i);a.cd=Math.max(a.cd,20)}}
  const k=b.held&&b.held.k;if(!k)return;
- if(k==='grenade'||k==='bomb'){turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));if(--a.cd>0)return;const safe=!bodies.some(o=>o.type==='token'&&teamOf(o)===aiMe&&o.status==='free'&&Math.hypot(o.x-tg.x,o.y-tg.y)<(k==='bomb'?56:40));if(td>40&&td<150&&safe){fire(b,tg.x,tg.y);a.cd=120}else a.cd=20;return}
+ if(k==='grenade'||k==='bomb'){turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));if(--a.cd>0)return;const np=nadePlan(b,tg,true);if(np){throwNade(b,np.i,np.tg);a.cd=120}else a.cd=20;return}
  if(td>rng(k)+40){turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));return}aiShoot(b,tg,a)}
 // grenades: anyone in the blast who can see it runs, away from the bomb and from known enemies
 function bombFlee(b,enemies){if(b.direct||b.status!=='free')return false;if(b.flee){if(tick>b.flee.t||!bodies.includes(b.flee.g)){b.flee=null;return false}aiGo(b,b.flee.x,b.flee.y,b.fa||(b.fa={}));return true}

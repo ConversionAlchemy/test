@@ -128,3 +128,7 @@ A unit that is hopelessly outmatched with an enemy close by surrenders: it drops
 Units who see a lit grenade or heavy grenade in blast range run clear of it, picking the way out that keeps furthest from known enemies (commandos dash if they can). A unit left with no usable weapon or rounds takes a spare from a friend beside it: half his rounds for the same gun, one spear from a stack, or his lesser weapon if he carries two; in a fight AI units walk to the nearest friend with a spare or a loose weapon.
 
 Autonomous (under the inventory) lets one of your units act on its own with the same rules as the AI: look into noises, hunt, hold or fall back with its side. A right-click order still comes first, and E still takes direct control. Your units never surrender.
+
+Grenades: a unit throws one when it pays off: two or more enemies inside the blast, an enemy in cover, or a heavy (the heavy grenade is kept for groups or a heavy in cover). Never at a spot with a friend in the blast, never closer than a safe distance (about 3 tiles, 4.5 for the heavy grenade), only along a clear throw, and at most one per unit every 3 s and one per side every second. A unit with nothing else left throws at a lone enemy under the same safety rules.
+
+Keys: a door locked from the start belongs to the side whose units stand beside it, and a door a unit locks belongs to its side. Units with the key unlock it as they pass; others have to break it.
