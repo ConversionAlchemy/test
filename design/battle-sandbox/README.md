@@ -106,4 +106,4 @@ A unit short of rounds strips them from a matching gun lying nearby or in an ope
 
 The hand button under a unit's inventory turns off picking up new weapons (off from the start for civilians and anyone placed unarmed); with it off the unit still takes ammo and tops up grenades and spears it already carries.
 
-The plasma gun vents with a hiss after each burst and must be reloaded (R) before it fires again.
+The plasma gun holds three shots, one burst, then vents with a hiss and must be reloaded by hand (R).
