@@ -15,21 +15,21 @@
 #sm .view{background:#0b0b0c;border-right:1px solid #000}
 #sm .stage{position:relative;width:576px;height:448px;overflow:hidden}
 #sm #sb{display:block;width:576px;height:448px;image-rendering:pixelated;touch-action:none}
-#sm .lab{position:absolute;font-size:16px;line-height:1;color:#fff;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;transform:translateX(-50%);cursor:default}
+#sm .lab{position:absolute;font-size:16px;line-height:1;color:#fff;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;transform:translateX(-50%);cursor:var(--c-arrow)}
 #sm .side{padding:6px;display:flex;flex-direction:column;gap:5px;max-height:448px;overflow:auto}
 #sm .side b{font-weight:normal;color:#c9c5b8}
 #sm .wp{display:flex;flex-direction:column;gap:2px}
 #sm .menu select{border:0;border-bottom:1px solid #333;background:#232323}
 #sm .menu input{border:0;border-bottom:1px solid #333;width:120px}
 #sm .wp div,#sm .ppl div{display:flex;align-items:center;gap:6px;padding:0 4px;background:#262626;border:1px solid #333;font-size:16px;line-height:1}
-#sm .wp div{cursor:grab}#sm .wp div:hover{border-color:#777}
+#sm .wp div{cursor:var(--c-grab)}#sm .wp div:hover{border-color:#777}
 #sm .wp canvas{width:28px;height:18px;image-rendering:pixelated}
 #sm .ppl{display:flex;flex-direction:column;gap:3px}
 #sm .ppl div.off{opacity:.5}
 #sm .dot{width:14px;height:14px;border-radius:50%;border:1px solid #000;flex:none}
 #sm .form{display:grid;gap:4px}
 #sm .form input{width:100%}
-#sm #tp{width:34px;height:34px;image-rendering:pixelated;cursor:grab;justify-self:center}
+#sm #tp{width:34px;height:34px;image-rendering:pixelated;cursor:var(--c-grab);justify-self:center}
 #sm .cols{display:flex;flex-wrap:wrap;gap:3px}
 #sm .cols span{width:18px;height:18px;border:1px solid #000;cursor:pointer}
 #sm .cols span.on{outline:2px solid #fff}
@@ -41,16 +41,16 @@
 #sm .ih i{font-style:normal;font-size:15px;color:#8f8b80}
 #sm .ig{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:5px}
 #sm .is{position:relative;height:40px;background:#222;border:1px solid #333;display:flex;align-items:center;justify-content:center;cursor:pointer}
-#sm .is:hover{border-color:#777}#sm .is.on{border-color:#f2efe6}#sm .is.lock{background:#141414;border-color:#1a1a1a;cursor:default}
+#sm .is:hover{border-color:#777}#sm .is.on{border-color:#f2efe6}#sm .is.lock{background:#141414;border-color:#1a1a1a;cursor:var(--c-arrow)}
 #sm .is canvas{width:42px;height:30px;image-rendering:pixelated;pointer-events:none}
 #sm .is b{position:absolute;right:2px;bottom:0;font-size:14px;color:#c9c5b8;pointer-events:none}#sm .is u{position:absolute;left:3px;top:0;font-size:13px;color:#5f5b52;text-decoration:none;pointer-events:none}
 #sm .is b.lo{color:#e0a040}#sm .is b.out{color:#b03a2a}#sm .ghost{position:fixed;pointer-events:none;z-index:9;opacity:.85}
 #sm .sec{display:flex;flex-direction:column;gap:5px}#sm .sec+.sec{border-top:1px solid #3a3a3a;padding-top:6px}
-#sm .sh{cursor:pointer;display:grid;grid-template-columns:40px 1fr;gap:6px;align-items:center;padding:0 5px;font-size:16px;line-height:24px;color:#f2efe6}#sm .sh::before{content:'▾';color:#6f6b62;justify-self:center}#sm .sec.closed .sh::before{content:'▸'}#sm .sh canvas{width:26px;height:26px;vertical-align:middle;margin-left:6px;image-rendering:pixelated;cursor:grab}#sm .sec.closed>:not(.sh){display:none}
-#sm .wp>div{height:24px;cursor:grab;display:grid;grid-template-columns:40px 1fr auto;gap:6px;align-items:center}#sm .wp>div>canvas{justify-self:center}#sm .wp>div.dim{opacity:.4;cursor:default}#sm .wp>div.on{border-color:#f2efe6}#sm .wp>div.arm{border-color:#e0a040}
+#sm .sh{cursor:pointer;display:grid;grid-template-columns:40px 1fr;gap:6px;align-items:center;padding:0 5px;font-size:16px;line-height:24px;color:#f2efe6}#sm .sh::before{content:'▾';color:#6f6b62;justify-self:center}#sm .sec.closed .sh::before{content:'▸'}#sm .sh canvas{width:26px;height:26px;vertical-align:middle;margin-left:6px;image-rendering:pixelated;cursor:var(--c-grab)}#sm .sec.closed>:not(.sh){display:none}
+#sm .wp>div{height:24px;cursor:var(--c-grab);display:grid;grid-template-columns:40px 1fr auto;gap:6px;align-items:center}#sm .wp>div>canvas{justify-self:center}#sm .wp>div.dim{opacity:.4;cursor:var(--c-arrow)}#sm .wp>div.on{border-color:#f2efe6}#sm .wp>div.arm{border-color:#e0a040}
 #sm .wp .n{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#sm .wp .c{color:#c9c5b8}#sm .wp .c.lo{color:#e0a040}#sm .wp .c.out{color:#b03a2a}
-#sm .mk>div{cursor:default;grid-template-columns:64px 1fr auto}#sm .mk .ml{color:#8f8b80}#sm .mk input,#sm .mk select{min-width:0;border:0;background:transparent;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none;cursor:pointer}#sm .mk .c{color:#6f6b62;pointer-events:none}#sm .mk select option{background:#262626}
-#sm #tpr{cursor:grab}#sm #tp{width:17px;height:17px;image-rendering:pixelated}#sm .ibox{display:flex;flex-direction:column;gap:2px;background:none;border:0;box-shadow:none}#sm .ibox+.ibox{margin-top:4px}#sm .isub{font-size:16px;padding:0 2px}
+#sm .mk>div{cursor:var(--c-arrow);grid-template-columns:64px 1fr auto}#sm .mk .ml{color:#8f8b80}#sm .mk input,#sm .mk select{min-width:0;border:0;background:transparent;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none;cursor:pointer}#sm .mk .c{color:#6f6b62;pointer-events:none}#sm .mk select option{background:#262626}
+#sm #tpr{cursor:var(--c-grab)}#sm #tp{width:17px;height:17px;image-rendering:pixelated}#sm .ibox{display:flex;flex-direction:column;gap:2px;background:none;border:0;box-shadow:none}#sm .ibox+.ibox{margin-top:4px}#sm .isub{font-size:16px;padding:0 2px}
 #sm .menu{position:absolute;z-index:5;background:#232323;border:1px solid #000;display:flex;flex-direction:column;min-width:120px;box-shadow:0 3px 10px #0008}
 #sm .menu button{border:0;border-bottom:1px solid #333;text-align:left;background:#232323}
 #sm .menu button:hover{background:#3a3a3a}
@@ -71,7 +71,7 @@
  </div>
  <div class="hint" id="hint"></div>
 </div>
-<style>#sm .mk>#tpr{display:flex;justify-content:center;align-items:center;height:58px;cursor:grab;position:relative}#sm .mk>#tpr #dice{position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;cursor:pointer;image-rendering:pixelated;opacity:.75}#sm .mk>#tpr #dice:hover{opacity:1}#sm .mk>#tpr canvas{width:51px;height:51px;image-rendering:pixelated}#sm .wp>div.itb{display:flex;gap:4px;height:auto;padding:6px 0 0;background:none;border:0;box-shadow:none;cursor:default}#sm .wp>div.isep{height:0;padding:0;margin:4px 2px;background:none;border:0;border-top:1px solid #3c3a36;box-shadow:none;cursor:default}#sm .ib{width:30px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;background:#2c2c2c;border:1px solid #4a4a4a;box-shadow:inset 0 0 0 1px #1a1a1a;color:#8a877e;cursor:pointer}#sm .ib svg{width:16px;height:16px}#sm .ib:hover{color:#e6e2d6;border-color:#6a6a6a}#sm .ib.on{background:#4a4944;color:#fff;border:2px solid #f2efe6;box-shadow:none}#sm .wp>div.itb{align-items:center}#sm .ibl{font-size:16px;color:#6f6c64;cursor:pointer;padding-left:4px}#sm .ibl.on{color:#f2efe6}#sm #insp .sl{color:#8f8b80;margin-right:8px}#sm #insp .am{color:#c9c5b8}#sm #insp .am.lo{color:#e0a040}#sm #insp .am.out{color:#b03a2a}#sm #insp .isep{border-top:1px solid #3a3a3a;margin:4px 0}</style><style>#sm .xlab{position:absolute;font-size:16px;line-height:1;color:#c9b27a;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;pointer-events:none}</style><script>
+<style>#sm .mk>#tpr{display:flex;justify-content:center;align-items:center;height:58px;cursor:var(--c-grab);position:relative}#sm .mk>#tpr #dice{position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;cursor:pointer;image-rendering:pixelated;opacity:.75}#sm .mk>#tpr #dice:hover{opacity:1}#sm .mk>#tpr canvas{width:51px;height:51px;image-rendering:pixelated}#sm .wp>div.itb{display:flex;gap:4px;height:auto;padding:6px 0 0;background:none;border:0;box-shadow:none;cursor:var(--c-arrow)}#sm .wp>div.isep{height:0;padding:0;margin:4px 2px;background:none;border:0;border-top:1px solid #3c3a36;box-shadow:none;cursor:var(--c-arrow)}#sm .ib{width:30px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;background:#2c2c2c;border:1px solid #4a4a4a;box-shadow:inset 0 0 0 1px #1a1a1a;color:#8a877e;cursor:pointer}#sm .ib svg{width:16px;height:16px}#sm .ib:hover{color:#e6e2d6;border-color:#6a6a6a}#sm .ib.on{background:#4a4944;color:#fff;border:2px solid #f2efe6;box-shadow:none}#sm .wp>div.itb{align-items:center}#sm .ibl{font-size:16px;color:#6f6c64;cursor:pointer;padding-left:4px}#sm .ibl.on{color:#f2efe6}#sm #insp .sl{color:#8f8b80;margin-right:8px}#sm #insp .am{color:#c9c5b8}#sm #insp .am.lo{color:#e0a040}#sm #insp .am.out{color:#b03a2a}#sm #insp .isep{border-top:1px solid #3a3a3a;margin:4px 0}</style><style>#sm .xlab{position:absolute;font-size:16px;line-height:1;color:#c9b27a;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;pointer-events:none}</style><script>
 const T=16;
 const hh=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)};
 const wrap=v=>((v%T)+T)%T;
@@ -1066,7 +1066,7 @@ function render(){
   for(let x=x0;x<=x1;x++)if(x%2===0){if(y0>=0&&y0<H)out[y0*W+x]=c;if(y1>=0&&y1<H)out[y1*W+x]=c}for(let y=y0;y<=y1;y++)if(y%2===0){if(x0>=0&&x0<W)out[y*W+x0]=c;if(x1>=0&&x1<W)out[y*W+x1]=c}}
  if(cellDrag&&moveSel){const k=(mouse.y/T|0)*CW+(mouse.x/T|0);if(moveSel.cells.has(k)){const cx=k%CW,cy=k/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++)if(x===1||y===1||x===T-2||y===T-2)out[(cy*T+y)*W+cx*T+x]=rgb(242,239,230)}}
  exitFade();
- {const ch=!panKey&&!pan&&tool==='move'&&mouse.in&&!drag&&armed().length>0;if(ch)crosshair();const cc=pan?'grabbing':panKey?'grab':ch?'none':tool==='move'?'default':'crosshair';if(cv.style.cursor!==cc)cv.style.cursor=cc}
+ {const ch=!panKey&&!pan&&tool==='move'&&mouse.in&&!drag&&armed().length>0;if(ch)crosshair();const into=drag&&drag.b.type==='weapon'&&bodyAt(Math.round(mouse.x),Math.round(mouse.y),2,drag.b,o=>o.type==='token'&&o.status!=='dead');const cc=pan||drag?CUR[into?'in':'carry']:panKey?CUR.grab:ch?'none':tool!=='move'?'crosshair':hover||hoverC?CUR.grab:CUR.arrow;if(cv.style.cursor!==cc)cv.style.cursor=cc;const bc=idrag&&idrag.moved?CUR.carry:'';if(document.body.style.cursor!==bc)document.body.style.cursor=bc}
  ctx.putImageData(img,0,0);
  for(const e of document.querySelectorAll('#sm .xlab')){const x=(EXITS[curMap]||[])[+e.dataset.i];if(x){e.style.left=x.lx*S+'px';e.style.top=x.ly*S+'px'}}
  for(const b of bodies){if(b.mv>0)b.mv--;if(b.lab){b.lab.style.left=(Math.round(b.x)+.5)*S+'px';b.lab.style.top=(Math.round(b.y)+10)*S+'px';b.lab.style.color=natLabel(b);b.lab.style.zIndex=b.status==='dead'?0:1}}
@@ -1162,15 +1162,27 @@ function slotEl(b,q,i,on,click){const e=document.createElement('span');e.classNa
 function hud(){const tk=[...sel].find(o=>o.type==='token');if(openCrate&&!bodies.includes(openCrate))openCrate=null;const c=openCrate,boxes=c?[c,tk&&tk.status==='free'&&near(tk,c)?tk:null].filter(Boolean):tk?[tk,...(tk.status==='free'?bodies.filter(o=>o.hidden&&near(tk,o)).slice(0,2):[])]:[];
  if(tk)autoOff(tk);const key=JSON.stringify(boxes.map(b=>[b.id,b.si,b.inv,b.status,b.nat,b.name,b.noAuto]));if(key===lastHud)return;lastHud=key;const el=$('insp'),hd=$('ihd');if(!el)return;el.innerHTML='';
  const nm=b=>{const n=document.createElement('span');n.textContent=b.name;n.style.color=b.type==='token'?natLabel(b):'#e6d9b8';return n};hd.textContent='';const hw=document.createElement('span');if(boxes[0])hw.append(nm(boxes[0]));else hw.append('Inventory');hd.append(hw);if(tk&&tk.id!==mkSynced){mkSynced=tk.id;syncMarker(tk)}
- boxes.forEach((b,bi)=>{const bx=document.createElement('div');bx.className='ibox wp';bx.dataset.id=b.id;if(bi){const h=document.createElement('div');h.className='isub';h.style.background='none';h.style.border='0';h.style.cursor='default';h.append(document.createElement('span'),nm(b));bx.appendChild(h)}
+ boxes.forEach((b,bi)=>{const bx=document.createElement('div');bx.className='ibox wp';bx.dataset.id=b.id;if(bi){const h=document.createElement('div');h.className='isub';h.style.background='none';h.style.border='0';h.style.cursor='';h.append(document.createElement('span'),nm(b));bx.appendChild(h)}
   const inv=b.type==='token'?b.inv:b.inv.filter(Boolean);if(!inv.length){const e=document.createElement('div');e.className='dim';e.append(document.createElement('span'),'Empty');bx.appendChild(e)}
   inv.forEach((q,i0)=>{const i=b.type==='token'?i0:b.inv.indexOf(q);if(b.type==='token'&&!slotOK(b,i)&&(i>=4||!q))return;const e=document.createElement('div');if(b.type==='token'&&i===b.si)e.className='on';if(!q)e.classList.add('dim');
    if(b.type==='token'&&i===4){const d=document.createElement('div');d.className='isep';bx.appendChild(d)}const cv=q?icon(shape(q.k,0),q.k==='spear'||q.k==='sspear'?.6:1):document.createElement('canvas');if(!q){cv.width=28;cv.height=20}e.appendChild(cv);const n=document.createElement('span');n.className='n';if(b.type==='token'){const sl=document.createElement('span');sl.className='sl';sl.textContent=i+1;n.append(sl)}n.append(q?WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='rbox'?'Rods':q.k==='cell'?'Cells':q.k.endsWith('box')?'Ammo':q.k:'—');
    if(q&&CAP[q.k]){const v=q.ammo??CAP[q.k],a=document.createElement('span');a.className='am'+(v===0?' out':v/CAP[q.k]<.25?' lo':'');a.textContent=' ('+v+'/'+(q.res||0)+')';n.append(a)}else if(q&&q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))){const a=document.createElement('span');a.className='am';a.textContent=' ('+(q.n||1)+')';n.append(a)}e.appendChild(n);
    if(q){const t=document.createElement('span');t.className='c';t.textContent=q.k==='gold'?'§'+q.n:'';e.appendChild(t);e.onpointerdown=ev=>itemDown(ev,b,i,e)}
-   bx.appendChild(e)});if(b.type==='token'&&!bi){const tb=document.createElement('div');tb.className='itb';const p=document.createElement('button');p.className='ib'+(b.noAuto?'':' on');p.innerHTML=HANDI;const lb=document.createElement('span');lb.className='ibl'+(b.noAuto?'':' on');lb.textContent='Auto pick-up';p.onclick=lb.onclick=()=>{b.noAuto=!b.noAuto;sfx('flick');lastHud=''};tb.append(p,lb);bx.appendChild(tb)}el.appendChild(bx)})}
+   bx.appendChild(e)});if(b.type==='token'&&!bi){const tb=document.createElement('div');tb.className='itb';const p=document.createElement('button');p.className='ib'+(b.noAuto?'':' on');p.innerHTML=HANDI;const lb=document.createElement('span');lb.className='ibl'+(b.noAuto?'':' on');lb.textContent='Auto pick-up new weapons';p.onclick=lb.onclick=()=>{b.noAuto=!b.noAuto;sfx('flick');lastHud=''};tb.append(p,lb);bx.appendChild(tb)}el.appendChild(bx)})}
 const HANDI='<svg viewBox="0 0 16 16" shape-rendering="crispEdges"><path fill="currentColor" d="M3 4h2v6H3zM6 2h2v8H6zM9 3h2v7H9zM12 5h2v5h-2zM0 8h2v2H0zM1 10h2v1H1zM2 10h12v3H2zM4 13h9v2H4z"/></svg>';
 let idrag=null;
+// pixel cursors from the regional map: arrow, open hand over things, black hand carrying, ↓ into a unit
+const CUR=(()=>{const A=['k.......','kk......','kwk.....','kwwk....','kwwwk...','kwwwwk..','kwwkkkk.','kk......'],
+ O=['.....kk.kk....','....kwwkwwkk..','....kwwkwwkwk.','....kwwkwwkwwk','.kk.kwwkwwkwwk','kwwkkwwkwwkwwk','kwwwkwwwwwwwwk','kwwwwwwwwwwwwk','.kwwwwwwwwwwwk','.kwwwwwwwwwwk.','..kwwwwwwwwwk.','...kwwwwwwwk..','...kwwwwwwwk..','...kkkkkkkkk..'],
+ S=['....kk.kk.kk..','...kwwkwwkwwkk','.kkkwwkwwkwwwk','kwwkwwwwwwwwwk','kwwwwwwwwwwwwk','.kwwwwwwwwwwwk','.kwwwwwwwwwwk.','..kwwwwwwwwwk.','...kwwwwwwwk..','...kwwwwwwwk..','...kkkkkkkkk..'],
+ I=['...ggg...','...ggg...','...ggg...','...ggg...','ggggggggg','.ggggggg.','..ggggg..','...ggg...','....g....'],
+ CO={k:'#111111',w:'#f4efe2',g:'#6fd36a'},Z=28;
+ const draw=(rows,sc,ol,px,sw)=>{const c=document.createElement('canvas');c.width=c.height=Z*sc;const x=c.getContext('2d'),h=rows.length,w=rows[0].length,ox=ol?Math.floor((Z/px-w)/2):1,oy=ol?Math.floor((Z/px-h)/2):1,on=(i,j)=>rows[j]&&rows[j][i]!==undefined&&rows[j][i]!=='.',dot=(i,j,col)=>{x.fillStyle=col;x.fillRect((ox+i)*px*sc,(oy+j)*px*sc,px*sc,px*sc)};
+  if(ol)for(let j=-1;j<=h;j++)for(let i=-1;i<=w;i++){if(on(i,j))continue;let e=false;for(let b=-1;b<=1;b++)for(let a=-1;a<=1;a++)if(on(i+a,j+b))e=true;if(e)dot(i,j,CO.k)}
+  rows.forEach((r,j)=>[...r].forEach((ch,i)=>{if(ch==='.')return;dot(i,j,CO[sw?(ch==='k'?'w':ch==='w'?'k':ch):ch])}));return c.toDataURL()};
+ const set={arrow:[A,0,2,0,'2 2','default'],grab:[O,0,1,0,'7 6','grab'],carry:[S,0,1,1,'7 5','grabbing'],in:[I,1,1,0,'14 18','copy']},out={},css=[];
+ for(const[n,[r,ol,px,sw,hot,nat]]of Object.entries(set)){const a=draw(r,1,ol,px,sw),b=draw(r,2,ol,px,sw);out[n]=`-webkit-image-set(url(${a}) 1x,url(${b}) 2x) ${hot},${nat}`;css.push(`--c-${n}:${out[n]};`)}
+ const st=document.createElement('style');st.textContent=`:root{${css.join('')}}html,body{cursor:var(--c-arrow)}`;document.head.append(st);return out})();
 function itemDown(ev,b,i,e){ev.preventDefault();idrag={b,i,x:ev.clientX,y:ev.clientY,moved:false,shift:ev.shiftKey,g:null,src:e}}
 window.addEventListener('pointermove',ev=>{if(!idrag)return;if(!idrag.moved&&Math.hypot(ev.clientX-idrag.x,ev.clientY-idrag.y)>4){idrag.moved=true;const c=idrag.src.querySelector('canvas');if(c){const g=c.cloneNode();g.getContext('2d').drawImage(c,0,0);g.className='ghost';g.style.width='42px';g.style.height='30px';$('sm').appendChild(g);idrag.g=g}}
  if(idrag.g){idrag.g.style.left=ev.clientX-21+'px';idrag.g.style.top=ev.clientY-15+'px'}});
@@ -1385,7 +1397,7 @@ const bar=$('bar');
 const btn=(t,f)=>{const b=document.createElement('button');b.textContent=t;b.onclick=f;bar.appendChild(b);return b};
 const TOOLS={move:'Move',chip:'Chip'};const tb={};
 
-function setTool(k){tool=k;for(const[q,b]of Object.entries(tb))b.classList.toggle('on',q===k);cv.style.cursor=k==='move'?'default':'crosshair'}
+function setTool(k){tool=k;for(const[q,b]of Object.entries(tb))b.classList.toggle('on',q===k);cv.style.cursor=k==='move'?CUR.arrow:'crosshair'}
 
 const TITLE={bank:'Goldbank · Back room',docks:'Havenport · Warehouse',tavern:'Havenport · Tavern',sewer:'Havenport · Sewer',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard',council:'Sanctis · Council chamber',road:'Portsbridge · Old road',alley:'Great Keys · Guild alley',stock:"Emperor's Dock · Stockyard"};
 btn('Reset',()=>reset());{const ab=btn('AI',()=>{aiOn=!aiOn;ab.classList.toggle('on',aiOn);aiSetup()})}{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['docks','Havenport warehouse'],['tavern','Havenport tavern'],['sewer','Havenport sewer'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"]]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
