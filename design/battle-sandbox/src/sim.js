@@ -1287,7 +1287,7 @@ function shareTick(){for(const b of bodies){if(b.type!=='token'||b.status!=='fre
 function surrender(b){if(b.held)dropHeld(b);b.status='captured';b.nat=null;b.ai=null;b.crouch=false;b.ord=null;b.hc=null;sfx('flick');if(b.lab)b.lab.title='surrendered'}
 function canSeeUp(b,o){const c=b.crouch;b.crouch=false;const r=canSee(b,o);b.crouch=c;return r}
 // your side's view when AI is on: live where your units look, a fading picture elsewhere (5 s to black)
-let VIS=new Uint8Array(1),SEEN=new Float32Array(1),SNAP=new Uint32Array(1);
+let VIS=new Uint8Array(1),SEEN=new Float32Array(1),SNAP=new Uint32Array(1),VF=new Float32Array(1),VT=new Float32Array(1);
 const fogOn=()=>aiOn&&!!aiMe;
 function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Array(NB).fill(-1e9)}if(SNAP.length!==W*H)SNAP=new Uint32Array(W*H);VIS.fill(0);
  const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status!=='dead');
@@ -1295,8 +1295,12 @@ function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Ar
   for(let i=0;i<=220;i++)cast(b.ang-.96+1.92*i/220,VR);for(let i=0;i<48;i++)cast(i/48*6.283,22)}
  for(let y=1;y<BH-1;y++)for(let x=1;x<BW-1;x++){const q=y*BW+x;if(!VIS[q]&&(VIS[q-1]&1&&VIS[q+1]&1||VIS[q-BW]&1&&VIS[q+BW]&1))VIS[q]=2}
  for(let q=0;q<NB;q++)if(VIS[q])SEEN[q]=tick;
+ // soft edge: blur the view mask a few cells
+ if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VIS[q]?1:0;
+ for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o=y*BW;for(let x=0;x<BW;x++){let s=0,n=0;for(let k=-2;k<=2;k++){const X=x+k;if(X>=0&&X<BW){s+=VF[o+X];n++}}VT[o+x]=s/n}}
+  for(let x=0;x<BW;x++)for(let y=0;y<BH;y++){let s=0,n=0;for(let k=-2;k<=2;k++){const Y=y+k;if(Y>=0&&Y<BH){s+=VT[Y*BW+x];n++}}VF[y*BW+x]=s/n}}
  for(const o of bodies)if(o.type==='token')o.fogH=teamOf(o)!==aiMe&&o.status!=='dead'&&!me.some(b=>canSee(b,o))}
-function fogPass(){const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1);if(VIS[q]){SNAP[j]=out[j];continue}const age=(tick-SEEN[q])/300;out[j]=age>=1?F:mix(mul(SNAP[j],.6),F,age)}}
+function fogPass(){const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(v>=1)continue;const age=(tick-SEEN[q])/300,m=age>=1?F:mix(mul(SNAP[j],.6),F,Math.max(0,age));out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
  for(const z of RINGS){const k=(tick-z.t)/40,rad=2+k*7;for(let i=0;i<28;i++){const X=Math.round(z.x+Math.cos(i*.2244)*rad),Y=Math.round(z.y+Math.sin(i*.2244)*rad);if(X>=0&&Y>=0&&X<W&&Y<H){const j=Y*W+X;out[j]=mix(out[j],rgb(230,226,214),.5*(1-k))}}}RINGS=RINGS.filter(z=>tick-z.t<40)}
 function ringFor(z){if(!fogOn()||z.src&&teamOf(z.src)===aiMe||z.src&&!z.src.fogH)return;const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status==='free');if(me.some(b=>heardBy(b,z))&&!RINGS.some(r=>tick-r.t<12&&Math.hypot(r.x-z.x,r.y-z.y)<10))RINGS.push({x:z.x,y:z.y,t:tick})}
 // a crouched unit hides behind low furniture: a low shot hits any desk; a high shot hits one beside a crouched unit
