@@ -1097,7 +1097,7 @@ function srcInfo(b){if(!b||!bodies.includes(b))return null;
  if(b.type==='weapon'&&WP[b.kind].gun){const w=WP[b.kind];return{kind:b.kind,sp:1.3,hold:w.hold,spread:w.spread,range:w.range}}
  if(b.type==='weapon'&&!b.att&&!b.wedged&&(b.kind==='grenade'||b.kind==='bomb'||b.kind==='sbomb'||WP[b.kind].melee))return{kind:b.kind,sp:1,throw:1,hold:500,spread:.05,range:200};return null}
 const gauss=()=>{const u=Math.random()||1e-9,v=Math.random();return Math.max(-2.2,Math.min(2.2,Math.sqrt(-2*Math.log(u))*Math.cos(6.283*v)))};
-function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}if(b.type==='weapon'&&b.kind==='sspear'&&!inf.throw){b.ammo=(b.ammo??CAP.sspear)-1;if(b.ammo<=0)spend(b)}cmdFollow(b,x,y);boltShot=null;raiseAlarm();if(b.type==='token'&&!inf.throw){const h=b.held;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');say(b,'Empty!',true)}return}h.ammo--}const a0=Math.atan2(y-b.y,x-b.x),tok=b.type==='token';
+function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.neutral)b.neutral=false;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}if(b.type==='weapon'&&b.kind==='sspear'&&!inf.throw){b.ammo=(b.ammo??CAP.sspear)-1;if(b.ammo<=0)spend(b)}cmdFollow(b,x,y);boltShot=null;raiseAlarm();if(b.type==='token'&&!inf.throw){const h=b.held;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');say(b,'Empty!',true)}return}h.ammo--}const a0=Math.atan2(y-b.y,x-b.x),tok=b.type==='token';
  if(tok)turnTo(b,a0,true);else reshape(b,a0);
  const c=Math.cos(a0),s=Math.sin(a0),sd=tok?sideOf(b):0;
  if(inf.throw&&b.type==='weapon'){const k=b.kind,a=a0+gauss()*inf.spread,sp=k==='grenade'||k==='sbomb'?15:k==='bomb'?8:27;let v=sp;if(k==='grenade'||k==='bomb'||k==='sbomb'){if(!b.fuse&&k!=='sbomb'){b.fuse=k==='bomb'?200:150;sfx('pin')}v=Math.min(sp,Math.hypot(x-b.x,y-b.y)*(1-WP[k].fr))}
@@ -1131,6 +1131,7 @@ function hint(){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free')
  const s=h.join(' &nbsp;·&nbsp; ');if(s!==lastHint){lastHint=s;$('hint').innerHTML=s}}
 let tool='move',chipLast=null,cellDrag=null,spinning=false;
 let mouse={x:0,y:0,in:false};
+function makeWay(o,sx,sy,b){if(o.direct||o.mw||(o.mwT||0)>tick)return;const L=Math.hypot(sx,sy)||1,px=-sy/L,py=sx/L,k=(o.x-b.x)*px+(o.y-b.y)*py>=0?1:-1;o.mw={dx:px*k,dy:py*k,n:10};o.mwT=tick+40}
 function tokHit(b,sx,sy){if(b.type!=='token'&&b.type!=='part')return null;const bx=Math.round(b.x+sx),by=Math.round(b.y+sy);
  for(const o of bodies){if(o===b||(o.type!=='token'&&o.type!=='part'&&o.kind!=='crate')||o.att||o.status==='dead'||Math.abs(o.x-b.x)>18||Math.abs(o.y-b.y)>18||inDrag(o))continue;const ox=Math.round(o.x),oy=Math.round(o.y);for(const p of rimOf(b))if(o.set.has(K(bx+p[0]-ox,by+p[1]-oy)))return o}return null}
 // a token's outer ring is enough for body-to-body contact
@@ -1139,7 +1140,7 @@ function heldBlocked(b,sx,sy){if(!b.held||b.raised)return false;for(const p of h
 function tryStep(b,sx,sy,depth=0){if(b.ghost){b.x+=sx;b.y+=sy;return true}
  const h=solidHits(b,sx,sy);if(h){if(b.type==='token'&&pushSlabs(b,h,sx,sy)){b.x+=sx;b.y+=sy;return true}pushDoor(b,h);const h0=b.type==='token'&&solidHits(b,0,0);if(h0&&h.length<h0.length){b.x+=sx;b.y+=sy;return true}return false}
  const hx=Math.round(b.x+sx)-Math.round(b.x),hy=Math.round(b.y+sy)-Math.round(b.y);if(heldBlocked(b,hx,hy)){const was=heldBlocked(b,0,0);if(!was)pushDoor(b,heldPix(b).map(p=>[p[0]+hx,p[1]+hy]));if(b.type==='token')raise(b);else if(!was)return false}
- const o=tokHit(b,sx,sy);if(o){if(depth>2||(o.mass||1)>(b.mass||1)*1.05&&!(b.flee&&o.type==='token'&&teamOf(o)===teamOf(b))||!tryStep(o,sx,sy,depth+1))return false;o.mv=6}
+ const o=tokHit(b,sx,sy);if(o&&b.type==='token'&&o.type==='token'&&!b.flee&&teamOf(o)===teamOf(b)&&o.status==='free'){makeWay(o,sx,sy,b);return false}if(o){if(depth>2||(o.mass||1)>(b.mass||1)*1.05&&!(b.flee&&o.type==='token'&&teamOf(o)===teamOf(b))||!tryStep(o,sx,sy,depth+1))return false;o.mv=6}
  b.x+=sx;b.y+=sy;return true}
 function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=tx-b.x,dy=ty-b.y;if(Math.abs(dx)<.01&&Math.abs(dy)<.01)break;const sx=Math.max(-1,Math.min(1,dx)),sy=Math.max(-1,Math.min(1,dy));let moved=false;
   if(sx&&tryStep(b,sx,0))moved=true;if(sy&&tryStep(b,0,sy))moved=true;if(!moved)break}
@@ -1294,7 +1295,7 @@ function fireTick(){for(const b of [...bodies]){if((b.type!=='token'&&b.type!=='
 const AIPLAN={docks:{side:'Reapers',zones:{floor:[24,104,168,200],back:[216,104,264,200],stash:[20,160,64,204]}}};
 let aiOn=false,aiMe=null,lastSide=null;
 // AI reads the map itself (rooms, doors, cover) and acts on what each unit sees, hears and remembers
-const teamOf=b=>b.nat?SIDE[b.nat]||b.nat:'Neutral',aiUnit=b=>b.type==='token'&&aiOn&&aiMe&&(teamOf(b)!==aiMe||b.auto&&!b.direct);
+const teamOf=b=>b.status==='captured'||b.neutral?'Neutral':b.nat?SIDE[b.nat]||b.nat:'Neutral',aiUnit=b=>b.type==='token'&&aiOn&&aiMe&&(teamOf(b)!==aiMe||b.auto&&!b.direct);
 function aiSetup(){for(const b of bodies)b.ai=null;GS={};NZ=[];RINGS=[];ROOMS=null;SEEN.fill(-1e9);if(!aiOn)return;
  if(!aiMe){const t=[...sel].find(o=>o.type==='token');aiMe=t?teamOf(t):lastSide||teamOf(bodies.find(o=>o.type==='token'&&o.nat)||{})}aiRooms()}
 const aiOpen=(cx,cy)=>{if(cx<0||cy<0||cx>=CW||cy>=CH||map[cy][cx]==='sky')return false;const j=(cy*T+8)*W+cx*T+8;return !sol[j]&&!OBJ[j]};
@@ -1378,15 +1379,16 @@ function say(b,t,urgent){if(!b||!b.lab||b.status==='dead'||!aiOn)return;if(!urge
  let e=b.lab.querySelector('.say');if(!e){e=document.createElement('div');e.className='say';b.lab.append(e)}e.textContent=t;e.classList.toggle('u',urgent===true);b.sayT=tick;b.sayW=t}
 function sayTick(b,S){const e=b.lab&&b.lab.querySelector('.say');if(!e)return;const k=(tick-b.sayT)/72;if(k>=1||b.status==='dead'){e.remove();return}e.style.bottom=(20*S)+'px';e.style.transform=`translate(-50%,${-k*12}px)`;e.style.opacity=k<.6?1:1-(k-.6)/.4}
 const TIER={civ:0,home:1,rifle:2,guard:3,shock:4,cmd:5};
-function leaderTick(){const T0={};for(const b of bodies)if(b.type==='token'&&b.nat&&teamOf(b)!=='Neutral')(T0[teamOf(b)]||(T0[teamOf(b)]=[])).push(b);
+function leaderTick(){for(const b of bodies)if(b.type==='token'){if(b.status==='captured')b.wasCap=true;else if(b.wasCap&&b.status==='free'&&b.neutral===undefined)b.neutral=true}
+const T0={};for(const b of bodies)if(b.type==='token'&&b.nat&&teamOf(b)!=='Neutral')(T0[teamOf(b)]||(T0[teamOf(b)]=[])).push(b);
  for(const[t,us]of Object.entries(T0)){const free=us.filter(b=>b.status==='free');if(free.some(b=>b.leader))continue;const fell=us.some(b=>b.leader);for(const b of us)b.leader=false;if(!free.length)continue;
   const nb=free.slice().sort((p,q)=>(TIER[q.unit]||0)-(TIER[p.unit]||0)||strOf(q)-strOf(p))[0];nb.leader=true;if(fell){const g=GS[t]||(GS[t]={mode:'calm',home:-1,odds:1});g.ldDown=tick;const w=free.find(o=>o!==nb);if(w)say(w,"He's down!",true);say(nb,'On me!',2)}}}
 function aiInit(b){b.ai={mem:new Map(),nz:null,cd:30+Math.random()*60|0,path:null,pt:0,wp:null,idle:b.unit==='home'||b.unit==='rifle'?'patrol':'hold',spot:null,look:0,peek:0}}
 function aiSense(b){const a=b.ai;let tg=null,td=1e9;
- for(const o of bodies){if(o.type!=='token'||o===b||teamOf(o)===teamOf(b)||o.status==='captured')continue;if(!canSee(b,o))continue;const m=a.mem.get(o.id)||{};
+ const nb=teamOf(b)==='Neutral';for(const o of bodies){if(o.type!=='token'||o===b||teamOf(o)===teamOf(b)||o.status==='captured'||teamOf(o)==='Neutral')continue;if(!canSee(b,o))continue;const m=a.mem.get(o.id)||{};
   if(o.status==='dead'){if(a.mem.has(o.id))m.dead=true;continue}
   if(!m.t||tick-m.t>600)say(b,'There!');Object.assign(m,{x:o.x,y:o.y,t:tick,u:o.unit,id:o.id,dead:false});if(o.held&&WV[o.held.k]){m.k=o.held.k;m.e=empty(o.held)}a.mem.set(o.id,m);
-  const d=Math.hypot(o.x-b.x,o.y-b.y);if(o.unit!=='civ'||o.held)if(d<td){td=d;tg=o}}
+  const d=Math.hypot(o.x-b.x,o.y-b.y);if(!nb&&(o.unit!=='civ'||o.held))if(d<td){td=d;tg=o}}
  for(const z of NZ){if(z.src===b||z.src&&teamOf(z.src)===teamOf(b)&&z.tag!=='shot')continue;if(!heardBy(b,z))continue;if(z.src&&teamOf(z.src)!==teamOf(b)){const m=a.mem.get(z.src.id);if(m){if(z.tag==='dry')m.e=true;else if(z.tag==='shot')m.e=false}}if(!a.nz||a.nz.t<z.t||z.L>a.nz.L)a.nz={x:z.x,y:z.y,t:z.t,L:z.L}}
  a.tg=tg;a.td=td}
 function aiShare(us){for(const a of us)for(const b of us){if(a===b||Math.hypot(a.x-b.x,a.y-b.y)>140&&roomAt(a.x,a.y)!==roomAt(b.x,b.y))continue;for(const[id,m]of a.ai.mem){const o=b.ai.mem.get(id);if(!o||o.t<m.t)b.ai.mem.set(id,{...m})}if(a.ai.nz&&(!b.ai.nz||b.ai.nz.t<a.ai.nz.t))b.ai.nz={...a.ai.nz}}}
@@ -1421,7 +1423,7 @@ function aiTick(){if(!aiOn)return;if(!ROOMS||tick-ROOMS.t>120)aiRooms();
  const us=bodies.filter(b=>b.ai&&b.status==='free'&&!inDrag(b));if(tick%30===0)shareTick();for(const b of bodies)if(b.type==='token'&&!b.ai&&teamOf(b)===aiMe&&b.status==='free'&&!inDrag(b)){if(bombFlee(b,bodies.filter(o=>o.type==='token'&&o.status==='free'&&teamOf(o)!==aiMe&&!o.fogH)))continue;ordTick(b);if(!b.direct)autoFire(b)}if(tick%6===0)for(const b of us)aiSense(b);
  if(tick%30===0){const byT={};for(const b of us)(byT[teamOf(b)]||(byT[teamOf(b)]=[])).push(b);for(const g of Object.values(byT))aiShare(g.filter(b=>GS[teamOf(b)]&&GS[teamOf(b)].mode!=='calm'));aiTeams()}
  NZ=NZ.filter(z=>tick-z.t<6);
- for(const b of us){const a=b.ai,g=GS[teamOf(b)]||{mode:'calm'},gm=b.unit==='cmd'&&(GS[teamOf(b)]||{}).mode==='hold'?'hunt':(GS[teamOf(b)]||{mode:'calm'}).mode,tg=a.tg&&a.tg.status==='free'?a.tg:null,civ=b.unit==='civ'&&!b.inv.some(q=>q&&WV[q.k]);{const rr=roomAt(b.x,b.y);if(a.inR!==rr){a.inR=rr;a.inT=tick}}if(bombFlee(b,[...(g.known||new Map()).values()]))continue;if(b.ord){ordTick(b);continue}
+ for(const b of us){const a=b.ai,g=GS[teamOf(b)]||{mode:'calm'},gm=b.unit==='cmd'&&(GS[teamOf(b)]||{}).mode==='hold'?'hunt':(GS[teamOf(b)]||{mode:'calm'}).mode,tg=a.tg&&a.tg.status==='free'?a.tg:null,civ=b.unit==='civ'&&!b.inv.some(q=>q&&WV[q.k])||teamOf(b)==='Neutral';{const rr=roomAt(b.x,b.y);if(a.inR!==rr){a.inR=rr;a.inT=tick}}if(bombFlee(b,[...(g.known||new Map()).values()]))continue;if(b.ord){ordTick(b);continue}
   if(tg&&a.td<70&&teamOf(b)!=='Neutral'&&teamOf(b)!==aiMe&&(civ||g.odds<.5&&(!b.inv.some(q=>q&&WV[q.k]&&!empty(q))||b.px.length<b.n0*.5))){surrender(b);continue}
   if(civ){if(gm!=='calm'||tg){if(!a.spot){const th=[...(g.known||new Map()).values()];let best=roomAt(b.x,b.y),bs=-1e9;for(let i=0;i<ROOMS.n;i++){const c=ROOMS.cen[i];const sc=th.reduce((s,q)=>s+Math.hypot(q.x-c[0],q.y-c[1]),0)-(th.length?0:1e9);if(sc>bs){bs=sc;best=i}}a.spot=aiWander(b,best)}if(a.spot&&aiGo(b,a.spot[0],a.spot[1]))b.crouch=true}continue}
   if(gm!=='calm'||tg)aiArm(b);
@@ -1433,7 +1435,7 @@ function aiTick(){if(!aiOn)return;if(!ROOMS||tick-ROOMS.t>120)aiRooms();
   if(tg){if(b.crouch&&!canSeeUp(b,tg))b.crouch=false;aiShoot(b,tg);
    const far=b.held&&(WP[b.held.k].melee?a.td>100:a.td>(WP[b.held.k].range||200)*.8);if((gm==='hunt'||gm==='hold')&&far)aiGo(b,tg.x,tg.y);continue}
   const home=g.home,known=[...(g.known||new Map()).values()].sort((p,q)=>q.t-p.t),last=known[0];
-  if(gm==='calm'){b.crouch=false;if(a.idle==='patrol'){if(!a.spot||aiGo(b,a.spot[0],a.spot[1])){if(!a.wait)a.wait=tick+60+Math.random()*120;if(tick>a.wait){a.wait=0;a.spot=aiWander(b,roomAt(b.x,b.y))}}}else if(tick%90===0&&Math.random()<.4)turnTo(b,b.ang+(Math.random()-.5)*1.6);continue}
+  if(gm==='calm'){b.crouch=false;if(a.idle==='patrol'&&us.filter(o=>o!==b&&Math.hypot(o.x-b.x,o.y-b.y)<48).length<3){if(!a.spot||aiGo(b,a.spot[0],a.spot[1])){if(!a.wait)a.wait=tick+60+Math.random()*120;if(tick>a.wait){a.wait=0;a.spot=aiWander(b,roomAt(b.x,b.y))}}}else if(tick%90===0&&Math.random()<.4)turnTo(b,b.ang+(Math.random()-.5)*1.6);continue}
   if(gm==='seek'){const z=g.heard;if(z){if(aiGo(b,z.x,z.y)){turnTo(b,b.ang+.05);if(!a.look)a.look=tick+90;if(tick>a.look){a.look=0;b.ai.nz=null}}}continue}
   if(gm==='clear'){const R=g.tgtR;if(R===undefined||R<0)continue;if(g.clr&&g.clr.has(b)){b.crouch=false;if(!a.spot||roomAt(a.spot[0],a.spot[1])!==R){a.spot=aiWander(b,R);say(b,'Moving in')}if(a.spot&&aiGo(b,a.spot[0],a.spot[1])){turnTo(b,b.ang+.08);if(!a.wait)a.wait=tick+40;if(tick>a.wait){a.wait=0;a.spot=aiWander(b,R)}}}else if(tick%60===b.id%60){const c=ROOMS.cen[R];if(c)turnTo(b,Math.atan2(c[1]-b.y,c[0]-b.x))}continue}
   if(gm==='hunt'){b.crouch=false;if(last){if(aiGo(b,last.x,last.y)){last.t-=600;turnTo(b,b.ang+.06)}}continue}
@@ -1451,7 +1453,7 @@ function ordDraw(){ORDL=ORDL.filter(l=>tick-l.t<90);for(const l of ORDL){const k
 function ordTick(b){if(!b.ord)return;if(b.status!=='free'||!b.oa||(b.oa.stk||0)>45||Math.hypot(b.ord.x-b.x,b.ord.y-b.y)<10||bodies.some(o=>o!==b&&o.type==='token'&&o.status!=='dead'&&Math.hypot(o.x-b.ord.x,o.y-b.ord.y)<12&&Math.hypot(b.ord.x-b.x,b.ord.y-b.y)<30)){b.ord=null;return}if(aiGo(b,b.ord.x,b.ord.y,b.oa))b.ord=null}
 // your unselected units with a gun drawn fire at enemies they can see
 function autoFire(b){const a=b.pa||(b.pa={cd:30}),rng=k=>!k?110:WP[k].melee?110:WP[k].range||200,usable=q=>q&&WP[q.k]&&!WP[q.k].hide&&!(CAP[q.k]&&empty(q));let tg=null,td=1e9,seen=null,sd=200;
- for(const o of bodies){if(o.type!=='token'||o.status!=='free'||teamOf(o)===aiMe||o.unit==='civ'&&!o.held)continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(canSee(b,o)){if(d<td){td=d;tg=o}}else if(!o.fogH&&d<sd&&losClear(b.x,b.y,o.x,o.y,b.crouch,o.crouch)){sd=d;seen=o}}
+ for(const o of bodies){if(o.type!=='token'||o.status!=='free'||teamOf(o)===aiMe||teamOf(o)==='Neutral'||o.unit==='civ'&&!o.held)continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(canSee(b,o)){if(d<td){td=d;tg=o}}else if(!o.fogH&&d<sd&&losClear(b.x,b.y,o.x,o.y,b.crouch,o.crouch)){sd=d;seen=o}}
  a.tg=tg;if(!tg){if(seen)turnTo(b,Math.atan2(seen.y-b.y,seen.x-b.x));a.cd=Math.max(a.cd,20);return}
  if(!usable(b.held)){let i=b.inv.findIndex((q,i)=>i<2&&usable(q));if(i<0)i=b.inv.findIndex(q=>q&&(q.k==='grenade'||q.k==='bomb'));if(i<0)return;if(b.si!==i){selectSlot(b,i);a.cd=Math.max(a.cd,20)}}
  const k=b.held&&b.held.k;if(!k)return;
@@ -1470,7 +1472,7 @@ function spareFor(f,b){if(!f.inv)return null;const mine=f.inv.filter(usableQ);fo
 function share(f,b){const s=spareFor(f,b);if(!s)return false;if(s.ammo){const n=Math.floor(s.from.res/2);s.from.res-=n;s.ammo.res=(s.ammo.res||0)+n;sfx('reload');say(f,'Here',true);return true}
  const it=s.one?{k:s.give.k,n:1}:{...s.give};if(!addItem(b,it))return false;say(f,'Here',true);if(s.one)s.give.n--;else{const i=f.inv.indexOf(s.give);f.inv[i]=null;if(f.held===s.give){f.held=null;f.si=-1;f.hc=null}}sfx('flick');return true}
 function shareTick(){for(const b of bodies){if(b.type!=='token'||b.status!=='free'||!needsArms(b))continue;for(const f of bodies)if(f!==b&&f.type==='token'&&f.status==='free'&&teamOf(f)===teamOf(b)&&Math.hypot(f.x-b.x,f.y-b.y)<26&&share(f,b))break}}
-function surrender(b){say(b,'I yield',true);if(b.held)dropHeld(b);b.status='captured';b.nat=null;b.ai=null;b.crouch=false;b.ord=null;b.hc=null;sfx('flick');if(b.lab)b.lab.title='surrendered'}
+function surrender(b){say(b,'I yield',true);if(b.held)dropHeld(b);b.status='captured';b.neutral=true;b.ai=null;b.crouch=false;b.ord=null;b.hc=null;sfx('flick');if(b.lab)b.lab.title='surrendered'}
 function canSeeUp(b,o){const c=b.crouch;b.crouch=false;const r=canSee(b,o);b.crouch=c;return r}
 // your side's view when AI is on: live where your units look, a fading picture elsewhere (5 s to black)
 let VS=new Uint8Array(1),VSF=new Float32Array(1),fSel=false,VIS=new Uint8Array(1),SEEN=new Float32Array(1),SNAP=new Uint32Array(1),VF=new Float32Array(1),VT=new Float32Array(1);
@@ -1495,7 +1497,7 @@ function ringFor(z){if(!fogOn()||z.src&&teamOf(z.src)===aiMe||z.src&&!z.src.fogH
 function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||Y>=H||!OBJ[Y*W+X])return false;
  if(!b.low&&!bodies.some(t=>t.type==='token'&&t.crouch&&t.status!=='dead'&&Math.hypot(t.x-b.x,t.y-b.y)<26&&(t.x-b.x)*b.vx+(t.y-b.y)*b.vy>0))return false;
  const s=Math.hypot(b.vx,b.vy)||1;hitFx(X,Y,2,b.vx/s,b.vy/s,b.kind==='pel');remove(b);return true}
-function update(){tick++;if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%3===0)fogTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
+function update(){tick++;if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%3===0)fogTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();if(tick%15===0)hint();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=i.heat?Math.min(1,.35+(b.held.heat||0)*.65):pr*pr}}
  if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);if(holdFire&&armed().length&&armed().every(o=>{const i=srcInfo(o);return i&&!i.throw&&!i.heat}))charge={...charge,t:performance.now()};else charge=null}

@@ -156,3 +156,7 @@ With AI on and one of your units selected, what it sees stays at full brightness
 A held weapon that would hit a wall, door or slab is raised: it shows as a small dot at the unit's side, blocks nothing, and is lowered again as soon as there is room. A raised weapon cannot fire until it can be lowered.
 
 Holding the mouse keeps a gun firing shot after shot, reloads included, until you let go (thrown weapons and charged weapons still fire once per press).
+
+Captives, and anyone who surrenders, count as neutral: nobody targets them and they target nobody. A freed captive stays neutral until it attacks someone, then it is back on its own side.
+
+A unit blocked by a friend no longer shoves him: the friend steps aside (unless under your direct control). Idle units only patrol when the room is not crowded.
