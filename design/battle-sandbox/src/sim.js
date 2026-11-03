@@ -1048,10 +1048,12 @@ const CUR=(()=>{const A=['k.......','kk......','kwk.....','kwwk....','kwwwk...',
  const set={arrow:[A,0,2,0,'2 2','default'],grab:[O,0,1,0,'7 6','grab'],carry:[S,0,1,1,'7 5','grabbing'],in:[I,1,1,0,'14 18','copy']},out={},css=[];
  for(const[n,[r,ol,px,sw,hot,nat]]of Object.entries(set)){const a=draw(r,1,ol,px,sw),b=draw(r,2,ol,px,sw);out[n]=`-webkit-image-set(url(${a}) 1x,url(${b}) 2x) ${hot},${nat}`;css.push(`--c-${n}:${out[n]};`)}
  const st=document.createElement('style');st.textContent=`:root{${css.join('')}}html,body{cursor:var(--c-arrow)}`;document.head.append(st);return out})();
-function itemDown(ev,b,i,e){ev.preventDefault();idrag={b,i,x:ev.clientX,y:ev.clientY,moved:false,shift:ev.shiftKey,g:null,src:e}}
+const ghostsOff=()=>{for(const g of document.querySelectorAll('#sm .ghost'))g.remove()};
+function itemDown(ev,b,i,e){ev.preventDefault();ghostsOff();idrag={b,i,x:ev.clientX,y:ev.clientY,moved:false,shift:ev.shiftKey,g:null,src:e}}
 window.addEventListener('pointermove',ev=>{if(!idrag)return;if(!idrag.moved&&Math.hypot(ev.clientX-idrag.x,ev.clientY-idrag.y)>4){idrag.moved=true;const c=idrag.src.querySelector('canvas');if(c){const g=c.cloneNode();g.getContext('2d').drawImage(c,0,0);g.className='ghost';g.style.width='42px';g.style.height='30px';$('sm').appendChild(g);idrag.g=g}}
  if(idrag.g){idrag.g.style.left=ev.clientX-21+'px';idrag.g.style.top=ev.clientY-15+'px'}});
-window.addEventListener('pointerup',ev=>{if(!idrag)return;const d=idrag;idrag=null;if(d.g)d.g.remove();const boxes=[...document.querySelectorAll('#insp .ibox')].map(x=>bodies.find(o=>o.id===+x.dataset.id)).filter(Boolean),other=d.b.type==='token'?boxes.find(o=>o!==d.b):boxes.find(o=>o.type==='token');
+for(const k of ['pointercancel','blur'])window.addEventListener(k,()=>{idrag=null;ghostsOff()});
+window.addEventListener('pointerup',ev=>{ghostsOff();if(!idrag)return;const d=idrag;idrag=null;const boxes=[...document.querySelectorAll('#insp .ibox')].map(x=>bodies.find(o=>o.id===+x.dataset.id)).filter(Boolean),other=d.b.type==='token'?boxes.find(o=>o!==d.b):boxes.find(o=>o.type==='token');
  if(d.moved){const t=document.elementFromPoint(ev.clientX,ev.clientY),bx=t&&t.closest&&t.closest('.ibox'),to=bx&&bodies.find(o=>o.id===+bx.dataset.id);if(to&&to!==d.b)moveItem(d.b,d.i,to);else if(!bx&&!t.closest('#insp'))dropSlot(d.b,d.i);lastHud='';return}
  if(d.shift)dropSlot(d.b,d.i);else if(other)moveItem(d.b,d.i,other);else if(d.b.type==='token')selectSlot(d.b,d.i);lastHud=''});
 function dropSlot(b,i){const q=b.inv&&b.inv[i];if(!q)return;if(b.type==='token'&&b.si===i&&b.held){dropHeld(b);return}const a=Math.random()*6.283,r=b.box?12:12,x=b.x+Math.cos(a)*r,y=b.y+(b.box?(b.box[3]-b.y)+6:Math.sin(a)*r),w=weapon(q.k,x,y,a);w.noPick=tick+120;w.ghost=!!solidHits(w,0,0);
