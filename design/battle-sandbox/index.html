@@ -100,7 +100,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .zt{clip-path:polygon(0 0,100% 0,100% 100%,6px 100%,0 calc(100% - 6px))}
 #sm .zs{clip-path:polygon(6px 0,100% 0,100% 100%,0 100%,0 6px);display:flex;flex-direction:column;gap:3px}
 #sm .zone{box-shadow:inset 0 0 0 2px #3a3a3a;background:#1e1e1e;border:2px solid #3a3a3a;padding:8px}
-#sm .zc{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px}
+#sm .zc{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px}#sm .zc>.sec{order:2}
 #sm button,#sm select,#sm .ub{background:#2e2e2e;border:2px solid;border-color:#5a5a5a #101010 #101010 #5a5a5a;color:#f2efe6;border-radius:0;transition:filter .08s;font-size:18px;height:30px;padding:0 8px;text-align:left;cursor:pointer}
 #sm button:hover,#sm select:hover,#sm .ub:hover{filter:brightness(1.12);border-color:#5a5a5a #101010 #101010 #5a5a5a}#sm button:active,#sm .ub:active{filter:brightness(.92)}
 #sm button.on,#sm .ub.on{background:#f2efe6;color:#111;border-color:#8a8780 #fff #fff #8a8780}
@@ -128,7 +128,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .tcx,#sm .scx,#sm .pcx{display:none;flex-direction:column;gap:6px}
 #sm[data-tool=tile] .tcx,#sm[data-tool=spawn] .scx,#sm[data-tool=paint] .pcx{display:flex}
 #sm .zc>.sec{display:none!important}#sm .zc .sh{display:none}
-#sm[data-tool=hand] .zc>.sec[data-k=insp],#sm[data-tool=teth] .zc>.sec[data-k=tools],#sm[data-tool=spawn][data-st=wp] .zc>.sec[data-k=wp],#sm[data-tool=spawn][data-st=it] .zc>.sec[data-k=it],#sm[data-tool=spawn][data-st=cov] .zc>.sec[data-k=cov]{display:flex!important}
+#sm[data-tool=spawn][data-st=wp] .zc>.sec[data-k=wp],#sm[data-tool=spawn][data-st=it] .zc>.sec[data-k=it],#sm[data-tool=spawn][data-st=cov] .zc>.sec[data-k=cov]{display:flex!important}
 #sm .tcx>#ed-fu,#sm .tcx>#ed-dr{display:none}#sm[data-tt=furn] .tcx>#ed-fu,#sm[data-tt=door] .tcx>#ed-dr{display:flex}
 #sm[data-mode=asset] .stage{visibility:visible}
 /* corner */
@@ -2391,7 +2391,7 @@ const ZT=mk('div','zone zt'),ZC=mk('div','zone zc'),ZS=mk('div','zone zs');
 const TH=mk('div','ch');ZC.append(TH,...SIDE0.children);SIDE0.append(ZT,ZC,ZS);
 VIEW.append(mk('div','frame'));
 // tool header with optional dropper
-function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1];TH.append(uicon(k),mk('span',null,n));if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','drp sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});TH.append(z)}if(k==='tile'||k==='spawn'){const d=ubtn('','drp',()=>armDrop(k));d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);TH.append(d)}}
+function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1];TH.append(uicon(k),mk('span',null,n));if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'drp sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});TH.append(z)}if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','drp sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});TH.append(z)}if(k==='tile'||k==='spawn'){const d=ubtn('','drp',()=>armDrop(k));d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);TH.append(d)}}
 
 // settings zone: map, save, popups
 {const ms=$('msel');ms.classList.add('wide');const sv=ubtn('Save','',x=>{mapSave(false);flashB(sv,'Saved')});
@@ -2458,25 +2458,25 @@ function spawnCtx(){SCX.innerHTML='';SM.dataset.st=UI.st;const tabs=mk('div','ta
 // dropper: Tiler copies a tile, Spawner copies a unit and places copies until Esc
 const GHO=mk('canvas','ghost');GHO.width=GHO.height=17;document.body.append(GHO);
 function armDrop(k){UI.drop=UI.drop===k?null:k;UI.place=false;GHO.style.display='none';head(k);cv.style.cursor=UI.drop?'copy':k==='tile'?'crosshair':CUR.arrow}
-VIEW.addEventListener('pointerdown',e=>{if(!UI.drop||e.button||!inBoard(e))return;const[x,y]=toBoard(e);e.stopPropagation();e.preventDefault();
+VIEW.addEventListener('pointerdown',e=>{if(panKey||!UI.drop||e.button||!inBoard(e))return;const[x,y]=toBoard(e);e.stopPropagation();e.preventDefault();
  if(UI.drop==='tile'){const s=srcNow(),k=s[y/T|0]&&s[y/T|0][x/T|0];if(k)setTile(k);armDrop('tile');return}
  if(UI.place){$('tpr').dispatchEvent(new PointerEvent('pointerdown',{clientX:e.clientX,clientY:e.clientY,bubbles:true}));return}
  const b=bodyAt(x|0,y|0,6,null,o=>o.type==='token');if(!b)return;syncMarker(b);UI.st='units';spawnCtx();UI.place=true;GHO.getContext('2d').drawImage(tp,0,0);GHO.style.display='block'},true);
 window.addEventListener('pointermove',e=>{if(GHO.style.display==='block'){GHO.style.left=e.clientX-17*S/2+'px';GHO.style.top=e.clientY-17*S/2+'px';GHO.style.width=GHO.style.height=17*S+'px'}});
 
 // painter: decals on the floor
-const PNT={k:LS.get('bs.dec','blood'),size:2,str:2},DEC=[['blood','Blood','#7a0a10'],['scorch','Scorch','#2a2018'],['soot','Soot','#4a4a4a'],['dirt','Dirt','#6a5a3a'],['water','Water','#3a5a7a'],['paint','Paint','#b5a27c']];
+const PNT={k:LS.get('bs.dec','blood'),size:2},DEC=[['blood','Blood','#7a0a10'],['scorch','Scorch','#2a2018'],['soot','Soot','#4a4a4a'],['dirt','Dirt','#6a5a3a'],['water','Water','#3a5a7a'],['paint','Paint','#b5a27c']];
 const PCX=mk('div','pcx');ZC.append(PCX);
 function paintCtx(){PCX.innerHTML='';const L=mk('div','ulist');for(const[k,n,c]of DEC){const r=mk('div','urow'+(PNT.k===k?' on':''));const s=mk('span','swd');s.style.background=c;r.append(s,mk('span','n',n));r.onclick=()=>{PNT.k=k;LS.set('bs.dec',k);paintCtx()};L.append(r)}
- PCX.append(L,form([['Size',dsel([['1','1×1'],['2','2×2'],['3','3×3']],String(PNT.size),v=>PNT.size=+v)],['Strength',dsel([['1','Light'],['2','Medium'],['3','Heavy']],String(PNT.str),v=>PNT.str=+v)]]))}
+ PCX.append(L)}
 let PDN=false;
-function daub(x,y){const R=3+PNT.size*4,a=PNT.str*.12,c={dirt:rgb(84,66,44),paint:rgb(181,162,124),soot:rgb(30,28,26)}[PNT.k];
+function daub(x,y){const R=3+PNT.size*4,a=PNT.size*.12,c={dirt:rgb(84,66,44),paint:rgb(181,162,124),soot:rgb(30,28,26)}[PNT.k];
  if(PNT.k==='water'){wetAt(x,y,R);return}
  for(let Y=Math.floor((y-R)/2);Y<=(y+R)/2;Y++)for(let X=Math.floor((x-R)/2);X<=(x+R)/2;X++){if(X<0||Y<0||X>=BW||Y>=BH)continue;const d=Math.hypot(X*2+1-x,Y*2+1-y)/R;if(d>1)continue;const q=Y*BW+X,f=a*(1-d*d)*(.6+Math.random()*.8);
   if(PNT.k==='blood')FX.blood[q]=Math.min(1,FX.blood[q]+f);else if(PNT.k==='scorch')BURN[q]=Math.min(1,BURN[q]+f);
   else for(let j=0;j<4;j++){const p=(Y*2+(j>>1))*W+X*2+(j&1);if(sol[p])continue;if(OBJ[p])OBJC[p]=mix(OBJC[p],c,f*.6);else floor[p]=mix(floor[p],c,f*.6)}}
  ds0Need=true;fxDirty=true;solDirty=true}
-VIEW.addEventListener('pointerdown',e=>{if(UI.tool!=='paint'||UI.drop||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();PDN=true;const[x,y]=toBoard(e);daub(x,y)},true);
+VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='paint'||UI.drop||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();PDN=true;const[x,y]=toBoard(e);daub(x,y)},true);
 window.addEventListener('pointermove',e=>{if(PDN&&UI.tool==='paint'){const[x,y]=toBoard(e);daub(x,y)}});window.addEventListener('pointerup',()=>PDN=false);
 
 // signs: a marker with a note; hover shows it, double-click edits
@@ -2491,7 +2491,7 @@ OVL.push(()=>{if(sgS!==S||sgM!==curMap)drawSigns()});
 function signCtx(){const L=mk('div','ulist');for(const[k,[n,c]]of Object.entries(SMAT)){const r=mk('div','urow'+(UI.smat===k?' on':''));const sw=mk('span','swd');sw.style.background=c;r.append(sw,mk('span','n',n));r.onclick=()=>{UI.smat=k;LS.set('bs.smat',k);signCtx();sgP()};L.append(r)}SNX.innerHTML='';SNX.append(L)}
 const SNX=mk('div','snx');ZC.append(SNX);const SGP=mk('div','sgn sgp');SL.append(SGP);function sgP(){SGP.innerHTML='';SGP.append(plate(UI.smat))}
 VIEW.addEventListener('pointermove',e=>{const on=UI.tool==='sign'&&!UI.pop&&inBoard(e);SGP.style.display=on?'block':'none';if(!on)return;const[x,y]=toBoard(e);if(SGP.parentElement!==SL)SL.append(SGP);SGP.style.left=x*S+'px';SGP.style.top=y*S+'px'});
-VIEW.addEventListener('pointerdown',e=>{if(UI.tool!=='sign'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),s={x:Math.round(x),y:Math.round(y),t:'',m:UI.smat};(SIGNS[curMap]=SIGNS[curMap]||[]).push(s);drawSigns();editSign(s)},true);
+VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='sign'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),s={x:Math.round(x),y:Math.round(y),t:'',m:UI.smat};(SIGNS[curMap]=SIGNS[curMap]||[]).push(s);drawSigns();editSign(s)},true);
 function editSign(s){UI.sign=s;const t=mk('textarea','tbox');t.value=s.t;const ms=dsel(Object.entries(SMAT).map(([k,v])=>[k,v[0]]),s.m||'wood',v=>{s.m=v;drawSigns()});const del=ubtn('Delete','',()=>{SIGNS[curMap]=(SIGNS[curMap]||[]).filter(q=>q!==s);closePop();drawSigns()}),ok=ubtn('Done','',()=>{s.t=t.value.trim();closePop();if(!s.t)del.onclick();else drawSigns()});
  const r=mk('div','g2');r.append(del,ok);openPop('sign','Sign',[t,form([['Material',ms]]),r]);setTimeout(()=>t.focus(),0)}
 
@@ -2636,7 +2636,7 @@ function clearTo(a,x,y){const d=Math.hypot(x-a.x,y-a.y),n=Math.ceil(d*2);let lx=
 function tNode(x,y){const u=bodyAt(x|0,y|0,7,null,o=>o.type==='token'&&o.status!=='dead');if(u)return{u,x:u.x,y:u.y};const cx=x/T|0,cy=y/T|0,k=map[cy]&&map[cy][cx];if(!k)return null;const isW=(a,b)=>{const n=map[b]&&map[b][a];return !!n&&!!WMAT[n]};
  let best=null;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const wall=isW(cx,cy);if(wall===isW(cx+a,cy+b))continue;const px=cx*T+T/2+a*T/2,py=cy*T+T/2+b*T/2,d=Math.hypot(px-x,py-y);if(!wall&&d>6)continue;const s=wall?1:-1;if(!best||d<best.d)best={x:px,y:py,d,ix:Math.round(px-a*1.5*s),iy:Math.round(py-b*1.5*s)}}
  if(best)return{x:best.x,y:best.y,aj:best.iy*W+best.ix};if(WMAT[k])return null;return{x:cx*T+T/2,y:cy*T+T/2,aj:-1}}
-VIEW.addEventListener('pointerdown',e=>{if(UI.tool!=='teth'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),n=tNode(x,y);if(!n)return;
+VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='teth'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),n=tNode(x,y);if(!n)return;
  if(!TQ.a){TQ.a=n;TQ.lastL=0;sfx('flick');return}const a=TQ.a,u=a.u||n.u,w=a.u?n:a;if(!u||w.u||clearTo(a,n.x,n.y).hit)return;TQ.a=null;
  const d=Math.hypot(u.x-w.x,u.y-w.y);u.tether={kind:TQ.kind,x:w.x,y:w.y,aj:w.aj,s0:w.aj>=0?shp[w.aj]:0,len:Math.max(10,Math.min(REACH,d))+2,hp:TETH[TQ.kind].hp};sfx(TQ.kind==='chain'?'chink':'twang');lastHud=''},true);
 window.addEventListener('pointermove',e=>{if(UI.tool!=='teth')return;const[x,y]=toBoard(e);TQ.hov=inBoard(e)?tNode(x,y):null;TQ.cx=x;TQ.cy=y;const a=TQ.a;if(!a)return;
@@ -2662,7 +2662,7 @@ let stK='';function storePanel(){const c=openCrate||(!sel.size&&hoverC);if(UI.to
 window.addEventListener('pointermove',()=>{if(hoverC||!mouse.in||drag)return;const X=mouse.x|0,Y=mouse.y|0,k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(k&&PCK.has(k)&&!bodyAt(X,Y,1))hoverC=boxAt(X,Y)});
 VIEW.addEventListener('contextmenu',e=>{if(EM||!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;if(bodyAt(X,Y,3))return;const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(!k||!PCK.has(k))return;const c=boxAt(X,Y);if(!c)return;e.preventDefault();e.stopPropagation();openMenu(c,e)},true);
 // units are only controlled with Command: other tools drop control, and clicking a unit switches back
-const freeCtl=e=>{if(UI.tool==='hand'||UI.drop||UI.place||e.button||!inBoard(e))return;const[x,y]=toBoard(e),b=bodyAt(x|0,y|0,1);if(b&&b.type==='token'&&b.status!=='dead'){pickTool('hand');return}if(!EM){e.stopImmediatePropagation();e.preventDefault()}};
+const freeCtl=e=>{if(panKey||UI.tool==='hand'||UI.drop||UI.place||e.button||!inBoard(e))return;const[x,y]=toBoard(e),b=bodyAt(x|0,y|0,1);if(b&&b.type==='token'&&b.status!=='dead'){pickTool('hand');return}if(!EM){e.stopImmediatePropagation();e.preventDefault()}};
 cv.addEventListener('pointerdown',freeCtl,true);stage.parentElement.addEventListener('pointerdown',e=>{if(e.target===stage.parentElement||e.target===stage)freeCtl(e)},true);
 window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;if(/^[wasdqecrv1-6]$/i.test(e.key)||e.key==='Shift')e.stopImmediatePropagation()},true);
 // space: tap to run or pause time, hold for slow-mo while held (space + drag still pans)

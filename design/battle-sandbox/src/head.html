@@ -99,7 +99,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .zt{clip-path:polygon(0 0,100% 0,100% 100%,6px 100%,0 calc(100% - 6px))}
 #sm .zs{clip-path:polygon(6px 0,100% 0,100% 100%,0 100%,0 6px);display:flex;flex-direction:column;gap:3px}
 #sm .zone{box-shadow:inset 0 0 0 2px #3a3a3a;background:#1e1e1e;border:2px solid #3a3a3a;padding:8px}
-#sm .zc{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px}
+#sm .zc{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px}#sm .zc>.sec{order:2}
 #sm button,#sm select,#sm .ub{background:#2e2e2e;border:2px solid;border-color:#5a5a5a #101010 #101010 #5a5a5a;color:#f2efe6;border-radius:0;transition:filter .08s;font-size:18px;height:30px;padding:0 8px;text-align:left;cursor:pointer}
 #sm button:hover,#sm select:hover,#sm .ub:hover{filter:brightness(1.12);border-color:#5a5a5a #101010 #101010 #5a5a5a}#sm button:active,#sm .ub:active{filter:brightness(.92)}
 #sm button.on,#sm .ub.on{background:#f2efe6;color:#111;border-color:#8a8780 #fff #fff #8a8780}
@@ -127,7 +127,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .tcx,#sm .scx,#sm .pcx{display:none;flex-direction:column;gap:6px}
 #sm[data-tool=tile] .tcx,#sm[data-tool=spawn] .scx,#sm[data-tool=paint] .pcx{display:flex}
 #sm .zc>.sec{display:none!important}#sm .zc .sh{display:none}
-#sm[data-tool=hand] .zc>.sec[data-k=insp],#sm[data-tool=teth] .zc>.sec[data-k=tools],#sm[data-tool=spawn][data-st=wp] .zc>.sec[data-k=wp],#sm[data-tool=spawn][data-st=it] .zc>.sec[data-k=it],#sm[data-tool=spawn][data-st=cov] .zc>.sec[data-k=cov]{display:flex!important}
+#sm[data-tool=spawn][data-st=wp] .zc>.sec[data-k=wp],#sm[data-tool=spawn][data-st=it] .zc>.sec[data-k=it],#sm[data-tool=spawn][data-st=cov] .zc>.sec[data-k=cov]{display:flex!important}
 #sm .tcx>#ed-fu,#sm .tcx>#ed-dr{display:none}#sm[data-tt=furn] .tcx>#ed-fu,#sm[data-tt=door] .tcx>#ed-dr{display:flex}
 #sm[data-mode=asset] .stage{visibility:visible}
 /* corner */
