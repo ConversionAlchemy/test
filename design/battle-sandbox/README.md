@@ -5,6 +5,16 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - `src/head.html`: markup and styles.
 - `src/tiles.js`: 16px tile textures and palettes.
 - `src/sim.js`: the simulation (physics, damage, weapons, doors, fire, lighting, sound, UI).
+- `src/editor.js`: map and texture editing, mods.
+- `src/ui.js`: the screen: corner clock, tool panel, popups, hotbar.
+
+## Screen
+
+- Corner: the brass clock runs and pauses time (paused on load); red key resets to the last save; 1×/½× is slow-mo; the sigil opens Map settings.
+- Tools (right panel): Hand of God (select and control units; the chosen unit gets a hotbar, a nearby chest shows its contents above it, and the camera follows a unit under direct control), Spawner (units, weapons, items, cover; the dropper copies a placed unit and places copies until Esc), Tiler (tiles, furniture, doors; the dropper picks a tile off the map), Sign, Painter (blood, scorch, soot, dirt, water, paint), Vacuum, Sponge, Wand, Tether.
+- Bottom: map, Save, Asset Editor and Map settings popups (drag by the title, ✕ or Esc closes).
+- Map settings: name, location, owner, size, wall tops, new, delete, export, import. Doors with no keys of their own open for the owner's side; chests belong to no one.
+- Spawned conscripts sometimes turn out in the Imperial striped guard.
 
 ## Controls
 
@@ -26,7 +36,6 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Double-click an item | Select it: hold to fire or throw it from where it lies; drag to move it |
 | Right-click | Unit or door options; Refill ammo restores what the unit was last kitted with (its starting kit, plus anything you gave it) and fills every gun; works on a group too |
 | Tools: Rope, Chain | Drag onto a unit, or click the tool then a unit, to tie it to the nearest wall; Esc cancels |
-| Side headings | Click Weapons, Cover, Tools, Markers or Inspector to fold it away |
 | Inspector (right column) | Shows the selected unit, or an opened chest, desk, shelf or rack with the selected unit beneath it when it stands beside it. Click an item to move it to the other box, drag it across, drag it out to drop it, Shift+click to drop it; click a unit's slot to draw it |
 
 ## Rules worth knowing
