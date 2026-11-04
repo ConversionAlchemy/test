@@ -95,7 +95,7 @@ function inlays(){const ring=(X0,Y0,R)=>{for(let Y=Y0-R-2;Y<=Y0+R+2;Y++)for(let 
  ring(240,408,40)}
 function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;if(k==='table'){for(const it of items||[]){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.k==='gold')w.amt=it.n;else if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}return null}const pc=PCS.get(cy*CW+cx),cells=pc?pc.cells.slice():[],seen=new Set([cy*CW+cx]),q=pc?[]:[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}
  const xs=cells.map(c=>c[0]),ys=cells.map(c=>c[1]),box=[Math.min(...xs)*T,Math.min(...ys)*T,(Math.max(...xs)+1)*T-1,(Math.max(...ys)+1)*T-1],c=weapon('crate',(box[0]+box[2])/2,(box[1]+box[3])/2,0);
- c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.inv=items.map(i=>({...i}));c.cells=cells;c.box=box;c.n0=cells.length*T*T;c.metal=k==='shelf'||k==='mchest';return c}
+ c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.inv=items.map(i=>({...i}));while(c.inv.length<cells.length)c.inv.push(null);c.cap=cells.length;c.cells=cells;c.box=box;c.n0=cells.length*T*T;c.metal=k==='shelf'||k==='mchest';return c}
 const containerAt=(X,Y)=>{const cx=X/T|0,cy=Y/T|0;if(!OBJ[Y*W+X])return null;return bodies.find(o=>o.hidden&&o.cells.some(c=>c[0]===cx&&c[1]===cy))||null};
 const EDG=new Set();
 function cutEdges(x,y,R){const x0=Math.max(1,Math.floor(x-R-3)),x1=Math.min(W-2,Math.ceil(x+R+3)),y0=Math.max(1,Math.floor(y-R-3)),y1=Math.min(H-2,Math.ceil(y+R+3)),add=[];
@@ -1063,7 +1063,7 @@ let lastHud='';
 let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
 function moveItem(from,i,to){const q=from.inv&&from.inv[i];if(!q||!to.inv)return;const one={k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}
  if(to.type==='token'){if(addItem(to,one)){if((q.n-=one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k])q.ammo=CAP[q.k];sfx('flick')}else sfx('dry');return}
- const m=!CAP[q.k]&&to.inv.find(z=>z&&z.k===q.k);let j=-1;if(!m){j=to.inv.indexOf(null);if(j<0){if(to.kind==='crate'){j=to.inv.length;to.inv.push(null)}else{sfx('dry');return}}}
+ const m=!CAP[q.k]&&to.inv.find(z=>z&&z.k===q.k);let j=-1;if(!m){j=to.inv.indexOf(null);if(j<0){if(to.kind==='crate'&&to.inv.length<(to.cap||99)){j=to.inv.length;to.inv.push(null)}else{sfx('dry');return}}}
  if((q.n-=one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k]){q.ammo=CAP[q.k]}
  if(m)m.n+=one.n;else to.inv[j]=one;sfx('flick')}
 function slotEl(b,q,i,on,click){const e=document.createElement('span');e.className='it'+(on?' on':'');if(click){e.style.cursor='pointer';e.onclick=click}if(q){e.appendChild(icon(shape(q.k,0),q.k==='spear'||q.k==='sspear'?.6:1));const t=document.createElement('span');if(CAP[q.k]){const v=q.ammo??CAP[q.k];t.textContent=(q.n>1?q.n+'× ':'')+v+'/'+(q.res||0);if(v===0)t.className='out';else if(v/CAP[q.k]<.25)t.className='lo'}else t.textContent=q.k==='gold'?'§'+q.n:q.n;e.appendChild(t)}else e.classList.add('nil');return e}
@@ -1366,21 +1366,24 @@ const fogOn=()=>aiOn&&!!aiMe;
 function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Array(NB).fill(-1e9)}if(SNAP.length!==W*H)SNAP=new Uint32Array(W*H);VIS.fill(0);
  const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status!=='dead');
  if(VS.length!==NB){VS=new Uint8Array(NB);VSF=new Float32Array(NB)}VS.fill(0);fSel=me.some(b=>sel.has(b));
- for(const b of me){const low=!!b.crouch,sb=sel.has(b),cast=(a,R)=>{const c=Math.cos(a),s=Math.sin(a);for(let r=0;r<R;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X,q=(Y>>1)*BW+(X>>1);VIS[q]=1;if(sb)VS[q]=1;if(sol[j]||slabG[j])return;if(low&&OBJ[j]&&r>5)return}};
-  const nr=me.length<=6?130:Math.max(40,780/me.length|0);for(let i=0;i<=nr;i++)cast(b.ang-.96+1.92*i/nr,VR);for(let i=0;i<24;i++)cast(i/24*6.283,22)}
+ for(const b of me){const sb=sel.has(b);sight(b,me.length<=6?130:Math.max(40,780/me.length|0),q=>{VIS[q]=1;if(sb)VS[q]=1})}
  for(let y=1;y<BH-1;y++)for(let x=1;x<BW-1;x++){const q=y*BW+x;if(!VIS[q]&&(VIS[q-1]&1&&VIS[q+1]&1||VIS[q-BW]&1&&VIS[q+BW]&1))VIS[q]=2}
  for(let q=0;q<NB;q++)if(VIS[q])SEEN[q]=tick;
  // soft edge: blur the view mask a few cells
  if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VIS[q]?1:0;blurMask(VF);if(fSel){for(let q=0;q<NB;q++)VSF[q]=VS[q]?1:0;blurMask(VSF)}
  for(const o of bodies)if(o.type==='token')o.fogH=relOf(aiMe,teamOf(o))!=='self'&&relOf(aiMe,teamOf(o))!=='ally'&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>canSee(b,o)))}
 // a unit under direct control shows what it can see: the cone, cut by walls and, when crouched, by furniture
-let DSV=null;function sightTick(){const me=EM?[]:bodies.filter(b=>b.direct&&b.type==='token'&&b.status==='free');if(!me.length){DSV=null;return}if(!DSV||DSV.length!==NB)DSV=new Float32Array(NB);if(VT.length!==NB)VT=new Float32Array(NB);DSV.fill(0);
- for(const b of me){const low=!!b.crouch,cast=(a,R)=>{const c=Math.cos(a),s=Math.sin(a);for(let r=0;r<R;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X;DSV[(Y>>1)*BW+(X>>1)]=1;if(sol[j]||slabG[j])return;if(low&&OBJ[j]&&r>5)return}};for(let i=0;i<=160;i++)cast(b.ang-.96+1.92*i/160,VR);for(let i=0;i<24;i++)cast(i/24*6.283,22)}blurMask(DSV)}
-function sightPass(){for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const w=Math.min(1,DSV[r+(X>>1)]*1.6);if(w<1)out[j]=mul(out[j],.55+.45*w*w*(3-2*w))}}}
+// what a unit sees: a cone plus a small circle; rays look a little way into walls but never out the other side
+function sight(b,nr,f){const low=!!b.crouch,cast=(a,R)=>{const c=Math.cos(a),s=Math.sin(a);let wd=0;for(let r=0;r<R;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X,wl=sol[j]||slabG[j];if(wd&&!wl)return;f((Y>>1)*BW+(X>>1));if(wl&&(wd+=2)>8)return;if(low&&OBJ[j]&&r>5)return}};
+ for(let i=0;i<=nr;i++)cast(b.ang-.96+1.92*i/nr,VR);for(let i=0;i<24;i++)cast(i/24*6.283,22)}
+// a unit under direct control shows what it sees; what its allies see stays lighter than the rest
+let DSV=null,DSA=null;function sightTick(){const me=EM?[]:bodies.filter(b=>b.direct&&b.type==='token'&&b.status==='free');if(!me.length){DSV=null;return}if(!DSV||DSV.length!==NB){DSV=new Float32Array(NB);DSA=new Float32Array(NB)}if(VT.length!==NB)VT=new Float32Array(NB);DSV.fill(0);DSA.fill(0);
+ for(const b of me)sight(b,160,q=>DSV[q]=1);const t=teamOf(me[0]);for(const o of bodies)if(o.type==='token'&&o.status==='free'&&!o.direct&&/self|ally/.test(relOf(t,teamOf(o))))sight(o,60,q=>DSA[q]=1);blurMask(DSV);blurMask(DSA)}
+function sightPass(){const sm=v=>{v=Math.min(1,v*1.6);return v*v*(3-2*v)};for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),w=Math.max(sm(DSV[q]),.49*sm(DSA[q]));if(w<1)out[j]=mul(out[j],.55+.45*w)}}}
 function blurMask(A){for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o=y*BW;let sum=0;for(let k=0;k<=2&&k<BW;k++)sum+=A[o+k];for(let x=0;x<BW;x++){const n=Math.min(BW-1,x+2)-Math.max(0,x-2)+1;VT[o+x]=sum/n;if(x+3<BW)sum+=A[o+x+3];if(x-2>=0)sum-=A[o+x-2]}}
   for(let x=0;x<BW;x++){let sum=0;for(let k=0;k<=2&&k<BH;k++)sum+=VT[k*BW+x];for(let y=0;y<BH;y++){const n=Math.min(BH-1,y+2)-Math.max(0,y-2)+1;A[y*BW+x]=sum/n;if(y+3<BH)sum+=VT[(y+3)*BW+x];if(y-2>=0)sum-=VT[(y-2)*BW+x]}}}}
 // with one of your units selected, what the others see is dimmed slightly
-function fogPass(){const sl=fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===aiMe);const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const age=(tick-SEEN[q])/300,m=age>=1?F:mix(mul(SNAP[j],.6),F,Math.max(0,age));out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
+function fogPass(){const sl=!DSV&&fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===aiMe);const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const age=(tick-SEEN[q])/300,m=age>=1?F:mix(mul(SNAP[j],.6),F,Math.max(0,age));out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
  for(const z of RINGS){const k=(tick-z.t)/40,rad=2+k*7;for(let i=0;i<28;i++){const X=Math.round(z.x+Math.cos(i*.2244)*rad),Y=Math.round(z.y+Math.sin(i*.2244)*rad);if(X>=0&&Y>=0&&X<W&&Y<H){const j=Y*W+X;out[j]=mix(out[j],rgb(230,226,214),.5*(1-k))}}}RINGS=RINGS.filter(z=>tick-z.t<40)}
 function ringFor(z){if(!fogOn()||z.src&&teamOf(z.src)===aiMe||z.src&&!z.src.fogH)return;const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status==='free');if(me.some(b=>heardBy(b,z))&&!RINGS.some(r=>tick-r.t<12&&Math.hypot(r.x-z.x,r.y-z.y)<10))RINGS.push({x:z.x,y:z.y,t:tick})}
 // a crouched unit hides behind low furniture: a low shot hits any desk; a high shot hits one beside a crouched unit

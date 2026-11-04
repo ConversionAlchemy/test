@@ -50,7 +50,7 @@ const ZT=mk('div','zone zt'),ZC=mk('div','zone zc'),ZS=mk('div','zone zs');
 const TH=mk('div','ch');ZC.append(TH,...SIDE0.children);SIDE0.append(ZT,ZC,ZS);
 VIEW.append(mk('div','frame'));
 // tool header with optional dropper
-function head(k){TH.innerHTML='';const n=UT.find(t=>t[0]===k)[1];TH.append(uicon(k),mk('span',null,n));if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','drp sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});TH.append(z)}if(k==='tile'||k==='spawn'){const d=ubtn('','drp',()=>armDrop(k));d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);TH.append(d)}}
+function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1];TH.append(uicon(k),mk('span',null,n));if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','drp sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});TH.append(z)}if(k==='tile'||k==='spawn'){const d=ubtn('','drp',()=>armDrop(k));d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);TH.append(d)}}
 
 // settings zone: map, save, popups
 {const ms=$('msel');ms.classList.add('wide');const sv=ubtn('Save','',x=>{mapSave(false);flashB(sv,'Saved')});
@@ -261,10 +261,10 @@ function selRings(){for(const b of sel){if(b.hidden||!bodies.includes(b)||b.type
  if(!tok){r=3;for(const p of b.px||[])r=Math.max(r,Math.hypot(p[0],p[1]));r=Math.min(10,r+2)}const c=tok&&b.direct?rgb(111,211,106):rgb(242,239,230),cx=b.x,cy=b.y,n=Math.ceil(r*7);
  for(let i=0;i<n;i++){const a=i/n*6.283,X=Math.round(cx+Math.cos(a)*r),Y=Math.round(cy+Math.sin(a)*r);if(X>=0&&Y>=0&&X<W&&Y<H&&!sol[Y*W+X])out[Y*W+X]=c}}}
 // a chosen weapon or item: name and ammo above it and in the panel
-let isK='';function itemSel(){const w=sel.size===1&&[...sel][0];if(!w||w.type!=='weapon'||!WP[w.kind]||!bodies.includes(w)){if(isK){isK='';if(UI.tool==='hand')head('hand')}return false}
+let isK='';function itemSel(){const w=sel.size===1?[...sel][0]:!sel.size&&!openCrate&&hover;if(!w||w.type!=='weapon'||!WP[w.kind]||!bodies.includes(w)){if(isK){isK='';if(UI.tool==='hand')head('hand')}return false}
  const q={k:w.kind,ammo:w.ammo,res:w.res,n:w.kind==='gold'?w.amt:1},k=JSON.stringify([w.id,w.ammo,w.res,w.amt]);HCO.style.left=Math.round(w.x*S)+'px';HCO.style.top=Math.round((w.y-8)*S)+'px';if(k===isK)return true;isK=k;
  if(hbK){HCX.innerHTML='';hbK=''}callout(q,'');if(UI.tool==='hand'){TH.innerHTML='';TH.append(hic(w.kind),mk('span',null,itemName(q)));const a=CAP[w.kind]?(w.ammo??CAP[w.kind])+' / '+(w.res||0):w.kind==='gold'?'§'+(w.amt||0):'';if(a)TH.append(mk('i','dim',a))}return true}
-function hotbar(){const tk=UI.tool==='hand'&&[...sel].filter(o=>o.type==='token')[0];const one=tk&&sel.size===1&&tk.status!=='dead'&&bodies.includes(tk);if(!one&&!sel.size&&storePanel())return;
+function hotbar(){const tk=UI.tool==='hand'&&([...sel].filter(o=>o.type==='token')[0]||!sel.size&&!openCrate&&hover&&hover.type==='token'&&hover);const one=tk&&sel.size<=1&&tk.status!=='dead'&&bodies.includes(tk);if(!one&&!sel.size&&storePanel())return;
  if(!one&&itemSel())return;if(!one){if(hbK){HCX.innerHTML='';hbK='';if(UI.tool==='hand')head('hand')}hbId=null;return}
  const c=tk.status==='free'?bodies.find(o=>o.hidden&&o.inv&&near(tk,o)):null,k=JSON.stringify([tk.id,tk.si,tk.inv,tk.noAuto,tk.vip,tk.auto,tk.leader,tk.nat,c&&c.id,c&&c.inv]);
  if(k!==hbK){hbK=k;HCX.innerHTML='';
@@ -311,9 +311,9 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
 const PCUR=(()=>{const c=pix(...UIC.paint,1),d=mk('canvas');d.width=24;d.height=20;const g=d.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(c,0,0,24,20);return`url(${d.toDataURL()}) 2 18, crosshair`})();
 {const r3=render;render=function(){r3();if(UI.tool!=='paint'||!mouse.in)return;const R=3+PNT.size*4;ctx.save();ctx.lineWidth=1;ctx.strokeStyle='#000';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R+.5,0,6.283);ctx.stroke();ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R-.5,0,6.283);ctx.stroke();ctx.restore();if(cv.style.cursor!==PCUR)cv.style.cursor=PCUR}}
 // storage: glows on hover, click to open it here and drop things out of it, right-click to empty it
-let stK='';function storePanel(){const c=openCrate;if(UI.tool!=='hand'||!c||!c.inv||!bodies.includes(c)){if(stK){stK='';HCX.innerHTML='';head('hand')}return false}
+let stK='';function storePanel(){const c=openCrate||(!sel.size&&hoverC);if(UI.tool!=='hand'||!c||!c.inv||!bodies.includes(c)){if(stK){stK='';HCX.innerHTML='';head('hand')}return false}
  const k=JSON.stringify([c.id,c.inv]);if(k===stK)return true;stK=k;hbK='';HCX.innerHTML='';TH.innerHTML='';TH.append(uicon('hand'),mk('span',null,c.name||'Storage'));
- const g=mk('div','hg cg');c.inv.forEach((q,i)=>{if(!q)return;const d=slotEl(q,null,false);d.onpointerdown=e=>{e.preventDefault();dropSlot(c,i);lastHud='';stK=''};g.append(d)});if(!g.children.length)g.append(mk('div','slot lock'));const cp=mk('div','hpan');cp.append(g);HCX.append(cp);return true}
+ const g=mk('div','hg cg');c.inv.forEach((q,i)=>{const d=slotEl(q,null,false);if(q)d.onpointerdown=e=>{e.preventDefault();dropSlot(c,i);lastHud='';stK=''};g.append(d)});const cp=mk('div','hpan');cp.append(g);HCX.append(cp);return true}
 window.addEventListener('pointermove',()=>{if(hoverC||!mouse.in||drag)return;const X=mouse.x|0,Y=mouse.y|0,k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(k&&PCK.has(k)&&!bodyAt(X,Y,1))hoverC=boxAt(X,Y)});
 VIEW.addEventListener('contextmenu',e=>{if(EM||!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;if(bodyAt(X,Y,3))return;const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(!k||!PCK.has(k))return;const c=boxAt(X,Y);if(!c)return;e.preventDefault();e.stopPropagation();openMenu(c,e)},true);
 // units are only controlled with Command: other tools drop control, and clicking a unit switches back
