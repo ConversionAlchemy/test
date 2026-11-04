@@ -12,7 +12,7 @@ const UIC={
  sponge:[['.kkkkkkkkkk.','kyyyyyyyyyyk','kyoyyyyoyyyk','kyyyyoyyyyyk','kyoyyyyyoyyk','kyyyoyyyyyyk','.kkkkkkkkkk.'],{y:'#f2d04a',o:'#c79a26',k:'#3a2e10'}],
  wand:[['w.w.........','.y..........','w.k.........','...k........','....k.......','.....b......','......b.....','.......b....','........b...','.........b..'],{y:'#ffe066',w:'#fff6c8',k:'#d8d0c0',b:'#5a3c22'}],
  teth:[['...kkkkk....','..kbbbbbk...','.kbk...kbk..','.kbk...kbk..','..kbbbbbk...','...kkkbk....','......kbk...','.......kbk..','........kbk.','.........kk.'],{k:'#2a1c10',b:'#a07848'}],
- bin:[['...kkkk...','kkkkkkkkkk','.kwwwwwwk.','.kwkwkwwk.','.kwkwkwwk.','.kwkwkwwk.','.kwkwkwwk.','.kwwwwwwk.','..kkkkkk..'],{k:'#111',w:'#d8564a'}],
+ bin:[['...wwww...','wwwwwwwwww','.wkkkkkkw.','.wkwkwkkw.','.wkwkwkkw.','.wkwkwkkw.','.wkwkwkkw.','.wkkkkkkw.','..wwwwww..'],{k:'#8a2a2e',w:'#f2efe6'}],
  drop:[['........bbb.','.......bbbbb','.......bbbbb','......kbbbb.','.....kwkbb..','....kwk.....','...kwk......','..kwk.......','.kk.........','k...........','............','d...........','dd..........'],{b:'#b23a3a',w:'#a8d0e0',k:'#c9c5b8',d:'#5f8ad0'}],
  glass:[['kkkkkkkkk','.kyyyyyk.','..kyyyk..','...kyk...','....k....','...kyk...','..k.y.k..','.k.yyy.k.','kkkkkkkkk'],{k:'#b89654',y:'#e6bc69'}],
  reset:[['..kkkkk..','.k.....k.','k.......k','k......kkk','k.......k.','k.........','.k.....k..','..kkkkk...'],{k:'#fff'}]};
@@ -53,7 +53,11 @@ const ZT=mk('div','zone zt'),ZC=mk('div','zone zc'),ZS=mk('div','zone zs');
 const TH=mk('div','ch');ZC.append(TH,...SIDE0.children);SIDE0.append(ZT,ZC,ZS);
 VIEW.append(mk('div','frame'));
 // tool header with optional dropper
-function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1];TH.append(uicon(k),mk('span',null,n));if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'drp sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});TH.append(z)}if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','drp sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});TH.append(z)}if(k==='tile'||k==='spawn'){const d=ubtn('','drp',()=>{UI.del=false;armDrop(k)});d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);TH.append(d)}if(k==='spawn'){const x=ubtn('','drp',()=>{UI.del=!UI.del;if(UI.del&&UI.drop)armDrop(k);else head(k);cv.style.cursor=UI.del?'crosshair':CUR.arrow});x.append(uicon('bin'));x.classList.toggle('on',!!UI.del);TH.append(x)}}
+function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1],G=mk('div','hb');TH.append(uicon(k),mk('span',null,n),G);
+ if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'sq sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});G.append(z)}
+ if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','sq sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});G.append(z)}
+ if(k==='tile'||k==='spawn'){const d=ubtn('','sq',()=>{UI.del=false;armDrop(k)});d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);G.append(d)}
+ if(k==='spawn'){const x=ubtn('','sq red',()=>{UI.del=!UI.del;if(UI.del&&UI.drop)armDrop(k);else head(k);cv.style.cursor=UI.del?'crosshair':CUR.arrow});x.append(uicon('bin'));x.classList.toggle('on',!!UI.del);G.append(x)}}
 
 // settings zone: map, save, popups
 {const ms=$('msel');ms.classList.add('wide');const sv=ubtn('Save','',x=>{mapSave(false);flashB(sv,'Saved')});
