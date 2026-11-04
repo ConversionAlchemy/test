@@ -140,7 +140,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .corner .oct svg{position:relative;z-index:1;display:block}
 #sm .clk .h1,#sm .clk .h2{transform-origin:14.5px 14.5px;transform-box:view-box}#sm .clk .h1{animation:ctick 12s steps(12) infinite}#sm .clk .h2{animation:ctick 144s steps(12) infinite}
 #sm .slowing .clk .h1{animation-duration:36s}#sm .slowing .clk .h2{animation-duration:432s}
-#sm .paused .clk{filter:saturate(.25) brightness(.75)}#sm .paused .clk .h1,#sm .paused .clk .h2{animation-play-state:paused}
+#sm .corner.paused .oct svg,#sm .paused .oct svg.clk{filter:saturate(.2) brightness(.6) drop-shadow(2px 2px 0 #0008)}#sm .paused .clk .h1,#sm .paused .clk .h2{animation-play-state:paused}
 @keyframes ctick{to{transform:rotate(360deg)}}
 /* popups */
 #sm .pw{position:fixed;display:none;z-index:20;background:#3a3a3a;padding:2px;box-shadow:0 8px 24px rgba(0,0,0,.7);clip-path:polygon(6px 0,calc(100% - 6px) 0,100% 6px,100% calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,0 calc(100% - 6px),0 6px);min-width:420px;max-width:calc(100vw - 360px);max-height:calc(100vh - 20px)}
