@@ -201,4 +201,10 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .hsep{width:2px;align-self:stretch;background:#3a3a3a;box-shadow:1px 0 0 #101010}
 #sm .hbar .slot{box-shadow:inset 2px 2px 0 #0e0e0e,inset -2px -2px 0 #4a4a4a;background:#2a2a2a}#sm .hbar{opacity:1;filter:brightness(.85)}#sm .hbar:hover{filter:none}#sm .hbar .slot.on{background:#2e2e2e;box-shadow:inset 0 0 0 2px #f2efe6}#sm .hbar .slot.lock{background:#121212;box-shadow:none}
 #sm #insp .ibox>div:not(.itb){display:none}#sm #insp .ibox+.ibox{display:none}
-</style><style>#sm .tgrid .tb[data-k=hand]{grid-column:span 2}</style>
+</style><style>#sm .tgrid .tb[data-k=hand]{grid-column:span 2}</style><style>
+#sm .hcx,#sm .snx{display:none;flex-direction:column;gap:6px}#sm[data-tool=hand] .hcx,#sm[data-tool=sign] .snx{display:flex}
+#sm[data-tool=hand] .zc>.sec[data-k=insp]{display:none!important}
+#sm .hlab{font-size:18px;padding:2px 2px 0}#sm .hcx .hpan{align-self:flex-start}#sm .hcx .frm{margin-top:6px}
+#sm .hg.cg{flex-wrap:wrap;max-width:300px}
+#sm .sgp{opacity:.6;pointer-events:none;display:none}
+</style><style>#sm .hcx .frm{grid-template-columns:130px 1fr}</style>
