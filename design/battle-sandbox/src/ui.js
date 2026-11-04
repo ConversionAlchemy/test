@@ -254,8 +254,16 @@ const hic=k=>{const d=HIC[k]||(/box$/.test(k)?HIC.box:null);return d?pix(...d):s
 function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k}
  else if(sil){const c=hic(sil);c.className='sil';d.append(c)}return d}
 const itemName=q=>q?WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k.endsWith('box')?'Ammo':q.k:'';
+// selection rings: white under what is chosen, green while a unit is under direct control
+function selRings(){for(const b of sel){if(b.hidden||!bodies.includes(b)||b.type==='slab'||b.status==='dead')continue;const tok=b.type==='token';let r=13;
+ if(!tok){r=3;for(const p of b.px||[])r=Math.max(r,Math.hypot(p[0],p[1]));r=Math.min(10,r+2)}const c=tok&&b.direct?rgb(111,211,106):rgb(242,239,230),cx=b.x,cy=b.y,n=Math.ceil(r*7);
+ for(let i=0;i<n;i++){const a=i/n*6.283,X=Math.round(cx+Math.cos(a)*r),Y=Math.round(cy+Math.sin(a)*r);if(X>=0&&Y>=0&&X<W&&Y<H&&!sol[Y*W+X])out[Y*W+X]=c}}}
+// a chosen weapon or item: name and ammo above it and in the panel
+let isK='';function itemSel(){const w=sel.size===1&&[...sel][0];if(!w||w.type!=='weapon'||!WP[w.kind]||!bodies.includes(w)){if(isK){isK='';if(UI.tool==='hand')head('hand')}return false}
+ const q={k:w.kind,ammo:w.ammo,res:w.res,n:w.kind==='gold'?w.amt:1},k=JSON.stringify([w.id,w.ammo,w.res,w.amt]);HCO.style.left=Math.round(w.x*S)+'px';HCO.style.top=Math.round((w.y-8)*S)+'px';if(k===isK)return true;isK=k;
+ if(hbK){HCX.innerHTML='';hbK=''}callout(q,w.kind==='gold'?'§'+(w.amt||0):null);if(UI.tool==='hand'){TH.innerHTML='';TH.append(hic(w.kind),mk('span',null,itemName(q)));const a=CAP[w.kind]?(w.ammo??CAP[w.kind])+' / '+(w.res||0):w.kind==='gold'?'§'+(w.amt||0):'';if(a)TH.append(mk('i','dim',a))}return true}
 function hotbar(){const tk=UI.tool==='hand'&&[...sel].filter(o=>o.type==='token')[0];const one=tk&&sel.size===1&&tk.status!=='dead'&&bodies.includes(tk);
- if(!one){if(hbK){HCX.innerHTML='';hbK='';if(UI.tool==='hand')head('hand')}hbId=null;return}
+ if(!one&&itemSel())return;if(!one){if(hbK){HCX.innerHTML='';hbK='';if(UI.tool==='hand')head('hand')}hbId=null;return}
  const c=tk.status==='free'?bodies.find(o=>o.hidden&&o.inv&&near(tk,o)):null,k=JSON.stringify([tk.id,tk.si,tk.inv,tk.noAuto,tk.vip,tk.auto,tk.leader,c&&c.id,c&&c.inv]);
  if(k!==hbK){hbK=k;HCX.innerHTML='';
   if(c){const h=mk('div','hlab',c.name||'Chest');const g=mk('div','hg cg');c.inv.forEach((q,i)=>{if(!q)return;const d=slotEl(q,null,false);d.onpointerdown=e=>{e.preventDefault();moveItem(c,i,tk);lastHud='';hbK=''};g.append(d)});if(!g.children.length)g.append(mk('div','slot lock'));const cp=mk('div','hpan');cp.append(g);HCX.append(h,cp)}
@@ -295,7 +303,7 @@ window.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.tool!=='teth'||UI.
 // space: tap to run or pause time, hold for slow-mo while held (space + drag still pans)
 {let SP=null;const typing=e=>/INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
  window.addEventListener('keydown',e=>{if(e.code!=='Space'||e.repeat||typing(e)||SP)return;SP={t:performance.now(),pan:false,slow:false};SP.h=setTimeout(()=>{if(SP&&!SP.pan&&!slowMo){window.toggleSlow();SP.slow=true}},250)});
- window.addEventListener('pointerdown',()=>{if(!SP)return;SP.pan=true;if(SP.slow){window.toggleSlow();SP.slow=false}},true);
+ window.addEventListener('pointerdown',()=>{if(!SP||[...sel].some(o=>o.direct))return;SP.pan=true;if(SP.slow){window.toggleSlow();SP.slow=false}},true);
  window.addEventListener('keyup',e=>{if(e.code!=='Space'||!SP)return;const p=SP;SP=null;clearTimeout(p.h);if(p.slow){if(slowMo)window.toggleSlow()}else if(!p.pan&&performance.now()-p.t<250&&!typing(e)){US.clock();setPlay(PAUSED)}});
  window.addEventListener('blur',()=>{if(SP&&SP.slow&&slowMo)window.toggleSlow();SP=null})}
 sigil();sgP();pickTool(UT.some(t=>t[0]===UI.tool)?UI.tool:'hand');syncCorner();
