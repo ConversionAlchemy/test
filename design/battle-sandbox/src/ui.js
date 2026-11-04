@@ -21,13 +21,21 @@ const uicon=k=>pix(...UIC[k]);
 const ubtn=(t,cls,f)=>{const b=mk('button',cls,t);if(f)b.onclick=f;return b};
 
 // clock: brass rim (the game's brass texture), an earth face, hour notches; the hands tick while time runs
-function clockSvg(){const N=25,c=12,R=12,o=[],B=['#e6bc69','#b89654','#81693b','#534426'],nrm=(x,y)=>Math.max(Math.abs(x),Math.abs(y),(Math.abs(x)+Math.abs(y))/1.3),
-  land=(x,y)=>Math.sin(x*.8+1.3)+Math.cos(y*.95-.4)+Math.sin((x+y)*.5)>.9,r=(x,y,f)=>o.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="${f}"/>`);
- for(let y=0;y<N;y++)for(let x=0;x<N;x++){const d=nrm(x-c,y-c);if(d>R+.4)continue;let f;
-  if(d>R-2.2){const l=-Math.cos(Math.atan2(y-c,x-c)+Math.PI/4);f=l>.45?B[0]:l>-.3?B[1]:l>-.75?B[2]:B[3]}else if(d>R-3)f='#2a2010';
-  else{f=land(x,y)?((x+y)%3?'#4f7a3a':'#8a7a3a'):((x*7+y*3)%5?'#123a6a':'#1e5a9a');if(d>R-4.4&&(x*3+y)%4===0)f='#2f8ac0'}r(x,y,f)}
- for(let k=0;k<12;k++){const a=k*Math.PI/6,dx=Math.sin(a),dy=-Math.cos(a),q=(R-4.2)/nrm(dx,dy);for(const s of k%3?[q]:[q,q-1])r(Math.round(c+s*dx),Math.round(c+s*dy),'#fff')}
- return`<svg class="clk" viewBox="0 0 ${N} ${N}" width="75" height="75" shape-rendering="crispEdges">${o.join('')}<g class="h1"><rect x="12" y="5" width="1" height="7" fill="#fff"/><rect x="12" y="5" width="1" height="1" fill="#e0533f"/></g><g class="h2"><rect x="12" y="8" width="1" height="4" fill="#d8d4c8"/></g><rect x="12" y="12" width="1" height="1" fill="${B[0]}"/></svg>`}
+function clockSvg(){const N=29,c=14,o=[],K=[1.3,1.12,.92,.72,.5,.34],BR=K.map(k=>'#'+[200,146,88].map(v=>Math.min(255,v*k|0).toString(16).padStart(2,'0')).join('')),nrm=(x,y)=>Math.max(Math.abs(x),Math.abs(y),(Math.abs(x)+Math.abs(y))/1.3),
+  land=(x,y)=>Math.sin(x*.8+1.3)+Math.cos(y*.95-.4)+Math.sin((x+y)*.5)>.9,r=(x,y,f)=>o.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="${f}"/>`),
+  lit=(x,y)=>{const a=Math.round(Math.atan2(y-c,x-c)/(Math.PI/4))*Math.PI/4;return-(Math.cos(a)+Math.sin(a))/Math.SQRT2},
+  tone=l=>l>.9?1:l>.5?2:l>-.5?3:l>-.9?4:5,mix=(h,t)=>'#'+[1,3,5].map(i=>Math.round(parseInt(h.slice(i,i+2),16)*(1-t)+255*t).toString(16).padStart(2,'0')).join('');
+ for(let y=0;y<N;y++)for(let x=0;x<N;x++){const d=nrm(x-c,y-c);if(d>14.4)continue;const l=lit(x,y);let f;
+  if(d>13.6)f='#1a1208';
+  else if(d>12.8)f=BR[Math.max(0,tone(l)-1-(l>.5))];
+  else if(d>11.4)f=BR[tone(l)];
+  else if(d>10.6)f=BR[tone(-l)];
+  else if(d>9.8)f='#1c140a';
+  else{f=land(x,y)?((x+y)%3?'#4f7a3a':'#8a7a3a'):((x*7+y*3)%5?'#123a6a':'#1e5a9a');if(d>8.4&&(x*3+y)%4===0)f='#2f8ac0';
+   const u=x-c+y-c,v=x-y;if((u===-7||u===-6)&&Math.abs(v)<4)f=mix(f,u===-7?.45:.25)}
+  r(x,y,f)}
+ for(let k=0;k<12;k++){const a=k*Math.PI/6,dx=Math.sin(a),dy=-Math.cos(a),q=7.8/nrm(dx,dy);for(const s of k%3?[q]:[q,q-1])r(Math.round(c+s*dx),Math.round(c+s*dy),'#fff')}
+ return`<svg class="clk" viewBox="0 0 ${N} ${N}" width="116" height="116" shape-rendering="crispEdges">${o.join('')}<g class="h1"><rect x="14" y="7" width="1" height="7" fill="#fff"/><rect x="14" y="7" width="1" height="1" fill="#e0533f"/></g><g class="h2"><rect x="14" y="10" width="1" height="4" fill="#d8d4c8"/></g><rect x="14" y="14" width="1" height="1" fill="${BR[0]}"/></svg>`}
 
 // ui sounds: soft tick on hover, deep click on press, lighter click on release
 const US={};{const R=(a,b)=>a+Math.random()*(b-a);
