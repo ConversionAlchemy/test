@@ -1939,7 +1939,7 @@ NBM.atelier=()=>{const g=Array.from({length:ATL.CH},(_,y)=>Array.from({length:AT
 NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i)=>{const cx=dx+1+i*2;if(cx<ATL.CW-1)mkDoor(k,cx*T,dy*T+T/2+4,0)});const t=U('Curator',null,'civ',2,1.5,0,null,'Clerk')};
 ENVSET.atelier='out';
 // the Arena: spear-duel lane on the centre line, L-shaped cover for gun fights, crowd stand above, roofed pens either side
-const ARN={CW:64,CH:31,lane:17,mk:[25,27,29,34,36,38]},mir=x=>ARN.CW-1-x;
+const ARN={CW:64,CH:31,lane:17,mk:[25,28,35,38]},mir=x=>ARN.CW-1-x;
 MAPSZ.arena=[ARN.CW,ARN.CH];TITLE.arena='Fluoria · The Arena';ENVSET.arena='out';
 // void: solid, drawn black, for everything outside the built area
 const VOIDM={},VOIDC={};
@@ -1947,7 +1947,7 @@ const ROOFS={arena:[[1,11,10,23],[11,16,15,18],[53,11,62,23],[48,16,52,18]]};
 NBM.arena=()=>{const{CW:W0,CH:H0,lane}=ARN,g=Array.from({length:H0},()=>Array(W0).fill('void')),put=(x,y,k)=>{if(g[y]&&x>=0&&x<W0)g[y][x]=k},both=(x,y,k)=>{put(x,y,k);put(mir(x),y,k)},
  rect=(x0,y0,x1,y1,wall,fl)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)put(x,y,x===x0||x===x1||y===y0||y===y1?wall:fl)};
  rect(16,6,47,28,'stone.lime.block.w','stone.aur.slabs');for(let x=17;x<=46;x++)put(x,lane,'stone.lime.paving');for(const x of ARN.mk)put(x,lane,'stone.gold.rosette');
- for(const x of[26,29])for(const y of[14,20])both(x,y,'stone.ver.block.w');
+ for(const x of[25,28])for(const y of[14,20])both(x,y,'stone.ver.block.w');
  const L=(xs,y,xv,ys,k)=>{for(const x of xs)put(x,y,k);for(const yy of ys)put(xv,yy,k)},r=(a,b)=>Array.from({length:b-a+1},(_,i)=>a+i);
  L(r(20,21),10,20,[11],'stone.aur.block.w');L(r(42,43),24,43,[23],'stone.aur.block.w');
  L(r(42,43),10,43,[11],'stone.sand.ashlar.w');L(r(20,21),24,20,[23],'stone.sand.ashlar.w');
