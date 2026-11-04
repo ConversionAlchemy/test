@@ -274,5 +274,11 @@ const VARIANT={Conscript:['Imperial Striped Guard',.2]};
 $('tpr').addEventListener('pointerdown',()=>{const b=bodies[bodies.length-1],v=b&&b.type==='token'&&VARIANT[b.look];if(v&&Math.random()<v[1]){b.look=v[0];b.px=tokPixels(b);mkSet(b)}});
 {const c0=cleanUp;cleanUp=function(){const c=CL;c0();if(c&&c.k==='wand'&&!c.cells.length)US.none()}}
 for(const sc of ZC.querySelectorAll('.sec'))sc.classList.remove('closed');
+// space: tap to run or pause time, hold for slow-mo while held (space + drag still pans)
+{let SP=null;const typing=e=>/INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
+ window.addEventListener('keydown',e=>{if(e.code!=='Space'||e.repeat||typing(e)||SP)return;SP={t:performance.now(),pan:false,slow:false};SP.h=setTimeout(()=>{if(SP&&!SP.pan&&!slowMo){window.toggleSlow();SP.slow=true}},250)});
+ window.addEventListener('pointerdown',()=>{if(!SP)return;SP.pan=true;if(SP.slow){window.toggleSlow();SP.slow=false}},true);
+ window.addEventListener('keyup',e=>{if(e.code!=='Space'||!SP)return;const p=SP;SP=null;clearTimeout(p.h);if(p.slow){if(slowMo)window.toggleSlow()}else if(!p.pan&&performance.now()-p.t<250&&!typing(e)){US.clock();setPlay(PAUSED)}});
+ window.addEventListener('blur',()=>{if(SP&&SP.slow&&slowMo)window.toggleSlow();SP=null})}
 sigil();sgP();pickTool(UT.some(t=>t[0]===UI.tool)?UI.tool:'hand');syncCorner();
 })();
