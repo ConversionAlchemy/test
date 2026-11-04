@@ -328,4 +328,5 @@ window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTARE
  window.addEventListener('keyup',e=>{if(e.code!=='Space'||!SP)return;const p=SP;SP=null;clearTimeout(p.h);if(p.slow){if(slowMo)window.toggleSlow()}else if(!p.pan&&performance.now()-p.t<250&&!typing(e)){US.clock();setPlay(PAUSED)}});
  window.addEventListener('blur',()=>{if(SP&&SP.slow&&slowMo)window.toggleSlow();SP=null})}
 sigil();sgP();pickTool(UT.some(t=>t[0]===UI.tool)?UI.tool:'hand');syncCorner();
+objMat();
 })();
