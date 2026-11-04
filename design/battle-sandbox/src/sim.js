@@ -420,7 +420,8 @@ function mkSet(b){b.set=new Map(b.px.map(p=>[K(p[0],p[1]),p]))}
 // a unit's pixels take their material from what its sprite paints there: steel and gilt plate are metal on armoured classes, the rest cloth (leather on leather-armoured classes)
 const SPRM={};function sprMat(n,unit){const key=n+'|'+unit;if(SPRM[key])return SPRM[key];const u=UNITS[unit]||UNITS.civ,pal=SPR[n].split('|')[0].match(/.../g).map(h=>[parseInt(h[0],16)*17,parseInt(h[1],16)*17,parseInt(h[2],16)*17]);
  return SPRM[key]=pal.map(([r,g,b])=>{if(!u.arm)return'c';if(u.leather)return'l';const l=(r+g+b)/3,st=Math.max(r,g,b)-Math.min(r,g,b);return st<=34&&l>=40&&l<=225||r>=g&&g>b&&g-b>=60&&l>=130?'m':'c'})}
-function tokMat(b){b.matA=b.ang;const n=lookOf(b);if(!n)return;const M=sprMat(n,b.unit);for(const p of b.px){if(p[7]==='f')continue;const sp=sprAt(b,p),m=sp?M[sp[2]]:'c';p[4]=m==='m'?3:0;p[10]=m}}
+const SPRMAT=false;// sprite materials off until each sprite's colours are tagged by hand
+function tokMat(b){b.matA=b.ang;const n=SPRMAT&&lookOf(b);if(!n)return;const M=sprMat(n,b.unit);for(const p of b.px){if(p[7]==='f')continue;const sp=sprAt(b,p),m=sp?M[sp[2]]:'c';p[4]=m==='m'?3:0;p[10]=m}}
 function tokPixels(b){b.matA=null;const u=UNITS[b.unit],px=[];
  for(let dy=-8;dy<=8;dy++)for(let dx=-8;dx<=8;dx++){const d=Math.hypot(dx,dy);if(d>8.3)continue;let r,hp,m=0;
   if(u.arm&&d>7.4-u.arm){r='a';hp=u.cost;m=u.leather?0:3}else if(u.front&&d>5.4){r='f';hp=13;m=3}else if(d>4.4){r='c';hp=1}else if(d>3.5){r='k';hp=3}else{r='h';hp=3}
@@ -825,7 +826,7 @@ function hitBodies(b,s){const bx=Math.round(b.x),by=Math.round(b.y);
    if(w.bullet||w.sharp){if(b.hit&&b.hit.has(o.id))continue;(b.hit||(b.hit=new Set())).add(o.id);
     const dx=b.vx/(s||1),dy=b.vy/(s||1),tip=w.tip||0;let E=w.bullet?b.E:(b.kind==='spear'||b.kind==='sspear'?s*.5:b.kind==='sword'?s*.4:(b.E||s*.22));const fo=w.bullet?fall(b):1;E*=fo*(b.ep||1);
     const pm=o.kind==='crate'?(o.metal?3:2):o.type==='token'?(metalAt(o,b.x+dx*tip,b.y+dy*tip,dx,dy)?3:0):o.mat||0;
-    const r=pierce(o,b.x+dx*tip,b.y+dy*tip,dx,dy,E,b.ap||w.ap||1);if(pm&&!r.blood&&b.kind!=='arc')hitParts(r.x,r.y,pm,dx,dy,b.kind==='pel'?.25:b.kind==='pball'?.4:.55);
+    const r=pierce(o,b.x+dx*tip,b.y+dy*tip,dx,dy,E,b.ap||w.ap||1);if(pm===3&&r.blood&&b.kind!=='arc')b.kind==='pel'?sfxP('ping'):sfx('clink');if((pm===3||pm&&!r.blood)&&b.kind!=='arc')hitParts(r.x,r.y,pm,dx,dy,b.kind==='pel'?.25:b.kind==='pball'?.4:.55);
     if(o.kind==='crate'){sfx(o.metal?'ping':'thunk')}else if(r.blood){dab(FX.blood,r.x,r.y,.6+r.removed*.05,3);b.kind==='pel'?sfxP('squish'):sfx('squish')}else if(w.bullet&&b.kind!=='arc'){if(o.type==='token'&&pm!==3)(b.kind==='pel'?sfxP('thunk',.4):sfx('thunk'));else if(o.type==='token'){const pl=b.kind==='pel';pl?sfxP('ping'):sfx((UNITS[o.unit]?.arm||0)>=2?'plate':'ping')}else{const k=o.mat===3?'ping':o.mat===1?'stonehit':'woodhit';b.kind==='pel'?sfxP(k):sfx(k)}}else sfx(b.kind==='spear'||b.kind==='sspear'?'wedge':'clink');
     o.vx+=dx*.5*b.mass/o.mass;o.vy+=dy*.5*b.mass/o.mass;
     if(b.kind==='arc'){BLU=!!b.blue;if(!r.blood){sfx('boltmetal');metalSparks(r.x,r.y,dx,dy,true)}arcHit(r.x,r.y);cut(o,Math.round(r.x),Math.round(r.y),2*(b.big?1+b.big*.5:1),true,3);if(b.big)arcBlast(r.x,r.y,b.big);BLU=false}
