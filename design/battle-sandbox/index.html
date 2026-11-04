@@ -915,7 +915,7 @@ function cPack(c,extra){const L=(c.inv||[]).filter(Boolean).concat(extra?[extra]
  for(const e of [...E].sort((x,y)=>x.b0-y.b0)){e.L=0;for(const z of E)if(z!==e&&z.b0<e.b0&&z.a0<e.a1&&e.a0<z.a1&&z.Le!==undefined)e.L=Math.max(e.L,z.Le);e.Le=e.L+e.ln}
  for(const e of [...E].sort((x,y)=>x.a0-y.a0)){e.A=0;for(const z of E)if(z!==e&&z.a0<e.a0&&z.b0<e.b1&&e.b0<z.b1&&z.Ae!==undefined)e.A=Math.max(e.A,z.Ae);e.Ae=e.A+e.ac}
  const one=E.length===1&&E[0].a1-E[0].a0===S.NL&&E[0].b1-E[0].b0===S.NS;
- for(const e of E){let A=e.A+e.pad,Lp=e.L;if(one){A=(S.th-e.ac)>>1;Lp=(S.vert?S.g.gh:S.g.gw)-e.ln>>1}if(S.vert){e.p.gx=A;e.p.gy=Lp}else{e.p.gx=Lp;e.p.gy=A}}
+ for(const e of E){const ext=Math.max(...E.filter(z=>z.b0<e.b1&&e.b0<z.b1).map(z=>z.Ae));let A=e.A+e.pad+((S.th-ext)>>1),Lp=e.L;if(one){A=(S.th-e.ac)>>1;Lp=(S.vert?S.g.gh:S.g.gw)-e.ln>>1}if(S.vert){e.p.gx=A;e.p.gy=Lp}else{e.p.gx=Lp;e.p.gy=A}}
  return res}
 const cSig=c=>c.inv.map(q=>q?q.k:'').join();
 function cApply(c){const r=cPack(c);if(r)for(const[q,p]of r)Object.assign(q,p,{v:9});c._sig=cSig(c);return!!r}
