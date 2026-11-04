@@ -41,6 +41,15 @@ function tilePix(key,cx,cy){if(TEX[key]){const d=new Uint8ClampedArray(T*T*4);fo
  const d=g.getImageData(0,0,T,T).data,k=key==='stone'?.84:KIND[key]==='wall'?.64:key==='seat'||key==='carpet'?.25:key==='gfloor'?.15:key==='table'?.3:key==='sky'?.05:.42,lift=key==='stone'?1.3:key==='pillar'?1.05:1;let r=0,gg=0,b=0;
  for(let i=0;i<d.length;i+=4){r+=d[i];gg+=d[i+1];b+=d[i+2]}r/=T*T;gg/=T*T;b/=T*T;
  for(let i=0;i<d.length;i+=4){d[i]=cl((d[i]+(r-d[i])*k)*lift);d[i+1]=cl((d[i+1]+(gg-d[i+1])*k)*lift);d[i+2]=cl((d[i+2]+(b-d[i+2])*k)*lift)}return d}
+// every tile has one material; custom textures take their recipe's, or their parent's. Hit class: 1 stone, 2 wood, 3 metal
+let EDOK=false;
+const BMAT={flag:'stone',slab:'stone',stone:'stone',gstone:'stone',pave:'stone',sill:'stone',marble:'marble',dmarble:'marble',bkmarble:'marble',bkslab:'marble',pillar:'marble',gtile:'marble',omarble:'marble',msill:'marble',
+ planks:'wood',pplanks:'wood',dplanks:'wood',wood:'wood',dwood:'wood',ewood:'wood',rail:'wood',table:'wood',desk:'wood',edesk:'wood',chest:'wood',rack:'wood',wagon:'wood',books:'wood',seat:'wood',
+ carpet:'cloth',gcarpet:'cloth',pcarpet:'cloth',grass:'grass',bush:'grass',crop:'grass',dirt:'soil',berm:'soil',sky:'soil',
+ metal:'metal',mplate:'metal',iron:'metal',brass:'metal',mpanel:'metal',mfloor:'metal',gfloor:'metal',shelf:'metal',mchest:'metal'};
+function matK(k){if(!k)return'stone';if(/[HNS]$/.test(k)&&WMAT[k.slice(0,-1)])k=k.slice(0,-1);if(EDOK){const m=MODS.tex[k];if(m)return m.rec?m.rec.mat==='plaster'?'stone':m.rec.mat:matK(m.from);
+ if(CATN[k]){const[el,mm]=CATN[k];return el==='Stone'?(ELEM.Stone.mats[mm][2]?'marble':'stone'):el==='Wood'?'wood':el==='Metal'?'metal':el==='Cloth'?'cloth':mm==='dirt'||mm==='wheat'?'soil':'grass'}}return BMAT[k]||'stone'}
+const hitCls=m=>m==='metal'?3:m==='stone'||m==='marble'||m==='soil'?1:2;
 const WMAT={ewood:2,mpanel:3,bush:2,stone:1,gstone:1,pillar:1,berm:1,rail:2,wood:2,dwood:2,metal:3,mplate:3,iron:3,brass:3};
 const SHINE={bkmarble:22,bkslab:22,gtile:28,omarble:28,mpanel:70,metal:70,mplate:70,iron:45,brass:80,mfloor:50,marble:28,dmarble:28,gfloor:80,gstone:20,pillar:28,msill:28,shelf:80};
 let HALFF='dirt';
@@ -67,7 +76,7 @@ function boards(){const seen=new Set();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<C
 const NOB=new Set(['grass','dirt','sky','bush','carpet','pcarpet','sill','msill']);
 function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>map[y]&&map[y][x]!==undefined&&map[y][x]!==k;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);if(d>(WMAT[k]===3?2:1))continue;const j=(cy*T+y)*W+cx*T+x,mt=WMAT[k]===3,f=mt?[.7,1.3,.88][d]:d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
-const FMAT={metal:3,stone:1,tile:1},fmat=k=>{try{return FMAT[matOf(k)]||2}catch(e){return k==='shelf'||k==='mchest'?3:2}};
+const fmat=k=>hitCls(matK(k));
 function objMat(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k)continue;const m=fmat(k);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;if(OBJ[j])OBJ[j]=m}}}
 // furniture and fixtures: above the floor, block walking, bullets pass over, blasts break them
 const OBJK=new Set(['table','desk','edesk','books','shelf','chest','mchest','rack','wagon']),ONAME={mchest:'Iron chest',wagon:'Wagon',edesk:'Desk',books:'Shelves',table:'Table',desk:'Desk',seat:'Chair',shelf:'Vault shelf',chest:'Chest',rack:'Rack'};let OM=[];
@@ -95,7 +104,7 @@ function inlays(){const ring=(X0,Y0,R)=>{for(let Y=Y0-R-2;Y<=Y0+R+2;Y++)for(let 
  ring(240,408,40)}
 function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;if(k==='table'){for(const it of items||[]){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.k==='gold')w.amt=it.n;else if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}return null}const pc=PCS.get(cy*CW+cx),cells=pc?pc.cells.slice():[],seen=new Set([cy*CW+cx]),q=pc?[]:[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}
  const xs=cells.map(c=>c[0]),ys=cells.map(c=>c[1]),box=[Math.min(...xs)*T,Math.min(...ys)*T,(Math.max(...xs)+1)*T-1,(Math.max(...ys)+1)*T-1],c=weapon('crate',(box[0]+box[2])/2,(box[1]+box[3])/2,0);
- c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.inv=items.map(i=>({...i}));while(c.inv.length<cells.length)c.inv.push(null);c.cap=cells.length;c.cells=cells;c.box=box;c.n0=cells.length*T*T;c.metal=k==='shelf'||k==='mchest';return c}
+ c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.inv=items.map(i=>({...i}));while(c.inv.length<cells.length)c.inv.push(null);c.cap=cells.length;c.cells=cells;c.box=box;c.n0=cells.length*T*T;c.metal=fmat(k)===3;return c}
 const containerAt=(X,Y)=>{const cx=X/T|0,cy=Y/T|0;if(!OBJ[Y*W+X])return null;return bodies.find(o=>o.hidden&&o.cells.some(c=>c[0]===cx&&c[1]===cy))||null};
 const EDG=new Set();
 function cutEdges(x,y,R){const x0=Math.max(1,Math.floor(x-R-3)),x1=Math.min(W-2,Math.ceil(x+R+3)),y0=Math.max(1,Math.floor(y-R-3)),y1=Math.min(H-2,Math.ceil(y+R+3)),add=[];
@@ -1057,8 +1066,8 @@ function aiDodge(){for(const w of bodies){if(w.type!=='weapon'||!w.thrown||w.stu
 function wasd(){slabTurn();let dx=(keys.has('d')?1:0)-(keys.has('a')?1:0),dy=(keys.has('s')?1:0)-(keys.has('w')?1:0);if(!dx&&!dy)return;const l=Math.hypot(dx,dy);dx/=l;dy/=l;let moved=0,arm=0,gx=0,gy=0;
  for(const b of sel){if(b.type!=='token'||b.status==='dead'||inDrag(b)||b.pinned||cmdMode(b))continue;const u=UNITS[b.unit],hv=b.held&&(b.held.k==='rod'||b.held.k==='prod'),el=b.unit==='guard'||b.unit==='shock'||b.unit==='cmd',sp=.85*(1-u.arm*.07)*(!hv?1:b.unit==='civ'?(charge?.3:.55):el?(charge?.6:.92):(charge?.42:.8))*(b.pushT>=tick-2?(u.arm<=1?[.75,.45,.3]:[.85,.7,.55])[(b.pushM||1)-1]:1);b.glide=null;const cr=b.crouch?.4:1,md=moveToward(b,b.x+dx*sp*cr,b.y+dy*sp*cr);if(md>.1){moved=Math.max(moved,md);b.mv=6;arm=Math.max(arm,u.arm);gx=b.x;gy=b.y}}
  if(moved){stepAcc+=moved;if(stepAcc>=28+Math.random()*3){stepAcc=0;sfx('st_'+groundEl(gx,gy));if(arm)sfx('jingle')}}}
-const GEL={gfloor:'metal',bkmarble:'marble',bkslab:'marble',gtile:'marble',gcarpet:'carpet',pcarpet:'carpet',crop:'grass',planks:'wood',pplanks:'wood',dplanks:'wood',mfloor:'metal',marble:'marble',dmarble:'marble',omarble:'marble',msill:'marble',carpet:'carpet',grass:'grass',dirt:'dirt'};
-function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return GEL[k]||stepEl(k)||(k&&k.endsWith('H')?'dirt':'stone')}
+const STEP={marble:'marble',stone:'stone',wood:'wood',metal:'metal',cloth:'carpet',soil:'dirt',grass:'grass'};
+function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return k&&k.endsWith('H')&&WMAT[k.slice(0,-1)]?'dirt':STEP[matK(k)]}
 let lastHud='';
 let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
 function moveItem(from,i,to){const q=from.inv&&from.inv[i];if(!q||!to.inv)return;const one={k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}
