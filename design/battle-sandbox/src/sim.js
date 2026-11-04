@@ -310,31 +310,32 @@ function buildDocks(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
    if((cx===5&&cy===9)||(cx===9&&cy===10))k='stone';if(cx===11&&(cy===6||cy===7)||cx===8&&cy===12||cx===11&&cy===12||cx===16&&(cy===6||cy===7))k='chest'}
   paintCell(cx,cy,k)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
-function crate(x,y,items,long){items=(items||[]).filter(Boolean);if(long===undefined)long=items.some(q=>foot(q.k)[0]>2)||items.reduce((a,q)=>a+(q.k==='gold'?1:(q.n||1)*foot(q.k)[0]*foot(q.k)[1]),0)>4;const c=weapon('crate',x,y,0);c.name='Crate';if(long){c.long=true;c.px=shape('lcrate',0);mkSet(c)}c.si=-1;cFill(c,items);return c}
-// storage is space: each item has a footprint on a grid of small cells and lies where it fits
-const CELL=5,FOOT={musket:[3,1],rod:[3,1],spear:[3,1],sspear:[3,1],blunder:[2,1],pgun:[2,1]},foot=k=>FOOT[k]||[1,1];
-function cGeo(c){if(!c.box){const gw=c.long?3:2;return{gw,gh:2,cs:4,ox:Math.round(c.x)-gw*2,oy:Math.round(c.y)-4,ok:()=>true}}
- const bw=c.box[2]-c.box[0]+1,bh=c.box[3]-c.box[1]+1,gw=bw/CELL|0,gh=bh/CELL|0,ox=c.box[0]+((bw-gw*CELL)>>1),oy=c.box[1]+((bh-gh*CELL)>>1),tl=new Set(c.cells.map(([a,b])=>b*CW+a));
- return{gw,gh,cs:CELL,ox,oy,ok:(x,y)=>{const X=ox+x*CELL+2,Y=oy+y*CELL+2;return tl.has((Y/T|0)*CW+(X/T|0))}}}
+function crate(x,y,items,long){items=(items||[]).filter(Boolean);const c=weapon('crate',x,y,0);if(long===undefined)long=!cFitsAll(c,items);c.name='Crate';if(long){c.long=true;c.px=shape('lcrate',0);mkSet(c)}c.si=-1;cFill(c,items);return c}
+// storage is space: items keep their real size and lie wherever their outline fits, turned if needed
+const FTC={},foot=k=>{if(FTC[k])return FTC[k];if(!WP[k])return FTC[k]=[5,6];let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of shape(k,0)){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}return FTC[k]=[x1-x0+1,y1-y0+1]};
+function cGeo(c){if(!c.box){const hw=c.long?15:5;return{gw:2*hw-1,gh:9,cs:1,ox:Math.round(c.x)-hw+1,oy:Math.round(c.y)-4,ok:()=>true}}
+ const ox=c.box[0]+1,oy=c.box[1]+1,gw=c.box[2]-c.box[0]-1,gh=c.box[3]-c.box[1]-1,tl=new Set(c.cells.map(([a,b])=>b*CW+a));
+ return{gw,gh,cs:1,ox,oy,ok:(x,y)=>{const X=ox+x,Y=oy+y,cx=X/T|0,cy=Y/T|0,lx=X-cx*T,ly=Y-cy*T,h=(a,b)=>tl.has(b*CW+a);return h(cx,cy)&&!(lx<1&&!h(cx-1,cy))&&!(lx>=T-1&&!h(cx+1,cy))&&!(ly<1&&!h(cx,cy-1))&&!(ly>=T-1&&!h(cx,cy+1))}}}
 const cRect=q=>{const[w,h]=foot(q.k);return q.r?[h,w]:[w,h]};
-function cFit(c,k,skip){const g=cGeo(c),used=new Set();for(const q of c.inv||[])if(q&&q!==skip&&q.gx!==undefined){const[w,h]=cRect(q);for(let y=0;y<h;y++)for(let x=0;x<w;x++)used.add((q.gy+y)*64+q.gx+x)}
- const[w0,h0]=foot(k);for(const r of w0===h0?[0]:[0,1]){const w=r?h0:w0,h=r?w0:h0;for(let y=0;y+h<=g.gh;y++)for(let x=0;x+w<=g.gw;x++){let f=true;for(let b=0;b<h&&f;b++)for(let a=0;a<w;a++)if(used.has((y+b)*64+x+a)||!g.ok(x+a,y+b)){f=false;break}if(f)return{gx:x,gy:y,r}}}return null}
-function cAdd(c,it){c.inv=c.inv||[];if(it.k==='gold'){const m=c.inv.find(q=>q&&q.k==='gold');if(m){m.n+=it.n;return true}}const p=cFit(c,it.k);if(!p)return false;const q={...it,n:it.k==='gold'?it.n:1,...p};delete q.mode;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);return true}
+function cFit(c,k,skip){const g=cGeo(c),U=new Uint8Array(g.gw*g.gh);for(let y=0;y<g.gh;y++)for(let x=0;x<g.gw;x++)if(!g.ok(x,y))U[y*g.gw+x]=1;
+ for(const q of c.inv||[])if(q&&q!==skip&&q.gx!==undefined){const[w,h]=cRect(q);for(let y=q.gy;y<Math.min(g.gh,q.gy+h);y++)for(let x=q.gx;x<Math.min(g.gw,q.gx+w);x++)U[y*g.gw+x]=1}
+ const[w0,h0]=foot(k);for(const r of w0===h0?[0]:w0>h0&&g.gh>g.gw?[1,0]:[0,1]){const w=r?h0:w0,h=r?w0:h0;for(let y=0;y+h<=g.gh;y++)for(let x=0;x+w<=g.gw;x++){let f=true;for(let b=0;b<h&&f;b++)for(let a=0;a<w;a++)if(U[(y+b)*g.gw+x+a]){f=false;break}if(f)return{gx:x,gy:y,r}}}return null}
+function cAdd(c,it){c.inv=c.inv||[];if(it.k==='gold'){const m=c.inv.find(q=>q&&q.k==='gold');if(m){m.n+=it.n;return true}}const p=cFit(c,it.k);if(!p)return false;const q={...it,n:it.k==='gold'?it.n:1,...p,v:2};delete q.mode;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);return true}
 function cFill(c,items){c.inv=[];for(const it of items||[]){if(!it)continue;const n=it.k==='gold'||it.k==='note'?1:it.n||1;for(let i=0;i<n;i++){const one={...it};if(one.k!=='gold')one.n=1;delete one.gx;delete one.gy;delete one.r;if(!cAdd(c,one))cSpill(c,one)}}}
+const cFitsAll=(c,items)=>{const t={x:c.x,y:c.y,long:c.long,box:c.box,cells:c.cells,inv:[]};for(const it of items)for(let i=0;i<(it.k==='gold'||it.k==='note'?1:it.n||1);i++)if(!cAdd(t,{...it,n:it.k==='gold'?it.n:1}))return false;return true};
 function cSpill(c,q){if(q.k==='note'){placeNote(q,c.x,c.y+(c.box?(c.box[3]-c.y)+6:10));return}if(!WP[q.k])return;const a=Math.random()*6.283,w=weapon(q.k,c.x+Math.cos(a)*10,c.y+(c.box?(c.box[3]-c.y)+6:Math.sin(a)*10),a);if(q.k==='gold')w.amt=q.n;if(CAP[q.k]){w.ammo=q.ammo??CAP[q.k];w.res=q.res||0}w.noPick=tick+120}
-const cNorm=c=>{if(c&&c.inv&&c.inv.some(q=>q&&q.gx===undefined))cFill(c,c.inv.filter(Boolean))};
-const ICN=new Map();function itemPix(k,r,w,h){const key=k+r+w+'x'+h;if(ICN.has(key))return ICN.get(key);let px=k==='note'?null:WP[k]?shape(k,r?Math.PI/2:0):null,o=[];
- if(!px){for(let y=0;y<h;y++)for(let x=0;x<w;x++)o.push([x,y,(x===0||y===0||x===w-1||y===h-1)?rgb(170,158,128):rgb(226,214,184)])}
- else{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of px){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}const bw=x1-x0+1,bh=y1-y0+1,f=Math.min(1,w/bw,h/bh),m=new Map(),dx=(w-Math.max(1,Math.round(bw*f)))>>1,dy=(h-Math.max(1,Math.round(bh*f)))>>1;
-  for(const p of px){const X=Math.min(w-1,dx+Math.floor((p[0]-x0)*f)),Y=Math.min(h-1,dy+Math.floor((p[1]-y0)*f));m.set(Y*64+X,p[2])}for(const[k2,col]of m)o.push([k2%64,k2/64|0,col])}
+const cNorm=c=>{if(c&&c.inv&&c.inv.some(q=>q&&(q.gx===undefined||q.v!==2)))cFill(c,c.inv.filter(Boolean).map(q=>({...q,v:2})))};
+const ICN=new Map();function itemPix(k,r){const key=k+r;if(ICN.has(key))return ICN.get(key);const[w,h]=foot(k),o=[];
+ if(!WP[k]){for(let y=0;y<h;y++)for(let x=0;x<w;x++)o.push([x,y,(x===0||y===0||x===w-1||y===h-1)?rgb(170,158,128):(y%2?rgb(226,214,184):rgb(200,190,164))])}
+ else{const px=shape(k,0);let x0=1e9,y0=1e9;for(const p of px){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1])}for(const p of px){const a=p[0]-x0,b=p[1]-y0;o.push(r?[h-1-b,a,p[2]]:[a,b,p[2]])}}
  ICN.set(key,o);return o}
 let SDR=null;
 const storesShown=()=>{const L=[];for(const c of [openCrate,hoverC])if(c&&c.inv&&bodies.includes(c)&&!L.includes(c))L.push(c);for(const b of bodies)if(b.kind==='crate'&&!b.hidden&&(b.open||b===hover)&&!L.includes(b))L.push(b);if(SDR&&!L.includes(SDR.c))L.push(SDR.c);return L};
 function storeHit(X,Y){for(const c of storesShown()){cNorm(c);const g=cGeo(c);for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q)continue;const[w,h]=cRect(q),x=g.ox+q.gx*g.cs,y=g.oy+q.gy*g.cs;if(X>=x&&Y>=y&&X<x+w*g.cs&&Y<y+h*g.cs)return{c,i}}}return null}
 function drawStores(){for(const c of storesShown()){cNorm(c);const g=cGeo(c),open=!c.box&&c.open;
-  if(c.box||!open)for(let y=0;y<g.gh*g.cs;y++)for(let x=0;x<g.gw*g.cs;x++){if(!g.ok(x/g.cs|0,y/g.cs|0))continue;const X=g.ox+x,Y=g.oy+y;if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X,ln=x%g.cs===g.cs-1||y%g.cs===g.cs-1;out[j]=mul(out[j],ln?.32:.42)}
-  for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q||SDR&&SDR.c===c&&SDR.i===i)continue;const[w,h]=cRect(q),ip=itemPix(q.k,q.r,w*g.cs-1,h*g.cs-1),bx=g.ox+q.gx*g.cs,by=g.oy+q.gy*g.cs;for(const[a,b]of ip){const X=bx+a+1,Y=by+b+1;if(X<W&&Y<H)out[Y*W+X]=mul(out[Y*W+X],.5)}for(const[a,b,col]of ip){const X=bx+a,Y=by+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}
- if(SDR){const q=SDR.c.inv[SDR.i];if(q){const[w,h]=cRect(q),cs=SDR.c.box?CELL:4;for(const[a,b,col]of itemPix(q.k,q.r,w*cs-1,h*cs-1)){const X=Math.round(mouse.x-w*cs/2)+a,Y=Math.round(mouse.y-h*cs/2)+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}}
+  if(c.box||!open)for(let y=0;y<g.gh*g.cs;y++)for(let x=0;x<g.gw*g.cs;x++){if(!g.ok(x/g.cs|0,y/g.cs|0))continue;const X=g.ox+x,Y=g.oy+y;if(X<0||Y<0||X>=W||Y>=H)continue;out[Y*W+X]=mul(out[Y*W+X],.42)}
+  for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q||SDR&&SDR.c===c&&SDR.i===i)continue;const[w,h]=cRect(q),ip=itemPix(q.k,q.r),bx=g.ox+q.gx*g.cs,by=g.oy+q.gy*g.cs;for(const[a,b]of ip){const X=bx+a+1,Y=by+b+1;if(X<W&&Y<H)out[Y*W+X]=mul(out[Y*W+X],.5)}for(const[a,b,col]of ip){const X=bx+a,Y=by+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}
+ if(SDR){const q=SDR.c.inv[SDR.i];if(q){const[w,h]=cRect(q);for(const[a,b,col]of itemPix(q.k,q.r)){const X=Math.round(mouse.x-w/2)+a,Y=Math.round(mouse.y-h/2)+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}}
 function unitsDocks(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
  face(token('Corvan','Imperium','shock',56,50,false,'pgun'),dn);face(token('Varn','Imperium','shock',122,50,false,'spear'),dn);face(token('Kade','Imperium','shock',168,50,false,'pgun'),dn);
  face(token('Aurel','Imperium','rifle',36,26),dn);face(token('Ostra','Imperium','guard',96,26,true),dn);face(token('Mira','Imperium','cmd',196,26),dn);face(token('Ivo','Imperium','rifle',248,26),dn);
@@ -506,7 +507,7 @@ function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(
  if(kind==='crossbow'){st(-8,6,.5,()=>C.lw);for(let u=-5;u<=5;u+=.5)m.set(K(Math.round(c*3.5-s*u),Math.round(s*3.5+c*u)),C.lwD)}
  if(kind==='ball')m.set(K(0,0),C.lead);
  if(kind==='gold'){for(const[ox,oy]of[[-4,0],[0,0],[-2,-2]])for(let y=0;y<2;y++)for(let x=0;x<4;x++)m.set(K(ox+x,oy+y),y===0?rgb(250,214,90):rgb(190,146,40))}
- if(kind==='crate'||kind==='lcrate'){const hw=kind==='lcrate'?7:5;for(let y=-5;y<=5;y++)for(let x=-hw;x<=hw;x++){const e=Math.abs(x)===hw||Math.abs(y)===5;m.set(K(x,y),e?C.woodD:(x===y||x===-y)?mul(C.wood,.82):(y+5)%3===0?mul(C.wood,.9):C.woodH)}}
+ if(kind==='crate'||kind==='lcrate'){const hw=kind==='lcrate'?15:5;for(let y=-5;y<=5;y++)for(let x=-hw;x<=hw;x++){const e=Math.abs(x)===hw||Math.abs(y)===5;m.set(K(x,y),e?C.woodD:(x===y||x===-y)?mul(C.wood,.82):(y+5)%3===0?mul(C.wood,.9):C.woodH)}}
  if(kind==='mbox'||kind==='pbox'||kind==='sbox'){const t=kind==='mbox'?rgb(176,140,90):kind==='pbox'?rgb(150,120,80):rgb(120,110,96);for(let y=-3;y<=3;y++)for(let x=-5;x<=5;x++)m.set(K(x,y),Math.abs(y)===3||Math.abs(x)===5||y===0?mul(t,.68):t)}
  if(kind==='rbox'){for(let y=-2;y<=2;y++)for(let x=-6;x<=6;x++)m.set(K(x,y),x===-3||x===3?rgb(40,42,48):y%2?rgb(140,144,152):rgb(184,188,196))}
  if(kind==='cell'){for(let y=-4;y<=4;y++)for(let x=-2;x<=2;x++)m.set(K(x,y),Math.abs(x)===2||Math.abs(y)===4?rgb(36,48,84):y<-1?rgb(140,205,255):rgb(70,100,170))}
@@ -584,7 +585,7 @@ function drawCape(b,lift){const a=b.ang||0,c=Math.cos(a),s=Math.sin(a),bx=Math.r
 const cape=(ox,oy)=>{const v=vn(ox/2,oy*1.5,77);return mul(rgb(42,94,62),.82+v*.3)};
 function pcol(b,p){let c;const r=p[7],ox=p[8],oy=p[9],u=UNITS[b.unit]||UNITS.civ;
  if(b.type==='token'){const q=sprAt(b,p);if(q!==undefined){if(!q)return 0;c=neutralTone(b,r==='x'?mul(q[0],.7):q[0],p);if(p[3]<p[6])c=mul(c,.6+.4*p[3]/p[6]);if(p[5]>.01)c=mix(c,glow(p[5]),Math.min(1,p[5]*1.6));return c}}
- if(r==='x'||b.type==='weapon'){c=p[2];const hw=b.long?7:5;if(b.kind==='crate'&&b.metal&&!(b.open&&Math.abs(ox)<hw&&Math.abs(oy)<5))c=mix(grey(c),rgb(152,158,170),.45);if(b.kind==='crate'&&b.open&&Math.abs(ox)<hw&&Math.abs(oy)<5)c=Math.abs(ox)===hw-1||Math.abs(oy)===4?mul(C.woodD,.75):(oy+5)%3===0?mul(C.woodD,.45):mul(C.woodD,.6);const sth=b.th||8,sln=b.len||16;if(b.type==='slab'&&!b.free&&ox>=0&&oy>=-(sth>>1)-1&&oy<=-(sth>>1)){if(ox>=1&&ox<=2)c=b.mat===3?rgb(62,64,70):rgb(170,172,176);else if(ox>=sln-5&&ox<=sln-4&&!b.lockBroken)c=b.locked?rgb(240,140,40):rgb(150,92,44)}}
+ if(r==='x'||b.type==='weapon'){c=p[2];const hw=b.long?15:5;if(b.kind==='crate'&&b.metal&&!(b.open&&Math.abs(ox)<hw&&Math.abs(oy)<5))c=mix(grey(c),rgb(152,158,170),.45);if(b.kind==='crate'&&b.open&&Math.abs(ox)<hw&&Math.abs(oy)<5)c=Math.abs(ox)===hw-1||Math.abs(oy)===4?mul(C.woodD,.75):(oy+5)%3===0?mul(C.woodD,.45):mul(C.woodD,.6);const sth=b.th||8,sln=b.len||16;if(b.type==='slab'&&!b.free&&ox>=0&&oy>=-(sth>>1)-1&&oy<=-(sth>>1)){if(ox>=1&&ox<=2)c=b.mat===3?rgb(62,64,70):rgb(170,172,176);else if(ox>=sln-5&&ox<=sln-4&&!b.lockBroken)c=b.locked?rgb(240,140,40):rgb(150,92,44)}}
  else if(r==='a'){if(u.leather){c=u.ac;const v=hh(ox,oy,3);c=mul(c,.96+v*.08);if(ox+oy<-5)c=mul(c,1.14);else if(ox+oy>5)c=mul(c,.84)}else{const q=metalCore(ox*2+b.id*13,oy*2),d=Math.hypot(ox,oy);const gb=b.nat==='Goldbank';c=gb?mix(rgb(cl(q[0]),cl(q[1]),cl(q[2])),b.unit==='shock'?rgb(178,140,64):b.unit==='guard'?rgb(222,186,96):rgb(200,164,84),.66):mix(rgb(cl(q[0]),cl(q[1]),cl(q[2])),u.ac,u.dark?.75:.45);c=mul(c,1+(-(ox+oy)/16)*(u.dark?.12:.22));if(d>7.8)c=mul(c,.72);else if(d>7.4-u.arm+.6&&d<7.4-u.arm+1.4)c=mul(c,1.12)}
   const fa=ox*Math.cos(b.ang||0)+oy*Math.sin(b.ang||0),sa=-ox*Math.sin(b.ang||0)+oy*Math.cos(b.ang||0);
   if(u.rivet&&hh(ox,oy,21)>.86)c=b.nat==='Goldbank'?rgb(250,226,150):rgb(201,164,70);
