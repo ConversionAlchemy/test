@@ -233,7 +233,7 @@ function aeUI(){APAL.innerHTML='';APAL.append(apal);aeToolbar();aePalette();aeRi
 
 // hand of god: hotbar under the chosen unit, chest bar when it stands by one, camera follows a unit under direct control
 const HCX=mk('div','hcx'),HB=mk('div','hbar'),CB=mk('div','hbar cbar'),HCO=mk('div','callout');$('stage').append(HCO);ZC.append(HCX);let hbK='',cbK='',hbSi=null,hbId=null,hbAm=null,hbHeld=false;
-function callout(q,dim){HCO.innerHTML='';HCO.append(itemName(q));const a=dim===''?'':dim||(CAP[q.k]?(q.ammo??CAP[q.k])+' / '+(q.res||0):'');if(a)HCO.append(mk('i',null,a));HCO.classList.remove('go');void HCO.offsetWidth;HCO.classList.add('go')}
+function callout(q,dim){HCO.innerHTML='';const a=dim===''?'':dim||(CAP[q.k]?(q.ammo??CAP[q.k])+' / '+(q.res||0):'');if(a)HCO.append(a);else HCO.append(itemName(q));HCO.classList.remove('go');void HCO.offsetWidth;HCO.classList.add('go')}
 window.addEventListener('keydown',e=>{if(e.key.toLowerCase()!=='r'||e.repeat||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;const tk=[...sel].find(o=>o.type==='token'),q=tk&&tk.inv[tk.si];if(q&&CAP[q.k]&&!q.res&&(q.ammo??CAP[q.k])<CAP[q.k])callout(q,'no spare ammo');else if(q&&CAP[q.k]&&(q.ammo??CAP[q.k])>=CAP[q.k])callout(q)});
 const SILK=['musket','pistol','grenade','rod'];
 function sicon(k,w=42,h=30){const px=shape(k,0),c=mk('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),id=g.createImageData(w,h),u=new Uint32Array(id.data.buffer);let mx=0,my=0,x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(const p of px){mx+=p[0];my+=p[1];x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}mx/=px.length;my/=px.length;
