@@ -12,6 +12,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 
 - Corner: the brass clock runs and pauses time (Space taps it; hold Space for slow-mo while held) (paused on load); red key resets to the last save; 1×/½× is slow-mo; the sigil opens Map settings.
 - Tools (right panel): Command (select and control units; the panel shows the chosen unit's hotbar and toggles, with a nearby chest's contents above it, Shift+click a slot to put it in the chest; the camera follows a unit under direct control), Spawner (units, weapons, items, cover; the dropper copies a placed unit and places copies until Esc), Tiler (tiles, furniture, doors; the dropper picks a tile off the map), Sign (pick a material, place a plate; a sign with no text isn't kept), Painter (blood, scorch, soot, dirt, water, paint), Vacuum, Sponge, Wand, Tether (rope or chain: hover shows a green node on a unit, a wall face or a floor centre; click one end, stretch, click the other; past its reach it drags the unit along; Esc cancels, or returns to Command when nothing is being tied).
+- Keys: Esc Command (from any tool), B Spawner, N Tiler, P Painter, L Sign, K Tether, M Wand, U Vacuum, O Sponge.
 - Bottom: map, Save, Asset Editor and Map settings popups (drag by the title, ✕ or Esc closes).
 - Map settings: name, location, owner, size, wall tops, new, delete, export, import. Doors with no keys of their own open for the owner's side; chests belong to no one.
 - Spawned conscripts sometimes turn out in the Imperial striped guard.
