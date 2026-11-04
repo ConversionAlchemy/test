@@ -208,7 +208,8 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .hlab{font-size:18px;padding:2px 2px 0}#sm .hcx .hpan{align-self:flex-start}#sm .hcx .frm{margin-top:6px}
 #sm .hg.cg{flex-wrap:wrap;max-width:300px}
 #sm .sgp{opacity:.6;pointer-events:none;display:none}
-</style><style>#sm .hcx .frm{grid-template-columns:130px 1fr}</style><script>
+</style><style>#sm .hcx .frm{grid-template-columns:130px 1fr}</style><style>#sm .ch .sz{margin-left:auto;width:auto;padding:0 8px;font-size:16px}#sm .ch .sz+.drp{margin-left:0}#sm .tb.lite.on{background:#f2efe6}</style><style>#sm .callout i{font-style:normal;color:#9a968a;margin-left:6px}</style><style>#sm .tcx>.tabs:first-child button{flex:auto;padding:0 4px}</style>
+<script>
 const T=16;
 const hh=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)};
 const wrap=v=>((v%T)+T)%T;
@@ -2419,11 +2420,11 @@ const US={};{const R=(a,b)=>a+Math.random()*(b-a);
 // layout
 const SM=$('sm'),SIDE0=document.querySelector('#sm .side'),VIEW=$('stage').parentElement;
 const ZT=mk('div','zone zt'),ZC=mk('div','zone zc'),ZS=mk('div','zone zs');
-{const g=mk('div','tgrid');for(const[k,n]of UT){const b=ubtn('','tb',()=>pickTool(k));b.dataset.k=k;b.append(uicon(k),mk('span',null,n));g.append(b)}ZT.append(g)}
+{const g=mk('div','tgrid');for(const[k,n]of UT){const b=ubtn('','tb'+(k==='hand'?' lite':''),()=>pickTool(k));b.dataset.k=k;b.append(uicon(k),mk('span',null,n));g.append(b)}ZT.append(g)}
 const TH=mk('div','ch');ZC.append(TH,...SIDE0.children);SIDE0.append(ZT,ZC,ZS);
 VIEW.append(mk('div','frame'));
 // tool header with optional dropper
-function head(k){TH.innerHTML='';const n=UT.find(t=>t[0]===k)[1];TH.append(uicon(k),mk('span',null,n));if(k==='tile'||k==='spawn'){const d=ubtn('','drp',()=>armDrop(k));d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);TH.append(d)}}
+function head(k){TH.innerHTML='';const n=UT.find(t=>t[0]===k)[1];TH.append(uicon(k),mk('span',null,n));if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','drp sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});TH.append(z)}if(k==='tile'||k==='spawn'){const d=ubtn('','drp',()=>armDrop(k));d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);TH.append(d)}}
 
 // settings zone: map, save, popups
 {const ms=$('msel');ms.classList.add('wide');const sv=ubtn('Save','',x=>{mapSave(false);flashB(sv,'Saved')});
@@ -2452,19 +2453,21 @@ function pickTool(k){if(UI.pop==='ae'||UI.pop==='sign')closePop();UI.tool=k;LS.s
  for(const b of ZT.querySelectorAll('.tb'))b.classList.toggle('on',b.dataset.k===k);
  if(k==='vac'||k==='sponge'||k==='wand')edBrush={t:'clean',k};else if(k==='tile')edBrush=UI.tile?{...UI.tile}:null;else if(m)edBrush=null;
  head(k);if(k==='tile')tilerCtx();if(k==='spawn')spawnCtx();if(k==='paint')paintCtx();if(k==='sign')signCtx();cv.style.cursor=k==='vac'||k==='sponge'||k==='wand'?TOOLCUR[k]||'crosshair':m?'crosshair':CUR.arrow}
-{const s0=setMode;setMode=function(m){s0(m);SM.dataset.tool=UI.tool;if(m==='map')for(const id of['ed-fu','ed-dr'])$(id)&&TCX.append($(id))}}
+{const s0=setMode;setMode=function(m){s0(m);SM.dataset.tool=UI.tool;for(const id of['ed-fu','ed-dr'])$(id)&&AEH0.append($(id))}}
 
 // tiler: element tabs, a swatch per material and variation, name and floor or wall
-const TCX=mk('div','tcx');ZC.append(TCX);
-function tilerCtx(){TCX.innerHTML='';const tabs=mk('div','tabs');for(const[t,n]of[['tiles','Tiles'],['furn','Furniture'],['door','Doors']]){const b=ubtn(n,UI.tt===t?'on':'',()=>{UI.tt=t;tilerCtx()});tabs.append(b)}TCX.append(tabs);SM.dataset.tt=UI.tt;
- if(UI.tt==='tiles'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)),els=[...EORDER,...(mods.length?['Mods']:[])],et=mk('div','tabs');
+const TCX=mk('div','tcx');ZC.append(TCX);const AEH0=mk('div');AEH0.style.display='none';SM.append(AEH0);
+function tilerCtx(){TCX.innerHTML='';if(!['floor','wall','furn','door'].includes(UI.tt))UI.tt=PK.w?'wall':'floor';PK.w=UI.tt==='wall'?1:0;const tabs=mk('div','tabs');for(const[t,n]of[['floor','Floor'],['wall','Wall'],['furn','Furniture'],['door','Doors']])tabs.append(ubtn(n,UI.tt===t?'on':'',()=>{UI.tt=t;tilerCtx()}));TCX.append(tabs);SM.dataset.tt=UI.tt;
+ const cur=edBrush&&edBrush.t!=='clean'?edBrush.k:UI.tile&&UI.tile.k,g=mk('div','swg'),cell=(k,c,f)=>{const s=mk('span','sw'+(k===cur?' on':''));if(c){s.append(c);s.onclick=f}else s.classList.add('no');return s};let nm='';
+ if(UI.tt==='floor'||UI.tt==='wall'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)&&(KIND[k]==='wall')===!!PK.w),els=[...EORDER,...(mods.length?['Mods']:[])],et=mk('div','tabs');if(!els.includes(PK.el))PK.el='Stone';
   for(const e of els)et.append(ubtn(e,PK.el===e?'on':'',()=>{PK.el=e;if(e!=='Mods'){PK.mat=Object.keys(ELEM[e].mats)[0];PK.v=Object.keys(varsOf(e,PK.mat))[0]}else PK.mat=mods[0];tilerCtx()}));TCX.append(et);
-  const g=mk('div','swg'),cur=UI.tile&&UI.tile.k,cell=k=>{const s=mk('span','sw'+(k===cur?' on':''));if(k&&validK(k)){s.append(swatch(bake(k),30,30));s.onclick=()=>{setTile(k)}}else s.classList.add('no');return s};
-  if(PK.el==='Mods')for(const k of mods)g.append(cell(k));else for(const mat of Object.keys(ELEM[PK.el].mats))for(const v of Object.keys(varsOf(PK.el,mat)).slice(0,7))g.append(cell(PK.el.toLowerCase()+'.'+mat+'.'+v+(PK.w?'.w':'')));
-  TCX.append(g);const r=mk('div','nm'),nb=mk('div','tbox',cur?tName(cur):''),w=dsel([['0','Floor'],['1','Wall']],String(PK.w||0),v=>{PK.w=+v;if(cur&&CATN[cur]){const[el,mat,vv]=CATN[cur];setTile(el.toLowerCase()+'.'+mat+'.'+vv+(PK.w?'.w':''),true)}else tilerCtx()});r.append(nb,w);TCX.append(r)}
- TCX.append(...['ed-fu','ed-dr'].map(id=>$(id)).filter(Boolean));
- TCX.append(form([['Brush',dsel([['1','1×1'],['2','2×2'],['3','3×3']],String(edSize),v=>edSize=+v)]]))}
-function setTile(k,keep){if(!validK(k))return;pkFrom(k);UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);if(!keep)UI.tt='tiles';tilerCtx();if(UI.pop==='ae')aeLoad(k)}
+  const tc=k=>cell(k,k&&validK(k)?swatch(bake(k),30,30):null,()=>setTile(k));
+  if(PK.el==='Mods')for(const k of mods)g.append(tc(k));else for(const mat of Object.keys(ELEM[PK.el].mats))for(const v of Object.keys(varsOf(PK.el,mat)).slice(0,7))g.append(tc(PK.el.toLowerCase()+'.'+mat+'.'+v+(PK.w?'.w':'')));
+  nm=cur&&!String(cur).startsWith('door:')&&!furnK(cur)?tName(cur):''}
+ else if(UI.tt==='furn'){for(const k of [...baseKeys('furn'),...modKeys('furn')])g.append(cell(k,swatch(bake(k),30,30),()=>{UI.tile={t:'tile',k};edBrush={t:'tile',k};tilerCtx()}));nm=cur&&furnK(cur)?tName(cur):''}
+ else{for(const k in DOORK){const c=icon(doorIcon(k),1);c.style.cssText='width:34px;height:24px;image-rendering:pixelated;display:block;margin-top:5px';g.append(cell('door:'+k,c,()=>{UI.tile={t:'door',k:'door:'+k};edBrush={...UI.tile};tilerCtx()}))}nm=String(cur).startsWith('door:')?DOORK[cur.slice(5)][0]:''}
+ TCX.append(g,mk('div','tbox',nm));if(UI.pop==='ae'&&cur&&!String(cur).startsWith('door:')&&cur!==AE.key)aeLoad(cur)}
+function setTile(k){if(!validK(k))return;pkFrom(k);UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';tilerCtx()}
 {const p0=fillMapTools;fillMapTools=function(){p0();if(edBrush&&edBrush.t!=='clean')UI.tile={...edBrush}}}
 
 // small form helpers
@@ -2489,7 +2492,7 @@ function spawnCtx(){SCX.innerHTML='';SM.dataset.st=UI.st;const tabs=mk('div','ta
 const GHO=mk('canvas','ghost');GHO.width=GHO.height=17;document.body.append(GHO);
 function armDrop(k){UI.drop=UI.drop===k?null:k;UI.place=false;GHO.style.display='none';head(k);cv.style.cursor=UI.drop?'copy':k==='tile'?'crosshair':CUR.arrow}
 VIEW.addEventListener('pointerdown',e=>{if(!UI.drop||e.button||!inBoard(e))return;const[x,y]=toBoard(e);e.stopPropagation();e.preventDefault();
- if(UI.drop==='tile'){const s=srcNow(),k=s[y/T|0]&&s[y/T|0][x/T|0];if(k){if(furnK(k)){UI.tt='furn';UI.tile={t:'tile',k};edBrush={t:'tile',k};tilerCtx()}else setTile(k)}armDrop('tile');return}
+ if(UI.drop==='tile'){const s=srcNow(),k=s[y/T|0]&&s[y/T|0][x/T|0];if(k)setTile(k);armDrop('tile');return}
  if(UI.place){$('tpr').dispatchEvent(new PointerEvent('pointerdown',{clientX:e.clientX,clientY:e.clientY,bubbles:true}));return}
  const b=bodyAt(x|0,y|0,6,null,o=>o.type==='token');if(!b)return;syncMarker(b);UI.st='units';spawnCtx();UI.place=true;GHO.getContext('2d').drawImage(tp,0,0);GHO.style.display='block'},true);
 window.addEventListener('pointermove',e=>{if(GHO.style.display==='block'){GHO.style.left=e.clientX-17*S/2+'px';GHO.style.top=e.clientY-17*S/2+'px';GHO.style.width=GHO.style.height=17*S+'px'}});
@@ -2603,7 +2606,9 @@ function aeUI(){APAL.innerHTML='';APAL.append(apal);aeToolbar();aePalette();aeRi
 
 
 // hand of god: hotbar under the chosen unit, chest bar when it stands by one, camera follows a unit under direct control
-const HCX=mk('div','hcx'),HB=mk('div','hbar'),CB=mk('div','hbar cbar'),HCO=mk('div','callout');$('stage').append(HCO);ZC.append(HCX);let hbK='',cbK='',hbSi=null,hbId=null;
+const HCX=mk('div','hcx'),HB=mk('div','hbar'),CB=mk('div','hbar cbar'),HCO=mk('div','callout');$('stage').append(HCO);ZC.append(HCX);let hbK='',cbK='',hbSi=null,hbId=null,hbAm=null;
+function callout(q,dim){HCO.innerHTML='';HCO.append(itemName(q));const a=dim||(CAP[q.k]?(q.ammo??CAP[q.k])+' / '+(q.res||0):'');if(a)HCO.append(mk('i',null,a));HCO.classList.remove('go');void HCO.offsetWidth;HCO.classList.add('go')}
+window.addEventListener('keydown',e=>{if(e.key.toLowerCase()!=='r'||e.repeat||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;const tk=[...sel].find(o=>o.type==='token'),q=tk&&tk.inv[tk.si];if(q&&CAP[q.k]&&!q.res&&(q.ammo??CAP[q.k])<CAP[q.k])callout(q,'no spare ammo');else if(q&&CAP[q.k]&&(q.ammo??CAP[q.k])>=CAP[q.k])callout(q)});
 const SILK=['musket','pistol','grenade','rod'];
 function sicon(k,w=42,h=30){const px=shape(k,0),c=mk('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),id=g.createImageData(w,h),u=new Uint32Array(id.data.buffer);let mx=0,my=0,x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(const p of px){mx+=p[0];my+=p[1];x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}mx/=px.length;my/=px.length;
  const k2=Math.max(1,Math.min(3,Math.floor(Math.min((w-4)/(x1-x0+1),(h-4)/(y1-y0+1)))));for(const p of px)for(let a=0;a<k2;a++)for(let b=0;b<k2;b++){const X=Math.round(w/2+(p[0]-mx)*k2)+a,Y=Math.round(h/2+(p[1]-my)*k2)+b;if(X>=0&&Y>=0&&X<w&&Y<h)u[Y*w+X]=p[2]}g.putImageData(id,0,0);return c}
@@ -2625,17 +2630,18 @@ function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?''
  else if(sil){const c=hic(sil);c.className='sil';d.append(c)}return d}
 const itemName=q=>q?WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k.endsWith('box')?'Ammo':q.k:'';
 function hotbar(){const tk=UI.tool==='hand'&&[...sel].filter(o=>o.type==='token')[0];const one=tk&&sel.size===1&&tk.status!=='dead'&&bodies.includes(tk);
- if(!one){if(hbK){HCX.innerHTML='';hbK=''}hbId=null;return}
+ if(!one){if(hbK){HCX.innerHTML='';hbK='';if(UI.tool==='hand')head('hand')}hbId=null;return}
  const c=tk.status==='free'?bodies.find(o=>o.hidden&&o.inv&&near(tk,o)):null,k=JSON.stringify([tk.id,tk.si,tk.inv,tk.noAuto,tk.vip,tk.auto,tk.leader,c&&c.id,c&&c.inv]);
  if(k!==hbK){hbK=k;HCX.innerHTML='';
   if(c){const h=mk('div','hlab',c.name||'Chest');const g=mk('div','hg cg');c.inv.forEach((q,i)=>{if(!q)return;const d=slotEl(q,null,false);d.onpointerdown=e=>{e.preventDefault();moveItem(c,i,tk);lastHud='';hbK=''};g.append(d)});if(!g.children.length)g.append(mk('div','slot lock'));const cp=mk('div','hpan');cp.append(g);HCX.append(h,cp)}
-  const n=mk('div','hlab',tk.name);n.style.color=natLabel(tk);const g1=mk('div','hg'),g2=mk('div','hg'),hp=mk('div','hpan');
+  TH.innerHTML='';{const ic=tokIcon(tk),nn=mk('span',null,tk.name);nn.style.color=natLabel(tk);TH.append(ic,nn)}const n=mk('i');const g1=mk('div','hg'),g2=mk('div','hg'),hp=mk('div','hpan');
   for(let i=0;i<6;i++){const d=slotEl(tk.inv[i],i<4?SILK[i]:'gold',i===tk.si);d.onpointerdown=e=>{e.preventDefault();if(e.shiftKey){if(c)moveItem(tk,i,c);else dropSlot(tk,i)}else selectSlot(tk,i);lastHud='';hbK=''};(i<4?g1:g2).append(d)}
   for(let i=0;i<2;i++)g2.append(mk('div','slot lock'));hp.append(g1,mk('i','hsep'),g2);
   const tg=(v,f)=>chk(v,()=>{f();sfx('flick');lastHud='';hbK=''});
   HCX.append(n,hp,form([['Auto pick-up',tg(!tk.noAuto,()=>tk.noAuto=!tk.noAuto)],['Protect',tg(!!tk.vip,()=>tk.vip=!tk.vip)],['Autonomous',tg(!!tk.auto,()=>{tk.auto=!tk.auto;if(tk.auto)say(tk,'On it',true);tk.ord=null})],['Leader',tg(!!tk.leader,()=>{const on=!tk.leader;for(const o of bodies)if(o.type==='token'&&teamOf(o)===teamOf(tk))o.leader=false;tk.leader=on})]]))}
- if(hbId===tk.id&&hbSi!==tk.si&&tk.inv[tk.si]){HCO.textContent=itemName(tk.inv[tk.si]);HCO.classList.remove('go');void HCO.offsetWidth;HCO.classList.add('go')}hbId=tk.id;hbSi=tk.si;
+ const q=tk.inv[tk.si],am=q&&CAP[q.k]?q.ammo??CAP[q.k]:null;if(hbId===tk.id&&q&&(hbSi!==tk.si||am!==null&&hbAm!==null&&am>hbAm))callout(q);hbId=tk.id;hbSi=tk.si;hbAm=am;
  HCO.style.left=Math.round(tk.x*S)+'px';HCO.style.top=Math.round((tk.y-14)*S)+'px'}
+function tokIcon(b){const c=mk('canvas');c.width=c.height=17;const g=c.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:-Math.PI/2,look:b.look,unit:b.unit,nat:b.nat,guard:b.guard,tone:b.tone},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));for(const p of px){let q=pcol(t,p);if(q===0)continue;if(!sprG(lookOf(t))&&(!set.has(K(p[0]+1,p[1]))||!set.has(K(p[0]-1,p[1]))||!set.has(K(p[0],p[1]+1))||!set.has(K(p[0],p[1]-1))))q=mul(q,.36);u[(p[1]+8)*17+p[0]+8]=q}g.putImageData(id,0,0);c.style.cssText='width:34px;height:34px;image-rendering:pixelated';return c}
 function follow(){if(UI.tool!=='hand')return;const tk=[...sel].find(o=>o.type==='token'&&o.direct);if(!tk)return;const v=VIEW,tx=v.clientWidth/2-tk.x*S,ty=v.clientHeight/2-tk.y*S;cam.x+=(tx-cam.x)*.12;cam.y+=(ty-cam.y)*.12;applyCam()}
 {const r1=render;render=function(){r1();hotbar();follow()}}
 // spawner looks vary on their own: some conscripts turn out in the striped guard
