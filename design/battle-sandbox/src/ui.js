@@ -1,7 +1,7 @@
 // screen: map with a brass clock corner, tool panel on the right, popups for occasional work
 const UI={tool:LS.get('bs.tool','hand'),st:LS.get('bs.st','units'),tt:'tiles',drop:null,pop:null};let PAUSED=true;const MNAME={};
 const UKEY={hand:'Esc',spawn:'B',tile:'N',paint:'P',sign:'L',teth:'K',wand:'M',vac:'U',sponge:'O'};
-const UT=[['hand','Command',null],['spawn','Spawner',null],['tile','Tiler','map'],['sign','Sign','map'],['paint','Painter','map'],['vac','Vacuum','map'],['sponge','Sponge','map'],['wand','Wand','map'],['teth','Tether',null]];
+const UT=[['hand','Command',null],['spawn','Spawner',null],['tile','Tiler','map'],['sign','Note','map'],['paint','Painter','map'],['vac','Vacuum','map'],['sponge','Sponge','map'],['wand','Wand','map'],['teth','Tether',null]];
 const UIC={
  hand:[['....kk.kk...','...kwwkwwk..','...kwwkwwkk.','.kkkwwkwwkwk','kwwkwwwwwkwk','kwwwwwwwwwwk','.kwwwwwwwwwk','..kwwwwwwwk.','...kwwwwwk..','....kkkkk...'],{k:'#111',w:'#e8d2b0'}],
  spawn:[['....kkkk....','...kggggk...','...kgyygk...','...kggggk...','....kkkk..yy','...kggggk.yy','..kggggggkyy','..kggggggk..','..kggggggk..','...kkkkkk...'],{k:'#111',g:'#2f5f45',y:'#ffd84a'}],
@@ -107,7 +107,7 @@ function form(rows){const f=mk('div','frm');for(const[l,c]of rows)f.append(mk('s
 // spawner: tabs, side, unit list with the arms drop-down in the chosen row
 for(const g of [...fw.querySelectorAll('optgroup')]){g.replaceWith(...g.children)}
 const SCX=mk('div','scx');ZC.append(SCX);
-function unitPx(i){const R=ROSTER[fnat.value]||[],[l,un]=R[i]||['Peasant','civ'],c=mk('canvas');c.width=c.height=17;const g=c.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:-Math.PI/2,look:l,unit:un,nat:fnatv(),guard:false,tone:pTone},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));
+function unitPx(i){const R=ROSTER[fnat.value]||[],[l,un]=R[i]||['Peasant','civ'],c=mk('canvas');c.width=c.height=17;const g=c.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:Math.PI/2,look:l,unit:un,nat:fnatv(),guard:false,tone:pTone},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));
  for(const p of px){let q=pcol(t,p);if(q===0)continue;if(!sprG(lookOf(t))&&(!set.has(K(p[0]+1,p[1]))||!set.has(K(p[0]-1,p[1]))||!set.has(K(p[0],p[1]+1))||!set.has(K(p[0],p[1]-1))))q=mul(q,.36);u[(p[1]+8)*17+p[0]+8]=q}g.putImageData(id,0,0);return c}
 function spawnCtx(){SCX.innerHTML='';SM.dataset.st=UI.st;const tabs=mk('div','tabs');for(const[t,n]of[['units','Units'],['wp','Weapons'],['it','Items'],['cov','Cover']])tabs.append(ubtn(n,UI.st===t?'on':'',()=>{UI.st=t;LS.set('bs.st',t);spawnCtx()}));SCX.append(tabs);
  if(UI.st!=='units')return;fnat.classList.add('wide');SCX.append(fnat);const L=mk('div','ulist');
@@ -161,9 +161,14 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.mv){UI.mv=null;sgP
 VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='sign'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),s={x:snapC(x),y:snapC(y),t:'',m:UI.smat};(SIGNS[curMap]=SIGNS[curMap]||[]).push(s);drawSigns();signFx(s);editSign(s)},true);
 function signMenu(s,e){closeMenu();const r=SM.getBoundingClientRect();menu=mk('div','menu');menu.style.left=(e.clientX-r.left+4)+'px';menu.style.top=(e.clientY-r.top+4)+'px';
  const it=(n,f)=>{const b=mk('button',null,n);b.onclick=()=>{closeMenu();f()};menu.append(b)},L=()=>SIGNS[curMap]=SIGNS[curMap]||[];
- it('Edit',()=>editSign(s));it('Move',()=>{UI.mv=s});it('Duplicate',()=>{const c={...s};L().push(c);drawSigns();UI.mv=c});it('Delete',()=>{SIGNS[curMap]=L().filter(q=>q!==s);drawSigns()});SM.append(menu)}
+ {const t=[...sel].find(o=>o.type==='token'&&o.status==='free'&&o.inv&&Math.hypot(o.x-s.x,o.y-s.y)<24);if(t)it('Take',()=>takeNote(t,s))}it('Edit',()=>editSign(s));it('Move',()=>{UI.mv=s});it('Duplicate',()=>{const c={...s};L().push(c);drawSigns();UI.mv=c});it('Delete',()=>{SIGNS[curMap]=L().filter(q=>q!==s);drawSigns()});SM.append(menu)}
 function editSign(s){UI.sign=s;const t=mk('textarea','tbox');t.value=s.t;const ms=dsel(Object.entries(SMAT).map(([k,v])=>[k,v[0]]),s.m||'wood',v=>{s.m=v;drawSigns()});const del=ubtn('Delete','',()=>{SIGNS[curMap]=(SIGNS[curMap]||[]).filter(q=>q!==s);closePop();drawSigns()}),ok=ubtn('Done','lite',()=>{s.t=t.value.trim();closePop();if(!s.t)del.onclick();else drawSigns()});
- const r=mk('div','g2');r.append(del,ok);openPop('sign','Sign',[t,form([['Material',ms]]),r]);setTimeout(()=>t.focus(),0)}
+ const r=mk('div','g2');r.append(del,ok);openPop('sign','Note',[t,form([['Material',ms]]),r]);setTimeout(()=>t.focus(),0)}
+
+// notes in a pack: hover shows the text, a click opens it to read or rewrite
+function takeNote(t,s){if(!addItem(t,{k:'note',t:s.t,m:s.m})){sfx('dry');return}SIGNS[curMap]=(SIGNS[curMap]||[]).filter(q=>q!==s);drawSigns();sfx('flick');lastHud='';hbK=''}
+function placeNote(q,x,y){const s={x:snapC(x),y:snapC(y),t:q.t||'',m:q.m||'wood'};(SIGNS[curMap]=SIGNS[curMap]||[]).push(s);drawSigns()}
+function readNote(t,i){const q=t.inv[i];if(!q)return;const a=mk('textarea','tbox');a.value=q.t||'';const drop=ubtn('Drop','',()=>{closePop();dropSlot(t,i);lastHud='';hbK=''}),ok=ubtn('Done','lite',()=>{q.t=a.value.trim();closePop();lastHud='';hbK=''});const r=mk('div','g2');r.append(drop,ok);openPop('note','Note',[a,r]);setTimeout(()=>a.focus(),0)}
 
 // popups: notched, draggable, kept on screen; ✕ or Esc closes
 const PW=mk('div','pw');PW.innerHTML='<div class="pin"><div class="wt"><span></span><button class="x">✕</button></div><div class="pb"></div></div>';SM.append(PW);
@@ -265,10 +270,11 @@ const HIC={musket:[['...................','..........bbbbbbbbb','wwwwwwwwwwbbbbb
  gold:[['..kkkk..','.kyyyyk.','kyyddyyk','kydyydyk','kydyydyk','kyyddyyk','.kyyyyk.','..kkkk..'],{k:'#5a4410',y:'#e2c46a',d:'#b8942e'},3],
  box:[['kkkkkkkk','kwwwwwwk','kwyyyywk','kwwwwwwk','kkkkkkkk'],{k:'#3a2a18',w:'#8a6038',y:'#d8c08a'},3],
  cell:[['.kkkk.','kbbbbk','kbccbk','kbccbk','kbbbbk','.kkkk.'],{k:'#1a2a3a',b:'#3a6a9a',c:'#9ad8ff'},3]};
+HIC.note=[['kkkkkkk','kwwwwwk','kwsswwk','kwwwwwk','kwssswk','kwwwwwk','kwsswwk','kkkkkkk'],{k:'#3a2a18',w:'#e6d6ae',s:'#8a6a3e'},3];
 const hic=k=>{const d=HIC[k]||(/box$/.test(k)?HIC.box:null);return d?pix(...d):sicon(k)};
-function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k}
+function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?q.t||'Note':q.k}
  else if(sil){const c=hic(sil);c.className='sil';d.append(c)}return d}
-const itemName=q=>q?WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k.endsWith('box')?'Ammo':q.k:'';
+const itemName=q=>q?WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?'Note':q.k.endsWith('box')?'Ammo':q.k:'';
 // selection rings: white under what is chosen, green while a unit is under direct control
 function selRings(){for(const b of sel){if(b.hidden||!bodies.includes(b)||b.type==='slab'||b.status==='dead')continue;const tok=b.type==='token';let r=11.5;
  if(!tok){r=3;for(const p of b.px||[])r=Math.max(r,Math.hypot(p[0],p[1]));r=Math.min(10,r+2)}const c=tok&&b.direct?rgb(111,211,106):rgb(242,239,230),cx=b.x,cy=b.y,n=Math.ceil(r*7);
@@ -283,7 +289,7 @@ function hotbar(){const tk=UI.tool==='hand'&&([...sel].filter(o=>o.type==='token
  if(k!==hbK){hbK=k;HCX.innerHTML='';
   if(c){const h=mk('div','hlab',c.name||'Chest');const g=mk('div','hg cg');c.inv.forEach((q,i)=>{if(!q)return;const d=slotEl(q,null,false);d.onpointerdown=e=>{e.preventDefault();moveItem(c,i,tk);lastHud='';hbK=''};g.append(d)});if(!g.children.length)g.append(mk('div','slot lock'));const cp=mk('div','hpan');cp.append(g);HCX.append(h,cp)}
   TH.innerHTML='';{const ic=tokIcon(tk),nn=mk('span',null,tk.name);nn.style.color=natLabel(tk);TH.append(ic,nn)}const n=mk('i');const g1=mk('div','hg'),g2=mk('div','hg'),hp=mk('div','hpan');
-  for(let i=0;i<6;i++){const d=slotEl(tk.inv[i],i<4?SILK[i]:'gold',i===tk.si);d.onpointerdown=e=>{e.preventDefault();if(e.shiftKey){if(c)moveItem(tk,i,c);else dropSlot(tk,i)}else selectSlot(tk,i);lastHud='';hbK=''};(i<4?g1:g2).append(d)}
+  for(let i=0;i<6;i++){const d=slotEl(tk.inv[i],i<4?SILK[i]:'gold',i===tk.si);d.onpointerdown=e=>{e.preventDefault();if(e.shiftKey){if(c)moveItem(tk,i,c);else dropSlot(tk,i)}else if(tk.inv[i]&&tk.inv[i].k==='note')readNote(tk,i);else selectSlot(tk,i);lastHud='';hbK=''};(i<4?g1:g2).append(d)}
   for(let i=0;i<2;i++)g2.append(mk('div','slot lock'));hp.append(g1,mk('i','hsep'),g2);
   const tg=(v,f)=>chk(v,()=>{f();sfx('flick');lastHud='';hbK=''});
   HCX.append(n,hp,form([['Side',dsel(Object.keys(NAT).map(n=>[n,n]),tk.nat||'Neutral',v=>{tk.nat=v==='Neutral'?null:v;lastHud='';hbK=''})],['Auto pick-up',tg(!tk.noAuto,()=>tk.noAuto=!tk.noAuto)],['Protect',tg(!!tk.vip,()=>tk.vip=!tk.vip)],['Autonomous',tg(!!tk.auto,()=>{tk.auto=!tk.auto;if(tk.auto)say(tk,'On it',true);tk.ord=null})],['Leader',tg(!!tk.leader,()=>{const on=!tk.leader;for(const o of bodies)if(o.type==='token'&&teamOf(o)===teamOf(tk))o.leader=false;tk.leader=on})]]))}
@@ -291,11 +297,11 @@ function hotbar(){const tk=UI.tool==='hand'&&([...sel].filter(o=>o.type==='token
  HCO.style.left=Math.round(tk.x*S)+'px';HCO.style.top=Math.round((tk.y-14)*S)+'px'}
 // storage icon: the piece as it looks on the map, its top-left tile
 function pieceIcon(c){const[cx,cy]=c.cells.reduce((a,b)=>b[1]<a[1]||b[1]===a[1]&&b[0]<a[0]?b:a),e=mk('canvas');e.width=e.height=T;const g=e.getContext('2d'),id=g.createImageData(T,T),o=new Uint32Array(id.data.buffer);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;o[y*T+x]=(OBJ[j]?OBJC[j]:floor[j])|0xff000000}g.putImageData(id,0,0);e.style.cssText='width:32px;height:32px;image-rendering:pixelated;flex:none';return e}
-function tokIcon(b){const c=mk('canvas');c.width=c.height=17;const g=c.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:-Math.PI/2,look:b.look,unit:b.unit,nat:b.nat,guard:b.guard,tone:b.tone},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));for(const p of px){let q=pcol(t,p);if(q===0)continue;if(!sprG(lookOf(t))&&(!set.has(K(p[0]+1,p[1]))||!set.has(K(p[0]-1,p[1]))||!set.has(K(p[0],p[1]+1))||!set.has(K(p[0],p[1]-1))))q=mul(q,.36);u[(p[1]+8)*17+p[0]+8]=q}g.putImageData(id,0,0);c.style.cssText='width:34px;height:34px;image-rendering:pixelated';return c}
+function tokIcon(b){const c=mk('canvas');c.width=c.height=17;const g=c.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:Math.PI/2,look:b.look,unit:b.unit,nat:b.nat,guard:b.guard,tone:b.tone},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));for(const p of px){let q=pcol(t,p);if(q===0)continue;if(!sprG(lookOf(t))&&(!set.has(K(p[0]+1,p[1]))||!set.has(K(p[0]-1,p[1]))||!set.has(K(p[0],p[1]+1))||!set.has(K(p[0],p[1]-1))))q=mul(q,.36);u[(p[1]+8)*17+p[0]+8]=q}g.putImageData(id,0,0);c.style.cssText='width:34px;height:34px;image-rendering:pixelated';return c}
 function follow(){if(UI.tool!=='hand')return;const tk=[...sel].find(o=>o.type==='token'&&o.direct);if(!tk)return;const v=VIEW,tx=v.clientWidth/2-tk.x*S,ty=v.clientHeight/2-tk.y*S;cam.x+=(tx-cam.x)*.12;cam.y+=(ty-cam.y)*.12;applyCam()}
 OVL.push(()=>{hotbar();follow()});
 // spawner looks vary on their own: some conscripts turn out in the striped guard
-const VARIANT={Conscript:['Imperial Striped Guard',.2]};
+const VARIANT={};
 $('tpr').addEventListener('pointerdown',()=>{const b=bodies[bodies.length-1],v=b&&b.type==='token'&&VARIANT[b.look];if(v&&Math.random()<v[1]){b.look=v[0];b.px=tokPixels(b);mkSet(b)}});
 {const c0=cleanUp;cleanUp=function(){const c=CL;c0();if(c&&c.k==='wand'&&!c.cells.length)US.none()}}
 for(const sc of ZC.querySelectorAll('.sec'))sc.classList.remove('closed');
