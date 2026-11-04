@@ -361,7 +361,7 @@ VIEW.addEventListener('pointerdown',e=>{if(UI.tool!=='hand'||e.button||panKey||!
 window.addEventListener('pointerup',e=>{if(SPD){SPD=null;return}if(!SDR)return;const{c,i}=SDR;SDR=null;const q=c.inv[i];if(!q||!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;lastHud='';hbK='';stK='';
  const tk=bodyAt(X,Y,4,null,o=>o.type==='token'&&o.status!=='dead');if(tk){if(tk!==c)moveItem(c,i,tk);return}
  const to=bodyAt(X,Y,3,null,o=>o.kind==='crate'&&!o.hidden)||(OBJ[Y*W+X]?boxAt(X,Y):null);if(c.type==='token'){if(to)moveItem(c,i,to,x,y);else dropSlot(c,i);return}
- if(to===c){const sn=cAt(c,q.k,x,y,q);if(sn){Object.assign(q,sn);sfx('flick')}else NOPE();return}
+ if(to===c){const sn=cAt(c,q.k,x,y,q);if(sn){Object.assign(q,sn);storeSnd(q.k)}else NOPE();return}
  if(to){moveItem(c,i,to,x,y);return}
  if(X<0||Y<0||X>=W||Y>=H||sol[Y*W+X]||OBJ[Y*W+X]){NOPE();return}c.inv[i]=null;if(q.k==='note'){placeNote(q,X,Y);sfx('drop');return}if(!WP[q.k])return;const w=weapon(q.k,X,Y,q.r?Math.PI/2:0);if(q.k==='gold')w.amt=q.n;if(CAP[q.k]){w.ammo=q.ammo??CAP[q.k];w.res=q.res||0}w.noPick=tick+120;sfx('drop')});
 // units are only controlled with Command: other tools drop control, and clicking a unit switches back

@@ -351,7 +351,8 @@ const storesShown=()=>{const L=[];for(const c of [openCrate,hoverC])if(c&&c.inv&
 function dropBox(){const X=Math.round(mouse.x),Y=Math.round(mouse.y);if(X<0||Y<0||X>=W||Y>=H)return null;const sk=drag&&drag.b,c=bodyAt(X,Y,3,sk,o=>o.kind==='crate'&&!o.hidden);if(c)return c;const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];return k&&PCK.has(k)&&OBJ[Y*W+X]?boxAt(X,Y):null}
 const canStore=(c,k)=>{if(!c)return false;cNorm(c);return k==='gold'&&c.inv.some(q=>q&&q.k==='gold')||!!(cAt(c,k,mouse.x,mouse.y)||cFit(c,k))};
 function sdrOk(){const q=SDR.c.inv[SDR.i];if(!q||!mouse.in)return false;const X=Math.round(mouse.x),Y=Math.round(mouse.y),tk=bodyAt(X,Y,4,null,o=>o.type==='token'&&o.status!=='dead');if(tk)return tk!==SDR.c;const c=dropBox();if(c===SDR.c)return !!cAt(c,q.k,mouse.x,mouse.y,q);return c?canStore(c,q.k):false}
-const NOPE=()=>US.none();;
+const NOPE=()=>US.none();
+const METK=new Set(['musket','blunder','pistol','spear','sspear','rod','pgun','grenade','bomb','gold','rbox','cell']);function storeSnd(k){if(mute||!gest)return;SVOL=.4;try{SFX.drop()}catch(e){}SVOL=.25;if(METK.has(k))try{SFX.clink()}catch(e){}SVOL=1};
 function storeHit(X,Y){for(const c of storesShown()){cNorm(c);const g=cGeo(c);for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q)continue;const[w,h]=cRect(q),x=g.ox+q.gx*g.cs,y=g.oy+q.gy*g.cs;if(X>=x&&Y>=y&&X<x+w*g.cs&&Y<y+h*g.cs)return{c,i}}}return null}
 function drawHoled(sh){for(const c of bodies){if(!c.holed||!c.inv||sh.includes(c))continue;const g=cGeo(c),cx=Math.round(c.x),cy=Math.round(c.y),gone=c.box?j=>!OBJ[j]:(X,Y)=>!c.set.has(K(X-cx,Y-cy));
   for(const q of c.inv){if(!q||q.gx===undefined)continue;const bx=g.ox+q.gx,by=g.oy+q.gy;for(const[a,b,col]of itemPix(q.k,q.r)){const X=bx+a,Y=by+b;if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(c.box?gone(j):gone(X,Y))out[j]=col}}}}
@@ -1135,7 +1136,7 @@ function moveItem(from,i,to,X,Y){const q=from.inv&&from.inv[i];if(!q||!to.inv)re
  if(to.type==='token'){if(addItem(to,one)){if((q.n-=one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k])q.ammo=CAP[q.k];sfx('flick');return true}NOPE();return false}
  cNorm(to);if(!cAdd(to,one,X,Y)){NOPE();return false}
  if((q.n-=one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k]){q.ammo=CAP[q.k]}
- sfx('flick');return true}
+ storeSnd(q.k);return true}
 function hud(){for(const b of bodies)if(b.direct&&!sel.has(b)){b.direct=false;b.holdT=tick+60}if(openCrate&&!bodies.includes(openCrate))openCrate=null;const tk=[...sel].find(o=>o.type==='token');if(tk)autoOff(tk)}
 const CROWNI='<svg viewBox="0 0 16 16" shape-rendering="crispEdges"><path fill="currentColor" d="M7 2h2v2h1v2h1v2h1v2h1v2h1v2H2v-2h1v-2h1V8h1V6h1V4h1z"/></svg>';
 // pixel cursors from the regional map: arrow, open hand over things, black hand carrying, ↓ into a unit
@@ -1507,7 +1508,7 @@ window.addEventListener('pointerup',e=>{holdFire=false;if(pan){pan=null;return}i
  const t=performance.now(),s=drag.smp.filter(q=>t-q[0]<80);let vx=0,vy=0;if(s.length>1){const a=s[0],z=s[s.length-1],dt=Math.max(8,z[0]-a[0]);vx=(z[1]-a[1])/dt*23;vy=(z[2]-a[2])/dt*23}
  let sp=Math.hypot(vx,vy);drag=null;if(grp||b.type==='slab')return;
  const onTok=()=>bodyAt(Math.round(x),Math.round(y),2,b,o=>o.type==='token'&&o.status!=='dead');
- if(b.type==='weapon'&&b.kind!=='crate'&&PICK.has(b.kind)&&sp<=1.4){const X=Math.round(x),Y=Math.round(y),c=bodyAt(X,Y,3,b,o=>o.kind==='crate'&&!o.hidden)||(OBJ[Y*W+X]?boxAt(X,Y):null);if(c&&b.fuse){NOPE();b.vx=b.vy=0;return}if(c){cNorm(c);const it={k:b.kind,n:b.kind==='gold'?(b.amt||50):1};if(CAP[b.kind]){it.ammo=b.ammo??CAP[b.kind];it.res=b.res||0}if(cAdd(c,it,X,Y)){remove(b);lastHud='';sfx('flick')}else{NOPE();b.vx=b.vy=0}return}}
+ if(b.type==='weapon'&&b.kind!=='crate'&&PICK.has(b.kind)&&sp<=1.4){const X=Math.round(x),Y=Math.round(y),c=bodyAt(X,Y,3,b,o=>o.kind==='crate'&&!o.hidden)||(OBJ[Y*W+X]?boxAt(X,Y):null);if(c&&b.fuse){NOPE();b.vx=b.vy=0;return}if(c){cNorm(c);const it={k:b.kind,n:b.kind==='gold'?(b.amt||50):1};if(CAP[b.kind]){it.ammo=b.ammo??CAP[b.kind];it.res=b.res||0}if(cAdd(c,it,X,Y)){remove(b);lastHud='';storeSnd(it.k)}else{NOPE();b.vx=b.vy=0}return}}
  if(b.type==='weapon'&&(WP[b.kind].gun||WP[b.kind].tool||b.kind==='shield'||(WP[b.kind].melee&&sp<=1.4))){const tk=onTok();if(tk){give(tk,b.kind,b.ammo,b.res);remove(b)}return}
  const max=b.type==='weapon'?WP[b.kind].max:24;
  if(sp>1.4){if(sp>max){vx*=max/sp;vy*=max/sp}sfx('whoosh');b.vx=vx;b.vy=vy;b.thrown=true;if(b.type==='weapon')reshape(b,Math.atan2(vy,vx))}});
