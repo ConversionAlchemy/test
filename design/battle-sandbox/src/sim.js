@@ -699,9 +699,11 @@ function impact(b,h,axis){const s=Math.hypot(b.vx,b.vy),dx=b.vx/(s||1),dy=b.vy/(
  if(s>2.5){carve(cx,cy,Math.min(5,s*.3),1,dx,dy);cut(b,Math.round(cx-dx),Math.round(cy-dy),Math.min(5,s*.3),true);sfx('thunk');if(!bodies.includes(b))return true;
   if(s>9&&mx!==3){const pen=Math.min(5,s*.3);b.x+=dx*pen;b.y+=dy*pen;b.vx=b.vy=0;b.stuck=true;return true}bounce(.35);return true}
  if(axis)b.vy=0;else b.vx=0;return true}
-function hitFx(x,y,m,dx,dy,pel){const S=k=>pel?sfxP(k):sfx(k);if(m===3){for(let i=0;i<6;i++)spark(x,y,Math.random()<.5?rgb(255,226,140):rgb(255,170,70),-dx*3,-dy*3,2,6+(Math.random()*8|0));S('ping')}
- else if(m===2){for(let i=0;i<5;i++)spark(x,y,Math.random()<.5?C.wood:C.woodH,-dx*2,-dy*2,1.8);S('woodhit')}
- else{dab(SF,x-dx*2,y-dy*2,.6,2);for(let i=0;i<4;i++)spark(x,y,rgb(150,146,138),-dx*2,-dy*2,1.6);S('stonehit')}}
+// what flies off a hit, by material (1 stone, 2 wood, 3 metal)
+function hitParts(x,y,m,dx,dy){if(m===3){for(let i=0;i<6;i++)spark(x,y,Math.random()<.5?rgb(255,226,140):rgb(255,170,70),-dx*3,-dy*3,2,6+(Math.random()*8|0))}
+ else if(m===2){for(let i=0;i<5;i++)spark(x,y,Math.random()<.5?C.wood:C.woodH,-dx*2,-dy*2,1.8)}
+ else{dab(SF,x-dx*2,y-dy*2,.6,2);for(let i=0;i<4;i++)spark(x,y,rgb(150,146,138),-dx*2,-dy*2,1.6)}}
+function hitFx(x,y,m,dx,dy,pel){const S=k=>pel?sfxP(k):sfx(k);hitParts(x,y,m,dx,dy);S(m===3?'ping':m===2?'woodhit':'stonehit')}
 const FALL={ball:[120,300,.6],pball:[50,170,.45],pel:[24,140,.2]};
 function fall(b){const F=FALL[b.kind];if(!F||b.sx===undefined)return 1;const d=Math.hypot(b.x-b.sx,b.y-b.sy);if(b.kind==='pel'&&d<26)return 1.8;return d<=F[0]?1:Math.max(F[2],1-(1-F[2])*(d-F[0])/(F[1]-F[0]))}
 // rods
@@ -810,8 +812,9 @@ function hitBodies(b,s){const bx=Math.round(b.x),by=Math.round(b.y);
    if(b.kind==='sspear'&&b.live){lancerHit(b,o);return true}
    if(w.bullet||w.sharp){if(b.hit&&b.hit.has(o.id))continue;(b.hit||(b.hit=new Set())).add(o.id);
     const dx=b.vx/(s||1),dy=b.vy/(s||1),tip=w.tip||0;let E=w.bullet?b.E:(b.kind==='spear'||b.kind==='sspear'?s*.5:b.kind==='sword'?s*.4:(b.E||s*.22));const fo=w.bullet?fall(b):1;E*=fo*(b.ep||1);
-    const r=pierce(o,b.x+dx*tip,b.y+dy*tip,dx,dy,E,b.ap||w.ap||1);
-    if(o.kind==='crate'){for(let i=0;i<3;i++)spark(r.x,r.y,Math.random()<.5?C.wood:C.woodH,dx,dy,1.6);sfx('thunk')}else if(r.blood){dab(FX.blood,r.x,r.y,.6+r.removed*.05,3);b.kind==='pel'?sfxP('squish'):sfx('squish')}else if(w.bullet&&b.kind!=='arc'){if(o.type==='token'&&(!UNITS[o.unit]?.arm||UNITS[o.unit].leather))(b.kind==='pel'?sfxP('thunk',.4):sfx('thunk'));else if(o.type==='token'){const pl=b.kind==='pel';pl?sfxP('ping'):sfx((UNITS[o.unit]?.arm||0)>=2?'plate':'ping')}else{const k=o.mat===3?'ping':o.mat===1?'stonehit':'woodhit';b.kind==='pel'?sfxP(k):sfx(k)}}else sfx(b.kind==='spear'||b.kind==='sspear'?'wedge':'clink');
+    let pm=o.kind==='crate'?(o.metal?3:2):o.mat||0;if(o.type==='token')for(let i=-6;i<12;i++){const p=o.set.get(K(Math.round(b.x+dx*(tip+i))-ox,Math.round(b.y+dy*(tip+i))-oy));if(p){pm=p[4]===3?3:0;break}}
+    const r=pierce(o,b.x+dx*tip,b.y+dy*tip,dx,dy,E,b.ap||w.ap||1);if(pm&&!r.blood&&b.kind!=='arc')hitParts(r.x,r.y,pm,dx,dy);
+    if(o.kind==='crate'){sfx(o.metal?'ping':'thunk')}else if(r.blood){dab(FX.blood,r.x,r.y,.6+r.removed*.05,3);b.kind==='pel'?sfxP('squish'):sfx('squish')}else if(w.bullet&&b.kind!=='arc'){if(o.type==='token'&&(!UNITS[o.unit]?.arm||UNITS[o.unit].leather))(b.kind==='pel'?sfxP('thunk',.4):sfx('thunk'));else if(o.type==='token'){const pl=b.kind==='pel';pl?sfxP('ping'):sfx((UNITS[o.unit]?.arm||0)>=2?'plate':'ping')}else{const k=o.mat===3?'ping':o.mat===1?'stonehit':'woodhit';b.kind==='pel'?sfxP(k):sfx(k)}}else sfx(b.kind==='spear'||b.kind==='sspear'?'wedge':'clink');
     o.vx+=dx*.5*b.mass/o.mass;o.vy+=dy*.5*b.mass/o.mass;
     if(b.kind==='arc'){BLU=!!b.blue;if(!r.blood){sfx('boltmetal');metalSparks(r.x,r.y,dx,dy,true)}arcHit(r.x,r.y);cut(o,Math.round(r.x),Math.round(r.y),2*(b.big?1+b.big*.5:1),true,3);if(b.big)arcBlast(r.x,r.y,b.big);BLU=false}
     if(r.stop){if(w.bullet){if(o.set.has(K(r.p[0],r.p[1])))r.p[7]=r.p[7]==='a'?'a':'o';remove(b)}else{b.att={id:o.id,dx:b.x-o.x,dy:b.y-o.y};b.vx=b.vy=0;b.stuck=true;wedgeIn(b);}settle(o);return true}

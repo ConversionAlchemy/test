@@ -142,18 +142,27 @@ window.addEventListener('pointermove',e=>{if(PDN&&UI.tool==='paint'){const[x,y]=
 
 // signs: a marker with a note; hover shows it, double-click edits
 const SMAT={wood:['Wood','#b08a5a','#4a3018'],stone:['Stone','#a6a096','#4e4a44'],marble:['Marble','#e6e4dc','#7a776e'],iron:['Iron','#8c969a','#2e3438'],brass:['Brass','#c9a660','#4a3a18']};UI.smat=LS.get('bs.smat','wood');
-const plate=m=>{const[,w,k]=SMAT[m]||SMAT.wood;return pix(UIC.sign[0],{k,w,s:css(mix(rgb(parseInt(w.slice(1,3),16),parseInt(w.slice(3,5),16),parseInt(w.slice(5,7),16)),rgb(parseInt(k.slice(1,3),16),parseInt(k.slice(3,5),16),parseInt(k.slice(5,7),16)),.55))},2)};
+const SQP=['.kkkkkkkk.','kwwwwwwwwk','kwsswssswk','kwwwwwwwwk','kwssswsswk','kwwwwwwwwk','kwswssswwk','kwwwwwwwwk','kwsswswwwk','.kkkkkkkk.'];
+const plate=m=>{const[,w,k]=SMAT[m]||SMAT.wood;return pix(SQP,{k,w,s:css(mix(rgb(parseInt(w.slice(1,3),16),parseInt(w.slice(3,5),16),parseInt(w.slice(5,7),16)),rgb(parseInt(k.slice(1,3),16),parseInt(k.slice(3,5),16),parseInt(k.slice(5,7),16)),.55))},2)};
 const SIGNS={};const SL=mk('div','signs');$('stage').append(SL);let sgS=0,sgM='';
-function drawSigns(){SL.innerHTML='';for(const s of SIGNS[curMap]||[]){const m=mk('div','sgn');m.style.left=s.x*S+'px';m.style.top=s.y*S+'px';m.append(plate(s.m));if(s.t){const t=mk('div','sgt',s.t);m.append(t)}m.ondblclick=e=>{e.stopPropagation();editSign(s)};m.onpointerdown=e=>e.stopPropagation();SL.append(m)}sgS=S;sgM=curMap}
+function drawSigns(){SL.innerHTML='';for(const s of SIGNS[curMap]||[]){const m=mk('div','sgn');m.style.left=s.x*S+'px';m.style.top=s.y*S+'px';m.append(plate(s.m));if(s.t){const t=mk('div','sgt',s.t);m.append(t)}m.ondblclick=e=>{e.stopPropagation();editSign(s)};m.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();signMenu(s,e)};m.onpointerdown=e=>e.stopPropagation();SL.append(m)}sgS=S;sgM=curMap}
 // ui overlays drawn after each frame
 const OVL=[];{const r0=render;render=function(){r0();for(const f of OVL)f()}}
 OVL.push(()=>{if(sgS!==S||sgM!==curMap)drawSigns()});
 {const s0=spawnMap;spawnMap=function(d){s0(d);if(d.signs)SIGNS[curMap]=d.signs.map(s=>({...s}));if(d.owner)OWN[curMap]=d.owner;sgM=''}}
 function signCtx(){const L=mk('div','ulist');for(const[k,[n,c]]of Object.entries(SMAT)){const r=mk('div','urow'+(UI.smat===k?' on':''));const sw=mk('span','swd');sw.style.background=c;r.append(sw,mk('span','n',n));r.onclick=()=>{UI.smat=k;LS.set('bs.smat',k);signCtx();sgP()};L.append(r)}SNX.innerHTML='';SNX.append(L)}
-const SNX=mk('div','snx');ZC.append(SNX);const SGP=mk('div','sgn sgp');SL.append(SGP);function sgP(){SGP.innerHTML='';SGP.append(plate(UI.smat))}
-VIEW.addEventListener('pointermove',e=>{const on=UI.tool==='sign'&&!UI.pop&&inBoard(e);SGP.style.display=on?'block':'none';if(!on)return;const[x,y]=toBoard(e);if(SGP.parentElement!==SL)SL.append(SGP);SGP.style.left=x*S+'px';SGP.style.top=y*S+'px'});
-VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='sign'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),s={x:Math.round(x),y:Math.round(y),t:'',m:UI.smat};(SIGNS[curMap]=SIGNS[curMap]||[]).push(s);drawSigns();editSign(s)},true);
-function editSign(s){UI.sign=s;const t=mk('textarea','tbox');t.value=s.t;const ms=dsel(Object.entries(SMAT).map(([k,v])=>[k,v[0]]),s.m||'wood',v=>{s.m=v;drawSigns()});const del=ubtn('Delete','',()=>{SIGNS[curMap]=(SIGNS[curMap]||[]).filter(q=>q!==s);closePop();drawSigns()}),ok=ubtn('Done','',()=>{s.t=t.value.trim();closePop();if(!s.t)del.onclick();else drawSigns()});
+const SNX=mk('div','snx');ZC.append(SNX);const SGP=mk('div','sgn sgp');SL.append(SGP);function sgP(){SGP.innerHTML='';SGP.dataset.m='';SGP.append(plate(UI.smat))}
+// signs sit on cell centres; placing one puffs dust like a laid tile
+const snapC=v=>(Math.floor(v/T)+.5)*T,SGK={wood:'wood',stone:'stone',marble:'marble',iron:'iron',brass:'brass'};
+function signFx(s){const k=SGK[s.m]||'wood';puff(s.x/T|0,s.y/T|0,k);edSnd(matOf(k),1,.6,false)}
+VIEW.addEventListener('pointermove',e=>{const mv=UI.mv,on=(UI.tool==='sign'||mv)&&!UI.pop&&inBoard(e);SGP.style.display=on?'block':'none';if(!on)return;const[x,y]=toBoard(e);if(SGP.parentElement!==SL)SL.append(SGP);if(mv&&SGP.dataset.m!==mv.m){SGP.innerHTML='';SGP.append(plate(mv.m));SGP.dataset.m=mv.m}SGP.style.left=snapC(x)*S+'px';SGP.style.top=snapC(y)*S+'px'});
+window.addEventListener('pointerdown',e=>{if(!UI.mv||panKey)return;e.stopImmediatePropagation();e.preventDefault();const s=UI.mv;UI.mv=null;sgP();if(!e.button&&inBoard(e)){const[x,y]=toBoard(e);s.x=snapC(x);s.y=snapC(y);signFx(s)}drawSigns()},true);
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.mv){UI.mv=null;sgP();SGP.style.display='none';e.stopImmediatePropagation()}},true);
+VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='sign'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),s={x:snapC(x),y:snapC(y),t:'',m:UI.smat};(SIGNS[curMap]=SIGNS[curMap]||[]).push(s);drawSigns();signFx(s);editSign(s)},true);
+function signMenu(s,e){closeMenu();const r=SM.getBoundingClientRect();menu=mk('div','menu');menu.style.left=(e.clientX-r.left+4)+'px';menu.style.top=(e.clientY-r.top+4)+'px';
+ const it=(n,f)=>{const b=mk('button',null,n);b.onclick=()=>{closeMenu();f()};menu.append(b)},L=()=>SIGNS[curMap]=SIGNS[curMap]||[];
+ it('Edit',()=>editSign(s));it('Move',()=>{UI.mv=s});it('Duplicate',()=>{const c={...s};L().push(c);drawSigns();UI.mv=c});it('Delete',()=>{SIGNS[curMap]=L().filter(q=>q!==s);drawSigns()});SM.append(menu)}
+function editSign(s){UI.sign=s;const t=mk('textarea','tbox');t.value=s.t;const ms=dsel(Object.entries(SMAT).map(([k,v])=>[k,v[0]]),s.m||'wood',v=>{s.m=v;drawSigns()});const del=ubtn('Delete','',()=>{SIGNS[curMap]=(SIGNS[curMap]||[]).filter(q=>q!==s);closePop();drawSigns()}),ok=ubtn('Done','lite',()=>{s.t=t.value.trim();closePop();if(!s.t)del.onclick();else drawSigns()});
  const r=mk('div','g2');r.append(del,ok);openPop('sign','Sign',[t,form([['Material',ms]]),r]);setTimeout(()=>t.focus(),0)}
 
 // popups: notched, draggable, kept on screen; ✕ or Esc closes
@@ -214,7 +223,7 @@ function layerSet(k,st){const r=AE.rec;
  else if(k==='colour'){const sw=ubtn('','csb');sw.style.background=toHex(r.base);sw.onclick=()=>{colIn.value=toHex(r.base);let sn=false;colIn.oninput=()=>{if(!sn){aeBake();aeSnap();sn=true}r.base=fromHex(colIn.value);sw.style.background=colIn.value;AE.recF=null;aeDirty()};colIn.onchange=()=>aeRight();colIn.click()};const hs=mk('div');st.append(form([['Base',sw]]),hs);aeSliders(hs)}
  else if(k==='paint'){const g=mk('div','g2');g.append(ubtn('Clear','',()=>{aeSnap();r.stamp=null;AE.recF=null;aeDirty();aeRight()}));st.append(g)}}
 function aeBottom(){ABT.innerHTML='';if(AU.naming){const n=tbox(AE.mod?MODS.tex[AE.key].name:tName(AE.key)+' (mod)',()=>{});n.id='aen';const cls=mk('span','fl',furnK(AE.from)?'Furniture':KIND[AE.from]==='wall'?'Wall':'Floor');
-  const r=mk('div','nmr');r.append(n,cls);const g=mk('div','g2');g.append(ubtn('Cancel','',()=>{AU.naming=false;aeBottom()}),ubtn('Save','',()=>{aeSave(true);AU.naming=false;aeBottom();PW.querySelector('.wt span').textContent='Asset Editor · '+tName(AE.key)}));ABT.append(r,g);setTimeout(()=>{n.focus();n.select()},0);return}
+  const r=mk('div','nmr');r.append(n,cls);const g=mk('div','g2');g.append(ubtn('Cancel','',()=>{AU.naming=false;aeBottom()}),ubtn('Save','lite',()=>{aeSave(true);AU.naming=false;aeBottom();PW.querySelector('.wt span').textContent='Asset Editor · '+tName(AE.key)}));ABT.append(r,g);setTimeout(()=>{n.focus();n.select()},0);return}
  const g=mk('div','g3');g.append(ubtn('Copy code','',x=>{ACODE.value=aeCode();ACODE.select();try{navigator.clipboard.writeText(ACODE.value).catch(()=>{})}catch(e){}try{document.execCommand('copy')}catch(e){}flashB(x,'Copied')}),
   ubtn('Paste code','',x=>{const go=t=>{const i=t.indexOf('{'),j=t.lastIndexOf('}');try{const ids=importPack(JSON.parse(t.slice(i,j+1)));if(ids.length&&MODS.tex[ids[0]])aeLoad(ids[0]);flashB(x,'Loaded')}catch(e){ACODE.focus();ACODE.select();flashB(x,'Paste in box')}};try{navigator.clipboard.readText().then(go,()=>go(ACODE.value))}catch(e){go(ACODE.value)}}),
   ubtn(AE.mod?'Save':'Save as new…','',x=>{if(AE.mod){aeSave(false);flashB(x,'Saved')}else{AU.naming=true;aeBottom()}}));ABT.append(g)}

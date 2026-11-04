@@ -1084,9 +1084,11 @@ function impact(b,h,axis){const s=Math.hypot(b.vx,b.vy),dx=b.vx/(s||1),dy=b.vy/(
  if(s>2.5){carve(cx,cy,Math.min(5,s*.3),1,dx,dy);cut(b,Math.round(cx-dx),Math.round(cy-dy),Math.min(5,s*.3),true);sfx('thunk');if(!bodies.includes(b))return true;
   if(s>9&&mx!==3){const pen=Math.min(5,s*.3);b.x+=dx*pen;b.y+=dy*pen;b.vx=b.vy=0;b.stuck=true;return true}bounce(.35);return true}
  if(axis)b.vy=0;else b.vx=0;return true}
-function hitFx(x,y,m,dx,dy,pel){const S=k=>pel?sfxP(k):sfx(k);if(m===3){for(let i=0;i<6;i++)spark(x,y,Math.random()<.5?rgb(255,226,140):rgb(255,170,70),-dx*3,-dy*3,2,6+(Math.random()*8|0));S('ping')}
- else if(m===2){for(let i=0;i<5;i++)spark(x,y,Math.random()<.5?C.wood:C.woodH,-dx*2,-dy*2,1.8);S('woodhit')}
- else{dab(SF,x-dx*2,y-dy*2,.6,2);for(let i=0;i<4;i++)spark(x,y,rgb(150,146,138),-dx*2,-dy*2,1.6);S('stonehit')}}
+// what flies off a hit, by material (1 stone, 2 wood, 3 metal)
+function hitParts(x,y,m,dx,dy){if(m===3){for(let i=0;i<6;i++)spark(x,y,Math.random()<.5?rgb(255,226,140):rgb(255,170,70),-dx*3,-dy*3,2,6+(Math.random()*8|0))}
+ else if(m===2){for(let i=0;i<5;i++)spark(x,y,Math.random()<.5?C.wood:C.woodH,-dx*2,-dy*2,1.8)}
+ else{dab(SF,x-dx*2,y-dy*2,.6,2);for(let i=0;i<4;i++)spark(x,y,rgb(150,146,138),-dx*2,-dy*2,1.6)}}
+function hitFx(x,y,m,dx,dy,pel){const S=k=>pel?sfxP(k):sfx(k);hitParts(x,y,m,dx,dy);S(m===3?'ping':m===2?'woodhit':'stonehit')}
 const FALL={ball:[120,300,.6],pball:[50,170,.45],pel:[24,140,.2]};
 function fall(b){const F=FALL[b.kind];if(!F||b.sx===undefined)return 1;const d=Math.hypot(b.x-b.sx,b.y-b.sy);if(b.kind==='pel'&&d<26)return 1.8;return d<=F[0]?1:Math.max(F[2],1-(1-F[2])*(d-F[0])/(F[1]-F[0]))}
 // rods
@@ -1195,8 +1197,9 @@ function hitBodies(b,s){const bx=Math.round(b.x),by=Math.round(b.y);
    if(b.kind==='sspear'&&b.live){lancerHit(b,o);return true}
    if(w.bullet||w.sharp){if(b.hit&&b.hit.has(o.id))continue;(b.hit||(b.hit=new Set())).add(o.id);
     const dx=b.vx/(s||1),dy=b.vy/(s||1),tip=w.tip||0;let E=w.bullet?b.E:(b.kind==='spear'||b.kind==='sspear'?s*.5:b.kind==='sword'?s*.4:(b.E||s*.22));const fo=w.bullet?fall(b):1;E*=fo*(b.ep||1);
-    const r=pierce(o,b.x+dx*tip,b.y+dy*tip,dx,dy,E,b.ap||w.ap||1);
-    if(o.kind==='crate'){for(let i=0;i<3;i++)spark(r.x,r.y,Math.random()<.5?C.wood:C.woodH,dx,dy,1.6);sfx('thunk')}else if(r.blood){dab(FX.blood,r.x,r.y,.6+r.removed*.05,3);b.kind==='pel'?sfxP('squish'):sfx('squish')}else if(w.bullet&&b.kind!=='arc'){if(o.type==='token'&&(!UNITS[o.unit]?.arm||UNITS[o.unit].leather))(b.kind==='pel'?sfxP('thunk',.4):sfx('thunk'));else if(o.type==='token'){const pl=b.kind==='pel';pl?sfxP('ping'):sfx((UNITS[o.unit]?.arm||0)>=2?'plate':'ping')}else{const k=o.mat===3?'ping':o.mat===1?'stonehit':'woodhit';b.kind==='pel'?sfxP(k):sfx(k)}}else sfx(b.kind==='spear'||b.kind==='sspear'?'wedge':'clink');
+    let pm=o.kind==='crate'?(o.metal?3:2):o.mat||0;if(o.type==='token')for(let i=-6;i<12;i++){const p=o.set.get(K(Math.round(b.x+dx*(tip+i))-ox,Math.round(b.y+dy*(tip+i))-oy));if(p){pm=p[4]===3?3:0;break}}
+    const r=pierce(o,b.x+dx*tip,b.y+dy*tip,dx,dy,E,b.ap||w.ap||1);if(pm&&!r.blood&&b.kind!=='arc')hitParts(r.x,r.y,pm,dx,dy);
+    if(o.kind==='crate'){sfx(o.metal?'ping':'thunk')}else if(r.blood){dab(FX.blood,r.x,r.y,.6+r.removed*.05,3);b.kind==='pel'?sfxP('squish'):sfx('squish')}else if(w.bullet&&b.kind!=='arc'){if(o.type==='token'&&(!UNITS[o.unit]?.arm||UNITS[o.unit].leather))(b.kind==='pel'?sfxP('thunk',.4):sfx('thunk'));else if(o.type==='token'){const pl=b.kind==='pel';pl?sfxP('ping'):sfx((UNITS[o.unit]?.arm||0)>=2?'plate':'ping')}else{const k=o.mat===3?'ping':o.mat===1?'stonehit':'woodhit';b.kind==='pel'?sfxP(k):sfx(k)}}else sfx(b.kind==='spear'||b.kind==='sspear'?'wedge':'clink');
     o.vx+=dx*.5*b.mass/o.mass;o.vy+=dy*.5*b.mass/o.mass;
     if(b.kind==='arc'){BLU=!!b.blue;if(!r.blood){sfx('boltmetal');metalSparks(r.x,r.y,dx,dy,true)}arcHit(r.x,r.y);cut(o,Math.round(r.x),Math.round(r.y),2*(b.big?1+b.big*.5:1),true,3);if(b.big)arcBlast(r.x,r.y,b.big);BLU=false}
     if(r.stop){if(w.bullet){if(o.set.has(K(r.p[0],r.p[1])))r.p[7]=r.p[7]==='a'?'a':'o';remove(b)}else{b.att={id:o.id,dx:b.x-o.x,dy:b.y-o.y};b.vx=b.vy=0;b.stuck=true;wedgeIn(b);}settle(o);return true}
@@ -2481,18 +2484,27 @@ window.addEventListener('pointermove',e=>{if(PDN&&UI.tool==='paint'){const[x,y]=
 
 // signs: a marker with a note; hover shows it, double-click edits
 const SMAT={wood:['Wood','#b08a5a','#4a3018'],stone:['Stone','#a6a096','#4e4a44'],marble:['Marble','#e6e4dc','#7a776e'],iron:['Iron','#8c969a','#2e3438'],brass:['Brass','#c9a660','#4a3a18']};UI.smat=LS.get('bs.smat','wood');
-const plate=m=>{const[,w,k]=SMAT[m]||SMAT.wood;return pix(UIC.sign[0],{k,w,s:css(mix(rgb(parseInt(w.slice(1,3),16),parseInt(w.slice(3,5),16),parseInt(w.slice(5,7),16)),rgb(parseInt(k.slice(1,3),16),parseInt(k.slice(3,5),16),parseInt(k.slice(5,7),16)),.55))},2)};
+const SQP=['.kkkkkkkk.','kwwwwwwwwk','kwsswssswk','kwwwwwwwwk','kwssswsswk','kwwwwwwwwk','kwswssswwk','kwwwwwwwwk','kwsswswwwk','.kkkkkkkk.'];
+const plate=m=>{const[,w,k]=SMAT[m]||SMAT.wood;return pix(SQP,{k,w,s:css(mix(rgb(parseInt(w.slice(1,3),16),parseInt(w.slice(3,5),16),parseInt(w.slice(5,7),16)),rgb(parseInt(k.slice(1,3),16),parseInt(k.slice(3,5),16),parseInt(k.slice(5,7),16)),.55))},2)};
 const SIGNS={};const SL=mk('div','signs');$('stage').append(SL);let sgS=0,sgM='';
-function drawSigns(){SL.innerHTML='';for(const s of SIGNS[curMap]||[]){const m=mk('div','sgn');m.style.left=s.x*S+'px';m.style.top=s.y*S+'px';m.append(plate(s.m));if(s.t){const t=mk('div','sgt',s.t);m.append(t)}m.ondblclick=e=>{e.stopPropagation();editSign(s)};m.onpointerdown=e=>e.stopPropagation();SL.append(m)}sgS=S;sgM=curMap}
+function drawSigns(){SL.innerHTML='';for(const s of SIGNS[curMap]||[]){const m=mk('div','sgn');m.style.left=s.x*S+'px';m.style.top=s.y*S+'px';m.append(plate(s.m));if(s.t){const t=mk('div','sgt',s.t);m.append(t)}m.ondblclick=e=>{e.stopPropagation();editSign(s)};m.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();signMenu(s,e)};m.onpointerdown=e=>e.stopPropagation();SL.append(m)}sgS=S;sgM=curMap}
 // ui overlays drawn after each frame
 const OVL=[];{const r0=render;render=function(){r0();for(const f of OVL)f()}}
 OVL.push(()=>{if(sgS!==S||sgM!==curMap)drawSigns()});
 {const s0=spawnMap;spawnMap=function(d){s0(d);if(d.signs)SIGNS[curMap]=d.signs.map(s=>({...s}));if(d.owner)OWN[curMap]=d.owner;sgM=''}}
 function signCtx(){const L=mk('div','ulist');for(const[k,[n,c]]of Object.entries(SMAT)){const r=mk('div','urow'+(UI.smat===k?' on':''));const sw=mk('span','swd');sw.style.background=c;r.append(sw,mk('span','n',n));r.onclick=()=>{UI.smat=k;LS.set('bs.smat',k);signCtx();sgP()};L.append(r)}SNX.innerHTML='';SNX.append(L)}
-const SNX=mk('div','snx');ZC.append(SNX);const SGP=mk('div','sgn sgp');SL.append(SGP);function sgP(){SGP.innerHTML='';SGP.append(plate(UI.smat))}
-VIEW.addEventListener('pointermove',e=>{const on=UI.tool==='sign'&&!UI.pop&&inBoard(e);SGP.style.display=on?'block':'none';if(!on)return;const[x,y]=toBoard(e);if(SGP.parentElement!==SL)SL.append(SGP);SGP.style.left=x*S+'px';SGP.style.top=y*S+'px'});
-VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='sign'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),s={x:Math.round(x),y:Math.round(y),t:'',m:UI.smat};(SIGNS[curMap]=SIGNS[curMap]||[]).push(s);drawSigns();editSign(s)},true);
-function editSign(s){UI.sign=s;const t=mk('textarea','tbox');t.value=s.t;const ms=dsel(Object.entries(SMAT).map(([k,v])=>[k,v[0]]),s.m||'wood',v=>{s.m=v;drawSigns()});const del=ubtn('Delete','',()=>{SIGNS[curMap]=(SIGNS[curMap]||[]).filter(q=>q!==s);closePop();drawSigns()}),ok=ubtn('Done','',()=>{s.t=t.value.trim();closePop();if(!s.t)del.onclick();else drawSigns()});
+const SNX=mk('div','snx');ZC.append(SNX);const SGP=mk('div','sgn sgp');SL.append(SGP);function sgP(){SGP.innerHTML='';SGP.dataset.m='';SGP.append(plate(UI.smat))}
+// signs sit on cell centres; placing one puffs dust like a laid tile
+const snapC=v=>(Math.floor(v/T)+.5)*T,SGK={wood:'wood',stone:'stone',marble:'marble',iron:'iron',brass:'brass'};
+function signFx(s){const k=SGK[s.m]||'wood';puff(s.x/T|0,s.y/T|0,k);edSnd(matOf(k),1,.6,false)}
+VIEW.addEventListener('pointermove',e=>{const mv=UI.mv,on=(UI.tool==='sign'||mv)&&!UI.pop&&inBoard(e);SGP.style.display=on?'block':'none';if(!on)return;const[x,y]=toBoard(e);if(SGP.parentElement!==SL)SL.append(SGP);if(mv&&SGP.dataset.m!==mv.m){SGP.innerHTML='';SGP.append(plate(mv.m));SGP.dataset.m=mv.m}SGP.style.left=snapC(x)*S+'px';SGP.style.top=snapC(y)*S+'px'});
+window.addEventListener('pointerdown',e=>{if(!UI.mv||panKey)return;e.stopImmediatePropagation();e.preventDefault();const s=UI.mv;UI.mv=null;sgP();if(!e.button&&inBoard(e)){const[x,y]=toBoard(e);s.x=snapC(x);s.y=snapC(y);signFx(s)}drawSigns()},true);
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.mv){UI.mv=null;sgP();SGP.style.display='none';e.stopImmediatePropagation()}},true);
+VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='sign'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),s={x:snapC(x),y:snapC(y),t:'',m:UI.smat};(SIGNS[curMap]=SIGNS[curMap]||[]).push(s);drawSigns();signFx(s);editSign(s)},true);
+function signMenu(s,e){closeMenu();const r=SM.getBoundingClientRect();menu=mk('div','menu');menu.style.left=(e.clientX-r.left+4)+'px';menu.style.top=(e.clientY-r.top+4)+'px';
+ const it=(n,f)=>{const b=mk('button',null,n);b.onclick=()=>{closeMenu();f()};menu.append(b)},L=()=>SIGNS[curMap]=SIGNS[curMap]||[];
+ it('Edit',()=>editSign(s));it('Move',()=>{UI.mv=s});it('Duplicate',()=>{const c={...s};L().push(c);drawSigns();UI.mv=c});it('Delete',()=>{SIGNS[curMap]=L().filter(q=>q!==s);drawSigns()});SM.append(menu)}
+function editSign(s){UI.sign=s;const t=mk('textarea','tbox');t.value=s.t;const ms=dsel(Object.entries(SMAT).map(([k,v])=>[k,v[0]]),s.m||'wood',v=>{s.m=v;drawSigns()});const del=ubtn('Delete','',()=>{SIGNS[curMap]=(SIGNS[curMap]||[]).filter(q=>q!==s);closePop();drawSigns()}),ok=ubtn('Done','lite',()=>{s.t=t.value.trim();closePop();if(!s.t)del.onclick();else drawSigns()});
  const r=mk('div','g2');r.append(del,ok);openPop('sign','Sign',[t,form([['Material',ms]]),r]);setTimeout(()=>t.focus(),0)}
 
 // popups: notched, draggable, kept on screen; ✕ or Esc closes
@@ -2553,7 +2565,7 @@ function layerSet(k,st){const r=AE.rec;
  else if(k==='colour'){const sw=ubtn('','csb');sw.style.background=toHex(r.base);sw.onclick=()=>{colIn.value=toHex(r.base);let sn=false;colIn.oninput=()=>{if(!sn){aeBake();aeSnap();sn=true}r.base=fromHex(colIn.value);sw.style.background=colIn.value;AE.recF=null;aeDirty()};colIn.onchange=()=>aeRight();colIn.click()};const hs=mk('div');st.append(form([['Base',sw]]),hs);aeSliders(hs)}
  else if(k==='paint'){const g=mk('div','g2');g.append(ubtn('Clear','',()=>{aeSnap();r.stamp=null;AE.recF=null;aeDirty();aeRight()}));st.append(g)}}
 function aeBottom(){ABT.innerHTML='';if(AU.naming){const n=tbox(AE.mod?MODS.tex[AE.key].name:tName(AE.key)+' (mod)',()=>{});n.id='aen';const cls=mk('span','fl',furnK(AE.from)?'Furniture':KIND[AE.from]==='wall'?'Wall':'Floor');
-  const r=mk('div','nmr');r.append(n,cls);const g=mk('div','g2');g.append(ubtn('Cancel','',()=>{AU.naming=false;aeBottom()}),ubtn('Save','',()=>{aeSave(true);AU.naming=false;aeBottom();PW.querySelector('.wt span').textContent='Asset Editor · '+tName(AE.key)}));ABT.append(r,g);setTimeout(()=>{n.focus();n.select()},0);return}
+  const r=mk('div','nmr');r.append(n,cls);const g=mk('div','g2');g.append(ubtn('Cancel','',()=>{AU.naming=false;aeBottom()}),ubtn('Save','lite',()=>{aeSave(true);AU.naming=false;aeBottom();PW.querySelector('.wt span').textContent='Asset Editor · '+tName(AE.key)}));ABT.append(r,g);setTimeout(()=>{n.focus();n.select()},0);return}
  const g=mk('div','g3');g.append(ubtn('Copy code','',x=>{ACODE.value=aeCode();ACODE.select();try{navigator.clipboard.writeText(ACODE.value).catch(()=>{})}catch(e){}try{document.execCommand('copy')}catch(e){}flashB(x,'Copied')}),
   ubtn('Paste code','',x=>{const go=t=>{const i=t.indexOf('{'),j=t.lastIndexOf('}');try{const ids=importPack(JSON.parse(t.slice(i,j+1)));if(ids.length&&MODS.tex[ids[0]])aeLoad(ids[0]);flashB(x,'Loaded')}catch(e){ACODE.focus();ACODE.select();flashB(x,'Paste in box')}};try{navigator.clipboard.readText().then(go,()=>go(ACODE.value))}catch(e){go(ACODE.value)}}),
   ubtn(AE.mod?'Save':'Save as new…','',x=>{if(AE.mod){aeSave(false);flashB(x,'Saved')}else{AU.naming=true;aeBottom()}}));ABT.append(g)}
