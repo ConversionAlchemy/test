@@ -12,6 +12,7 @@ const UIC={
  sponge:[['.kkkkkkkkkk.','kyyyyyyyyyyk','kyoyyyyoyyyk','kyyyyoyyyyyk','kyoyyyyyoyyk','kyyyoyyyyyyk','.kkkkkkkkkk.'],{y:'#f2d04a',o:'#c79a26',k:'#3a2e10'}],
  wand:[['w.w.........','.y..........','w.k.........','...k........','....k.......','.....b......','......b.....','.......b....','........b...','.........b..'],{y:'#ffe066',w:'#fff6c8',k:'#d8d0c0',b:'#5a3c22'}],
  teth:[['...kkkkk....','..kbbbbbk...','.kbk...kbk..','.kbk...kbk..','..kbbbbbk...','...kkkbk....','......kbk...','.......kbk..','........kbk.','.........kk.'],{k:'#2a1c10',b:'#a07848'}],
+ bin:[['...kkkk...','kkkkkkkkkk','.kwwwwwwk.','.kwkwkwwk.','.kwkwkwwk.','.kwkwkwwk.','.kwkwkwwk.','.kwwwwwwk.','..kkkkkk..'],{k:'#111',w:'#d8564a'}],
  drop:[['........bbb.','.......bbbbb','.......bbbbb','......kbbbb.','.....kwkbb..','....kwk.....','...kwk......','..kwk.......','.kk.........','k...........','............','d...........','dd..........'],{b:'#b23a3a',w:'#a8d0e0',k:'#c9c5b8',d:'#5f8ad0'}],
  glass:[['kkkkkkkkk','.kyyyyyk.','..kyyyk..','...kyk...','....k....','...kyk...','..k.y.k..','.k.yyy.k.','kkkkkkkkk'],{k:'#b89654',y:'#e6bc69'}],
  reset:[['..kkkkk..','.k.....k.','k.......k','k......kkk','k.......k.','k.........','.k.....k..','..kkkkk...'],{k:'#fff'}]};
@@ -52,7 +53,7 @@ const ZT=mk('div','zone zt'),ZC=mk('div','zone zc'),ZS=mk('div','zone zs');
 const TH=mk('div','ch');ZC.append(TH,...SIDE0.children);SIDE0.append(ZT,ZC,ZS);
 VIEW.append(mk('div','frame'));
 // tool header with optional dropper
-function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1];TH.append(uicon(k),mk('span',null,n));if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'drp sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});TH.append(z)}if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','drp sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});TH.append(z)}if(k==='tile'||k==='spawn'){const d=ubtn('','drp',()=>armDrop(k));d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);TH.append(d)}}
+function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1];TH.append(uicon(k),mk('span',null,n));if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'drp sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});TH.append(z)}if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','drp sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});TH.append(z)}if(k==='tile'||k==='spawn'){const d=ubtn('','drp',()=>{UI.del=false;armDrop(k)});d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);TH.append(d)}if(k==='spawn'){const x=ubtn('','drp',()=>{UI.del=!UI.del;if(UI.del&&UI.drop)armDrop(k);else head(k);cv.style.cursor=UI.del?'crosshair':CUR.arrow});x.append(uicon('bin'));x.classList.toggle('on',!!UI.del);TH.append(x)}}
 
 // settings zone: map, save, popups
 {const ms=$('msel');ms.classList.add('wide');const sv=ubtn('Save','',x=>{mapSave(false);flashB(sv,'Saved')});
@@ -77,7 +78,7 @@ const OWN={};function MAPOWN(){if(OWN[curMap])return OWN[curMap];const m=MODS.ma
 {const s0=serMap;serMap=function(){const d=s0();d.owner=MAPOWN();d.signs=(SIGNS[curMap]||[]).map(s=>({...s}));return d}}
 
 // tools
-function pickTool(k){if(k!=='hand'){for(const b of bodies)b.direct=false;sel.clear();openCrate=null;keys.clear()}if(UI.pop==='ae'||UI.pop==='sign')closePop();UI.tool=k;LS.set('bs.tool',k);UI.drop=null;const m=UT.find(t=>t[0]===k)[2];setMode(m);SM.dataset.tool=k;
+function pickTool(k){if(k!=='spawn')UI.del=false;if(k!=='hand'){for(const b of bodies)b.direct=false;sel.clear();openCrate=null;keys.clear()}if(UI.pop==='ae'||UI.pop==='sign')closePop();UI.tool=k;LS.set('bs.tool',k);UI.drop=null;const m=UT.find(t=>t[0]===k)[2];setMode(m);SM.dataset.tool=k;
  for(const b of ZT.querySelectorAll('.tb'))b.classList.toggle('on',b.dataset.k===k);
  if(k==='vac'||k==='sponge'||k==='wand')edBrush={t:'clean',k};else if(k==='tile')edBrush=UI.tile?{...UI.tile}:null;else if(m)edBrush=null;
  head(k);if(k==='tile')tilerCtx();if(k==='spawn')spawnCtx();if(k==='paint')paintCtx();if(k==='sign')signCtx();if(k==='teth'){TQ.a=null;tetherCtx()}cv.style.cursor=k==='vac'||k==='sponge'||k==='wand'?TOOLCUR[k]||'crosshair':m?'crosshair':CUR.arrow}
@@ -165,6 +166,10 @@ function signMenu(s,e){closeMenu();const r=SM.getBoundingClientRect();menu=mk('d
 function editSign(s){UI.sign=s;const t=mk('textarea','tbox');t.value=s.t;const ms=dsel(Object.entries(SMAT).map(([k,v])=>[k,v[0]]),s.m||'wood',v=>{s.m=v;drawSigns()});const del=ubtn('Delete','',()=>{SIGNS[curMap]=(SIGNS[curMap]||[]).filter(q=>q!==s);closePop();drawSigns()}),ok=ubtn('Done','lite',()=>{s.t=t.value.trim();closePop();if(!s.t)del.onclick();else drawSigns()});
  const r=mk('div','g2');r.append(del,ok);openPop('sign','Note',[t,form([['Material',ms]]),r]);setTimeout(()=>t.focus(),0)}
 
+// spawner eraser: click or drag over units, items and cover to delete them
+{let er=false;const zap=e=>{const[x,y]=toBoard(e);for(const b of [...bodies]){if(b.hidden||!b.set||b.type==='slab'&&!b.free)continue;const bx=Math.round(b.x),by=Math.round(b.y);let hit=false;for(let j=-3;j<=3&&!hit;j++)for(let i=-3;i<=3;i++)if(i*i+j*j<=9&&b.set.has(K(Math.round(x+i)-bx,Math.round(y+j)-by))){hit=true;break}if(hit){remove(b);sfx('drop')}}};
+ VIEW.addEventListener('pointerdown',e=>{if(UI.tool!=='spawn'||!UI.del||e.button||panKey||!inBoard(e))return;e.stopImmediatePropagation();e.preventDefault();er=true;zap(e)},true);
+ window.addEventListener('pointermove',e=>{if(er&&inBoard(e))zap(e)});window.addEventListener('pointerup',()=>er=false)}
 // notes in a pack: hover shows the text, a click opens it to read or rewrite
 function takeNote(t,s){if(!addItem(t,{k:'note',t:s.t,m:s.m})){sfx('dry');return}SIGNS[curMap]=(SIGNS[curMap]||[]).filter(q=>q!==s);drawSigns();sfx('flick');lastHud='';hbK=''}
 function placeNote(q,x,y){const s={x:snapC(x),y:snapC(y),t:q.t||'',m:q.m||'wood'};(SIGNS[curMap]=SIGNS[curMap]||[]).push(s);drawSigns()}
