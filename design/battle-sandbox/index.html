@@ -167,6 +167,24 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .sgt{display:none;position:absolute;left:28px;top:-6px;width:max-content;max-width:260px;background:rgba(242,239,230,.92);color:#111;padding:6px 10px;font-size:17px;line-height:1.1;box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none}#sm .sgn:hover .sgt{display:block}
 .ghost{position:fixed;pointer-events:none;z-index:30;display:none;opacity:.6;image-rendering:pixelated}
 </style>
+<style>
+#sm #ae{display:none!important}
+#sm .aew{display:grid;grid-template-columns:auto 420px;gap:16px;align-items:start}
+#sm .ael{display:flex;flex-direction:column;gap:8px;width:388px}#sm .ael #aec{width:384px;height:384px;border:2px solid #000;display:block}
+#sm .atr{display:flex;gap:3px}#sm .atr button{padding:0 4px;font-size:16px;flex:1;min-width:0}#sm .atr .ib{flex:0 0 28px;padding:0;display:flex;align-items:center;justify-content:center}#sm .atr .gap{width:4px;flex:none}
+#sm .apal .pal{display:flex;flex-wrap:wrap;gap:3px}#sm .apal .pal span{width:18px;height:18px;border:1px solid #000;cursor:pointer}#sm .apal .pal span.on{outline:2px solid #fff}
+#sm textarea.acode{background:#141414;border:2px solid;border-color:#0a0a0a #4a4a4a #4a4a4a #0a0a0a;color:#c9c5b8;font:12px/1.2 monospace;height:52px;resize:none;padding:5px 7px;word-break:break-all}
+#sm .g3{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:3px}#sm .g3 button{white-space:nowrap}
+#sm .aer{display:flex;flex-direction:column;gap:3px}#sm .lays{display:flex;flex-direction:column;gap:3px}
+#sm .lay{display:grid;grid-template-columns:42px 1fr 30px;align-items:center;height:44px;padding:0 6px;background:#2e2e2e;border:2px solid;border-color:#5a5a5a #101010 #101010 #5a5a5a;font-size:18px;cursor:pointer}#sm .lay:hover{filter:brightness(1.12)}
+#sm .lay.on{background:#f2efe6;color:#111;border-color:#8a8780 #fff #fff #8a8780}#sm .lay .ln i{font-style:normal;color:#8f8b80;font-size:16px;margin-left:8px}#sm .lay.on .ln i{color:#5a564e}
+#sm .lay .th{width:34px;height:34px;display:block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.45)}#sm .csw{display:block;width:34px;height:34px}
+#sm .lst{margin-top:6px;display:flex;flex-direction:column;gap:10px}#sm .lt{font-size:19px}
+#sm .pg{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;justify-items:center}#sm .pg .sw{width:44px;height:44px}#sm .pg .sw canvas{width:44px!important;height:44px!important}
+#sm .rng{display:grid;grid-template-columns:1fr 46px;gap:10px;align-items:center;font-size:17px}#sm input[type=range]{accent-color:#c9c5b8;width:100%;min-width:0}
+#sm .lst .er{display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;font-size:17px}#sm .lst .er span{color:#8f8b80}
+#sm .csb{width:60px;padding:0}#sm .nmr{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+</style>
 <script>
 const T=16;
 const hh=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)};
@@ -2421,7 +2439,7 @@ function tilerCtx(){TCX.innerHTML='';const tabs=mk('div','tabs');for(const[t,n]o
   TCX.append(g);const r=mk('div','nm'),nb=mk('div','tbox',cur?tName(cur):''),w=dsel([['0','Floor'],['1','Wall']],String(PK.w||0),v=>{PK.w=+v;if(cur&&CATN[cur]){const[el,mat,vv]=CATN[cur];setTile(el.toLowerCase()+'.'+mat+'.'+vv+(PK.w?'.w':''),true)}else tilerCtx()});r.append(nb,w);TCX.append(r)}
  TCX.append(...['ed-fu','ed-dr'].map(id=>$(id)).filter(Boolean));
  TCX.append(form([['Brush',dsel([['1','1×1'],['2','2×2'],['3','3×3']],String(edSize),v=>edSize=+v)]]))}
-function setTile(k,keep){if(!validK(k))return;pkFrom(k);UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);if(!keep)UI.tt='tiles';tilerCtx()}
+function setTile(k,keep){if(!validK(k))return;pkFrom(k);UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);if(!keep)UI.tt='tiles';tilerCtx();if(UI.pop==='ae')aeLoad(k)}
 {const p0=fillMapTools;fillMapTools=function(){p0();if(edBrush&&edBrush.t!=='clean')UI.tile={...edBrush}}}
 
 // small form helpers
@@ -2484,7 +2502,7 @@ PW.querySelector('.x').onclick=()=>closePop();
 function place(x,y){const r=PW.getBoundingClientRect();PW.style.left=Math.max(0,Math.min(innerWidth-r.width,x))+'px';PW.style.top=Math.max(0,Math.min(innerHeight-r.height,y))+'px'}
 function openPop(id,title,body){if(UI.pop==='ae'&&id!=='ae')closePop();UI.pop=id;PW.dataset.id=id;PW.querySelector('.wt span').textContent=title;const b=PW.querySelector('.pb');b.innerHTML='';b.append(...body);PW.style.display='block';
  const r=PW.getBoundingClientRect(),vr=VIEW.getBoundingClientRect();place(vr.left+(vr.width-r.width)/2,vr.top+Math.max(60,(vr.height-r.height)/2));$('bae').classList.toggle('on',id==='ae');$('bms').classList.toggle('on',id==='map');CORN.querySelector('.sig').classList.toggle('on',id==='map')}
-function closePop(){if(!UI.pop)return;const was=UI.pop;UI.pop=null;PW.style.display='none';if(was==='ae'){AEH.append(...PW.querySelector('.pb').children);setMode(UT.find(t=>t[0]===UI.tool)[2])}for(const b of [$('bae'),$('bms'),CORN.querySelector('.sig')])b.classList.remove('on')}
+function closePop(){if(!UI.pop)return;const was=UI.pop;UI.pop=null;PW.style.display='none';if(was==='ae'){aeStash();AU.naming=false;PW.querySelector('.pb').innerHTML='';setMode(UT.find(t=>t[0]===UI.tool)[2])}for(const b of [$('bae'),$('bms'),CORN.querySelector('.sig')])b.classList.remove('on')}
 function togglePop(id){if(UI.pop===id){closePop();return}if(id==='map')mapPop();else aePop()}
 window.addEventListener('keydown',e=>{if(e.key!=='Escape'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(UI.place||UI.drop){armDrop(UI.drop||'spawn');e.stopImmediatePropagation()}else if(UI.pop){closePop();e.stopImmediatePropagation()}},true);
 function mapPop(){const mod=MODS.maps[curMap],own=Object.keys(NAT);
@@ -2495,8 +2513,62 @@ function mapPop(){const mod=MODS.maps[curMap],own=Object.keys(NAT);
  const g=mk('div','g2');g.append(ubtn('New map','',()=>{closePop();mapNew()}),ubtn('Delete map',mod?'':'dim',x=>{if(mod)confirmB(x,()=>{closePop();const id=curMap;goMap(mod.from&&!mod.from.startsWith('mod:')&&TITLE[mod.from]?mod.from:'bank');delete MODS.maps[id];delete STATE[id];saveMods();fillMapSel()})}),
   ubtn('Export','',()=>{const d=serMap();d.name=nm.value;download((nm.value||'map').replace(/\W+/g,'-')+'.json',{fluoria:1,maps:{[MODS.maps[curMap]?curMap:'mod:'+uidS()]:d},tex:usedTex(d)})}),ubtn('Import','',()=>pickFile(o=>{const ids=importPack(o);if(ids.length){closePop();goMap(ids[0])}})));
  openPop('map','Map settings',[f,g])}
+// asset editor: canvas and tools on the left, layers and the chosen layer's settings on the right, code below
 const AEH=mk('div');AEH.style.display='none';SM.append(AEH);
-function aePop(){setMode('asset');const secs=[...ZC.querySelectorAll('.sec[data-m="asset"]')];openPop('ae','Asset Editor',[$('ae'),...secs])}
+const AU={layer:'pattern',stash:{},naming:false};const AL=mk('div','ael'),AR=mk('div','aer'),ATB=mk('div','atr'),ACODE=mk('textarea','acode'),ABT=mk('div','abt'),APAL=mk('div','apal');
+ACODE.spellcheck=false;AL.append(ATB,aec,APAL,ACODE,ABT);SM.append(colIn);
+function aePop(){setMode('asset');const k=UI.tile&&UI.tile.k;if(k&&k!==AE.key)aeLoad(k);aeUI();const w=mk('div','aew');w.append(AL,AR);openPop('ae','Asset Editor · '+tName(AE.key),[w])}
+const aeRec=()=>AE.mode==='layers'&&AE.rec;
+function aeRender(){if(!aeRec()){aeDraw();return}const F=aeF(),im=ag.createImageData(TS,TS);for(let y=0;y<TS;y++)for(let x=0;x<TS;x++){const c=F(x,y),j=(y*TS+x)*4;im.data[j]=c[0];im.data[j+1]=c[1];im.data[j+2]=c[2];im.data[j+3]=255}
+ const tc=mk('canvas');tc.width=tc.height=TS;tc.getContext('2d').putImageData(im,0,0);ag.imageSmoothingEnabled=false;ag.drawImage(tc,0,0,TS*ZM,TS*ZM);ag.fillStyle='rgba(0,0,0,.14)';for(let i=1;i<TS;i++){ag.fillRect(i*ZM,0,1,TS*ZM);ag.fillRect(0,i*ZM,TS*ZM,1)}ag.fillStyle='rgba(255,255,255,.24)';ag.fillRect(T*ZM,0,1,TS*ZM);ag.fillRect(0,T*ZM,TS*ZM,1)}
+function aeCode(){return'FLUORIA_TEX('+JSON.stringify({name:tName(AE.key),from:AE.from,kind:furnK(AE.from)?'furniture':KIND[AE.from],...(aeRec()?{rec:AE.rec}:{s:TS,px:enc(AE.px)})})+')'}
+{const d0=aeDirty;aeDirty=function(k){d0(k);aeRender();if(document.activeElement!==ACODE)ACODE.value=aeCode()}}
+aeTabs=()=>{};aePreview=()=>{};aeLayers=()=>{if(UI.pop==='ae')aeRight()};aeAsset=()=>{if(UI.pop==='ae')aeBottom()};
+aeToolbar=function(){ATB.innerHTML='';const tb=(k,n)=>{const b=ubtn(n,AE.tool===k?'on':'',()=>{AE.tool=k;aeToolbar()});return b},ib=(k,on,f)=>{const b=ubtn('','ib'+(on?' on':''),f);b.append(pix(PIC[k][0],on?Object.fromEntries(Object.keys(PIC[k][1]).map(c=>[c,'#111'])):PIC[k][1],2));return b};
+ ATB.append(tb('pen','Pen'),tb('fill','Fill'),tb('line','Line'),tb('rect','Rect'),tb('pick','Pick'),mk('i','gap'),ib('mx',AE.mx,()=>{AE.mx=!AE.mx;aeToolbar()}),ib('my',AE.my,()=>{AE.my=!AE.my;aeToolbar()}),mk('i','gap'),ib('undo',0,()=>aeUndo(false)),ib('redo',0,()=>aeUndo(true)))};
+const PIC={mx:[['..k.....k...','.kk.....kk..','kkkkkkkkkkk.','.kk.....kk..','..k.....k...'],{k:'#c9c5b8'}],my:[['..k..','.kkk.','kkkkk','..k..','..k..','..k..','kkkkk','.kkk.','..k..'],{k:'#c9c5b8'}],
+ undo:[['...k........','..kk........','.kkkkkkkk...','..kk.....k..','...k......k.','..........k.','.........k..','.....kkkk...'],{k:'#c9c5b8'}],redo:[['........k...','........kk..','...kkkkkkkk.','..k.....kk..','.k......k...','.k..........','..k.........','...kkkk.....'],{k:'#c9c5b8'}]};
+// thumbnails drawn from the texture's own recipe with one layer isolated
+function recThumb(rec,n=34){const F=recTex(rec),c=mk('canvas');c.width=c.height=16;const g=c.getContext('2d'),im=g.createImageData(16,16);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const v=F(x,y),j=(y*16+x)*4;im.data[j]=v[0];im.data[j+1]=v[1];im.data[j+2]=v[2];im.data[j+3]=255}g.putImageData(im,0,0);c.style.cssText=`width:${n}px;height:${n}px;image-rendering:pixelated;display:block`;return c}
+const LAYN={paint:'Paint',wear:'Wear',pattern:'Pattern',material:'Material',colour:'Colour'};
+function layOn(k){const r=AE.rec;return k==='paint'?!!r.stamp:k==='wear'?Object.values(r.wear||{}).some(v=>v>0):k==='pattern'?(r.lay||'none')!=='none':k==='material'?r.mat!=='flat':true}
+function layVal(k){const r=AE.rec;return k==='paint'?(r.stamp?'stamp':'none'):k==='wear'?(layOn('wear')?'on':'none'):k==='pattern'?(r.lay&&r.lay.startsWith('pat:')?MODS.pat[r.lay.slice(4)]?.name||PNAME[r.lay.slice(4)]||'pattern':LAYS[r.lay||'none']).toLowerCase():k==='material'?MATS[r.mat].toLowerCase():toHex(r.base)}
+function layToggle(k,on){const r=AE.rec,S=AU.stash;aeBake();aeSnap();if(k==='paint'){if(on)r.stamp=S.stamp||null;else{S.stamp=r.stamp;r.stamp=null}}else if(k==='wear'){if(on)r.wear=S.wear||{edge:.3,scuff:.2};else{S.wear=r.wear;r.wear={}}}
+ else if(k==='pattern'){if(on)r.lay=S.lay||'flags';else{S.lay=r.lay;r.lay='none'}}else if(k==='material'){if(on)r.mat=S.mat||'stone';else{S.mat=r.mat;r.mat='flat'}}AE.recF=null;aeDirty();aeRight()}
+function aeRight(){AR.innerHTML='';if(!aeRec()){const L=mk('div','lays'),r=mk('div','lay on');r.append(mk('span','th'),mk('span','ln','Pixels'));L.append(r);AR.append(L);const st=mk('div','zone lst');st.append(mk('div','lt','Colour'));aeSliders(st);AR.append(st);return}
+ const r0=AE.rec,L=mk('div','lays');for(const k of['paint','wear','pattern','material','colour']){const row=mk('div','lay'+(AU.layer===k?' on':''));const th=mk('span','th');
+  th.append(k==='colour'?Object.assign(mk('span','csw'),{style:`background:${toHex(r0.base)}`}):k==='paint'?stThumb():recThumb(k==='wear'?{...r0,base:[90,88,84],mat:'flat',lay:'none',stamp:null}:k==='pattern'?{...r0,base:[120,116,110],mat:'flat',wear:{},stamp:null}:{...r0,lay:'none',wear:{},stamp:null}));
+  const ln=mk('span','ln');ln.append(LAYN[k],mk('i',null,layVal(k)));row.append(th,ln);if(k!=='colour')row.append(chk(layOn(k),v=>layToggle(k,v)));row.onclick=e=>{if(e.target.closest('.ck'))return;AU.layer=k;aeRight()};L.append(row)}
+ const st=mk('div','zone lst');st.append(mk('div','lt',LAYN[AU.layer]));layerSet(AU.layer,st);AR.append(L,st)}
+function stThumb(){const c=mk('canvas');c.width=c.height=16;const g=c.getContext('2d');g.fillStyle='#262626';g.fillRect(0,0,16,16);if(AE.rec.stamp){const a=dec(AE.rec.stamp);for(let i=0;i<256;i++)if(a[i*4+3]){g.fillStyle=`rgb(${a[i*4]},${a[i*4+1]},${a[i*4+2]})`;g.fillRect(i%16,i/16|0,1,1)}}c.style.cssText='width:34px;height:34px;image-rendering:pixelated;display:block';return c}
+function rng(label,v,min,max,f,fmt=x=>x){const d=mk('div','rng'),i=mk('input'),o=mk('span',null,fmt(v));i.type='range';i.min=min;i.max=max;i.value=v;let sn=false;i.oninput=()=>{if(!sn){aeBake();aeSnap();sn=true}f(+i.value);o.textContent=fmt(+i.value);AE.recF=null;aeDirty()};i.onchange=()=>{sn=false;aeRight()};d.append(i,o);return[label,d]}
+function pickGrid(opts,cur,mkRec,set){const g=mk('div','pg');for(const k of opts){const s=mk('span','sw'+(k===cur?' on':''));s.append(recThumb(mkRec(k),44));s.onclick=()=>{aeBake();aeSnap();set(k);AE.recF=null;aeDirty();aeRight()};g.append(s)}return g}
+function layerSet(k,st){const r=AE.rec;
+ if(k==='pattern'){const opts=[...Object.keys(LAYS),...Object.keys(PNAME).map(p=>'pat:'+p),...Object.keys(MODS.pat).map(p=>'pat:'+p)];st.append(pickGrid(opts,r.lay||'none',l=>({...r,lay:l,wear:{},stamp:null}),l=>r.lay=l),mk('div','tbox',layVal('pattern').replace(/^./,c=>c.toUpperCase())));
+  st.append(form([['Joints',dsel([['1','Thin'],['2','Thick']],String(r.jw||1),v=>{aeSnap();r.jw=+v;AE.recF=null;aeDirty();aeRight()})],rng('Depth',Math.round((r.jd??.8)*100),40,100,v=>r.jd=v/100,v=>v+'%'),rng('Variation',Math.round((r.vary??.3)*100),0,100,v=>r.vary=v/100,v=>v+'%')]));
+  const g=mk('div','g2');g.append(ubtn('Shuffle','',()=>{aeSnap();r.seed=(r.seed|0)+1+(Math.random()*97|0);AE.recF=null;aeDirty()}));st.append(g)}
+ else if(k==='material'){st.append(pickGrid(Object.keys(MATS),r.mat,m=>({...r,mat:m,lay:'none',wear:{},stamp:null}),m=>r.mat=m),mk('div','tbox',MATS[r.mat]))}
+ else if(k==='wear'){r.wear=r.wear||{};const w=r.wear;st.append(form([rng('Edges',Math.round((w.edge||0)*100),0,100,v=>w.edge=v/100,v=>v+'%'),rng('Scuffs',Math.round((w.scuff||0)*100),0,100,v=>w.scuff=v/100,v=>v+'%'),rng('Cracks',Math.round((w.crack||0)*100),0,100,v=>w.crack=v/100,v=>v+'%')]))}
+ else if(k==='colour'){const sw=ubtn('','csb');sw.style.background=toHex(r.base);sw.onclick=()=>{colIn.value=toHex(r.base);let sn=false;colIn.oninput=()=>{if(!sn){aeBake();aeSnap();sn=true}r.base=fromHex(colIn.value);sw.style.background=colIn.value;AE.recF=null;aeDirty()};colIn.onchange=()=>aeRight();colIn.click()};const hs=mk('div');st.append(form([['Base',sw]]),hs);aeSliders(hs)}
+ else if(k==='paint'){const g=mk('div','g2');g.append(ubtn('Clear','',()=>{aeSnap();r.stamp=null;AE.recF=null;aeDirty();aeRight()}));st.append(g)}}
+function aeBottom(){ABT.innerHTML='';if(AU.naming){const n=tbox(AE.mod?MODS.tex[AE.key].name:tName(AE.key)+' (mod)',()=>{});n.id='aen';const cls=mk('span','fl',furnK(AE.from)?'Furniture':KIND[AE.from]==='wall'?'Wall':'Floor');
+  const r=mk('div','nmr');r.append(n,cls);const g=mk('div','g2');g.append(ubtn('Cancel','',()=>{AU.naming=false;aeBottom()}),ubtn('Save','',()=>{aeSave(true);AU.naming=false;aeBottom();PW.querySelector('.wt span').textContent='Asset Editor · '+tName(AE.key)}));ABT.append(r,g);setTimeout(()=>{n.focus();n.select()},0);return}
+ const g=mk('div','g3');g.append(ubtn('Copy code','',x=>{ACODE.value=aeCode();ACODE.select();try{navigator.clipboard.writeText(ACODE.value).catch(()=>{})}catch(e){}try{document.execCommand('copy')}catch(e){}flashB(x,'Copied')}),
+  ubtn('Paste code','',x=>{const go=t=>{const i=t.indexOf('{'),j=t.lastIndexOf('}');try{const ids=importPack(JSON.parse(t.slice(i,j+1)));if(ids.length&&MODS.tex[ids[0]])aeLoad(ids[0]);flashB(x,'Loaded')}catch(e){ACODE.focus();ACODE.select();flashB(x,'Paste in box')}};try{navigator.clipboard.readText().then(go,()=>go(ACODE.value))}catch(e){go(ACODE.value)}}),
+  ubtn(AE.mod?'Save':'Save as new…','',x=>{if(AE.mod){aeSave(false);flashB(x,'Saved')}else{AU.naming=true;aeBottom()}}));ABT.append(g)}
+ACODE.addEventListener('paste',()=>setTimeout(()=>{const t=ACODE.value,i=t.indexOf('{'),j=t.lastIndexOf('}');try{const ids=importPack(JSON.parse(t.slice(i,j+1)));if(ids.length&&MODS.tex[ids[0]])aeLoad(ids[0])}catch(e){}},0));
+{const l0=aeLoad;aeLoad=function(k){l0(k);AU.stash={};if(UI.pop==='ae'){PW.querySelector('.wt span').textContent='Asset Editor · '+tName(k);aeUI()}}}
+function aeUI(){APAL.innerHTML='';APAL.append(apal);aeToolbar();aePalette();aeRight();aeBottom();aeRender();ACODE.value=aeCode()}
+// painting in layer mode draws into the paint layer (one 16×16 motif per cell)
+{let sd=null;const xy=e=>{const r=aec.getBoundingClientRect();return[Math.max(0,Math.min(TS-1,(e.clientX-r.left)/r.width*TS|0)),Math.max(0,Math.min(TS-1,(e.clientY-r.top)/r.height*TS|0))]};
+ aec.addEventListener('pointerdown',e=>{if(!aeRec())return;e.preventDefault();e.stopImmediatePropagation();aec.setPointerCapture(e.pointerId);const[x,y]=xy(e),t=e.altKey||e.button===2?'pick':AE.tool;
+  if(t==='pick'){const c=aeF()(x,y);AE.col=c.map(v=>v|0);aeToolbar();return}aeBake();aeSnap();const a=stGet(),u=x&15,v=y&15;
+  if(t==='fill'){const k0=a.slice((v*16+u)*4,(v*16+u)*4+4)+'',q=[[u,v]],seen=new Set([v*16+u]);while(q.length){const[p,o]=q.pop();stPlot(a,p,o,AE.col);for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const P=p+dx,O=o+dy;if(P<0||O<0||P>15||O>15||seen.has(O*16+P)||a.slice((O*16+P)*4,(O*16+P)*4+4)+''!==k0)continue;seen.add(O*16+P);q.push([P,O])}}AE.rec.stamp=enc(a);AE.recF=null;aeDirty();aeRight();return}
+  sd={t,u0:u,v0:v,last:[u,v],snap:a.slice()};if(t==='pen'){stPlot(a,u,v,AE.col);AE.rec.stamp=enc(a);AE.recF=null;aeDirty()}},true);
+ aec.addEventListener('pointermove',e=>{if(!sd||!aeRec())return;e.stopImmediatePropagation();const[x,y]=xy(e),u=x&15,v=y&15,a=sd.t==='pen'?stGet():sd.snap.slice(),line=(p0,q0,p1,q1)=>{const n=Math.max(Math.abs(p1-p0),Math.abs(q1-q0))||1;for(let i=0;i<=n;i++)stPlot(a,Math.round(p0+(p1-p0)*i/n),Math.round(q0+(q1-q0)*i/n),AE.col)};
+  if(sd.t==='pen'){line(sd.last[0],sd.last[1],u,v);sd.last=[u,v]}else if(sd.t==='line')line(sd.u0,sd.v0,u,v);else if(sd.t==='rect'){const x0=Math.min(sd.u0,u),x1=Math.max(sd.u0,u),y0=Math.min(sd.v0,v),y1=Math.max(sd.v0,v);for(let q=y0;q<=y1;q++)for(let p=x0;p<=x1;p++)if(e.shiftKey||p===x0||p===x1||q===y0||q===y1)stPlot(a,p,q,AE.col)}
+  AE.rec.stamp=enc(a);AE.recF=null;aeDirty()},true);
+ aec.addEventListener('pointerup',e=>{if(sd){sd=null;aeRight()}},true)}
 {const g0=goMap;goMap=function(v){if(UI.pop==='map')closePop();g0(v);sigil();sgM=''}}
 {const r0=reset;reset=function(){r0();sigil();sgM=''}}
 
