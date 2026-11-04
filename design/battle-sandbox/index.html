@@ -893,7 +893,7 @@ function buildDocks(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 function crate(x,y,items,long){items=(items||[]).filter(Boolean);const c=weapon('crate',x,y,0);if(long===undefined)long=!cFitsAll(c,items);c.name='Crate';if(long){c.long=true;c.px=shape('lcrate',0);mkSet(c)}c.si=-1;cFill(c,items);return c}
 // storage is space: items keep their real size and lie wherever their outline fits, turned if needed
-const FTC={},foot=k=>{if(FTC[k])return FTC[k];if(!WP[k]||k==='gold')return FTC[k]=[7,7];let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of shape(k,0)){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}return FTC[k]=[x1-x0+1,y1-y0+1]};
+const FTC={bomb:[10,10]},foot=k=>{if(FTC[k])return FTC[k];if(!WP[k]||k==='gold')return FTC[k]=[7,7];let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of shape(k,0)){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}return FTC[k]=[x1-x0+1,y1-y0+1]};
 function cGeo(c){if(!c.box){const hw=c.long?15:5;return{gw:2*hw-1,gh:9,cs:1,ox:Math.round(c.x)-hw+1,oy:Math.round(c.y)-4,ok:()=>true}}
  const ox=c.box[0]+1,oy=c.box[1]+1,gw=c.box[2]-c.box[0]-1,gh=c.box[3]-c.box[1]-1,tl=new Set(c.cells.map(([a,b])=>b*CW+a));
  return{gw,gh,cs:1,ox,oy,ok:(x,y)=>{const X=ox+x,Y=oy+y,cx=X/T|0,cy=Y/T|0,lx=X-cx*T,ly=Y-cy*T,h=(a,b)=>tl.has(b*CW+a);return h(cx,cy)&&!(lx<1&&!h(cx-1,cy))&&!(lx>=T-1&&!h(cx+1,cy))&&!(ly<1&&!h(cx,cy-1))&&!(ly>=T-1&&!h(cx,cy+1))}}}
@@ -901,19 +901,33 @@ const cRect=q=>{const[w,h]=foot(q.k);return q.r?[h,w]:[w,h]};
 // chests are slot grids: 4 lanes across, steps one grenade long along the length; each item takes a fixed block and lies along the chest
 const SLOT={musket:[1,4],spear:[1,4],sspear:[1,4],rod:[1,4],blunder:[2,3],pgun:[2,3],pistol:[1,2],bomb:[4,2],mbox:[2,2],pbox:[2,2],sbox:[2,2],rbox:[2,2],cell:[2,2]},slotOf=k=>SLOT[k]||[2,1];
 function sGeo(c){const g=cGeo(c),vert=g.gh>=g.gw,th=vert?g.gw:g.gh,len=vert?g.gh:g.gw,NS=Math.max(1,len/7|0);return{g,vert,th,NL:4,NS,lw:th/4,off:(len-NS*7)>>1}}
-function plc(c,k,a,b,S=sGeo(c)){const[la,lb]=slotOf(k),[w0,h0]=foot(k),r=w0>h0?(S.vert?1:0):0,w=r?h0:w0,h=r?w0:h0,acr=a*S.lw,aw=la*S.lw,alo=S.off+b*7,al=lb*7;
+function plc(c,k,a,b,S=sGeo(c)){const[la,lb]=slotOf(k),[w0,h0]=foot(k),r=w0>h0?(S.vert?1:0):0,w=r?h0:w0,h=r?w0:h0,lp=Math.floor(S.th/4),acr=la===1?(S.th-4*lp)/2+a*lp:a*S.lw,aw=la===1?lp:la*S.lw,alo=S.off+b*7,al=lb*7;
  const x0=S.vert?acr:alo,y0=S.vert?alo:acr,bw=S.vert?aw:al,bh=S.vert?al:aw;return{gx:Math.round(x0+(bw-w)/2),gy:Math.round(y0+(bh-h)/2),r,sl:[a,b]}}
 function sFree(c,k,skip,S=sGeo(c)){const[la,lb]=slotOf(k),U=new Set();for(const q of c.inv||[])if(q&&q!==skip&&q.sl){const[qa,qb]=slotOf(q.k);for(let i=0;i<qa;i++)for(let j=0;j<qb;j++)U.add((q.sl[0]+i)*99+q.sl[1]+j)}
  const L=[];for(let b=0;b+lb<=S.NS;b++)for(let a=0;a+la<=S.NL;a+=la===2?2:1){let f=true;for(let i=0;i<la&&f;i++)for(let j=0;j<lb;j++)if(U.has((a+i)*99+b+j)){f=false;break}if(f)L.push([a,b])}return L}
-function cFit(c,k){const S=sGeo(c),L=sFree(c,k,null,S);return L.length?plc(c,k,L[0][0],L[0][1],S):null}
-function cAt(c,k,X,Y,skip){const S=sGeo(c),L=sFree(c,k,skip,S);let best=null,bd=1e9;for(const[a,b]of L){const p=plc(c,k,a,b,S),[w0,h0]=foot(k),w=p.r?h0:w0,h=p.r?w0:h0,d=Math.hypot(S.g.ox+p.gx+w/2-X,S.g.oy+p.gy+h/2-Y);if(d<bd){bd=d;best=p}}return best}
-function cAdd(c,it,X,Y){c.inv=c.inv||[];if(it.k==='gold'){const m=c.inv.find(q=>q&&q.k==='gold');if(m){m.n+=it.n;return true}}const p=(X!==undefined&&cAt(c,it.k,X,Y))||cFit(c,it.k);if(!p)return false;const q={...it,n:it.k==='gold'?it.n:1,...p,v:8};delete q.mode;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);return true}
+function cFit1(c,k){const S=sGeo(c),L=sFree(c,k,null,S);return L.length?plc(c,k,L[0][0],L[0][1],S):null}
+// the chest arranges itself: like items packed together from the top-left, long weapons first; alike neighbours lean together
+const SORD=['musket','rod','spear','sspear','blunder','pgun','pistol','bomb','mbox','pbox','sbox','rbox','cell','grenade','gold','note'],sord=k=>{const i=SORD.indexOf(k);return i<0?99:i};
+function cPack(c,extra){const L=(c.inv||[]).filter(Boolean).concat(extra?[extra]:[]).map((q,i)=>[q,i]).sort((p,q)=>sord(p[0].k)-sord(q[0].k)||p[1]-q[1]).map(p=>p[0]),t={x:c.x,y:c.y,long:c.long,box:c.box,cells:c.cells,inv:[]},res=new Map(),S=sGeo(c);
+ for(const q of L){const p=cFit1(t,q.k);if(!p)return null;t.inv.push({k:q.k,sl:p.sl});res.set(q,p)}
+ // pixels: everything sits flush from the top-left edge, packed tight against its neighbours; a lone item that fills the chest is centred
+ const E=[...res].map(([q,p])=>{const[la,lb]=slotOf(q.k),[w0,h0]=foot(q.k),w=p.r?h0:w0,h=p.r?w0:h0;const lp=Math.floor(S.th/4),ac0=S.vert?w:h;return{q,p,a0:p.sl[0],a1:p.sl[0]+la,b0:p.sl[1],b1:p.sl[1]+lb,ac:la===1?Math.max(ac0,lp):ac0,pad:la===1?Math.max(0,lp-ac0)>>1:0,ln:S.vert?h:w}});
+ for(const e of [...E].sort((x,y)=>x.b0-y.b0)){e.L=0;for(const z of E)if(z!==e&&z.b0<e.b0&&z.a0<e.a1&&e.a0<z.a1&&z.Le!==undefined)e.L=Math.max(e.L,z.Le);e.Le=e.L+e.ln}
+ for(const e of [...E].sort((x,y)=>x.a0-y.a0)){e.A=0;for(const z of E)if(z!==e&&z.a0<e.a0&&z.b0<e.b1&&e.b0<z.b1&&z.Ae!==undefined)e.A=Math.max(e.A,z.Ae);e.Ae=e.A+e.ac}
+ const one=E.length===1&&E[0].a1-E[0].a0===S.NL&&E[0].b1-E[0].b0===S.NS;
+ for(const e of E){let A=e.A+e.pad,Lp=e.L;if(one){A=(S.th-e.ac)>>1;Lp=(S.vert?S.g.gh:S.g.gw)-e.ln>>1}if(S.vert){e.p.gx=A;e.p.gy=Lp}else{e.p.gx=Lp;e.p.gy=A}}
+ return res}
+const cSig=c=>c.inv.map(q=>q?q.k:'').join();
+function cApply(c){const r=cPack(c);if(r)for(const[q,p]of r)Object.assign(q,p,{v:9});c._sig=cSig(c);return!!r}
+function cFit(c,k){const e={k},r=cPack(c,e);return r?r.get(e):null}
+function cAt(c,k,X,Y,skip){if(skip&&c.inv.includes(skip))return{gx:skip.gx,gy:skip.gy,r:skip.r,sl:skip.sl};return cFit(c,k)}
+function cAdd(c,it){c.inv=c.inv||[];if(it.k==='gold'){const m=c.inv.find(q=>q&&q.k==='gold');if(m){m.n+=it.n;return true}}const q={...it,n:it.k==='gold'?it.n:1};delete q.mode;delete q.sl;const r=cPack(c,q);if(!r)return false;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);for(const[z,p]of r)Object.assign(z,p,{v:9});c._sig=cSig(c);return true}
 function cFill(c,items){c.inv=[];for(const it of items||[]){if(!it)continue;const n=it.k==='gold'||it.k==='note'?1:it.n||1;for(let i=0;i<n;i++){const one={...it};if(one.k!=='gold')one.n=1;delete one.gx;delete one.gy;delete one.r;if(!cAdd(c,one))cSpill(c,one)}}}
 const cFitsAll=(c,items)=>{const t={x:c.x,y:c.y,long:c.long,box:c.box,cells:c.cells,inv:[]};for(const it of items)for(let i=0;i<(it.k==='gold'||it.k==='note'?1:it.n||1);i++)if(!cAdd(t,{...it,n:it.k==='gold'?it.n:1}))return false;return true};
 function spillAt(c){const b=c.box||[c.x-6,c.y-6,c.x+6,c.y+6],cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2,free=(x,y)=>{for(let v=-3;v<=3;v++)for(let u=-3;u<=3;u++){const X=Math.round(x+u),Y=Math.round(y+v);if(X<1||Y<1||X>=W-1||Y>=H-1||sol[Y*W+X]||OBJ[Y*W+X])return false}return true};
  for(let d=8;d<40;d+=4)for(const[x,y]of[[cx,b[3]+d],[cx,b[1]-d],[b[0]-d,cy],[b[2]+d,cy],[b[0]-d,b[3]+d],[b[2]+d,b[3]+d],[b[0]-d,b[1]-d],[b[2]+d,b[1]-d]]){const jx=x+(Math.random()-.5)*6,jy=y+(Math.random()-.5)*6;if(free(jx,jy))return[jx,jy]}return[cx,b[3]+6]}
 function cSpill(c,q){const[sx,sy]=spillAt(c);if(q.k==='note'){placeNote(q,sx,sy);return}if(!WP[q.k])return;const a=Math.random()*6.283,w=weapon(q.k,sx,sy,a);if(q.k==='gold')w.amt=q.n;if(CAP[q.k]){w.ammo=q.ammo??CAP[q.k];w.res=q.res||0}w.noPick=tick+120}
-const cNorm=c=>{if(c&&c.inv&&c.inv.some(q=>q&&(!q.sl||q.v!==8)))cFill(c,c.inv.filter(Boolean))};
+const cNorm=c=>{if(!c||!c.inv)return;if(c.inv.some(q=>q&&(!q.sl||q.v!==9)))cFill(c,c.inv.filter(Boolean));else if(c._sig!==cSig(c))cApply(c)};
 // a shot through storage hits what lies in its path: explosives go off, Solari and notes wear away
 function cShot(c,X,Y,r,b){if(!c||!c.inv)return;cNorm(c);c.holed=true;const g=cGeo(c);
  for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q)continue;const[w,h]=cRect(q),x0=g.ox+q.gx,y0=g.oy+q.gy,nx=Math.max(x0,Math.min(X,x0+w-1)),ny=Math.max(y0,Math.min(Y,y0+h-1));if(Math.hypot(nx-X,ny-Y)>r+.5)continue;
@@ -924,6 +938,7 @@ function cShot(c,X,Y,r,b){if(!c||!c.inv)return;cNorm(c);c.holed=true;const g=cGe
 const ICN=new Map();function itemPix(k,r){const key=k+r;if(ICN.has(key))return ICN.get(key);const[w,h]=foot(k),o=[];
  if(k==='gold'){const SS=['.....','.###.','#....','.###.','....#','.###.','.....'];for(let y=0;y<h;y++)for(let x=0;x<w;x++){const e=x===0||y===0||x===w-1||y===h-1,sg=SS[y]&&SS[y][x-1]==='#';o.push([x,y,sg?rgb(112,72,8):e?rgb(200,154,52):x+y<5?rgb(255,228,120):rgb(240,202,88)])}}
  else if(!WP[k]){const SC=new Set([8,9,10,12,22,23,25,26,36,38,39]);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const e=x===0||y===0||x===w-1||y===h-1,gr=.93+.07*Math.sin(x*1.7+hh(0,y,41)*4)+.03*(hh(x,y,42)-.5);o.push([x,y,e?rgb(176,162,128):SC.has(y*7+x)?rgb(64,58,74):mul(rgb(236,226,198),gr)])}}
+ else if(k==='bomb'){const px=shape(k,0),M=new Map(px.map(p=>[(p[1]+4)*9+p[0]+4,p[2]]));for(let y=0;y<10;y++)for(let x=0;x<10;x++){const c0=M.get((y<2?y:y-1)*9+(x<2?x:x-1));if(c0!==undefined)o.push([x,y,c0])}}
  else{const px=shape(k,0);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of px){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])}const ox=(w-(x1-x0+1))>>1,oy=(h-(y1-y0+1))>>1;for(const p of px){const a=p[0]-x0+ox,b=p[1]-y0+oy;o.push(r?[h-1-b,a,p[2]]:[a,b,p[2]])}}
  ICN.set(key,o);return o}
 let SDR=null;const GLOWK=new Set(['sspear','pgun','cell']);
@@ -936,9 +951,9 @@ const METK=new Set(['musket','blunder','pistol','spear','sspear','rod','pgun','g
 function storeHit(X,Y){for(const c of storesShown()){cNorm(c);const g=cGeo(c);for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q)continue;const[w,h]=cRect(q),x=g.ox+q.gx*g.cs,y=g.oy+q.gy*g.cs;if(X>=x&&Y>=y&&X<x+w*g.cs&&Y<y+h*g.cs)return{c,i}}}return null}
 function drawHoled(sh){for(const c of bodies){if(!c.holed||!c.inv||sh.includes(c))continue;const g=cGeo(c),cx=Math.round(c.x),cy=Math.round(c.y),gone=c.box?j=>!OBJ[j]:(X,Y)=>!c.set.has(K(X-cx,Y-cy));
   for(const q of c.inv){if(!q||q.gx===undefined)continue;const bx=g.ox+q.gx,by=g.oy+q.gy;for(const[a,b,col]of itemPix(q.k,q.r)){const X=bx+a,Y=by+b;if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(c.box?gone(j):gone(X,Y))out[j]=col}}}}
-function drawStores(){drawHoled(storesShown());for(const c of storesShown()){cNorm(c);const g=cGeo(c),open=!c.box&&c.open;
-  if(c.box||!open)for(let y=0;y<g.gh*g.cs;y++)for(let x=0;x<g.gw*g.cs;x++){if(!g.ok(x/g.cs|0,y/g.cs|0))continue;const X=g.ox+x,Y=g.oy+y;if(X<0||Y<0||X>=W||Y>=H)continue;out[Y*W+X]=mul(out[Y*W+X],.7)}
-  for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q||SDR&&SDR.c===c&&SDR.i===i)continue;const[w,h]=cRect(q),ip=itemPix(q.k,q.r),bx=g.ox+q.gx*g.cs,by=g.oy+q.gy*g.cs;for(const[a,b]of ip){const gx=q.gx+a+1,gy=q.gy+b+1;if(gx<g.gw&&gy<g.gh&&g.ok(gx,gy))out[(g.oy+gy)*W+g.ox+gx]=mul(out[(g.oy+gy)*W+g.ox+gx],.5)}for(const[a,b,col]of ip){const X=bx+a,Y=by+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}if(GLOWK.has(q.k))for(const[a,b,col]of ip){if((col>>16&255)<200||(col&255)<150)continue;for(let v=-2;v<=2;v++)for(let u=-2;u<=2;u++){const d=Math.hypot(u,v);if(!d||d>2.5)continue;const X=bx+a+u,Y=by+b+v;if(X>=0&&Y>=0&&X<W&&Y<H&&!ip.some(p=>p[0]===a+u&&p[1]===b+v))out[Y*W+X]=mix(out[Y*W+X],rgb(214,140,255),.32*(1-d/3))}}}}
+function drawStores(){drawHoled(storesShown());const hit=!SDR&&!drag&&mouse.in&&UI.tool==='hand'?storeHit(Math.round(mouse.x),Math.round(mouse.y)):null;for(const c of storesShown()){cNorm(c);const g=cGeo(c),open=!c.box&&c.open;
+  if(c.box||!open)for(let y=0;y<g.gh*g.cs;y++)for(let x=0;x<g.gw*g.cs;x++){if(!g.ok(x/g.cs|0,y/g.cs|0))continue;const X=g.ox+x,Y=g.oy+y;if(X<0||Y<0||X>=W||Y>=H)continue;out[Y*W+X]=mul(out[Y*W+X],.3)}
+  for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q||SDR&&SDR.c===c&&SDR.i===i)continue;const[w,h]=cRect(q),ip=itemPix(q.k,q.r),bx=g.ox+q.gx*g.cs,by=g.oy+q.gy*g.cs;for(const[a,b]of ip){const gx=q.gx+a+1,gy=q.gy+b+1;if(gx<g.gw&&gy<g.gh&&g.ok(gx,gy))out[(g.oy+gy)*W+g.ox+gx]=mul(out[(g.oy+gy)*W+g.ox+gx],.5)}const hv=hit&&hit.c===c&&hit.i===i;for(const[a,b,col]of ip){const X=bx+a,Y=by+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=hv?mix(col,rgb(255,255,255),.22):col}if(GLOWK.has(q.k))for(const[a,b,col]of ip){if((col>>16&255)<200||(col&255)<150)continue;for(let v=-2;v<=2;v++)for(let u=-2;u<=2;u++){const d=Math.hypot(u,v);if(!d||d>2.5)continue;const X=bx+a+u,Y=by+b+v;if(X>=0&&Y>=0&&X<W&&Y<H&&!ip.some(p=>p[0]===a+u&&p[1]===b+v))out[Y*W+X]=mix(out[Y*W+X],rgb(214,140,255),.32*(1-d/3))}}}}
  if(SDR){const q=SDR.c.inv[SDR.i];if(q){const db=dropBox(),sn=db&&!bodyAt(Math.round(mouse.x),Math.round(mouse.y),4,null,o=>o.type==='token'&&o.status!=='dead')&&cAt(db,q.k,mouse.x,mouse.y,q),sg=sn&&cGeo(db),r=sn?sn.r:q.r,[w,h]=sn?(r?[...foot(q.k)].reverse():foot(q.k)):cRect(q);for(const[a,b,col]of itemPix(q.k,r)){const X=(sn?sg.ox+sn.gx:Math.round(mouse.x-w/2))+a,Y=(sn?sg.oy+sn.gy:Math.round(mouse.y-h/2))+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}}
 function unitsDocks(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
  face(token('Corvan','Imperium','shock',56,50,false,'pgun'),dn);face(token('Varn','Imperium','shock',122,50,false,'spear'),dn);face(token('Kade','Imperium','shock',168,50,false,'pgun'),dn);
