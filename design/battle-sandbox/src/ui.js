@@ -1,5 +1,5 @@
 // screen: map with a brass clock corner, tool panel on the right, popups for occasional work
-const UI={tool:LS.get('bs.tool','hand'),st:LS.get('bs.st','units'),tt:'tiles',drop:null,pop:null};let PAUSED=true;
+const UI={tool:LS.get('bs.tool','hand'),st:LS.get('bs.st','units'),tt:'tiles',drop:null,pop:null};let PAUSED=true;const MNAME={};
 const UKEY={hand:'Esc',spawn:'B',tile:'N',paint:'P',sign:'L',teth:'K',wand:'M',vac:'U',sponge:'O'};
 const UT=[['hand','Command',null],['spawn','Spawner',null],['tile','Tiler','map'],['sign','Sign','map'],['paint','Painter','map'],['vac','Vacuum','map'],['sponge','Sponge','map'],['wand','Wand','map'],['teth','Tether',null]];
 const UIC={
@@ -164,7 +164,7 @@ function closePop(){if(!UI.pop)return;const was=UI.pop;UI.pop=null;PW.style.disp
 function togglePop(id){if(UI.pop===id){closePop();return}if(id==='map')mapPop();else aePop()}
 window.addEventListener('keydown',e=>{if(e.key!=='Escape'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)&&!PW.contains(e.target))return;if(UI.place||UI.drop){armDrop(UI.drop||'spawn');e.stopImmediatePropagation()}else if(UI.pop){closePop();e.stopImmediatePropagation()}},true);
 function mapPop(){const mod=MODS.maps[curMap],own=Object.keys(NAT);
- const nm=tbox(mod?mod.name:(TITLE[curMap]||'Map'),v=>{if(MODS.maps[curMap]){MODS.maps[curMap].name=v;TITLE[curMap]=v;saveMods();fillMapSel()}});nm.id='mname';
+ const nm=tbox(mod?mod.name:(TITLE[curMap]||'Map'),v=>{if(MODS.maps[curMap]){MODS.maps[curMap].name=v;TITLE[curMap]=v;saveMods();fillMapSel()}else MNAME[curMap]=v});nm.id='mname';
  const sz=mk('div','szr'),wi=tbox(CW,v=>edResize(+v,CH),'number'),hi=tbox(CH,v=>edResize(CW,+v),'number');sz.append(wi,mk('span','fl','×'),hi);
  const f=form([['Name',nm],['Location',dsel([['auto','Auto'],['in','Interior'],['out','Outdoor']],ENVSET[curMap]||'auto',v=>{ENVSET[curMap]=v;envCalc()})],
   ['Owner',dsel(own.map(n=>[n,n]),MAPOWN(),v=>{OWN[curMap]=v;if(MODS.maps[curMap]){MODS.maps[curMap].owner=v;saveMods()}sigil()})],['Size',sz],['Wall tops',chk(edTops,v=>{edTops=v;TOPS=EM==='map'&&v})]]);

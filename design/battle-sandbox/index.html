@@ -21,25 +21,15 @@
 #sm .wp{display:flex;flex-direction:column;gap:2px}
 #sm .menu select{border:0;border-bottom:1px solid #333;background:#232323}
 #sm .menu input{border:0;border-bottom:1px solid #333;width:120px}
-#sm .wp div,#sm .ppl div{display:flex;align-items:center;gap:6px;padding:0 4px;background:#262626;border:1px solid #333;font-size:16px;line-height:1}
+#sm .wp div{display:flex;align-items:center;gap:6px;padding:0 4px;background:#262626;border:1px solid #333;font-size:16px;line-height:1}
 #sm .wp div{cursor:var(--c-grab)}#sm .wp div:hover{border-color:#777}
 #sm .wp canvas{width:28px;height:18px;image-rendering:pixelated}
-#sm .ppl{display:flex;flex-direction:column;gap:3px}
-#sm .ppl div.off{opacity:.5}
 #sm .dot{width:14px;height:14px;border-radius:50%;border:1px solid #000;flex:none}
 #sm .form{display:grid;gap:4px}
 #sm .form input{width:100%}
 #sm #tp{width:34px;height:34px;image-rendering:pixelated;cursor:var(--c-grab);justify-self:center}
-#sm .cols{display:flex;flex-wrap:wrap;gap:3px}
-#sm .cols span{width:18px;height:18px;border:1px solid #000;cursor:pointer}
-#sm .cols span.on{outline:2px solid #fff}
 #sm .hint{padding:5px 10px;border-top:1px solid #000;font-size:17px;color:#8f8b80;min-height:28px;white-space:nowrap;overflow:hidden}
 #sm .hint .k{color:#f2efe6}
-#sm #insp{display:flex;flex-direction:column;gap:6px;margin-top:4px}
-#sm .ibox{background:#181818;border:1px solid #000;box-shadow:inset 0 0 0 1px #3a3a3a}
-#sm .ih{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:2px 6px;background:#262626;border-bottom:1px solid #000;font-size:18px}
-#sm .ih i{font-style:normal;font-size:15px;color:#8f8b80}
-#sm .ig{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:5px}
 #sm .is{position:relative;height:40px;background:#222;border:1px solid #333;display:flex;align-items:center;justify-content:center;cursor:pointer}
 #sm .is:hover{border-color:#777}#sm .is.on{border-color:#f2efe6}#sm .is.lock{background:#141414;border-color:#1a1a1a;cursor:var(--c-arrow)}
 #sm .is canvas{width:42px;height:30px;image-rendering:pixelated;pointer-events:none}
@@ -50,7 +40,7 @@
 #sm .wp>div{height:24px;cursor:var(--c-grab);display:grid;grid-template-columns:40px 1fr auto;gap:6px;align-items:center}#sm .wp>div>canvas{justify-self:center}#sm .wp>div.dim{opacity:.4;cursor:var(--c-arrow)}#sm .wp>div.on{border-color:#f2efe6}#sm .wp>div.arm{border-color:#e0a040}
 #sm .wp .n{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#sm .wp .c{color:#c9c5b8}#sm .wp .c.lo{color:#e0a040}#sm .wp .c.out{color:#b03a2a}
 #sm .mk>div{cursor:var(--c-arrow);grid-template-columns:64px 1fr auto}#sm .mk .ml{color:#8f8b80}#sm .mk input,#sm .mk select{min-width:0;border:0;background:transparent;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none;cursor:pointer}#sm .mk .c{color:#6f6b62;pointer-events:none}#sm .mk select option{background:#262626}
-#sm #tpr{cursor:var(--c-grab)}#sm #tp{width:17px;height:17px;image-rendering:pixelated}#sm .ibox{display:flex;flex-direction:column;gap:2px;background:none;border:0;box-shadow:none}#sm .ibox+.ibox{margin-top:4px}#sm .isub{font-size:16px;padding:0 2px}
+#sm #tpr{cursor:var(--c-grab)}#sm #tp{width:17px;height:17px;image-rendering:pixelated}
 #sm .menu{position:absolute;z-index:5;background:#232323;border:1px solid #000;display:flex;flex-direction:column;min-width:120px;box-shadow:0 3px 10px #0008}
 #sm .menu button{border:0;border-bottom:1px solid #333;text-align:left;background:#232323}
 #sm .menu button:hover{background:#3a3a3a}
@@ -98,7 +88,7 @@
  </div>
  <div class="hint" id="hint"></div>
 </div>
-<style>#sm .mk>#tpr{display:flex;justify-content:center;align-items:center;height:58px;cursor:var(--c-grab);position:relative}#sm .mk>#tpr #dice{position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;cursor:pointer;image-rendering:pixelated;opacity:.75}#sm .mk>#tpr #dice:hover{opacity:1}#sm .mk>#tpr canvas{width:51px;height:51px;image-rendering:pixelated}#sm .wp>div.itb{display:flex;gap:4px;height:auto;padding:6px 0 0;background:none;border:0;box-shadow:none;cursor:var(--c-arrow)}#sm .wp>div.isep{height:0;padding:0;margin:4px 2px;background:none;border:0;border-top:1px solid #3c3a36;box-shadow:none;cursor:var(--c-arrow)}#sm .ib{width:30px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;background:#2c2c2c;border:1px solid #4a4a4a;box-shadow:inset 0 0 0 1px #1a1a1a;color:#8a877e;cursor:pointer}#sm .ib svg{width:16px;height:16px}#sm .ib:hover{color:#e6e2d6;border-color:#6a6a6a}#sm .ib.on{background:#4a4944;color:#fff;border:2px solid #f2efe6;box-shadow:none}#sm .wp>div.itb{align-items:center}#sm .ibl{font-size:16px;color:#6f6c64;cursor:pointer;padding-left:4px}#sm .ibl.on{color:#f2efe6}#sm #insp .sl{color:#8f8b80;margin-right:8px}#sm #insp .am{color:#c9c5b8}#sm #insp .am.lo{color:#e0a040}#sm #insp .am.out{color:#b03a2a}#sm #insp .isep{border-top:1px solid #3a3a3a;margin:4px 0}</style><style>#sm .xlab{position:absolute;font-size:16px;line-height:1;color:#c9b27a;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;pointer-events:none}</style><style>
+<style>#sm .mk>#tpr{display:flex;justify-content:center;align-items:center;height:58px;cursor:var(--c-grab);position:relative}#sm .mk>#tpr #dice{position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;cursor:pointer;image-rendering:pixelated;opacity:.75}#sm .mk>#tpr #dice:hover{opacity:1}#sm .mk>#tpr canvas{width:51px;height:51px;image-rendering:pixelated}#sm .wp>div.isep{height:0;padding:0;margin:4px 2px;background:none;border:0;border-top:1px solid #3c3a36;box-shadow:none;cursor:var(--c-arrow)}#sm .ib{width:30px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;background:#2c2c2c;border:1px solid #4a4a4a;box-shadow:inset 0 0 0 1px #1a1a1a;color:#8a877e;cursor:pointer}#sm .ib svg{width:16px;height:16px}#sm .ib:hover{color:#e6e2d6;border-color:#6a6a6a}#sm .ib.on{background:#4a4944;color:#fff;border:2px solid #f2efe6;box-shadow:none}</style><style>#sm .xlab{position:absolute;font-size:16px;line-height:1;color:#c9b27a;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;pointer-events:none}</style><style>
 /* new screen: full-screen map, panel zones, bevelled keys */
 html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:column}
 #sm header,#sm #bar,#sm .hint{display:none}
@@ -199,7 +189,6 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .hpan{display:flex;align-items:center;gap:6px;padding:5px;background:#1e1e1e;box-shadow:inset 2px 2px 0 #4a4a4a,inset -2px -2px 0 #101010,0 0 0 2px #3a3a3a;clip-path:polygon(4px 0,calc(100% - 4px) 0,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0 calc(100% - 4px),0 4px)}
 #sm .hsep{width:2px;align-self:stretch;background:#3a3a3a;box-shadow:1px 0 0 #101010}
 #sm .hbar .slot{box-shadow:inset 2px 2px 0 #0e0e0e,inset -2px -2px 0 #4a4a4a;background:#2a2a2a}#sm .hbar{opacity:1;filter:brightness(.85)}#sm .hbar:hover{filter:none}#sm .hbar .slot.on{background:#2e2e2e;box-shadow:inset 0 0 0 2px #f2efe6}#sm .hbar .slot.lock{background:#121212;box-shadow:none}
-#sm #insp .ibox>div:not(.itb){display:none}#sm #insp .ibox+.ibox{display:none}
 </style><style>#sm .tgrid .tb[data-k=hand]{grid-column:span 2}</style><style>
 #sm .hcx,#sm .snx{display:none;flex-direction:column;gap:6px}#sm[data-tool=hand] .hcx,#sm[data-tool=sign] .snx{display:flex}
 #sm[data-tool=hand] .zc>.sec[data-k=insp]{display:none!important}
@@ -2115,7 +2104,7 @@ function putIn(c,k,n,w){const m=!CAP[k]&&c.inv.find(q=>q&&q.k===k);if(m){m.n=(m.
 
 function fillMapTools(){const f=$('mfile');f.innerHTML='';const mod=MODS.maps[curMap];
  const r5=mk('div','er');for(const[v,t]of[['auto','Auto'],['in','Interior'],['out','Outdoor']]){const x=mk('button',null,t);if((ENVSET[curMap]||'auto')===v)x.classList.add('on');x.onclick=()=>{ENVSET[curMap]=v;envCalc();fillMapTools()};r5.appendChild(x)}r5.appendChild(mk('span','sep'));{const x=mk('button',null,'Wall tops');if(edTops)x.classList.add('on');x.onclick=()=>{edTops=!edTops;TOPS=edTops;fillMapTools()};r5.appendChild(x)}
- const r1=mk('div','er'),ni=mk('input');ni.type='text';ni.id='mname';ni.value=mod?mod.name:(TITLE[curMap]||'Map')+' (mod)';r1.append(ni);
+ const r1=mk('div','er'),ni=mk('input');ni.type='text';ni.value=mod?mod.name:(TITLE[curMap]||'Map')+' (mod)';r1.append(ni);
  const r2=mk('div','er'),b=(t,fn)=>{const x=mk('button',null,t);x.onclick=()=>fn(x);r2.appendChild(x);return x};
  b('Save',x=>{mapSave(false);flashB(x,'Saved')});b('Save as',x=>{mapSave(true);flashB(x,'Saved')});b('New',()=>mapNew());b('Export',()=>{const d=serMap();d.name=ni.value;download((ni.value||'map').replace(/\W+/g,'-')+'.json',{fluoria:1,maps:{[MODS.maps[curMap]?curMap:'mod:'+uidS()]:d},tex:usedTex(d)})});b('Import',()=>pickFile(o=>{const ids=importPack(o);if(ids.length)goMap(ids[0])}));
  if(mod)b('Delete',x=>confirmB(x,()=>{const id=curMap;goMap(mod.from&&!mod.from.startsWith('mod:')&&TITLE[mod.from]?mod.from:'bank');delete MODS.maps[id];delete STATE[id];saveMods();fillMapSel()}));
@@ -2129,7 +2118,7 @@ function fillMapTools(){const f=$('mfile');f.innerHTML='';const mod=MODS.maps[cu
   d.append(icon(src,1),mk('span','n',DOORK[k][0]),mk('span','c',''));d.classList.toggle('arm',on('door:'+k));d.onpointerdown=e=>{e.preventDefault();pick('door','door:'+k,d)};dr.appendChild(d)}
  const sz=$('ed-sz');sz.innerHTML='';const r4=mk('div','er'),wi=mk('input'),hi=mk('input');wi.type=hi.type='number';wi.value=CW;hi.value=CH;const ap=mk('button',null,'Apply');ap.onclick=()=>edResize(+wi.value,+hi.value);r4.append(mk('span',null,'Size'),wi,mk('span',null,'×'),hi,ap);r4.children[2].style.minWidth='0';sz.appendChild(r4)}
 function usedTex(d){const t={};for(const r of d.map)for(const k of r)if(MODS.tex[k])t[k]=MODS.tex[k];return t}
-function mapSave(asNew){const nm=($('mname')&&$('mname').value.trim())||TITLE[curMap]||'Map',d=serMap();d.name=nm;let id=curMap;
+function mapSave(asNew){const nm=($('mname')&&$('mname').value.trim())||MNAME[curMap]||TITLE[curMap]||'Map',d=serMap();d.name=nm;let id=curMap;
  if(!asNew&&MODS.maps[id])d.from=MODS.maps[id].from;else{d.from=MODS.maps[curMap]?MODS.maps[curMap].from:curMap;id='mod:'+uidS();curMap=id}
  MODS.maps[id]=d;saveMods();regMap(id);fillMapSel();$('sm').querySelector('header span').textContent=nm;fillMapTools()}
 function mapNew(){const cw=20,ch=14,id='mod:'+uidS(),n=Object.values(MODS.maps).filter(m=>/^New map/.test(m.name)).length;MODS.maps[id]={v:1,name:'New map'+(n?' '+(n+1):''),from:null,CW:cw,CH:ch,map:Array.from({length:ch},(_,y)=>Array.from({length:cw},(_,x)=>x===0||y===0||x===cw-1||y===ch-1?'stone':'flag')),tex:{},bodies:[]};saveMods();regMap(id);fillMapSel();goMap(id)}
@@ -2349,7 +2338,7 @@ function aePattern(k){if(AE.mode==='layers'){aeBake();aeSnap();AE.rec.lay='pat:'
  for(let y=0;y<TS;y++)for(let x=0;x<TS;x++){const u=(x/sc|0)%p.w,v0=(y/sc|0)%p.h,t=p.g[v0*p.w+u]??2,o=(y*TS+x)*3,f=1+(hh(x,y,77)-.5)*2*vary;
   if(ramp){const c=ramp[t];px[o]=c[0]*f;px[o+1]=c[1]*f;px[o+2]=c[2]*f}else{const m=TONE[t];px[o]*=m[0]*f;px[o+1]*=m[1]*f;px[o+2]*=m[2]*f}}aeDirty()}
 // screen: map with a brass clock corner, tool panel on the right, popups for occasional work
-const UI={tool:LS.get('bs.tool','hand'),st:LS.get('bs.st','units'),tt:'tiles',drop:null,pop:null};let PAUSED=true;
+const UI={tool:LS.get('bs.tool','hand'),st:LS.get('bs.st','units'),tt:'tiles',drop:null,pop:null};let PAUSED=true;const MNAME={};
 const UKEY={hand:'Esc',spawn:'B',tile:'N',paint:'P',sign:'L',teth:'K',wand:'M',vac:'U',sponge:'O'};
 const UT=[['hand','Command',null],['spawn','Spawner',null],['tile','Tiler','map'],['sign','Sign','map'],['paint','Painter','map'],['vac','Vacuum','map'],['sponge','Sponge','map'],['wand','Wand','map'],['teth','Tether',null]];
 const UIC={
@@ -2514,7 +2503,7 @@ function closePop(){if(!UI.pop)return;const was=UI.pop;UI.pop=null;PW.style.disp
 function togglePop(id){if(UI.pop===id){closePop();return}if(id==='map')mapPop();else aePop()}
 window.addEventListener('keydown',e=>{if(e.key!=='Escape'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)&&!PW.contains(e.target))return;if(UI.place||UI.drop){armDrop(UI.drop||'spawn');e.stopImmediatePropagation()}else if(UI.pop){closePop();e.stopImmediatePropagation()}},true);
 function mapPop(){const mod=MODS.maps[curMap],own=Object.keys(NAT);
- const nm=tbox(mod?mod.name:(TITLE[curMap]||'Map'),v=>{if(MODS.maps[curMap]){MODS.maps[curMap].name=v;TITLE[curMap]=v;saveMods();fillMapSel()}});nm.id='mname';
+ const nm=tbox(mod?mod.name:(TITLE[curMap]||'Map'),v=>{if(MODS.maps[curMap]){MODS.maps[curMap].name=v;TITLE[curMap]=v;saveMods();fillMapSel()}else MNAME[curMap]=v});nm.id='mname';
  const sz=mk('div','szr'),wi=tbox(CW,v=>edResize(+v,CH),'number'),hi=tbox(CH,v=>edResize(CW,+v),'number');sz.append(wi,mk('span','fl','×'),hi);
  const f=form([['Name',nm],['Location',dsel([['auto','Auto'],['in','Interior'],['out','Outdoor']],ENVSET[curMap]||'auto',v=>{ENVSET[curMap]=v;envCalc()})],
   ['Owner',dsel(own.map(n=>[n,n]),MAPOWN(),v=>{OWN[curMap]=v;if(MODS.maps[curMap]){MODS.maps[curMap].owner=v;saveMods()}sigil()})],['Size',sz],['Wall tops',chk(edTops,v=>{edTops=v;TOPS=EM==='map'&&v})]]);

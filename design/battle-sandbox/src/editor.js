@@ -178,7 +178,7 @@ function putIn(c,k,n,w){const m=!CAP[k]&&c.inv.find(q=>q&&q.k===k);if(m){m.n=(m.
 
 function fillMapTools(){const f=$('mfile');f.innerHTML='';const mod=MODS.maps[curMap];
  const r5=mk('div','er');for(const[v,t]of[['auto','Auto'],['in','Interior'],['out','Outdoor']]){const x=mk('button',null,t);if((ENVSET[curMap]||'auto')===v)x.classList.add('on');x.onclick=()=>{ENVSET[curMap]=v;envCalc();fillMapTools()};r5.appendChild(x)}r5.appendChild(mk('span','sep'));{const x=mk('button',null,'Wall tops');if(edTops)x.classList.add('on');x.onclick=()=>{edTops=!edTops;TOPS=edTops;fillMapTools()};r5.appendChild(x)}
- const r1=mk('div','er'),ni=mk('input');ni.type='text';ni.id='mname';ni.value=mod?mod.name:(TITLE[curMap]||'Map')+' (mod)';r1.append(ni);
+ const r1=mk('div','er'),ni=mk('input');ni.type='text';ni.value=mod?mod.name:(TITLE[curMap]||'Map')+' (mod)';r1.append(ni);
  const r2=mk('div','er'),b=(t,fn)=>{const x=mk('button',null,t);x.onclick=()=>fn(x);r2.appendChild(x);return x};
  b('Save',x=>{mapSave(false);flashB(x,'Saved')});b('Save as',x=>{mapSave(true);flashB(x,'Saved')});b('New',()=>mapNew());b('Export',()=>{const d=serMap();d.name=ni.value;download((ni.value||'map').replace(/\W+/g,'-')+'.json',{fluoria:1,maps:{[MODS.maps[curMap]?curMap:'mod:'+uidS()]:d},tex:usedTex(d)})});b('Import',()=>pickFile(o=>{const ids=importPack(o);if(ids.length)goMap(ids[0])}));
  if(mod)b('Delete',x=>confirmB(x,()=>{const id=curMap;goMap(mod.from&&!mod.from.startsWith('mod:')&&TITLE[mod.from]?mod.from:'bank');delete MODS.maps[id];delete STATE[id];saveMods();fillMapSel()}));
@@ -192,7 +192,7 @@ function fillMapTools(){const f=$('mfile');f.innerHTML='';const mod=MODS.maps[cu
   d.append(icon(src,1),mk('span','n',DOORK[k][0]),mk('span','c',''));d.classList.toggle('arm',on('door:'+k));d.onpointerdown=e=>{e.preventDefault();pick('door','door:'+k,d)};dr.appendChild(d)}
  const sz=$('ed-sz');sz.innerHTML='';const r4=mk('div','er'),wi=mk('input'),hi=mk('input');wi.type=hi.type='number';wi.value=CW;hi.value=CH;const ap=mk('button',null,'Apply');ap.onclick=()=>edResize(+wi.value,+hi.value);r4.append(mk('span',null,'Size'),wi,mk('span',null,'×'),hi,ap);r4.children[2].style.minWidth='0';sz.appendChild(r4)}
 function usedTex(d){const t={};for(const r of d.map)for(const k of r)if(MODS.tex[k])t[k]=MODS.tex[k];return t}
-function mapSave(asNew){const nm=($('mname')&&$('mname').value.trim())||TITLE[curMap]||'Map',d=serMap();d.name=nm;let id=curMap;
+function mapSave(asNew){const nm=($('mname')&&$('mname').value.trim())||MNAME[curMap]||TITLE[curMap]||'Map',d=serMap();d.name=nm;let id=curMap;
  if(!asNew&&MODS.maps[id])d.from=MODS.maps[id].from;else{d.from=MODS.maps[curMap]?MODS.maps[curMap].from:curMap;id='mod:'+uidS();curMap=id}
  MODS.maps[id]=d;saveMods();regMap(id);fillMapSel();$('sm').querySelector('header span').textContent=nm;fillMapTools()}
 function mapNew(){const cw=20,ch=14,id='mod:'+uidS(),n=Object.values(MODS.maps).filter(m=>/^New map/.test(m.name)).length;MODS.maps[id]={v:1,name:'New map'+(n?' '+(n+1):''),from:null,CW:cw,CH:ch,map:Array.from({length:ch},(_,y)=>Array.from({length:cw},(_,x)=>x===0||y===0||x===cw-1||y===ch-1?'stone':'flag')),tex:{},bodies:[]};saveMods();regMap(id);fillMapSel();goMap(id)}
