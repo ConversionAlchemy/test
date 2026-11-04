@@ -77,7 +77,7 @@ const OWN={};function MAPOWN(){if(OWN[curMap])return OWN[curMap];const m=MODS.ma
 function pickTool(k){if(UI.pop==='ae'||UI.pop==='sign')closePop();UI.tool=k;LS.set('bs.tool',k);UI.drop=null;const m=UT.find(t=>t[0]===k)[2];setMode(m);SM.dataset.tool=k;
  for(const b of ZT.querySelectorAll('.tb'))b.classList.toggle('on',b.dataset.k===k);
  if(k==='vac'||k==='sponge'||k==='wand')edBrush={t:'clean',k};else if(k==='tile')edBrush=UI.tile?{...UI.tile}:null;else if(m)edBrush=null;
- head(k);if(k==='tile')tilerCtx();if(k==='spawn')spawnCtx();if(k==='paint')paintCtx();if(k==='sign')signCtx();cv.style.cursor=k==='vac'||k==='sponge'||k==='wand'?TOOLCUR[k]||'crosshair':m?'crosshair':CUR.arrow}
+ head(k);if(k==='tile')tilerCtx();if(k==='spawn')spawnCtx();if(k==='paint')paintCtx();if(k==='sign')signCtx();if(k==='teth'){TQ.a=null;tetherCtx()}cv.style.cursor=k==='vac'||k==='sponge'||k==='wand'?TOOLCUR[k]||'crosshair':m?'crosshair':CUR.arrow}
 {const s0=setMode;setMode=function(m){s0(m);SM.dataset.tool=UI.tool;for(const id of['ed-fu','ed-dr'])$(id)&&AEH0.append($(id))}}
 
 // tiler: element tabs, a swatch per material and variation, name and floor or wall
@@ -274,6 +274,24 @@ const VARIANT={Conscript:['Imperial Striped Guard',.2]};
 $('tpr').addEventListener('pointerdown',()=>{const b=bodies[bodies.length-1],v=b&&b.type==='token'&&VARIANT[b.look];if(v&&Math.random()<v[1]){b.look=v[0];b.px=tokPixels(b);mkSet(b)}});
 {const c0=cleanUp;cleanUp=function(){const c=CL;c0();if(c&&c.k==='wand'&&!c.cells.length)US.none()}}
 for(const sc of ZC.querySelectorAll('.sec'))sc.classList.remove('closed');
+// tether: hover shows a green node (a unit, a wall face or a floor centre); click one, stretch, click the other
+const TQ={kind:LS.get('bs.tk','rope'),a:null,hov:null,lastL:0,lastT:0},REACH=96;const TQX=mk('div','qcx');ZC.append(TQX);
+function tetherCtx(){TQX.innerHTML='';const L=mk('div','ulist');for(const[k,n,c]of[['rope','Rope','#a07848'],['chain','Chain','#8c969a']]){const r=mk('div','urow'+(TQ.kind===k?' on':''));const sw=mk('span','swd');sw.style.background=c;r.append(sw,mk('span','n',n));r.onclick=()=>{TQ.kind=k;LS.set('bs.tk',k);tetherCtx()};L.append(r)}TQX.append(L)}
+function tNode(x,y){const u=bodyAt(x|0,y|0,7,null,o=>o.type==='token'&&o.status!=='dead');if(u)return{u,x:u.x,y:u.y};const cx=x/T|0,cy=y/T|0,k=map[cy]&&map[cy][cx];if(!k)return null;const isW=(a,b)=>{const n=map[b]&&map[b][a];return !!n&&!!WMAT[n]};
+ let best=null;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const wall=isW(cx,cy);if(wall===isW(cx+a,cy+b))continue;const px=cx*T+T/2+a*T/2,py=cy*T+T/2+b*T/2,d=Math.hypot(px-x,py-y);if(!wall&&d>6)continue;const s=wall?1:-1;if(!best||d<best.d)best={x:px,y:py,d,ix:Math.round(px-a*1.5*s),iy:Math.round(py-b*1.5*s)}}
+ if(best)return{x:best.x,y:best.y,aj:best.iy*W+best.ix};if(WMAT[k])return null;return{x:cx*T+T/2,y:cy*T+T/2,aj:-1}}
+VIEW.addEventListener('pointerdown',e=>{if(UI.tool!=='teth'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),n=tNode(x,y);if(!n)return;
+ if(!TQ.a){TQ.a=n;TQ.lastL=0;sfx('flick');return}const a=TQ.a,u=a.u||n.u,w=a.u?n:a;if(!u||w.u)return;TQ.a=null;
+ const d=Math.hypot(u.x-w.x,u.y-w.y);u.tether={kind:TQ.kind,x:w.x,y:w.y,aj:w.aj,s0:w.aj>=0?shp[w.aj]:0,len:Math.max(10,Math.min(REACH,d))+2,hp:TETH[TQ.kind].hp};sfx(TQ.kind==='chain'?'chink':'twang');lastHud=''},true);
+window.addEventListener('pointermove',e=>{if(UI.tool!=='teth')return;const[x,y]=toBoard(e);TQ.hov=inBoard(e)?tNode(x,y):null;TQ.cx=x;TQ.cy=y;const a=TQ.a;if(!a)return;
+ if(a.u){const d=Math.hypot(x-a.u.x,y-a.u.y);if(d>REACH){const tx=x-(x-a.u.x)/d*REACH,ty=y-(y-a.u.y)/d*REACH;if(!sol[(ty|0)*W+(tx|0)]){a.u.x=tx;a.u.y=ty;a.u.vx=a.u.vy=0}}a.x=a.u.x;a.y=a.u.y}
+ const L=Math.min(REACH,Math.hypot(x-a.x,y-a.y)),t=performance.now();if(Math.abs(L-TQ.lastL)>5&&t-TQ.lastT>90){TQ.lastL=L;TQ.lastT=t;sfx(TQ.kind==='chain'?'chink':'creak')}});
+window.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.tool!=='teth'||UI.pop)return;e.stopImmediatePropagation();if(TQ.a)TQ.a=null;else pickTool('hand')},true);
+{const r2=render;render=function(){r2();if(UI.tool!=='teth')return;const a=TQ.a;ctx.save();
+ if(a){let ex=TQ.cx,ey=TQ.cy;const d=Math.hypot(ex-a.x,ey-a.y);if(d>REACH&&!a.u){ex=a.x+(ex-a.x)/d*REACH;ey=a.y+(ey-a.y)/d*REACH}const sn=TQ.hov&&(!!TQ.hov.u!==!!a.u);if(sn){ex=TQ.hov.x;ey=TQ.hov.y}
+  ctx.strokeStyle=TQ.kind==='chain'?'#9aa0a6':'#a07848';ctx.lineWidth=1.5;if(TQ.kind==='chain')ctx.setLineDash([2,1.5]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(ex,ey);ctx.stroke();ctx.setLineDash([])}
+ const dot=(p,c)=>{ctx.fillStyle='#000';ctx.beginPath();ctx.arc(p.x,p.y,3.2,0,6.283);ctx.fill();ctx.fillStyle=c;ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,6.283);ctx.fill()};
+ if(TQ.hov&&(!a||!!TQ.hov.u!==!!a.u))dot(TQ.hov,'#5ec45e');if(a)dot(a,'#f0a040');ctx.restore()}}
 // space: tap to run or pause time, hold for slow-mo while held (space + drag still pans)
 {let SP=null;const typing=e=>/INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
  window.addEventListener('keydown',e=>{if(e.code!=='Space'||e.repeat||typing(e)||SP)return;SP={t:performance.now(),pan:false,slow:false};SP.h=setTimeout(()=>{if(SP&&!SP.pan&&!slowMo){window.toggleSlow();SP.slow=true}},250)});

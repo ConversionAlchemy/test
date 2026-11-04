@@ -97,7 +97,7 @@ function findAnchor(x,y){let best=null;const c0=x/T|0,r0=y/T|0;for(let cy=r0-3;c
 function tie(b,kind,len){const a=findAnchor(b.x,b.y);if(!a)return false;const aj=a.iy*W+a.ix;b.tether={kind,x:a.x,y:a.y,aj,s0:shp[aj],len:len||Math.max(14,a.d)+6,hp:TETH[kind].hp};sfx(kind==='chain'?'chink':'flick');return true}
 function snapT(b){if(!b.tether||b.tether.broken)return;b.tether.broken=true;sfx(b.tether.kind==='chain'?'clink':'twang');for(let i=0;i<4;i++)spark(b.tether.x,b.tether.y,b.tether.kind==='chain'?rgb(150,160,154):rgb(150,116,70),0,0,1.5,6)}
 function leash(b){const t=b.tether;if(!t||t.broken)return;const dx=b.x-t.x,dy=b.y-t.y,d=Math.hypot(dx,dy)||1;if(d>t.len){b.x=t.x+dx/d*t.len;b.y=t.y+dy/d*t.len}}
-function tetherTick(){for(const b of bodies){const t=b.tether;if(!t||t.broken||b.type!=='token'||inDrag(b))continue;if(!sol[t.aj]||shp[t.aj]<t.s0*(t.kind==='chain'?.5:.99)){snapT(b);continue}
+function tetherTick(){for(const b of bodies){const t=b.tether;if(!t||t.broken||b.type!=='token'||inDrag(b))continue;if(t.aj>=0&&(!sol[t.aj]||shp[t.aj]<t.s0*(t.kind==='chain'?.5:.99))){snapT(b);continue}
  const dx=b.x-t.x,dy=b.y-t.y,d=Math.hypot(dx,dy)||1;if(d<=t.len)continue;const mx=t.len+TETH[t.kind].give,ux=dx/d,uy=dy/d,k=Math.min(1,(d-t.len)/(mx-t.len));b.vx-=ux*k*.2;b.vy-=uy*k*.2;
  if(d>mx){b.x=t.x+ux*mx;b.y=t.y+uy*mx;const vr=b.vx*ux+b.vy*uy;if(vr>0){b.vx-=ux*vr;b.vy-=uy*vr}b.glide=null}}}
 function blastTethers(x,y,s){const R=14*s;for(const b of bodies){const t=b.tether;if(!t||t.broken)continue;const vx=b.x-t.x,vy=b.y-t.y,L2=vx*vx+vy*vy||1,u=Math.max(0,Math.min(1,((x-t.x)*vx+(y-t.y)*vy)/L2)),d=Math.hypot(t.x+vx*u-x,t.y+vy*u-y);if(d>=R)continue;t.hp-=(1-d/R)*2.5*s;if(t.hp<=0)snapT(b)}}
