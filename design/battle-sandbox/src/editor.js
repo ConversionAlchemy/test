@@ -413,4 +413,3 @@ function aePattern(k){if(AE.mode==='layers'){aeBake();aeSnap();AE.rec.lay='pat:'
  if(AE.pat.mode==='Fill'){const ls=[];for(let i=0;i<px.length;i+=3)ls.push([lum(px[i],px[i+1],px[i+2]),i]);ls.sort((a,b)=>a[0]-b[0]);ramp=[.04,.25,.5,.75,.96].map(f=>{const i=ls[Math.min(ls.length-1,f*ls.length|0)][1];return[px[i],px[i+1],px[i+2]]})}
  for(let y=0;y<TS;y++)for(let x=0;x<TS;x++){const u=(x/sc|0)%p.w,v0=(y/sc|0)%p.h,t=p.g[v0*p.w+u]??2,o=(y*TS+x)*3,f=1+(hh(x,y,77)-.5)*2*vary;
   if(ramp){const c=ramp[t];px[o]=c[0]*f;px[o+1]=c[1]*f;px[o+2]=c[2]*f}else{const m=TONE[t];px[o]*=m[0]*f;px[o+1]*=m[1]*f;px[o+2]*=m[2]*f}}aeDirty()}
-})();
