@@ -89,7 +89,7 @@ NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i
 ENVSET.atelier='out';
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
-function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k});NUM[id]=()=>spawnMap(d)}
+function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>{UND=d.und?d.und.map(r=>r.slice()):[];paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k})};NUM[id]=()=>spawnMap(d)}
 for(const id in MODS.maps)regMap(id);
 function fillMapSel(){const ms=$('msel');ms.innerHTML='';const g1=mk('optgroup');g1.label='Base';for(const[v,n]of MAPBASE){const o=mk('option',null,n);o.value=v;g1.appendChild(o)}ms.appendChild(g1);const ids=Object.keys(MODS.maps);if(ids.length){const g2=mk('optgroup');g2.label='Mods';for(const id of ids){const o=mk('option',null,MODS.maps[id].name);o.value=id;g2.appendChild(o)}ms.appendChild(g2)}ms.value=curMap}
 fillMapSel();
@@ -99,7 +99,7 @@ function serMap(){const src=map.map((r,y)=>r.map((k,x)=>OM[y]&&OM[y][x]||k)),tex
  for(const b of bodies){if(b.type==='token')B.push({t:'u',name:b.name,nat:b.nat,unit:b.unit,x:r1(b.x),y:r1(b.y),ang:r1(b.ang||0),look:b.look,tone:b.tone,status:b.status,guard:b.guard||undefined,leader:b.leader||undefined,auto:b.auto,neutral:b.neutral||undefined,inv:cp(b.inv),si:b.si>=0?b.si:b.psi??-1,teth:b.tether&&!b.tether.broken?b.tether.kind:undefined});
   else if(b.type==='slab'){if(b.fallen)continue;const a=b.ang;if(a){b.ang=0;orient(b)}B.push({t:'s',mat:b.mat,x:r1(b.x),y:r1(b.y),rot:b.rot,len:b.len,th:b.th,free:b.free||undefined,locked:b.locked||undefined,keys:b.keys||undefined,gold:b.gold||undefined,pair:b.pair?sl.indexOf(b.pair):undefined,col:b.src.map(q=>q[2])});if(a){b.ang=a;orient(b)}}
   else if(b.type==='weapon'){if(WP[b.kind]&&WP[b.kind].bullet)continue;if(b.hidden){B.push({t:'c',cx:b.cells[0][0],cy:b.cells[0][1],name:b.name,inv:cp(b.inv)});continue}B.push({t:'w',kind:b.kind,x:r1(b.x),y:r1(b.y),ang:r1(b.ang||0),ammo:b.ammo,res:b.res,amt:b.amt,inv:cp(b.inv)})}}
- return{v:1,CW,CH,env:ENVSET[curMap]||'auto',map:src,tex,bodies:B}}
+ return{v:1,CW,CH,env:ENVSET[curMap]||'auto',map:src,und:UND.some(r=>r&&r.some(Boolean))?UND.map(r=>r?r.slice():[]):undefined,tex,bodies:B}}
 function spawnMap(d){const sl=[];for(const o of d.bodies)try{
  if(o.t==='u'){const b=token(o.name,o.nat,o.unit,o.x,o.y,o.guard,null);Object.assign(b,{ang:o.ang||0,look:o.look,tone:o.tone,status:o.status||'free',leader:o.leader,auto:o.auto!==false,neutral:o.neutral});b.inv=cp(o.inv)||[];while(b.inv.length<6)b.inv.push(null);b.si=o.si>=0&&b.inv[o.si]?o.si:-1;b.held=b.si>=0?b.inv[b.si]:null;b.hc=null;if(o.teth)tie(b,o.teth)}
  else if(o.t==='s'){const s=slab(o.mat,o.x,o.y,o.rot,o.len,o.th);if(o.free)s.free=true;s.locked=!!o.locked;if(o.keys)s.keys=o.keys;if(o.gold)s.gold=true;if(o.col&&o.col.length===s.src.length){o.col.forEach((c,i)=>s.src[i][2]=c);s.used=null;s.px=[];orient(s)}sl.push([s,o.pair])}
@@ -143,7 +143,10 @@ function edCells(cx,cy){const o=Math.floor((edSize-1)/2),r=[];for(let y=cy-o;y<c
 function addPend(st,cx,cy){for(const c of edCells(cx,cy)){const id=c[1]*CW+c[0];if(!st.seen.has(id)){st.seen.add(id);st.cells.push(c)}}}
 function plop(cells,k,er){flushPlop();const s=srcNow();cells=cells.filter(([x,y])=>s[y][x]!==k);if(!cells.length)return;PLOP={k,er,q:cells,per:Math.min(12,Math.max(1,Math.ceil(cells.length/60))),run:0,next:0,heavy:!er&&heavyK(k),m:er?'erase':matOf(k)}}
 // one sound per plop; plops speed up from 70 ms to 30 ms apart, and big areas place up to 12 tiles per plop
-function plopTick(){const p=PLOP;if(!p)return;const t=performance.now();if(t<p.next)return;const s=srcNow();for(let i=0;i<p.per&&p.q.length;i++){const[x,y]=p.q.shift();s[y][x]=p.k;paintCell(x,y,p.k);puff(x,y,p.k)}p.run++;sndT=0;edSnd(p.m,1+Math.min(.25,p.run*.012),.75,p.heavy);p.next=t+Math.max(30,70-p.run*4);if(!p.q.length){PLOP=null;refinish()}}
+function plopTick(){const p=PLOP;if(!p)return;const t=performance.now();if(t<p.next)return;const s=srcNow();for(let i=0;i<p.per&&p.q.length;i++){const[x,y]=p.q.shift(),was=s[y][x],cover=k=>furnK(k)||!!WMAT[k]||/[HNS]$/.test(k)&&!!WMAT[k.slice(0,-1)],U=()=>UND[y]||(UND[y]=[]);
+  if(!p.er&&!cover(p.k)&&cover(was)){U()[x]=p.k;if(!furnK(was))paintCell(x,y,was);puff(x,y,p.k);continue}
+  let k=p.k;if(p.er&&cover(was)&&undAt(x,y)){k=undAt(x,y);UND[y][x]=null}else if(!p.er&&cover(k)&&!cover(was))U()[x]=was;
+  s[y][x]=k;paintCell(x,y,k);puff(x,y,k)}p.run++;sndT=0;edSnd(p.m,1+Math.min(.25,p.run*.012),.75,p.heavy);p.next=t+Math.max(30,70-p.run*4);if(!p.q.length){PLOP=null;refinish()}}
 function flushPlop(){const p=PLOP;if(!p)return;PLOP=null;const s=srcNow();for(const[x,y]of p.q)s[y][x]=p.k;refinish()}
 {const s0=startDrag;startDrag=function(...a){s0(...a);if(EM&&drag)drag.free=true}}
 {const r0=reset;reset=function(){PLOP=null;WQ=null;edSrc=null;edUndo=[];edRedo=[];r0();snapPR();envCalc();if(EM==='map')fillMapTools()}}
