@@ -98,12 +98,13 @@ function serMap(){const src=map.map((r,y)=>r.map((k,x)=>OM[y]&&OM[y][x]||k)),tex
  const sl=bodies.filter(b=>b.type==='slab'&&!b.fallen),B=[];
  for(const b of bodies){if(b.type==='token')B.push({t:'u',name:b.name,nat:b.nat,unit:b.unit,x:r1(b.x),y:r1(b.y),ang:r1(b.ang||0),look:b.look,wseed:b.wseed,tone:b.tone,status:b.status,guard:b.guard||undefined,leader:b.leader||undefined,auto:b.auto,neutral:b.neutral||undefined,inv:cp(b.inv),si:b.si>=0?b.si:b.psi??-1,teth:b.tether&&!b.tether.broken?b.tether.kind:undefined});
   else if(b.type==='slab'){if(b.fallen)continue;const a=b.ang;if(a){b.ang=0;orient(b)}B.push({t:'s',mat:b.mat,x:r1(b.x),y:r1(b.y),rot:b.rot,len:b.len,th:b.th,free:b.free||undefined,locked:b.locked||undefined,keys:b.keys||undefined,gold:b.gold||undefined,pair:b.pair?sl.indexOf(b.pair):undefined,col:b.src.map(q=>q[2])});if(a){b.ang=a;orient(b)}}
-  else if(b.type==='weapon'){if(WP[b.kind]&&WP[b.kind].bullet)continue;if(b.hidden){B.push({t:'c',cx:b.cells[0][0],cy:b.cells[0][1],name:b.name,inv:cp(b.inv)});continue}B.push({t:'w',kind:b.kind,x:r1(b.x),y:r1(b.y),ang:r1(b.ang||0),ammo:b.ammo,res:b.res,amt:b.amt,inv:cp(b.inv)})}}
+  else if(b.type==='weapon'){if(WP[b.kind]&&WP[b.kind].bullet)continue;if(b.hidden){B.push({t:'c',cx:b.cells[0][0],cy:b.cells[0][1],name:b.name,inv:cp(b.inv)});continue}B.push({t:'w',kind:b.kind,x:r1(b.x),y:r1(b.y),ang:r1(b.ang||0),ammo:b.ammo,res:b.res,amt:b.amt,inv:cp(b.inv),long:b.long||undefined})}}
  return{v:1,CW,CH,env:ENVSET[curMap]||'auto',map:src,und:UND.some(r=>r&&r.some(Boolean))?UND.map(r=>r?r.slice():[]):undefined,tex,bodies:B}}
 function spawnMap(d){const sl=[];for(const o of d.bodies)try{
  if(o.t==='u'){const b=token(o.name,o.nat,o.unit,o.x,o.y,o.guard,null,o.look);Object.assign(b,{ang:o.ang||0,look:o.look,wseed:o.wseed??b.wseed,tone:o.tone,status:o.status||'free',leader:o.leader,auto:o.auto!==false,neutral:o.neutral});b.inv=cp(o.inv)||[];while(b.inv.length<6)b.inv.push(null);b.si=o.si>=0&&b.inv[o.si]?o.si:-1;b.held=b.si>=0?b.inv[b.si]:null;b.hc=null;if(o.teth)tie(b,o.teth)}
  else if(o.t==='s'){const s=slab(o.mat,o.x,o.y,o.rot,o.len,o.th);if(o.free)s.free=true;s.locked=!!o.locked;if(o.keys)s.keys=o.keys;if(o.gold)s.gold=true;if(o.col&&o.col.length===s.src.length){o.col.forEach((c,i)=>s.src[i][2]=c);s.used=null;s.px=[];orient(s)}sl.push([s,o.pair])}
- else if(o.t==='c'){const c=container(o.cx,o.cy,[],o.name);if(c)c.inv=cp(o.inv)||[]}
+ else if(o.t==='c'){const c=container(o.cx,o.cy,[],o.name);if(c)cFill(c,cp(o.inv)||[])}
+ else if(o.t==='w'&&o.kind==='crate')crate(o.x,o.y,cp(o.inv)||[],o.long)
  else if(o.t==='w'&&WP[o.kind]){const w=weapon(o.kind,o.x,o.y,o.ang||0);for(const f of['ammo','res','amt'])if(o[f]!==undefined)w[f]=o[f];if(o.inv)w.inv=cp(o.inv)}}catch(e){console.warn(e)}
  for(const[s,p]of sl)if(p!==undefined&&sl[p])s.pair=sl[p][0]}
 
@@ -175,9 +176,9 @@ function edResize(nw,nh){nw=Math.max(6,Math.min(64,nw|0));nh=Math.max(6,Math.min
  alloc(nw,nh);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);MAPSZ[curMap]=[nw,nh];edSrc=ns;for(const b of [...bodies])if(b.x<0||b.y<0||b.x>=W||b.y>=H)remove(b);refinish();camInit=true;fit()}
 function edGive(w){if(w.type!=='weapon'||w.hidden)return false;const X=Math.round(w.x),Y=Math.round(w.y),tk=bodyAt(X,Y,4,w,o=>o.type==='token'&&o.status!=='dead');
  if(tk){const ok=CAP[w.kind]||WP[w.kind].melee||WP[w.kind].gun?(give(tk,w.kind,w.ammo,w.res),true):addItem(tk,{k:w.kind,n:w.kind==='gold'?w.amt||50:1});if(ok){remove(w);lastHud='';sfx('flick');return true}return false}
- const c=boxAt(X,Y);if(!c)return false;putIn(c,w.kind,w.kind==='gold'?w.amt||50:1,w);remove(w);openCrate=c;lastHud='';sfx('flick');return true}
+ const c=boxAt(X,Y)||bodyAt(X,Y,3,w,o=>o.kind==='crate'&&!o.hidden);if(!c)return false;if(!putIn(c,w.kind,w.kind==='gold'?w.amt||50:1,w)){sfx('dry');return false}remove(w);if(c.hidden)openCrate=c;lastHud='';sfx('flick');return true}
 function boxAt(X,Y){if(X<0||Y<0||X>=W||Y>=H||!OBJ[Y*W+X])return null;const c=containerAt(X,Y);if(c)return c;const cx=X/T|0,cy=Y/T|0;return OM[cy]&&OM[cy][cx]?container(cx,cy,[],null):null}
-function putIn(c,k,n,w){const m=!CAP[k]&&c.inv.find(q=>q&&q.k===k);if(m){m.n=(m.n||1)+n;return}const it={k,n};if(CAP[k]){it.ammo=w&&w.ammo!==undefined?w.ammo:CAP[k];it.res=w&&w.res||RCAP(k)}const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=it;else c.inv.push(it)}
+function putIn(c,k,n,w){cNorm(c);const it={k,n:k==='gold'?n:1};if(CAP[k]){it.ammo=w&&w.ammo!==undefined?w.ammo:CAP[k];it.res=w&&w.res||RCAP(k)}let ok=false;for(let i=0;i<(k==='gold'?1:n);i++){if(!cAdd(c,{...it}))break;ok=true}return ok}
 
 function fillMapTools(){const f=$('mfile');f.innerHTML='';const mod=MODS.maps[curMap];
  const r5=mk('div','er');for(const[v,t]of[['auto','Auto'],['in','Interior'],['out','Outdoor']]){const x=mk('button',null,t);if((ENVSET[curMap]||'auto')===v)x.classList.add('on');x.onclick=()=>{ENVSET[curMap]=v;envCalc();fillMapTools()};r5.appendChild(x)}r5.appendChild(mk('span','sep'));{const x=mk('button',null,'Wall tops');if(edTops)x.classList.add('on');x.onclick=()=>{edTops=!edTops;TOPS=edTops;fillMapTools()};r5.appendChild(x)}
@@ -299,7 +300,7 @@ const ITEMS=[['gold','Solari'],['mbox','Musket balls'],['pbox','Pistol shot'],['
 window.addEventListener('pointermove',e=>{if(itDrag){itDrag.g.style.left=e.clientX-28+'px';itDrag.g.style.top=e.clientY-20+'px'}});
 window.addEventListener('pointerup',e=>{if(!itDrag)return;const d=itDrag;itDrag=null;d.g.remove();if(!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;
  const tk=bodyAt(X,Y,3,null,o=>o.type==='token'&&o.status!=='dead');if(tk){sfx(addItem(tk,{k:d.k,n:d.n})?'flick':'dry');lastHud='';return}
- const c=boxAt(X,Y);if(c){putIn(c,d.k,d.n);openCrate=c;lastHud='';sfx('flick');return}if(WP[d.k]){const w=weapon(d.k,x,y,0);if(d.k==='gold')w.amt=d.n;sfx('drop')}});
+ const c=boxAt(X,Y)||bodyAt(X,Y,3,null,o=>o.kind==='crate'&&!o.hidden);if(c){if(!putIn(c,d.k,d.n)){sfx('dry');return}if(c.hidden)openCrate=c;lastHud='';sfx('flick');return}if(WP[d.k]){const w=weapon(d.k,x,y,0);if(d.k==='gold')w.amt=d.n;sfx('drop')}});
 
 // asset editor
 const AE={key:null,px:null,from:null,mod:false,tool:'pen',col:[200,180,140],mx:false,my:false,undo:[],redo:[],drafts:{},sel:null,adj:null,cmp:false,pat:{mode:'Overlay',sc:1,vary:0}};const ZM=12;
