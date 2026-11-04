@@ -15,7 +15,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Keys: Esc Command (from any tool), B Spawner, N Tiler, P Painter, L Sign, K Tether, M Wand, U Vacuum, O Sponge.
 - Bottom: map, Save, Asset Editor and Map settings popups (drag by the title, ✕ or Esc closes).
 - Map settings: name, location, owner, size, wall tops, new, delete, export, import. Doors with no keys of their own open for the owner's side; chests belong to no one.
-- Furniture: tables (any size, no storage), seats, desks, and storage (chest, iron chest, rack, bookshelf, vault shelf). Desks and storage come in pieces of at most 2×2, filled from the top-left, each with its own rim and inventory.
+- Furniture: tables (any size, no storage), seats, desks, and storage (chest, iron chest, rack, shelves, vault shelf). Desks and storage come in pieces of at most 2×2, filled from the top-left, each with its own rim and inventory.
 - Spawned conscripts sometimes turn out in the Imperial striped guard.
 
 ## Controls
