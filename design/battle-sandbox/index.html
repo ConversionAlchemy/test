@@ -2414,7 +2414,7 @@ const OWN={};function MAPOWN(){if(OWN[curMap])return OWN[curMap];const m=MODS.ma
 {const s0=serMap;serMap=function(){const d=s0();d.owner=MAPOWN();d.signs=(SIGNS[curMap]||[]).map(s=>({...s}));return d}}
 
 // tools
-function pickTool(k){if(UI.pop==='ae'||UI.pop==='sign')closePop();UI.tool=k;LS.set('bs.tool',k);UI.drop=null;const m=UT.find(t=>t[0]===k)[2];setMode(m);SM.dataset.tool=k;
+function pickTool(k){if(k!=='hand'){for(const b of bodies)b.direct=false;sel.clear();openCrate=null;keys.clear()}if(UI.pop==='ae'||UI.pop==='sign')closePop();UI.tool=k;LS.set('bs.tool',k);UI.drop=null;const m=UT.find(t=>t[0]===k)[2];setMode(m);SM.dataset.tool=k;
  for(const b of ZT.querySelectorAll('.tb'))b.classList.toggle('on',b.dataset.k===k);
  if(k==='vac'||k==='sponge'||k==='wand')edBrush={t:'clean',k};else if(k==='tile')edBrush=UI.tile?{...UI.tile}:null;else if(m)edBrush=null;
  head(k);if(k==='tile')tilerCtx();if(k==='spawn')spawnCtx();if(k==='paint')paintCtx();if(k==='sign')signCtx();if(k==='teth'){TQ.a=null;tetherCtx()}cv.style.cursor=k==='vac'||k==='sponge'||k==='wand'?TOOLCUR[k]||'crosshair':m?'crosshair':CUR.arrow}
@@ -2482,7 +2482,9 @@ const SMAT={wood:['Wood','#b08a5a','#4a3018'],stone:['Stone','#a6a096','#4e4a44'
 const plate=m=>{const[,w,k]=SMAT[m]||SMAT.wood;return pix(UIC.sign[0],{k,w,s:css(mix(rgb(parseInt(w.slice(1,3),16),parseInt(w.slice(3,5),16),parseInt(w.slice(5,7),16)),rgb(parseInt(k.slice(1,3),16),parseInt(k.slice(3,5),16),parseInt(k.slice(5,7),16)),.55))},2)};
 const SIGNS={};const SL=mk('div','signs');$('stage').append(SL);let sgS=0,sgM='';
 function drawSigns(){SL.innerHTML='';for(const s of SIGNS[curMap]||[]){const m=mk('div','sgn');m.style.left=s.x*S+'px';m.style.top=s.y*S+'px';m.append(plate(s.m));if(s.t){const t=mk('div','sgt',s.t);m.append(t)}m.ondblclick=e=>{e.stopPropagation();editSign(s)};m.onpointerdown=e=>e.stopPropagation();SL.append(m)}sgS=S;sgM=curMap}
-{const r0=render;render=function(){r0();if(sgS!==S||sgM!==curMap)drawSigns()}}
+// ui overlays drawn after each frame
+const OVL=[];{const r0=render;render=function(){r0();for(const f of OVL)f()}}
+OVL.push(()=>{if(sgS!==S||sgM!==curMap)drawSigns()});
 {const s0=spawnMap;spawnMap=function(d){s0(d);if(d.signs)SIGNS[curMap]=d.signs.map(s=>({...s}));if(d.owner)OWN[curMap]=d.owner;sgM=''}}
 function signCtx(){const L=mk('div','ulist');for(const[k,[n,c]]of Object.entries(SMAT)){const r=mk('div','urow'+(UI.smat===k?' on':''));const sw=mk('span','swd');sw.style.background=c;r.append(sw,mk('span','n',n));r.onclick=()=>{UI.smat=k;LS.set('bs.smat',k);signCtx();sgP()};L.append(r)}SNX.innerHTML='';SNX.append(L)}
 const SNX=mk('div','snx');ZC.append(SNX);const SGP=mk('div','sgn sgp');SL.append(SGP);function sgP(){SGP.innerHTML='';SGP.append(plate(UI.smat))}
@@ -2615,10 +2617,11 @@ function hotbar(){const tk=UI.tool==='hand'&&([...sel].filter(o=>o.type==='token
   HCX.append(n,hp,form([['Side',dsel(Object.keys(NAT).map(n=>[n,n]),tk.nat||'Neutral',v=>{tk.nat=v==='Neutral'?null:v;lastHud='';hbK=''})],['Auto pick-up',tg(!tk.noAuto,()=>tk.noAuto=!tk.noAuto)],['Protect',tg(!!tk.vip,()=>tk.vip=!tk.vip)],['Autonomous',tg(!!tk.auto,()=>{tk.auto=!tk.auto;if(tk.auto)say(tk,'On it',true);tk.ord=null})],['Leader',tg(!!tk.leader,()=>{const on=!tk.leader;for(const o of bodies)if(o.type==='token'&&teamOf(o)===teamOf(tk))o.leader=false;tk.leader=on})]]))}
  const q=tk.inv[tk.si],am=cntV(q);if(hbId===tk.id&&q){if(am!==null&&hbAm!==null&&am!==hbAm&&tk.si===hbSi){const lo=CAP[q.k]?Math.floor(am/1000)<Math.floor(hbAm/1000):am<hbAm;callout(q);HCO.classList.toggle('lo',lo)}else if(tk.held&&(hbSi!==tk.si||!hbHeld))callout(q,'')}hbId=tk.id;hbSi=tk.si;hbAm=am;hbHeld=!!tk.held;
  HCO.style.left=Math.round(tk.x*S)+'px';HCO.style.top=Math.round((tk.y-14)*S)+'px'}
-function tileIcon(k){const c=swatch(bake(k),16,16);c.style.cssText='width:32px;height:32px;image-rendering:pixelated;flex:none';return c}
+// storage icon: the piece as it looks on the map, its top-left tile
+function pieceIcon(c){const[cx,cy]=c.cells.reduce((a,b)=>b[1]<a[1]||b[1]===a[1]&&b[0]<a[0]?b:a),e=mk('canvas');e.width=e.height=T;const g=e.getContext('2d'),id=g.createImageData(T,T),o=new Uint32Array(id.data.buffer);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;o[y*T+x]=(OBJ[j]?OBJC[j]:floor[j])|0xff000000}g.putImageData(id,0,0);e.style.cssText='width:32px;height:32px;image-rendering:pixelated;flex:none';return e}
 function tokIcon(b){const c=mk('canvas');c.width=c.height=17;const g=c.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:-Math.PI/2,look:b.look,unit:b.unit,nat:b.nat,guard:b.guard,tone:b.tone},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));for(const p of px){let q=pcol(t,p);if(q===0)continue;if(!sprG(lookOf(t))&&(!set.has(K(p[0]+1,p[1]))||!set.has(K(p[0]-1,p[1]))||!set.has(K(p[0],p[1]+1))||!set.has(K(p[0],p[1]-1))))q=mul(q,.36);u[(p[1]+8)*17+p[0]+8]=q}g.putImageData(id,0,0);c.style.cssText='width:34px;height:34px;image-rendering:pixelated';return c}
 function follow(){if(UI.tool!=='hand')return;const tk=[...sel].find(o=>o.type==='token'&&o.direct);if(!tk)return;const v=VIEW,tx=v.clientWidth/2-tk.x*S,ty=v.clientHeight/2-tk.y*S;cam.x+=(tx-cam.x)*.12;cam.y+=(ty-cam.y)*.12;applyCam()}
-{const r1=render;render=function(){r1();hotbar();follow()}}
+OVL.push(()=>{hotbar();follow()});
 // spawner looks vary on their own: some conscripts turn out in the striped guard
 const VARIANT={Conscript:['Imperial Striped Guard',.2]};
 $('tpr').addEventListener('pointerdown',()=>{const b=bodies[bodies.length-1],v=b&&b.type==='token'&&VARIANT[b.look];if(v&&Math.random()<v[1]){b.look=v[0];b.px=tokPixels(b);mkSet(b)}});
@@ -2638,26 +2641,25 @@ window.addEventListener('pointermove',e=>{if(UI.tool!=='teth')return;const[x,y]=
  if(a.u){const d=Math.hypot(x-a.u.x,y-a.u.y);if(d>REACH){const tx=x-(x-a.u.x)/d*REACH,ty=y-(y-a.u.y)/d*REACH;if(!sol[(ty|0)*W+(tx|0)]){a.u.x=tx;a.u.y=ty;a.u.vx=a.u.vy=0}}a.x=a.u.x;a.y=a.u.y}
  const L=Math.min(REACH,Math.hypot(x-a.x,y-a.y)),t=performance.now();if(Math.abs(L-TQ.lastL)>5&&t-TQ.lastT>90){TQ.lastL=L;TQ.lastT=t;sfx(TQ.kind==='chain'?'chink':'creak')}});
 window.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.tool!=='teth'||UI.pop)return;e.stopImmediatePropagation();if(TQ.a)TQ.a=null;else pickTool('hand')},true);
-{const r2=render;render=function(){r2();if(UI.tool!=='teth')return;const a=TQ.a;ctx.save();
+OVL.push(()=>{if(UI.tool!=='teth')return;const a=TQ.a;ctx.save();
  if(a){let ex=TQ.cx,ey=TQ.cy;const d=Math.hypot(ex-a.x,ey-a.y);if(d>REACH&&!a.u){ex=a.x+(ex-a.x)/d*REACH;ey=a.y+(ey-a.y)/d*REACH}const sn=TQ.hov&&(!!TQ.hov.u!==!!a.u)&&!clearTo(a,TQ.hov.x,TQ.hov.y).hit;if(sn){ex=TQ.hov.x;ey=TQ.hov.y}else{const c=clearTo(a,ex,ey);ex=c.x;ey=c.y}
   ctx.strokeStyle=TQ.kind==='chain'?'#9aa0a6':'#a07848';ctx.lineWidth=1.5;if(TQ.kind==='chain')ctx.setLineDash([2,1.5]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(ex,ey);ctx.stroke();ctx.setLineDash([])}
  const dot=(p,c)=>{ctx.fillStyle='#000';ctx.beginPath();ctx.arc(p.x,p.y,3.2,0,6.283);ctx.fill();ctx.fillStyle=c;ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,6.283);ctx.fill()};
- if(TQ.hov&&(!a||!!TQ.hov.u!==!!a.u&&!clearTo(a,TQ.hov.x,TQ.hov.y).hit))dot(TQ.hov,'#5ec45e');if(a)dot(a,'#f0a040');ctx.restore()}}
+ if(TQ.hov&&(!a||!!TQ.hov.u!==!!a.u&&!clearTo(a,TQ.hov.x,TQ.hov.y).hit))dot(TQ.hov,'#5ec45e');if(a)dot(a,'#f0a040');ctx.restore()});
 // Esc on any tool returns to Command; letter keys pick tools
 window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey||e.altKey||UI.pop==='ae')return;
  if(e.key==='Escape'){if(UI.pop||UI.drop||UI.place||UI.tool==='hand'||UI.tool==='teth'&&TQ.a)return;pickTool('hand');return}
  const k=Object.keys(UKEY).find(t=>UKEY[t].toLowerCase()===e.key.toLowerCase()&&UKEY[t].length===1);if(k&&!e.repeat){pickTool(k);e.preventDefault()}});
 // painter: brush cursor and its reach on the map
 const PCUR=(()=>{const c=pix(...UIC.paint,1),d=mk('canvas');d.width=24;d.height=20;const g=d.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(c,0,0,24,20);return`url(${d.toDataURL()}) 2 18, crosshair`})();
-{const r3=render;render=function(){r3();if(UI.tool!=='paint'||!mouse.in)return;const R=3+PNT.size*4;ctx.save();ctx.lineWidth=1;ctx.strokeStyle='#000';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R+.5,0,6.283);ctx.stroke();ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R-.5,0,6.283);ctx.stroke();ctx.restore();if(cv.style.cursor!==PCUR)cv.style.cursor=PCUR}}
+OVL.push(()=>{if(UI.tool!=='paint'||!mouse.in)return;const R=3+PNT.size*4;ctx.save();ctx.lineWidth=1;ctx.strokeStyle='#000';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R+.5,0,6.283);ctx.stroke();ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R-.5,0,6.283);ctx.stroke();ctx.restore();if(cv.style.cursor!==PCUR)cv.style.cursor=PCUR});
 // storage: glows on hover, click to open it here and drop things out of it, right-click to empty it
 let stK='';function storePanel(){const c=openCrate||(!sel.size&&hoverC);if(UI.tool!=='hand'||!c||!c.inv||!bodies.includes(c)){if(stK){stK='';HCX.innerHTML='';head('hand')}return false}
- const k=JSON.stringify([c.id,c.inv]);if(k===stK)return true;stK=k;hbK='';HCX.innerHTML='';TH.innerHTML='';TH.append(tileIcon(OM[c.cells[0][1]][c.cells[0][0]]),mk('span',null,c.name||'Storage'));
+ const k=JSON.stringify([c.id,c.inv]);if(k===stK)return true;stK=k;hbK='';HCX.innerHTML='';TH.innerHTML='';TH.append(pieceIcon(c),mk('span',null,c.name||'Storage'));
  const g=mk('div','hg cg');c.inv.forEach((q,i)=>{const d=slotEl(q,null,false);if(q)d.onpointerdown=e=>{e.preventDefault();dropSlot(c,i);lastHud='';stK=''};g.append(d)});const cp=mk('div','hpan');cp.append(g);HCX.append(cp);return true}
 window.addEventListener('pointermove',()=>{if(hoverC||!mouse.in||drag)return;const X=mouse.x|0,Y=mouse.y|0,k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(k&&PCK.has(k)&&!bodyAt(X,Y,1))hoverC=boxAt(X,Y)});
 VIEW.addEventListener('contextmenu',e=>{if(EM||!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;if(bodyAt(X,Y,3))return;const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(!k||!PCK.has(k))return;const c=boxAt(X,Y);if(!c)return;e.preventDefault();e.stopPropagation();openMenu(c,e)},true);
 // units are only controlled with Command: other tools drop control, and clicking a unit switches back
-{const p0=pickTool;pickTool=function(k){if(k!=='hand'){for(const b of bodies)b.direct=false;sel.clear();openCrate=null;keys.clear()}return p0(k)}}
 const freeCtl=e=>{if(UI.tool==='hand'||UI.drop||UI.place||e.button||!inBoard(e))return;const[x,y]=toBoard(e),b=bodyAt(x|0,y|0,1);if(b&&b.type==='token'&&b.status!=='dead'){pickTool('hand');return}if(!EM){e.stopImmediatePropagation();e.preventDefault()}};
 cv.addEventListener('pointerdown',freeCtl,true);stage.parentElement.addEventListener('pointerdown',e=>{if(e.target===stage.parentElement||e.target===stage)freeCtl(e)},true);
 window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;if(/^[wasdqecrv1-6]$/i.test(e.key)||e.key==='Shift')e.stopImmediatePropagation()},true);
