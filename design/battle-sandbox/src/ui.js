@@ -1,6 +1,6 @@
 // screen: map with a brass clock corner, tool panel on the right, popups for occasional work
 const UI={tool:LS.get('bs.tool','hand'),st:LS.get('bs.st','units'),tt:'tiles',drop:null,pop:null};let PAUSED=true;
-const UT=[['hand','Hand of God',null],['spawn','Spawner',null],['tile','Tiler','map'],['sign','Sign','map'],['paint','Painter','map'],['vac','Vacuum','map'],['sponge','Sponge','map'],['wand','Wand','map'],['teth','Tether',null]];
+const UT=[['hand','Hand',null],['spawn','Spawner',null],['tile','Tiler','map'],['sign','Sign','map'],['paint','Painter','map'],['vac','Vacuum','map'],['sponge','Sponge','map'],['wand','Wand','map'],['teth','Tether',null]];
 const UIC={
  hand:[['....kk.kk...','...kwwkwwk..','...kwwkwwkk.','.kkkwwkwwkwk','kwwkwwwwwkwk','kwwwwwwwwwwk','.kwwwwwwwwwk','..kwwwwwwwk.','...kwwwwwk..','....kkkkk...'],{k:'#111',w:'#e8d2b0'}],
  spawn:[['....kkkk....','...kggggk...','...kgyygk...','...kggggk...','....kkkk..yy','...kggggk.yy','..kggggggkyy','..kggggggk..','..kggggggk..','...kkkkkk...'],{k:'#111',g:'#2f5f45',y:'#ffd84a'}],
@@ -62,11 +62,11 @@ const CORN=mk('div','corner');{
  const sl=mk('div','ub sq slow');sl.append(pix(...UIC.glass));sl.onclick=()=>window.toggleSlow();
  const sg=mk('div','ub sq sig');sg.onclick=()=>togglePop('map');
  CORN.append(ck,rs,sl,sg);VIEW.append(CORN)}
-function setPlay(on){PAUSED=!on;if(on&&!aiOn&&!EM)aiBtn().click();syncCorner()}
+function setPlay(on){PAUSED=!on;if(!EM&&on!==aiOn)aiBtn().click();syncCorner()}
 function sigil(){const o=MAPOWN(),c=NAT[o]||'#8a8580',h=n=>parseInt(c.slice(n,n+2),16),s=CORN.querySelector('.sig');s.innerHTML='';s.append(pix(['gggggggg','gggggggg','ggyyyygg','gyyddyyg','gydyydyg','gydyydyg','gyyddyyg','ggyyyygg','gggggggg','gg.gg.gg','g......g'],{g:css(mix(rgb(26,26,26),rgb(h(1),h(3),h(5)),.55)),y:c,d:css(mix(rgb(26,26,26),rgb(h(1),h(3),h(5)),.3))},2));s.title=o}
 function syncCorner(){CORN.classList.toggle('paused',PAUSED);CORN.classList.toggle('slowing',slowMo);const s=CORN.querySelector('.slow');s.classList.toggle('on',slowMo);s.title=slowMo?'Slow':'Normal'}
 setInterval(syncCorner,200);
-{const u1=update;let hc=0;update=function(){if(PAUSED&&!EM){if(drag)dragStep();if(++hc%6===0)hud();return}u1()}}
+
 
 // map owner: the sigil, and who holds the keys to doors with no keys of their own
 const OWN={};function MAPOWN(){if(OWN[curMap])return OWN[curMap];const m=MODS.maps[curMap];if(m&&m.owner)return m.owner;const t=(TITLE[curMap]||'').split(' · ')[0];return NAT[t]!==undefined?t:/Emperor/.test(t)?'Imperium':'Neutral'}
@@ -247,13 +247,13 @@ function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?''
 const itemName=q=>q?WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k.endsWith('box')?'Ammo':q.k:'';
 function hotbar(){const tk=UI.tool==='hand'&&[...sel].filter(o=>o.type==='token')[0];const one=tk&&sel.size===1&&tk.status!=='dead'&&bodies.includes(tk);
  if(!one){HB.style.display=CB.style.display='none';hbK=cbK='';hbId=null;return}
- const k=JSON.stringify([tk.id,tk.si,tk.inv]);if(k!==hbK){hbK=k;HB.innerHTML='';const g1=mk('div','hg'),g2=mk('div','hg');
+ const k=JSON.stringify([tk.id,tk.si,tk.inv]);if(k!==hbK){hbK=k;HB.innerHTML='';const g1=mk('div','hg'),g2=mk('div','hg'),hp=mk('div','hpan');
   for(let i=0;i<6;i++){const d=slotEl(tk.inv[i],i<4?SILK[i]:'gold',i===tk.si);d.onpointerdown=e=>{e.stopPropagation();e.preventDefault();if(e.shiftKey)dropSlot(tk,i);else selectSlot(tk,i);lastHud='';hbK=''};(i<4?g1:g2).append(d)}
-  for(let i=0;i<2;i++)g2.append(mk('div','slot lock'));HB.append(g1,g2)}
+  for(let i=0;i<2;i++)g2.append(mk('div','slot lock'));hp.append(g1,mk('i','hsep'),g2);HB.append(hp)}
  if(hbId===tk.id&&hbSi!==tk.si&&tk.inv[tk.si]){HCO.textContent=itemName(tk.inv[tk.si]);HCO.classList.remove('go');void HCO.offsetWidth;HCO.classList.add('go')}hbId=tk.id;hbSi=tk.si;
  HB.style.display='flex';HB.style.left=Math.round(tk.x*S)+'px';HB.style.top=Math.round((tk.y+13)*S+25)+'px';HCO.style.left=Math.round(tk.x*S)+'px';HCO.style.top=Math.round((tk.y-14)*S)+'px';
  const c=tk.status==='free'?bodies.find(o=>o.hidden&&o.inv&&near(tk,o)):null;if(!c){CB.style.display='none';cbK='';return}
- const ck=JSON.stringify([c.id,c.inv]);if(ck!==cbK){cbK=ck;CB.innerHTML='';const g=mk('div','hg');c.inv.forEach((q,i)=>{if(!q)return;const d=slotEl(q,null,false,false);d.onpointerdown=e=>{e.stopPropagation();e.preventDefault();moveItem(c,i,tk);lastHud='';hbK=cbK=''};g.append(d)});if(!g.children.length)g.append(mk('div','slot sm lock'));CB.append(g)}
+ const ck=JSON.stringify([c.id,c.inv]);if(ck!==cbK){cbK=ck;CB.innerHTML='';const g=mk('div','hg');c.inv.forEach((q,i)=>{if(!q)return;const d=slotEl(q,null,false,false);d.onpointerdown=e=>{e.stopPropagation();e.preventDefault();moveItem(c,i,tk);lastHud='';hbK=cbK=''};g.append(d)});if(!g.children.length)g.append(mk('div','slot sm lock'));const cp=mk('div','hpan');cp.append(g);CB.append(cp)}
  const bx=c.box||[c.x-8,c.y-8,c.x+8,c.y+8];CB.style.display='flex';CB.style.left=Math.round((bx[0]+bx[2])/2*S)+'px';CB.style.top=Math.round(bx[1]*S-6)+'px'}
 function follow(){if(UI.tool!=='hand')return;const tk=[...sel].find(o=>o.type==='token'&&o.direct);if(!tk)return;const v=VIEW,tx=v.clientWidth/2-tk.x*S,ty=v.clientHeight/2-tk.y*S;cam.x+=(tx-cam.x)*.12;cam.y+=(ty-cam.y)*.12;applyCam()}
 {const r1=render;render=function(){r1();hotbar();follow()}}

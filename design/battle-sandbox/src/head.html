@@ -196,3 +196,9 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .callout{position:absolute;transform:translate(-50%,-100%);font-size:16px;color:#f2efe6;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;pointer-events:none;opacity:0;z-index:3;white-space:nowrap}
 #sm .callout.go{animation:cfade 1.4s ease-out}@keyframes cfade{0%,40%{opacity:.9}100%{opacity:0}}
 </style>
+<style>
+#sm .hpan{display:flex;align-items:center;gap:6px;padding:5px;background:#1e1e1e;box-shadow:inset 2px 2px 0 #4a4a4a,inset -2px -2px 0 #101010,0 0 0 2px #3a3a3a;clip-path:polygon(4px 0,calc(100% - 4px) 0,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0 calc(100% - 4px),0 4px)}
+#sm .hsep{width:2px;align-self:stretch;background:#3a3a3a;box-shadow:1px 0 0 #101010}
+#sm .hbar .slot{box-shadow:inset 2px 2px 0 #0e0e0e,inset -2px -2px 0 #4a4a4a;background:#2a2a2a}#sm .hbar{opacity:1;filter:brightness(.85)}#sm .hbar:hover{filter:none}#sm .hbar .slot.on{background:#2e2e2e;box-shadow:inset 0 0 0 2px #f2efe6}#sm .hbar .slot.lock{background:#121212;box-shadow:none}
+#sm #insp .ibox>div:not(.itb){display:none}#sm #insp .ibox+.ibox{display:none}
+</style><style>#sm .tgrid .tb[data-k=hand]{grid-column:span 2}</style>
