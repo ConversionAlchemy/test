@@ -362,9 +362,9 @@ window.addEventListener('pointerup',e=>{if(SPD){SPD=null;return}if(!SDR)return;c
  const tk=bodyAt(X,Y,4,null,o=>o.type==='token'&&o.status!=='dead');if(tk){if(tk!==c)moveItem(c,i,tk);return}
  const to=bodyAt(X,Y,3,null,o=>o.kind==='crate'&&!o.hidden)||(OBJ[Y*W+X]?boxAt(X,Y):null);if(c.type==='token'){if(to)moveItem(c,i,to,x,y);else dropSlot(c,i);return}
  if(to===c){const g=cGeo(c),[w,h]=cRect(q),gx=Math.round((x-w*g.cs/2-g.ox)/g.cs),gy=Math.round((y-h*g.cs/2-g.oy)/g.cs),o={gx:q.gx,gy:q.gy,r:q.r};q.gx=gx;q.gy=gy;
-  const ok=gx>=0&&gy>=0&&gx+w<=g.gw&&gy+h<=g.gh&&[...Array(w*h)].every((_,n)=>g.ok(gx+n%w,gy+(n/w|0)))&&!c.inv.some(z=>{if(!z||z===q)return false;const[zw,zh]=cRect(z);return z.gx<gx+w&&gx<z.gx+zw&&z.gy<gy+h&&gy<z.gy+zh});if(!ok){Object.assign(q,o);sfx('dry')}else sfx('flick');return}
+  const ok=gx>=0&&gy>=0&&gx+w<=g.gw&&gy+h<=g.gh&&[...Array(w*h)].every((_,n)=>g.ok(gx+n%w,gy+(n/w|0)))&&!c.inv.some(z=>{if(!z||z===q)return false;const[zw,zh]=cRect(z);return z.gx<gx+w&&gx<z.gx+zw&&z.gy<gy+h&&gy<z.gy+zh});if(!ok){Object.assign(q,o);NOPE()}else sfx('flick');return}
  if(to){moveItem(c,i,to,x,y);return}
- if(X<0||Y<0||X>=W||Y>=H||sol[Y*W+X]||OBJ[Y*W+X]){sfx('dry');return}c.inv[i]=null;if(q.k==='note'){placeNote(q,X,Y);sfx('drop');return}if(!WP[q.k])return;const w=weapon(q.k,X,Y,Math.random()*6.283);if(q.k==='gold')w.amt=q.n;if(CAP[q.k]){w.ammo=q.ammo??CAP[q.k];w.res=q.res||0}w.noPick=tick+120;sfx('drop')});
+ if(X<0||Y<0||X>=W||Y>=H||sol[Y*W+X]||OBJ[Y*W+X]){NOPE();return}c.inv[i]=null;if(q.k==='note'){placeNote(q,X,Y);sfx('drop');return}if(!WP[q.k])return;const w=weapon(q.k,X,Y,Math.random()*6.283);if(q.k==='gold')w.amt=q.n;if(CAP[q.k]){w.ammo=q.ammo??CAP[q.k];w.res=q.res||0}w.noPick=tick+120;sfx('drop')});
 // units are only controlled with Command: other tools drop control, and clicking a unit switches back
 const freeCtl=e=>{if(panKey||UI.tool==='hand'||UI.drop||UI.place||e.button||!inBoard(e))return;const[x,y]=toBoard(e),b=bodyAt(x|0,y|0,1);if(b&&b.type==='token'&&b.status!=='dead'){pickTool('hand');return}if(!EM){e.stopImmediatePropagation();e.preventDefault()}};
 cv.addEventListener('pointerdown',freeCtl,true);stage.parentElement.addEventListener('pointerdown',e=>{if(e.target===stage.parentElement||e.target===stage)freeCtl(e)},true);

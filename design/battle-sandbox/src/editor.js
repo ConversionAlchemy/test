@@ -176,7 +176,7 @@ function edResize(nw,nh){nw=Math.max(6,Math.min(64,nw|0));nh=Math.max(6,Math.min
  alloc(nw,nh);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);MAPSZ[curMap]=[nw,nh];edSrc=ns;for(const b of [...bodies])if(b.x<0||b.y<0||b.x>=W||b.y>=H)remove(b);refinish();camInit=true;fit()}
 function edGive(w){if(w.type!=='weapon'||w.hidden)return false;const X=Math.round(w.x),Y=Math.round(w.y),tk=bodyAt(X,Y,4,w,o=>o.type==='token'&&o.status!=='dead');
  if(tk){const ok=CAP[w.kind]||WP[w.kind].melee||WP[w.kind].gun?(give(tk,w.kind,w.ammo,w.res),true):addItem(tk,{k:w.kind,n:w.kind==='gold'?w.amt||50:1});if(ok){remove(w);lastHud='';sfx('flick');return true}return false}
- const c=boxAt(X,Y)||bodyAt(X,Y,3,w,o=>o.kind==='crate'&&!o.hidden);if(!c)return false;if(!putIn(c,w.kind,w.kind==='gold'?w.amt||50:1,w)){sfx('dry');return false}remove(w);if(c.hidden)openCrate=c;lastHud='';sfx('flick');return true}
+ const c=boxAt(X,Y)||bodyAt(X,Y,3,w,o=>o.kind==='crate'&&!o.hidden);if(!c)return false;if(!putIn(c,w.kind,w.kind==='gold'?w.amt||50:1,w)){NOPE();return false}remove(w);if(c.hidden)openCrate=c;lastHud='';sfx('flick');return true}
 function boxAt(X,Y){if(X<0||Y<0||X>=W||Y>=H||!OBJ[Y*W+X])return null;const c=containerAt(X,Y);if(c)return c;const cx=X/T|0,cy=Y/T|0;return OM[cy]&&OM[cy][cx]?container(cx,cy,[],null):null}
 function putIn(c,k,n,w){cNorm(c);const it={k,n:k==='gold'?n:1};if(CAP[k]){it.ammo=w&&w.ammo!==undefined?w.ammo:CAP[k];it.res=w&&w.res||RCAP(k)}let ok=false;for(let i=0;i<(k==='gold'?1:n);i++){if(!cAdd(c,{...it}))break;ok=true}return ok}
 
@@ -300,7 +300,7 @@ const ITEMS=[['gold','Solari'],['mbox','Musket balls'],['pbox','Pistol shot'],['
 window.addEventListener('pointermove',e=>{if(itDrag){itDrag.g.style.left=e.clientX-28+'px';itDrag.g.style.top=e.clientY-20+'px'}});
 window.addEventListener('pointerup',e=>{if(!itDrag)return;const d=itDrag;itDrag=null;d.g.remove();if(!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;
  const tk=bodyAt(X,Y,3,null,o=>o.type==='token'&&o.status!=='dead');if(tk){sfx(addItem(tk,{k:d.k,n:d.n})?'flick':'dry');lastHud='';return}
- const c=boxAt(X,Y)||bodyAt(X,Y,3,null,o=>o.kind==='crate'&&!o.hidden);if(c){if(!putIn(c,d.k,d.n)){sfx('dry');return}if(c.hidden)openCrate=c;lastHud='';sfx('flick');return}if(WP[d.k]){const w=weapon(d.k,x,y,0);if(d.k==='gold')w.amt=d.n;sfx('drop')}});
+ const c=boxAt(X,Y)||bodyAt(X,Y,3,null,o=>o.kind==='crate'&&!o.hidden);if(c){if(!putIn(c,d.k,d.n)){NOPE();return}if(c.hidden)openCrate=c;lastHud='';sfx('flick');return}if(WP[d.k]){const w=weapon(d.k,x,y,0);if(d.k==='gold')w.amt=d.n;sfx('drop')}});
 
 // asset editor
 const AE={key:null,px:null,from:null,mod:false,tool:'pen',col:[200,180,140],mx:false,my:false,undo:[],redo:[],drafts:{},sel:null,adj:null,cmp:false,pat:{mode:'Overlay',sc:1,vary:0}};const ZM=12;
