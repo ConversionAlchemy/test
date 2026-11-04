@@ -87,7 +87,43 @@ NBM.atelier=()=>{const g=Array.from({length:ATL.CH},(_,y)=>Array.from({length:AT
  const dy=2+4,dx=ATL.rows[1].w+3;for(let x=dx;x<dx+Object.keys(DOORK).length*2+1&&x<ATL.CW-1;x++)g[dy][x]=(x-dx)%2?'stone.lime.paving':'stone.grey.block.w';paintAll((cx,cy)=>g[cy][cx])};
 NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i)=>{const cx=dx+1+i*2;if(cx<ATL.CW-1)mkDoor(k,cx*T,dy*T+T/2+4,0)});const t=U('Curator',null,'civ',2,1.5,0,null,'Clerk')};
 ENVSET.atelier='out';
+// the Arena: spear-duel lane on the centre line, L-shaped cover for gun fights, crowd stand above, roofed pens either side
+const ARN={CW:64,CH:31,lane:17,mk:[25,27,29,34,36,38]},mir=x=>ARN.CW-1-x;
+MAPSZ.arena=[ARN.CW,ARN.CH];TITLE.arena='Fluoria · The Arena';ENVSET.arena='out';
+// void: solid, drawn black, for everything outside the built area
+const VOIDM={},VOIDC={};
+const ROOFS={arena:[[1,11,10,23],[11,16,15,18],[53,11,62,23],[48,16,52,18]]};
+NBM.arena=()=>{const{CW:W0,CH:H0,lane}=ARN,g=Array.from({length:H0},()=>Array(W0).fill('void')),put=(x,y,k)=>{if(g[y]&&x>=0&&x<W0)g[y][x]=k},both=(x,y,k)=>{put(x,y,k);put(mir(x),y,k)},
+ rect=(x0,y0,x1,y1,wall,fl)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)put(x,y,x===x0||x===x1||y===y0||y===y1?wall:fl)};
+ rect(16,6,47,28,'stone.lime.block.w','stone.aur.slabs');for(let x=17;x<=46;x++)put(x,lane,'stone.lime.paving');for(const x of ARN.mk)put(x,lane,'stone.gold.rosette');
+ for(const x of ARN.mk)put(x,lane-1,'rack');
+ for(const x of[26,29])for(const y of[14,20])both(x,y,'pillar');
+ const L=(xs,y,xv,ys,k)=>{for(const x of xs)put(x,y,k);for(const yy of ys)put(xv,yy,k)},r=(a,b)=>Array.from({length:b-a+1},(_,i)=>a+i);
+ L(r(20,24),10,20,r(10,13),'stone.aur.block.w');L(r(39,43),24,43,r(21,24),'stone.aur.block.w');
+ L(r(39,43),10,43,r(10,13),'stone.sand.ashlar.w');L(r(20,24),24,20,r(21,24),'stone.sand.ashlar.w');
+ rect(17,0,46,6,'stone.lime.block.w','stone.lime.paving');for(let x=17;x<=46;x++)put(x,6,'stone.lime.block.w');for(let y=2;y<=5;y++)for(let x=27;x<=36;x++)put(x,y,'cloth.purple.border');
+ for(let x=28;x<=35;x++)put(x,2,'seat');both(17,3,'stone.lime.paving');both(19,3,'desk');both(20,3,'desk');both(18,1,'chest');
+ for(const sx of[0,1]){const f=x=>sx?mir(x):x;for(let y=11;y<=23;y++)for(let x=1;x<=10;x++)put(f(x),y,x===1||x===10||y===11||y===23?'stone.grey.block.w':'stone.grey.flags');
+  for(let x=11;x<=15;x++){put(f(x),16,'stone.grey.block.w');put(f(x),18,'stone.grey.block.w');put(f(x),17,'stone.grey.flags')}put(f(10),17,'stone.grey.flags');put(f(16),lane,'stone.lime.paving');
+  for(let y=12;y<=15;y++)put(f(6),y,'metal.iron.grate.w');for(let x=2;x<=6;x++)put(f(x),15,'metal.iron.grate.w');put(f(4),15,'stone.grey.flags');
+  for(let x=7;x<=9;x++)put(f(x),12,'shelf');for(let x=3;x<=6;x++)put(f(x),21,'seat')}
+ VOIDM.arena=g.map(r=>r.map(k=>k==='void'));paintAll((cx,cy)=>g[cy][cx]==='void'?'stone.grey.block.w':g[cy][cx])};
+NUM.arena=()=>{const{lane}=ARN,R=0,Lf=Math.PI,dn=Math.PI/2,up=-Math.PI/2,calm=t=>{t.neutral=true;return t},bare=(t,kit)=>{t.inv=[null,null,null,null,null,null];t.held=null;t.si=-1;t.kit=kit||null;return t},spears=[{k:'spear',n:4},null,null,null,null,null];
+ const vd=(x,y,m)=>slab(m,x*T+4,y*T,1,16,8),hd=(x,y,m)=>slab(m,x*T,y*T+11,0);
+ for(const x of ARN.mk)container(x,lane-1,[{k:'spear',n:4}],'Spear rack');
+ const side=[['Imperium','home','Conscript',['Varro','Cassia','Brutus','Lucan']],['Reapers','home','Thug',['Skarn','Vesk','Morrow','Dace']]];
+ side.forEach(([nat,u,look,nm],sx)=>{const f=x=>sx?mir(x):x+0,fa=sx?Lf:R;vd(f(16),lane,3);const cg=hd(f(4),15,3);cg.locked=true;
+  bare(U(nm[0],nat,u,f(13)+.5,lane+.5,fa,null,look),spears);bare(U(nm[1],nat,u,f(4)+.5,20.5,up,null,look),spears);
+  for(const[i,x]of[[2,3],[3,5]])cap(bare(U(nm[i],nat,u,f(x)+.5,13.5,dn,null,look),spears));
+  calm(U(sx?'Ravel':'Gaius','Imperium','civ',f(8)+.5,18.5,sx?Lf:R,null,'Overseer'))});
+ const crowd=[['Lady Aurel','Imperium','Imperial Noble',30,3],['Hierarch Oss','Sanctis','Hierarch',33,3],['Count Vey',null,'Noble',29,4],['Magnate Hollis',null,'Bank Lord',34,4],['Ser Dunmore',null,'Noble',31,5],['Madam Pell',null,'Merchant',32,5],['Brother Ansel',null,'Priest',28,5],['Lord Carrow',null,'Noble',35,5],
+  ['Tobin',null,'Burgher',21,5],['Mags',null,'Factor',22,4],['Old Wen',null,'Fisher',24,5],['Hal',null,'Dockhand',25,4],['Brisk',null,'Harbourmaster',39,5],['Noll',null,'Burgher',41,4],['Fen',null,'Factor',42,5],['Rudd',null,'Dockhand',44,5]];
+ for(const[n,nat,l,x,y]of crowd)calm(U(n,nat,'civ',x+.5,y+.5,dn,null,l));
+ calm(U('Silas',null,'civ',20,2.5,dn,null,'Banker'));calm(U('Ottilie',null,'civ',mir(19),2.5,dn,null,'Company Clerk'));
+ for(const x of[18,mir(18)])container(x,1,[{k:'gold',n:400}],'Betting chest');
+ for(const x of[26.5,37.5])calm(U(x<30?'Praetor Quill':'Praetor Rask','Imperium','guard',x,5.5,dn,undefined,'Praetorian'))};
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
+{const o=mk('option',null,'Fluoria arena');o.value='arena';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
 function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k});NUM[id]=()=>spawnMap(d)}
 for(const id in MODS.maps)regMap(id);
@@ -221,7 +257,15 @@ window.addEventListener('keydown',e=>{if(!EM||/INPUT|SELECT|TEXTAREA/.test(e.tar
 const PANK=new Set();window.addEventListener('keyup',e=>PANK.delete(e.key.toLowerCase()),true);window.addEventListener('blur',()=>PANK.clear());
 function edPan(){if(EM!=='map'||!PANK.size)return;const v=9;cam.x+=(PANK.has('a')?v:0)-(PANK.has('d')?v:0);cam.y+=(PANK.has('w')?v:0)-(PANK.has('s')?v:0);applyCam()}
 window.addEventListener('pointermove',e=>{if(EM!=='map')return;const h=$('hint');if(!mouse.in){h.textContent='';return}const cx=mouse.x/T|0,cy=mouse.y/T|0,k=(OM[cy]&&OM[cy][cx])||(map[cy]&&map[cy][cx]);const n=k?(ONAME[k]&&OM[cy]&&OM[cy][cx]?ONAME[k]:tName(OLDK[k]||k)):'';if(h.textContent!==n)h.textContent=n});
-{const rn0=render;render=function(){rn0();if(EM!=='map')return;ctx.save();ctx.fillStyle='rgba(120,120,120,.32)';for(let x=T;x<W;x+=T)ctx.fillRect(x,0,1,H);for(let y=T;y<H;y+=T)ctx.fillRect(0,y,W,1);
+const ROOFC={};
+function roofCan(r){const id=r.join(','),c0=ROOFC[id];if(c0&&c0.cw===CW)return c0.c;const[x0,y0,x1,y1]=r,w=(x1-x0+1)*T,h=(y1-y0+1)*T,c=mk('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),im=g.createImageData(w,h),F=TEX['stone.lime.block'],ridge=w>=h?'y':'x';
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const X=x0*T+x,Y=y0*T+y,q=F(X,Y,X>>4,Y>>4),e=Math.min(x,y,w-1-x,h-1-y),rd=ridge==='y'?Math.abs(y-h/2):Math.abs(x-w/2),k=(e<1?.55:e<3?.82:1)*(rd<1?1.08:rd<2?.9:1)*.97,i=(y*w+x)*4;im.data[i]=q[0]*k;im.data[i+1]=q[1]*k;im.data[i+2]=q[2]*k;im.data[i+3]=255}
+ g.putImageData(im,0,0);ROOFC[id]={c,cw:CW};return c}
+const inR=(r,x,y)=>x>=r[0]*T&&x<(r[2]+1)*T&&y>=r[1]*T&&y<(r[3]+1)*T;
+function drawVoid(){const m=VOIDM[curMap];if(!m||m.length!==CH)return;let c=VOIDC[curMap];if(!c){c=mk('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.fillStyle='#000';m.forEach((r,y)=>r.forEach((v,x)=>{if(v)g.fillRect(x*T,y*T,T,T)}));VOIDC[curMap]=c}ctx.drawImage(c,0,0)}
+function drawRoofs(){drawVoid();const rs=ROOFS[curMap];if(!rs){if(drawRoofs.was){drawRoofs.was=0;for(const b of bodies)if(b.lab)b.lab.style.visibility=''}return}drawRoofs.was=1;const peek=[...sel].filter(b=>b.type==='token');for(const r of rs){const open=EM==='map'||mouse.in&&inR(r,mouse.x,mouse.y)||peek.some(b=>inR(r,b.x,b.y)),a=open?.18:1;r.open=open;ctx.globalAlpha=a;ctx.drawImage(roofCan(r),r[0]*T,r[1]*T);ctx.globalAlpha=1}
+ for(const b of bodies)if(b.type==='token'&&b.lab){const v=rs.some(r=>!r.open&&inR(r,b.x,b.y))?'hidden':'';if(b.lab.style.visibility!==v)b.lab.style.visibility=v}}
+{const rn0=render;render=function(){rn0();drawRoofs();if(EM!=='map')return;ctx.save();ctx.fillStyle='rgba(120,120,120,.32)';for(let x=T;x<W;x+=T)ctx.fillRect(x,0,1,H);for(let y=T;y<H;y+=T)ctx.fillRect(0,y,W,1);
  for(const d of DUST){if(d.d>0)continue;ctx.globalAlpha=Math.max(0,1-d.l/d.L)*d.a;ctx.fillStyle=css(d.c);const z=d.z>1?d.z+(d.l/d.L*2|0):1;ctx.fillRect((d.x|0)-(z>>1),(d.y|0)-(z>>1),z,z)}ctx.globalAlpha=1;
  const box2=(x,y,w,h)=>{ctx.strokeStyle='#000';ctx.strokeRect(x-.5,y-.5,w+1,h+1);ctx.strokeStyle='#fff';ctx.strokeRect(x+.5,y+.5,w-1,h-1)};for(const p of VP){ctx.fillStyle=css(p.c);ctx.fillRect(p.x|0,p.y|0,1,1)}for(const[q,v]of WET){ctx.globalAlpha=Math.min(1,v)*.16;ctx.fillStyle='#0a1218';ctx.fillRect((q%BW)*2,(q/BW|0)*2,2,2)}ctx.globalAlpha=1;
  if(edBrush&&edBrush.t==='clean'&&edBrush.k==='wand'&&mouse.in&&!CL){const o=Math.floor((edSize-1)/2),c0=(mouse.x/T|0)-o,r0=(mouse.y/T|0)-o;ctx.fillStyle='rgba(255,250,235,.16)';for(let y=r0;y<r0+edSize;y++)for(let x=c0;x<c0+edSize;x++)if(x>=0&&y>=0&&x<CW&&y<CH)ctx.fillRect(x*T,y*T,T,T)}
