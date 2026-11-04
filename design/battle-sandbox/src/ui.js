@@ -68,7 +68,7 @@ function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===
  if(k==='spawn'){const x=ubtn('','sq red',()=>{UI.del=!UI.del;if(UI.del&&UI.drop)armDrop(k);else head(k);cv.style.cursor=UI.del?'crosshair':CUR.arrow});x.append(uicon('bin'));x.classList.toggle('on',!!UI.del);G.append(x)}}
 
 // settings zone: map, save, popups
-{const ms=$('msel');ms.classList.add('wide');const sv=ubtn('Save','',x=>{mapSave(false);flashB(sv,'Saved')});
+{const ms=$('msel');ms.classList.add('wide');const sv=mk('div','g2'),sm=ubtn('Save map','',()=>{mapSave(false);flashB(sm,'Saved')}),gm=ubtn('Games','',()=>togglePop('games'));sv.append(sm,gm);
  const ae=ubtn('Asset Editor','lite',()=>togglePop('ae')),st=ubtn('Map settings','lite',()=>togglePop('map'));ae.id='bae';st.id='bms';
  const r=mk('div','g2');r.append(ae,st);ZS.append(ms,sv,r)}
 
@@ -196,7 +196,7 @@ function place(x,y){const r=PW.getBoundingClientRect();PW.style.left=Math.max(0,
 function openPop(id,title,body){if(UI.pop==='ae'&&id!=='ae')closePop();UI.pop=id;PW.dataset.id=id;PW.querySelector('.wt span').textContent=title;const b=PW.querySelector('.pb');b.innerHTML='';b.append(...body);PW.style.display='block';
  const r=PW.getBoundingClientRect(),vr=VIEW.getBoundingClientRect();place(vr.left+(vr.width-r.width)/2,vr.top+Math.max(60,(vr.height-r.height)/2));$('bae').classList.toggle('on',id==='ae');$('bms').classList.toggle('on',id==='map');CORN.querySelector('.sig').classList.toggle('on',id==='map')}
 function closePop(){if(!UI.pop)return;const was=UI.pop;UI.pop=null;PW.style.display='none';if(was==='sign'&&UI.sign&&!UI.sign.t){const q=UI.sign;SIGNS[curMap]=(SIGNS[curMap]||[]).filter(o=>o!==q);drawSigns()}if(was==='ae'){aeStash();AU.naming=false;PW.querySelector('.pb').innerHTML='';setMode(UT.find(t=>t[0]===UI.tool)[2])}for(const b of [$('bae'),$('bms'),CORN.querySelector('.sig')])b.classList.remove('on')}
-function togglePop(id){if(UI.pop===id){closePop();return}if(id==='map')mapPop();else aePop()}
+function togglePop(id){if(UI.pop===id){closePop();return}if(id==='map')mapPop();else if(id==='games')gamesPop();else aePop()}
 window.addEventListener('keydown',e=>{if(e.key!=='Escape'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)&&!PW.contains(e.target))return;if(UI.place||UI.drop){armDrop(UI.drop||'spawn');e.stopImmediatePropagation()}else if(UI.pop){closePop();e.stopImmediatePropagation()}},true);
 function mapPop(){const mod=MODS.maps[curMap],own=Object.keys(NAT);
  const nm=tbox(mod?mod.name:(TITLE[curMap]||'Map'),v=>{if(MODS.maps[curMap]){MODS.maps[curMap].name=v;TITLE[curMap]=v;saveMods();fillMapSel()}else MNAME[curMap]=v});nm.id='mname';
