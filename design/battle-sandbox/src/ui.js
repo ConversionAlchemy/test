@@ -45,6 +45,8 @@ const US={};{const R=(a,b)=>a+Math.random()*(b-a);
 
 // layout
 const SM=$('sm'),SIDE0=document.querySelector('#sm .side'),VIEW=$('stage').parentElement;
+// the board only counts as under the cursor where the map view is actually showing
+window.addEventListener('pointermove',e=>{if(!VIEW.contains(e.target)||e.target.closest('.zone,.pw,.corner')){mouse.in=false;hover=null;hoverC=null}});
 const ZT=mk('div','zone zt'),ZC=mk('div','zone zc'),ZS=mk('div','zone zs');
 {const g=mk('div','tgrid');for(const[k,n]of UT){const b=ubtn('','tb'+(k==='hand'?' lite':''),()=>pickTool(k));b.dataset.k=k;const t=mk('span',null,n);t.append(mk('i','kb','('+UKEY[k]+')'));b.append(uicon(k),t);g.append(b)}ZT.append(g)}
 const TH=mk('div','ch');ZC.append(TH,...SIDE0.children);SIDE0.append(ZT,ZC,ZS);
