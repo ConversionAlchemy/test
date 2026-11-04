@@ -306,7 +306,7 @@ function hotbar(){const tk=UI.tool==='hand'&&([...sel].filter(o=>o.type==='token
  if(k!==hbK){hbK=k;HCX.innerHTML='';
   if(c){cNorm(c);const h=mk('div','hlab',c.name||'Chest');const g=mk('div','hg cg');c.inv.forEach((q,i)=>{if(!q)return;const d=slotEl(q,null,false);d.onpointerdown=e=>{e.preventDefault();moveItem(c,i,tk);lastHud='';hbK=''};g.append(d)});if(!g.children.length)g.append(mk('div','slot lock'));const cp=mk('div','hpan');cp.append(g);HCX.append(h,cp)}
   TH.innerHTML='';{const ic=tokIcon(tk),nn=mk('span',null,tk.name);nn.style.color=natLabel(tk);TH.append(ic,nn)}const n=mk('i');const g1=mk('div','hg'),g2=mk('div','hg'),hp=mk('div','hpan');
-  for(let i=0;i<6;i++){const d=slotEl(tk.inv[i],i<4?SILK[i]:'gold',i===tk.si);d.onpointerdown=e=>{e.preventDefault();if(e.shiftKey){if(c)moveItem(tk,i,c);else dropSlot(tk,i)}else if(tk.inv[i]&&tk.inv[i].k==='note')readNote(tk,i);else selectSlot(tk,i);lastHud='';hbK=''};(i<4?g1:g2).append(d)}
+  for(let i=0;i<6;i++){const d=slotEl(tk.inv[i],i<4?SILK[i]:'gold',i===tk.si);d.onpointerdown=e=>{e.preventDefault();if(!e.shiftKey&&tk.inv[i])SPD={tk,i,x:e.clientX,y:e.clientY};if(e.shiftKey){if(c)moveItem(tk,i,c);else dropSlot(tk,i)}else if(tk.inv[i]&&tk.inv[i].k==='note')readNote(tk,i);else selectSlot(tk,i);lastHud='';hbK=''};(i<4?g1:g2).append(d)}
   for(let i=0;i<2;i++)g2.append(mk('div','slot lock'));hp.append(g1,mk('i','hsep'),g2);
   const tg=(v,f)=>chk(v,()=>{f();sfx('flick');lastHud='';hbK=''});
   HCX.append(n,hp,form([['Side',dsel(Object.keys(NAT).map(n=>[n,n]),tk.nat||'Neutral',v=>{tk.nat=v==='Neutral'?null:v;lastHud='';hbK=''})],['Auto pick-up',tg(!tk.noAuto,()=>tk.noAuto=!tk.noAuto)],['Protect',tg(!!tk.vip,()=>tk.vip=!tk.vip)],['Autonomous',tg(!!tk.auto,()=>{tk.auto=!tk.auto;if(tk.auto)say(tk,'On it',true);tk.ord=null})],['Leader',tg(!!tk.leader,()=>{const on=!tk.leader;for(const o of bodies)if(o.type==='token'&&teamOf(o)===teamOf(tk))o.leader=false;tk.leader=on})]]))}
@@ -354,14 +354,16 @@ let stK='';function storePanel(){const c=openCrate||(!sel.size&&hoverC);if(UI.to
  const g=mk('div','hg cg');c.inv.forEach((q,i)=>{const d=slotEl(q,null,false);if(q)d.onpointerdown=e=>{e.preventDefault();dropSlot(c,i);lastHud='';stK=''};g.append(d)});const cp=mk('div','hpan');cp.append(g);HCX.append(cp);return true}
 window.addEventListener('pointermove',()=>{if(hoverC||!mouse.in||drag)return;const X=mouse.x|0,Y=mouse.y|0,k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(k&&PCK.has(k)&&!bodyAt(X,Y,1))hoverC=boxAt(X,Y)});
 VIEW.addEventListener('contextmenu',e=>{if(EM||!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;if(bodyAt(X,Y,3))return;const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(!k||!PCK.has(k))return;const c=boxAt(X,Y);if(!c)return;e.preventDefault();e.stopPropagation();openMenu(c,e)},true);
+// drag a slot from the inventory panel out onto the board
+let SPD=null;window.addEventListener('pointermove',e=>{if(SPD&&Math.hypot(e.clientX-SPD.x,e.clientY-SPD.y)>6){SDR={c:SPD.tk,i:SPD.i};SPD=null}});
 // press an item inside a shown container and drag it to a unit, another container, a new spot or the floor
 VIEW.addEventListener('pointerdown',e=>{if(UI.tool!=='hand'||e.button||panKey||!inBoard(e))return;const[x,y]=toBoard(e),h=storeHit(x|0,y|0);if(!h)return;e.stopImmediatePropagation();e.preventDefault();SDR=h;sfx('flick')},true);
-window.addEventListener('pointerup',e=>{if(!SDR)return;const{c,i}=SDR;SDR=null;const q=c.inv[i];if(!q)return;const[x,y]=toBoard(e),X=x|0,Y=y|0;lastHud='';hbK='';stK='';
- const tk=bodyAt(X,Y,4,null,o=>o.type==='token'&&o.status!=='dead');if(tk){moveItem(c,i,tk);return}
- const to=bodyAt(X,Y,3,null,o=>o.kind==='crate'&&!o.hidden)||(OBJ[Y*W+X]?boxAt(X,Y):null);
+window.addEventListener('pointerup',e=>{if(SPD){SPD=null;return}if(!SDR)return;const{c,i}=SDR;SDR=null;const q=c.inv[i];if(!q||!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;lastHud='';hbK='';stK='';
+ const tk=bodyAt(X,Y,4,null,o=>o.type==='token'&&o.status!=='dead');if(tk){if(tk!==c)moveItem(c,i,tk);return}
+ const to=bodyAt(X,Y,3,null,o=>o.kind==='crate'&&!o.hidden)||(OBJ[Y*W+X]?boxAt(X,Y):null);if(c.type==='token'){if(to)moveItem(c,i,to,x,y);else dropSlot(c,i);return}
  if(to===c){const g=cGeo(c),[w,h]=cRect(q),gx=Math.round((x-w*g.cs/2-g.ox)/g.cs),gy=Math.round((y-h*g.cs/2-g.oy)/g.cs),o={gx:q.gx,gy:q.gy,r:q.r};q.gx=gx;q.gy=gy;
   const ok=gx>=0&&gy>=0&&gx+w<=g.gw&&gy+h<=g.gh&&[...Array(w*h)].every((_,n)=>g.ok(gx+n%w,gy+(n/w|0)))&&!c.inv.some(z=>{if(!z||z===q)return false;const[zw,zh]=cRect(z);return z.gx<gx+w&&gx<z.gx+zw&&z.gy<gy+h&&gy<z.gy+zh});if(!ok){Object.assign(q,o);sfx('dry')}else sfx('flick');return}
- if(to){moveItem(c,i,to);return}
+ if(to){moveItem(c,i,to,x,y);return}
  if(X<0||Y<0||X>=W||Y>=H||sol[Y*W+X]||OBJ[Y*W+X]){sfx('dry');return}c.inv[i]=null;if(q.k==='note'){placeNote(q,X,Y);sfx('drop');return}if(!WP[q.k])return;const w=weapon(q.k,X,Y,Math.random()*6.283);if(q.k==='gold')w.amt=q.n;if(CAP[q.k]){w.ammo=q.ammo??CAP[q.k];w.res=q.res||0}w.noPick=tick+120;sfx('drop')});
 // units are only controlled with Command: other tools drop control, and clicking a unit switches back
 const freeCtl=e=>{if(panKey||UI.tool==='hand'||UI.drop||UI.place||e.button||!inBoard(e))return;const[x,y]=toBoard(e),b=bodyAt(x|0,y|0,1);if(b&&b.type==='token'&&b.status!=='dead'){pickTool('hand');return}if(!EM){e.stopImmediatePropagation();e.preventDefault()}};
