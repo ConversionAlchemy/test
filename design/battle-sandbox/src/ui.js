@@ -90,7 +90,7 @@ function tilerCtx(){TCX.innerHTML='';if(!edBrush||edBrush.t==='clean'){if(!UI.ti
   const tc=k=>cell(k,k&&validK(k)?swatch(bake(k),30,30):null,()=>setTile(k));
   if(PK.el==='Mods')for(const k of mods)g.append(tc(k));else for(const mat of Object.keys(ELEM[PK.el].mats))for(const v of Object.keys(varsOf(PK.el,mat)).slice(0,7))g.append(tc(PK.el.toLowerCase()+'.'+mat+'.'+v+(PK.w?'.w':'')));
   nm=cur&&!String(cur).startsWith('door:')&&!furnK(cur)?tName(cur):''}
- else if(UI.tt==='furn'){for(const k of [...baseKeys('furn'),...modKeys('furn')])g.append(cell(k,swatch(bake(k),30,30),()=>{UI.tile={t:'tile',k};edBrush={t:'tile',k};tilerCtx()}));nm=cur&&furnK(cur)?tName(cur):''}
+ else if(UI.tt==='furn'){const FO=['table','seat','desk','edesk','chest','mchest','rack','books','shelf','wagon'];for(const k of [...baseKeys('furn').sort((a,b)=>(FO.indexOf(a)+1||99)-(FO.indexOf(b)+1||99)),...modKeys('furn')])g.append(cell(k,swatch(bake(k),30,30),()=>{UI.tile={t:'tile',k};edBrush={t:'tile',k};tilerCtx()}));nm=cur&&furnK(cur)?tName(cur):''}
  else{for(const k in DOORK){const c=icon(doorIcon(k),1);c.style.cssText='width:34px;height:24px;image-rendering:pixelated;display:block;margin-top:5px';g.append(cell('door:'+k,c,()=>{UI.tile={t:'door',k:'door:'+k};edBrush={...UI.tile};tilerCtx()}))}nm=String(cur).startsWith('door:')?DOORK[cur.slice(5)][0]:''}
  TCX.append(g,mk('div','tbox',nm));if(UI.pop==='ae'&&cur&&!String(cur).startsWith('door:')&&cur!==AE.key)aeLoad(cur)}
 function setTile(k){if(!validK(k))return;pkFrom(k);UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';tilerCtx()}

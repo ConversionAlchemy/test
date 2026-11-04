@@ -20,7 +20,7 @@ function pickFile(f){const i=document.createElement('input');i.type='file';i.acc
 // textures
 const TNAME={marble:'White marble',dmarble:'Green marble',flag:'Flagstone',planks:'Oak planks',pplanks:'Pine planks',dplanks:'Teak planks',table:'Table',seat:'Chair',carpet:'Red carpet',gcarpet:'Green carpet',pcarpet:'Purple carpet',gfloor:'Gold floor',grass:'Grass',dirt:'Dirt',sky:'Sky',mfloor:'Metal floor',desk:'Desk',edesk:'Ebony desk',sill:'Sill',msill:'Marble sill',omarble:'Key marble',gtile:'Green key tile',bkmarble:'Black marble',bkslab:'Black slab',books:'Bookshelf',pave:'Paving',shelf:'Vault shelf',chest:'Chest',rack:'Rack',crop:'Wheat',wagon:'Wagon',
  stone:'Stone',gstone:'Gold stone',pillar:'Pillar',berm:'Earth bank',rail:'Fence',wood:'Oak',dwood:'Walnut',ewood:'Ebony',metal:'Metal',mplate:'Riveted plate',iron:'Iron',brass:'Brass',mpanel:'Metal panel',bush:'Hedge'};
-TNAME.slab='Stone slabs';
+TNAME.slab='Stone slabs';TNAME.mchest='Iron chest';SHINE.mchest=60;
 for(const k in CATN){const[el,mat,v,w]=CATN[k];if(w)WMAT[k]=el==='Stone'?1:el==='Metal'?3:el==='Earth'&&mat==='dirt'?1:2;if(el==='Metal')SHINE[k]=mat==='umbra'?25:mat==='gold'||mat==='brass'?80:60;else if(el==='Stone'&&ELEM.Stone.mats[mat][2])SHINE[k]=mat==='night'?22:28;if(!w&&(el==='Earth'||el==='Cloth')||el==='Wood'&&v==='panel')NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
 const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w]=c;return ELEM[el].mats[mat][0]+' · '+varsOf(el,mat)[v]+(w?' wall':'')};
 const tName=k=>MODS.tex[k]?MODS.tex[k].name:catName(k)||TNAME[k]||k;
@@ -83,7 +83,7 @@ const ATL=(()=>{const rows=EORDER.map(el=>{const E=ELEM[el],mats=Object.keys(E.m
 MAPSZ.atelier=[ATL.CW,ATL.CH];TITLE.atelier='Fluoria · The Atelier';
 NBM.atelier=()=>{const g=Array.from({length:ATL.CH},(_,y)=>Array.from({length:ATL.CW},(_,x)=>x===0||y===0||x===ATL.CW-1||y===ATL.CH-1?'stone.grey.block.w':'stone.lime.paving'));
  ATL.rows.forEach((r,i)=>{const y0=2+i*4;let x=2;r.mats.forEach((m,mi)=>{const vs=r.vars[mi];vs.forEach((v,j)=>{const b=r.el.toLowerCase()+'.'+m+'.'+v;g[y0][x+j]=b+'.w';g[y0+1][x+j]=b;g[y0+2][x+j]=b});x+=vs.length+1})});
- const fx=ATL.rows[0].w+3,fy=3;[['table',2],['desk',2],['edesk',2],['books',2],['shelf',2],['chest',1],['rack',2],['seat',1],['wagon',2]].reduce((x,[k,n])=>{for(let i=0;i<n;i++)g[fy][x+i]=k;return x+n+1},fx);
+ const fx=ATL.rows[0].w+3,fy=3;[['table',2],['desk',2],['edesk',2],['books',2],['shelf',2],['chest',1],['mchest',1],['rack',2],['seat',1],['wagon',2]].reduce((x,[k,n])=>{for(let i=0;i<n;i++)g[fy][x+i]=k;return x+n+1},fx);
  const dy=2+4,dx=ATL.rows[1].w+3;for(let x=dx;x<dx+Object.keys(DOORK).length*2+1&&x<ATL.CW-1;x++)g[dy][x]=(x-dx)%2?'stone.lime.paving':'stone.grey.block.w';paintAll((cx,cy)=>g[cy][cx])};
 NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i)=>{const cx=dx+1+i*2;if(cx<ATL.CW-1)mkDoor(k,cx*T,dy*T+T/2+4,0)});const t=U('Curator',null,'civ',2,1.5,0,null,'Clerk')};
 ENVSET.atelier='out';
@@ -119,7 +119,7 @@ function setMode(m){if(m===EM)return;const was=EM;if(was==='asset')aeStash();EM=
 // placing tiles: a soft puff from the tile's own colours and a quiet sound for its material
 const DUST=[];
 function matOf(k){if(CATN[k]){const[el,mat,,w]=CATN[k];return el==='Stone'?(ELEM.Stone.mats[mat][2]?'tile':'stone'):el==='Wood'?'wood':el==='Metal'?'metal':el==='Cloth'?'cloth':'soft'}const m=MODS.tex[k];if(m&&m.rec){const t=m.rec.mat;return t==='wood'||t==='metal'||t==='cloth'?t:t==='grass'||t==='soil'?'soft':t==='marble'?'tile':'stone'}let r=rootOf(k);if(/[HNS]$/.test(r)&&WMAT[r.slice(0,-1)])r=r.slice(0,-1);
- if(WMAT[r])return r==='bush'?'soft':WMAT[r]===2?'wood':WMAT[r]===3?'metal':'stone';if(r==='shelf'||r==='mfloor'||r==='gfloor')return'metal';if(OBJK.has(r)||r==='seat')return'furn';if(/carpet/.test(r))return'cloth';if(/^(grass|dirt|crop|sky)$/.test(r))return'soft';if(/marble|gtile|bkslab|msill|pillar/.test(r))return'tile';if(/planks|wagon/.test(r))return'wood';return'stone'}
+ if(WMAT[r])return r==='bush'?'soft':WMAT[r]===2?'wood':WMAT[r]===3?'metal':'stone';if(r==='shelf'||r==='mchest'||r==='mfloor'||r==='gfloor')return'metal';if(OBJK.has(r)||r==='seat')return'furn';if(/carpet/.test(r))return'cloth';if(/^(grass|dirt|crop|sky)$/.test(r))return'soft';if(/marble|gtile|bkslab|msill|pillar/.test(r))return'tile';if(/planks|wagon/.test(r))return'wood';return'stone'}
 function puff(cx,cy,k,delay=0){if(DUST.length>600)return;const m=matOf(k),n=m==='metal'?3:m==='cloth'?5:8;for(let i=0;i<n;i++){const x=cx*T+2+Math.random()*12,y=cy*T+2+Math.random()*12,j=(y|0)*W+(x|0);let c=sol[j]?scol[j]:OBJ[j]?OBJC[j]:floor[j];c=m==='metal'?rgb(240,244,246):mix(c,rgb(255,250,240),.5);const a=Math.random()*6.283,s=.12+Math.random()*.3,wall=WMAT[rootOf(k)];
  DUST.push({x,y,vx:Math.cos(a)*s,vy:wall?.1+Math.random()*.2:Math.sin(a)*s-.12,g:wall?.025:0,c,l:0,L:(m==='metal'?10:22)+Math.random()*16,d:delay,z:1,a:.9})}
  if(m!=='metal')for(let i=0;i<3;i++){const a=Math.random()*6.283,j=(cy*T+8)*W+cx*T+8;DUST.push({x:cx*T+5+Math.random()*6,y:cy*T+5+Math.random()*6,vx:Math.cos(a)*.18,vy:Math.sin(a)*.18-.05,g:0,c:mix(sol[j]?scol[j]:floor[j],rgb(255,250,240),.6),l:0,L:26+Math.random()*10,d:delay,z:3,a:.3})}}

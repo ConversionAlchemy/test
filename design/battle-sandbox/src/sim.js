@@ -68,16 +68,32 @@ const NOB=new Set(['grass','dirt','sky','bush','carpet','pcarpet','sill','msill'
 function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>map[y]&&map[y][x]!==undefined&&map[y][x]!==k;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);if(d>(WMAT[k]===3?2:1))continue;const j=(cy*T+y)*W+cx*T+x,mt=WMAT[k]===3,f=mt?[.7,1.3,.88][d]:d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
 // furniture and fixtures: above the floor, block walking, bullets pass over, blasts break them
-const OBJK=new Set(['table','desk','edesk','books','shelf','chest','rack','wagon']),ONAME={wagon:'Wagon',edesk:'Desk',books:'Bookshelf',table:'Table',desk:'Desk',seat:'Chair',shelf:'Vault shelf',chest:'Chest',rack:'Rack'};let OM=[];
+const OBJK=new Set(['table','desk','edesk','books','shelf','chest','mchest','rack','wagon']),ONAME={mchest:'Iron chest',wagon:'Wagon',edesk:'Desk',books:'Bookshelf',table:'Table',desk:'Desk',seat:'Chair',shelf:'Vault shelf',chest:'Chest',rack:'Rack'};let OM=[];
 function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(0);const cells=[];for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(OBJK.has(map[cy][cx])){OM[cy][cx]=map[cy][cx];cells.push([cx,cy])}
  for(const[cx,cy]of cells){let u=null;for(const d of [2,1,3,4])for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){if(u)break;const k=(map[cy+b*d]||[])[cx+a*d];if(k&&!OBJK.has(k)&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky')u=k}const k=OM[cy][cx];paintCell(cx,cy,u||'flag');
-  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);OBJ[j]=1;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}}
+  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);OBJ[j]=1;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}pieces();furnish()}
+// storage and desks come in pieces of at most 2×2, filled from the top-left; each piece has its own rim and inventory
+const PCK=new Set(['chest','mchest','rack','books','shelf','desk','edesk']);let PCS=new Map();
+function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k||!PCK.has(k)||PCS.has(cy*CW+cx))continue;const ok=(x,y)=>OM[y]&&OM[y][x]===k&&!PCS.has(y*CW+x),w=ok(cx+1,cy)?2:1,h=ok(cx,cy+1)&&(w<2||ok(cx+1,cy+1))?2:1,p={k,x0:cx,y0:cy,w,h,cells:[]};
+ for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
+// finishes: riveted iron band on chests and racks, book spines on a bookshelf's open edges, a riveted steel vault shelf
+function furnish(){const done=new Set(),C=a=>rgb(cl(a[0]),cl(a[1]),cl(a[2])),SP=[[110,34,30],[40,72,52],[92,64,36],[36,46,82],[130,104,58],[70,40,60]];
+ const open=(x,y)=>{const k=map[y]&&map[y][x];return !!k&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky'&&!(OM[y]&&OM[y][x])};
+ for(const p of PCS.values()){if(done.has(p)||p.k==='desk'||p.k==='edesk')continue;done.add(p);const pw=p.w*T,ph=p.h*T,X0=p.x0*T,Y0=p.y0*T,B=Math.max(3,Math.round(Math.min(pw,ph)*.25));
+  for(let v=0;v<ph;v++)for(let u=0;u<pw;u++){const X=X0+u,Y=Y0+v,j=Y*W+X,e=[u,v,pw-1-u,ph-1-v],d=Math.min(...e),s=e.indexOf(d),al=s===0||s===2?v:u;let c=OBJC[j];
+   const cx=X/T|0,cy=Y/T|0,fl=open(cx+(s===0?-1:s===2?1:0),cy+(s===1?-1:s===3?1:0)),hi=s<2?1.15:.82;
+   if(p.k==='chest'||p.k==='mchest'||p.k==='rack'){const m=p.k==='chest'?[128,134,136]:p.k==='rack'?[110,116,118]:[78,84,88];
+    if(d===0)c=mul(c,.5);else if(d<=2){c=C(m.map(q=>q*(d===1?hi:1)));if(d===1&&al%4===2)c=rgb(222,218,204)}
+    else if(p.k==='rack'?(pw>=ph?u%4===0:v%4===0):(pw>=ph?v===ph>>1:u===pw>>1))c=mul(c,.55)}
+   else if(p.k==='books'){if(d===0)c=C(sc(woodT(X,Y,WOOD.walnut,21),.5));else if(d<B&&fl){const q=SP[hh(al>>1,p.x0*31+p.y0+s,22)*SP.length|0];c=C(sc(q,(al&1?.82:1)*(d===B-1?.75:1)))}else{c=C(woodT(X,Y,WOOD.walnut,21));if(d===1)c=mul(c,1.12)}}
+   else if(p.k==='shelf'){const m=metalCore(X,Y,[70,78,82]);if(d===0)c=C(sc(m,.5));else if(d<=2){c=C(sc(m,d===1?hi*1.1:1));if(d===1&&al%4===2)c=rgb(214,210,196)}else c=C(sc(m,v%5===0?.82:1))}
+   OBJC[j]=c}}}
 function inlays(){const ring=(X0,Y0,R)=>{for(let Y=Y0-R-2;Y<=Y0+R+2;Y++)for(let X=X0-R-2;X<=X0+R+2;X++){const j=Y*W+X;if(sol[j]||OBJ[j])continue;const dx=X-X0+.5,dy=Y-Y0+.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3),gm=(c,t)=>mix(c,rgb(214,176,96),t),dm=()=>{const c=TEX.dmarble(X,Y);return rgb(cl(c[0]),cl(c[1]),cl(c[2]))};
   let c=null;if(r<4)c=gm(floor[j],.85);else if(Math.abs(r-st)<.8)c=gm(floor[j],.7);else if(r<st)c=r<st*.55?floor[j]:dm();else if(Math.abs(r-R*.82)<.7||Math.abs(r-R)<.7)c=gm(floor[j],.7);else if(r>R*.82&&r<R)c=dm();if(c!==null){floor[j]=c;SHN[j]=c===floor[j]?SHN[j]:40}}};
  ring(240,408,40)}
-function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;const cells=[],seen=new Set([cy*CW+cx]),q=[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}
+function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;if(k==='table'){for(const it of items||[]){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.k==='gold')w.amt=it.n;else if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}return null}const pc=PCS.get(cy*CW+cx),cells=pc?pc.cells.slice():[],seen=new Set([cy*CW+cx]),q=pc?[]:[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}
  const xs=cells.map(c=>c[0]),ys=cells.map(c=>c[1]),box=[Math.min(...xs)*T,Math.min(...ys)*T,(Math.max(...xs)+1)*T-1,(Math.max(...ys)+1)*T-1],c=weapon('crate',(box[0]+box[2])/2,(box[1]+box[3])/2,0);
- c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.inv=items.map(i=>({...i}));c.cells=cells;c.box=box;c.n0=cells.length*T*T;c.metal=k==='shelf';return c}
+ c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.inv=items.map(i=>({...i}));c.cells=cells;c.box=box;c.n0=cells.length*T*T;c.metal=k==='shelf'||k==='mchest';return c}
 const containerAt=(X,Y)=>{const cx=X/T|0,cy=Y/T|0;if(!OBJ[Y*W+X])return null;return bodies.find(o=>o.hidden&&o.cells.some(c=>c[0]===cx&&c[1]===cy))||null};
 const EDG=new Set();
 function cutEdges(x,y,R){const x0=Math.max(1,Math.floor(x-R-3)),x1=Math.min(W-2,Math.ceil(x+R+3)),y0=Math.max(1,Math.floor(y-R-3)),y1=Math.min(H-2,Math.ceil(y+R+3)),add=[];
