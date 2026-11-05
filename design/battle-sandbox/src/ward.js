@@ -1,7 +1,7 @@
 // unit looks: each sprite rebuilt as flesh, cloth and metal layers (from the wardrobe); a token samples its own spawn
 const WARD=(()=>{
 // ---- materials: metals keep the tile metals' colours; cloth and flesh have one strength each
-const MET={umbra:{n:'Umbra',s:10,w:.5,c:[59,69,64],age:'dark tinge'},aurum:{n:'Aurum',s:8,w:.8,c:[226,186,96],age:'dents'},steel:{n:'Steel',s:7,w:1,c:[130,142,140],age:'tinge',tint:[[104,132,118],[88,118,100]]},iron:{n:'Iron',s:6,w:1.3,c:[118,116,112],age:'tinge',tint:[[132,100,72],[116,82,56]]},brass:{n:'Brass',s:5,w:.9,c:[200,146,88],age:'verdigris'}};
+const MET={};for(const[k,m]of[['umbra','umbra'],['aurum','gold'],['steel','steel'],['iron','iron'],['brass','brass']]){const q=ELEM.Metal.mats[m];MET[k]={n:q.n,s:q.hp,w:q.w,c:q.c,age:q.age,tint:q.tint}}
 const CLOTH_S=1,FLESH_S=1,HEAD_S=3;
 const SKIN=[[244,214,186],[232,190,156],[214,168,128],[192,142,104],[168,116,80],[138,92,62],[112,72,48],[86,56,38]];
 const HAIR=[[24,20,18],[52,36,26],[86,58,36],[120,84,50],[150,72,40],[186,150,96]],GREY=[[176,170,160],[224,220,210]];
