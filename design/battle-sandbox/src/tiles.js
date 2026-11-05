@@ -158,7 +158,7 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='hammer')return(X,Y)=>{const d=vn(X/2.6,Y/2.6,s+40),k=M(X,Y),e=Math.min(X&31,Y&31);if(e===0)return sc(k,.62);return sc(k,.84+d*.3+(hh(X,Y,s)>.96?.1:0))};
   if(v==='tread')return(X,Y)=>{const b=((X>>2)+(Y>>2))&1,x=X&3,y=Y&3,k=M(X,Y),lug=b?x===y:x+y===3;return lug?sc(k,1.28):(b?x===y+1:x+y===4)?sc(k,.78):k};
   if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.78);if(x>=3&&x<=12&&(y===4||y===8||y===12))return sc(k,.3);if(x>=3&&x<=12&&(y===5||y===9||y===13))return sc(k,1.22);return k};
-  if(v==='filigree')return(X,Y)=>{const[x,y]=A(X,Y),e=Math.min(x,y,15-x,15-y),k=M(X,Y);if(e===0)return sc(k,.6);if(e===1)return sc(k,x===1||y===1?1.2:.85);const cx=x<8?2:13,cy=y<8?2:13,r=Math.hypot(x-cx,y-cy);if(Math.abs(r-4.2)<.5&&Math.abs(x-cx)<5&&Math.abs(y-cy)<5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
+  if(v==='filigree')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.6);const cx=x<8?2:13,cy=y<8?2:13,r=Math.hypot(x-cx,y-cy);if(Math.abs(r-4.2)<.5&&Math.abs(x-cx)<5&&Math.abs(y-cy)<5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
   if(v==='grille')return(X,Y)=>{const u=((X+Y)%6+6)%6,w=((X-Y)%6+6)%6,k=M(X,Y);if(u===0&&w===0)return sc(k,1.4);if(u===0||w===0)return sc(k,.74);return k};
   if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),k=sc(M(X,Y),1.03);if(x===0||y===0)return sc(k,.72);if(Math.abs(r-6.5)<.5)return sc(k,.82);if(r>2&&r<6&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
   if(v==='scale')return(X,Y)=>{const r=Y>>2,u=(X+(r&1?3:0))%6,y=Y&3,d=Math.hypot(u-2.5,y+.5),k=M(X,Y);if(Math.abs(d-2.7)<.55)return sc(k,.72);if(d<2)return sc(k,1.1);return k};
@@ -202,13 +202,13 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
   if(v==='boards'){let k=woodT(X,Y,c,s+(Y>>4)*3);k=sc(k,1+(hh(Y>>4,s,9)-.5)*.08);if((Y&15)===15)k=sc(k,.84);else if((Y&15)===0)k=sc(k,1.04);return k}
   return woodT(X,Y,c,s+13)}}
  if(el==='Metal'){return(X,Y)=>{const[x,y,e]=cellE(X,Y);let k=metalOf(mat,X,Y);
-  if(v==='smooth'){return x===0||y===0?sc(k,.86):x===1||y===1?sc(k,1.07):k}
-  if(v==='rivet'){if(e===0)return sc(k,.68);if(e===1)k=sc(k,x===1||y===1?1.14:.9);for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12],[8,3],[8,12]]){if(x===rx&&y===ry)return sc(k,1.32);if(x===rx+1&&y===ry+1)return sc(k,.8)}return k}
-  if(v==='panel'){const i=Math.min(x-4,y-4,11-x,11-y);if(e===0)return sc(k,.82);return i===0?(x===4||y===4?sc(k,.78):sc(k,1.18)):k}
-  if(mat==='iron'){if(e===0)return sc(k,.55);if(e===1)return sc(k,x===1||y===1?1.25:.8);for(const[rx,ry]of[[3,3],[11,3],[3,11],[11,11]])if(x>=rx&&x<=rx+1&&y>=ry&&y<=ry+1)return sc(k,x===rx&&y===ry?1.4:1.15);return hh(X,Y,70)>.97?sc(k,.86):k}
-  if(mat==='brass'){if(e===0)return sc(k,.6);if(e===1)return sc(k,x===1||y===1?1.2:.85);if((x===3||x===12)&&(y===3||y===12))return sc(k,1.35);return sc(k,1+.06*Math.sin((x+y)/3))}
-  if(mat==='gold'){if(e===0)return sc(k,.7);if(e===2)return sc(k,.82);return sc(k,1.04)}
-  if(e===0)return sc(mx(k,[90,110,140],.3),.85);if(y===8)return sc(mx(k,[90,110,140],.18),.92);return k}}
+  if(v==='smooth'){return x===0||y===0?sc(k,.86):k}
+  if(v==='rivet'){if(x===0||y===0)return sc(k,.68);for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12],[8,3],[8,12]]){if(x===rx&&y===ry)return sc(k,1.32);if(x===rx+1&&y===ry+1)return sc(k,.8)}return k}
+  if(v==='panel'){const i=Math.min(x-4,y-4,11-x,11-y);if(x===0||y===0)return sc(k,.82);return i===0?(x===4||y===4?sc(k,.78):sc(k,1.18)):k}
+  if(mat==='iron'){if(x===0||y===0)return sc(k,.55);for(const[rx,ry]of[[3,3],[11,3],[3,11],[11,11]])if(x>=rx&&x<=rx+1&&y>=ry&&y<=ry+1)return sc(k,x===rx&&y===ry?1.4:1.15);return hh(X,Y,70)>.97?sc(k,.86):k}
+  if(mat==='brass'){if(x===0||y===0)return sc(k,.6);if((x===3||x===12)&&(y===3||y===12))return sc(k,1.35);return sc(k,1+.06*Math.sin((x+y)/3))}
+  if(mat==='gold'){if(x===0||y===0)return sc(k,.7);if(e===2)return sc(k,.82);return sc(k,1.04)}
+  if(x===0||y===0)return sc(mx(k,[90,110,140],.3),.85);if(y===8)return sc(mx(k,[90,110,140],.18),.92);return k}}
  return(X,Y)=>{let k=sc(c,(.9+fbm(X/8,Y/8,32+s)*.14)*((X+Y)&1?.98:1.02));
   if(wall)return sc(k,.86+.14*Math.sin(X/2.4));if(v==='diamond'){const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;if(u===0||w===0)k=mx(k,[176,140,82],.22);else if(u===4&&w===4)k=mx(k,[196,160,96],.3)}return k}}
 for(const el in ELEM)for(const mat of[...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})])for(const v of[...Object.keys(varsOf(el,mat)),...(OLDV[el]||[])])for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
