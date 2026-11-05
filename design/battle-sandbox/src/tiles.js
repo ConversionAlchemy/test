@@ -159,20 +159,19 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='grate')return(X,Y)=>{const x=X&3,y=Y&3;let k=M(X,Y);if(x===0||y===0)return sc(k,x===0&&y===0?1.25:1.08);return sc(k,x===3||y===3?.32:.45)};
   if(v==='hammer')return(X,Y)=>{const d=vn(X/2.6,Y/2.6,s+40),k=M(X,Y),e=Math.min(X&31,Y&31);if(e===0)return sc(k,.62);return sc(k,.84+d*.3+(hh(X,Y,s)>.96?.1:0))};
   if(v==='tread')return(X,Y)=>{const b=((X>>2)+(Y>>2))&1,x=X&3,y=Y&3,k=M(X,Y),lug=b?x===y:x+y===3;return lug?sc(k,1.28):(b?x===y+1:x+y===4)?sc(k,.78):k};
-  // vents run round the area's edge like rivets: 6×2 slots, dark on the top/left side, lit on the other; side slots only between the top and bottom rows
+  // vents: a dashed ring of short inset slots round the area's edge, dark on the top/left side, lit on the other
   // connected specials: each area keeps a plain margin m in from its edge
   if(v==='treadplate')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd]=regionD(X,Y,cx,cy);if(Math.min(dl,dr,du,dd)<(wall?5:3))return k;const c=((X/6|0)+(Y/6|0))&1,lx=X%6,ly=Y%6,a=c?lx+ly===5:lx===ly,b=c?lx+ly===6:lx===ly+1;return lx>0&&lx<5&&ly>0&&ly<5?(a?sc(k,1.35):b?sc(k,.68):k):k};
   if(v==='fluted')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd]=regionD(X,Y,cx,cy),m=wall?5:3,e=Math.min(dl,dr,du,dd);if(e<m)return k;if(du===m||dd===m)return sc(k,.9);return sc(k,[.8,1.16,1.05,.95][X&3])};
   if(v==='coffer')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd]=regionD(X,Y,cx,cy),m=wall?4:2,e=Math.min(dl,dr,du,dd);if(e<m)return k;if(e<=m+2)return sc(k,e===m?(dl===e||du===e?1.2:.86):e===m+2?(dl===e||du===e?.8:1.15):1.05);const u=((X+Y)%6+6)%6===0,w=((X-Y)%6+6)%6===0;return u&&w?sc(k,1.22):u||w?sc(k,.88):k};
-  if(v==='louvre')return(X,Y,cx,cy)=>{const x=X&15,y=Y&15,k=M(X,Y),[dl,dr,du,dd]=regionD(X,Y,cx,cy),I=wall?5:4,al=t=>t>=5&&t<=10,f=near=>sc(k,near?.45:1.15);
-   if((du===I||du===I+1)&&dl>=I&&dr>=I&&al(x))return f(du===I);if((dd===I||dd===I+1)&&dl>=I&&dr>=I&&al(x))return f(dd===I+1);
-   const mid=du>15&&dd>15;if(mid&&(dl===I||dl===I+1)&&al(y))return f(dl===I);if(mid&&(dr===I||dr===I+1)&&al(y))return f(dr===I+1);return k};
+  if(v==='louvre')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd]=regionD(X,Y,cx,cy),I=wall?5:4,f=near=>sc(k,near?.45:1.15),dh=((X%5)+5)%5<2,dv=((Y%5)+5)%5<2,inX=dl>=I&&dr>=I,inY=du>I+1&&dd>I+1;
+   if(inX&&dh&&(du===I||du===I+1))return f(du===I);if(inX&&dh&&(dd===I||dd===I+1))return f(dd===I+1);if(inY&&dv&&(dl===I||dl===I+1))return f(dl===I);if(inY&&dv&&(dr===I||dr===I+1))return f(dr===I+1);return k};
   if(v==='filigree')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y),qx=x<8?0:15,qy=y<8?0:15;if(Math.abs(Math.hypot(x-qx,y-qy)-4.2)<.5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
   if(v==='grille')return(X,Y)=>{const u=((X+Y)%6+6)%6,w=((X-Y)%6+6)%6,k=M(X,Y);if(u===0&&w===0)return sc(k,1.4);if(u===0||w===0)return sc(k,.74);return k};
   if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),k=sc(M(X,Y),1.03),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx);if(Math.abs(r-5.5)<.5)return sc(k,.82);if(r>2&&r<5&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
   if(v==='scale')return(X,Y)=>{const r=Y>>2,u=(X+(r&1?3:0))%6,y=Y&3,d=Math.hypot(u-2.5,y+.5),k=M(X,Y);if(Math.abs(d-2.7)<.55)return sc(k,.72);if(d<2)return sc(k,1.1);return k};
   if(v==='runes')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y),gx=X>>4,gy=Y>>4;const a=4,b=11,c0=4,d=11,mid=Math.round((c0+d)/2),inX=x>=a&&x<=b,inY=y>=c0&&y<=d,seg=i=>hh(gx*7+i,gy*5,s)>.45;
-   const on=inY&&(x===a&&seg(0)||x===b&&seg(1))||inX&&(y===c0&&seg(2)||y===d&&seg(3)||y===mid&&seg(6))||inX&&inY&&(x-a===y-c0&&seg(4)||(x-a)+(y-c0)===b-a&&seg(5));return on?mx(k,VOID,.3):k};
+   const on=inY&&(x===a&&seg(0)||x===b&&seg(1))||inX&&(y===c0&&seg(2)||y===d&&seg(3)||y===mid&&seg(6))||inX&&inY&&(x-a===y-c0&&seg(4)||(x-a)+(y-c0)===b-a&&seg(5));return on?sc(k,1.4):k};
   if(v==='veined')return(X,Y)=>{const k=M(X,Y),d=Math.abs(vn(X/9,Y/9,s+50)-.5);return d<.018?mx(k,VOID,.45):d<.04?mx(k,VOID,.15):k}}
  return null}
 const cellE=(X,Y)=>{const x=X&15,y=Y&15;return[x,y,Math.min(x,y,15-x,15-y)]};
