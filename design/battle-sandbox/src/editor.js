@@ -51,9 +51,9 @@ const BASEREC={flag:[FLAG,'stone','flags'],slab:[[150,144,132],'stone','slabs'],
  carpet:[[128,34,38],'cloth','none'],gcarpet:[[34,82,56],'cloth','none'],pcarpet:[[58,30,78],'cloth','none'],grass:[GRASS,'grass','none'],dirt:[SOIL,'soil','none'],bush:[GDARK,'grass','none'],shelf:[[200,170,100],'metal','planks']};
 for(const k in WPIECE)BASEREC[k]=[memb('Wood',WPIECE[k][0]).c,'wood','none'];
 function baseRec(k){if(CATN[k]&&!BASEREC[k]){const[el,mat,v]=CATN[k],M=memb(el,mat),lay={flags:'flags',slabs:'slabs',paving:'slabs',planks:'planks',boards:'planks',panel:el==='Metal'?'tiles':'slabs',rivet:'slabs'}[v]||'none';BASEREC[k]=el==='Earth'?[mat==='dirt'?SOIL:mat==='hedge'?GDARK:mat==='wheat'?[196,166,84]:GRASS,mat==='dirt'||mat==='wheat'?'soil':'grass','none']:el==='Metal'?[M.c?mx([126,140,146],M.c,.55).map(v=>v|0):[130,142,140],'metal',lay]:[M.c.slice(),mprop(el,mat).cls,lay]}const b=BASEREC[k];if(b)return{base:b[0].slice(),mat:b[1],lay:b[2],jw:1,jd:.8,vary:.3,seed:0,wear:{edge:0,scuff:0,crack:0},stamp:null};const p=bake(k);let r=0,g=0,bl=0;for(let i=0;i<p.length;i+=3){r+=p[i];g+=p[i+1];bl+=p[i+2]}const n=p.length/3;return{base:[r/n|0,g/n|0,bl/n|0],mat:matK(k),lay:'none',jw:1,jd:.8,vary:.3,seed:0,wear:{edge:0,scuff:0,crack:0},stamp:null}}
-function regTex(id){const m=MODS.tex[id],p=m.from;BAKE.delete(id);if(m.rec){TEX[id]=recTex(m.rec);if(m.rec.lay==='planks')PLK.add(id);else PLK.delete(id)}else{const d=dec(m.px);TEX[id]=(X,Y)=>{const i=((((Y%TS)+TS)%TS)*TS+(((X%TS)+TS)%TS))*3;return[d[i],d[i+1],d[i+2]]}}KIND[id]=KIND[p]||'floor';if(WMAT[p])WMAT[id]=hitCls(matK(id));if(SHINE[p])SHINE[id]=SHINE[p];if(OBJK.has(p)){OBJK.add(id);ONAME[id]=m.name}for(const S of[NOB,PCK,RUG,NODK,KEYT,POLT])if(S.has(p))S.add(id);if(PLK.has(p)&&!m.rec)PLK.add(id)}
+function regTex(id){const m=MODS.tex[id],p=m.from;BAKE.delete(id);if(m.rec){TEX[id]=recTex(m.rec);if(m.rec.lay==='planks')PLK.add(id);else PLK.delete(id)}else{const d=dec(m.px);TEX[id]=(X,Y)=>{const i=((((Y%TS)+TS)%TS)*TS+(((X%TS)+TS)%TS))*3;return[d[i],d[i+1],d[i+2]]}}KIND[id]=KIND[p]||'floor';if(WMAT[p])WMAT[id]=hitCls(matK(id));if(SHINE[p])SHINE[id]=SHINE[p];if(OBJK.has(p)){OBJK.add(id);ONAME[id]=m.name}for(const S of[NOB,PCK,RUG,NODK,POLT])if(S.has(p))S.add(id);if(PLK.has(p)&&!m.rec)PLK.add(id)}
 for(const id in MODS.tex)try{regTex(id)}catch(e){delete MODS.tex[id]}
-const validK=k=>!!k&&(!!TEX[k]||!!P[k]||/[HNS]$/.test(k)&&!!WMAT[k.slice(0,-1)]);
+const validK=k=>!!k&&(!!TEX[k]||/[HNS]$/.test(k)&&!!WMAT[k.slice(0,-1)]);
 function swatch(px,w=28,h=20){const c=mk('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),id=g.createImageData(w,h);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const o=(y*TS+x)*3,i=(y*w+x)*4;id.data[i]=px[o];id.data[i+1]=px[o+1];id.data[i+2]=px[o+2];id.data[i+3]=255}g.putImageData(id,0,0);return c}
 // retired furniture stays drawable for older maps but is not offered
 const RETIRED=new Set(['books','shelf','rack','wagon']);
@@ -164,7 +164,7 @@ const isWallK=k=>!!k&&!!WMAT[k];
 function edFloor(){const n={};for(const r of srcNow())for(const k of r)if(!isWallK(k)&&!furnK(k)&&KIND[k]==='floor'&&k!=='sill'&&k!=='msill')n[k]=(n[k]||0)+1;return Object.entries(n).sort((a,b)=>b[1]-a[1])[0]?.[0]||'flag'}
 function floorNear(cx,cy){const s=srcNow();for(const[a,b]of[[0,1],[0,-1],[1,0],[-1,0]]){const k=s[cy+b]&&s[cy+b][cx+a];if(k&&!isWallK(k)&&!furnK(k)&&k!=='sill'&&k!=='msill')return k}return edFloor()}
 function edPush(){edUndo.push(srcNow().map(r=>r.slice()));if(edUndo.length>60)edUndo.shift();edRedo=[]}
-function refinish(){const s=srcNow();map=s.map(r=>r.slice());for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);EDG.clear();blendGround();objects();boards();borders();regions();keyBands();polish();cracks();
+function refinish(){const s=srcNow();map=s.map(r=>r.slice());for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);EDG.clear();blendGround();objects();boards();borders();regions();polish();cracks();
  for(const c of bodies.filter(o=>o.hidden))if(!c.cells.every(([a,b])=>OM[b]&&OM[b][a]))remove(c);snapDoors();sills();ds0Need=true;solDirty=true;fxDirty=true;if(ROOMS)ROOMS.t=-1e9;envCalc();snapPR()}
 function edPaint(cx,cy,k){const s=srcNow(),o=Math.floor((edSize-1)/2);for(let y=cy-o;y<cy-o+edSize;y++)for(let x=cx-o;x<cx-o+edSize;x++){if(x<0||y<0||x>=CW||y>=CH||s[y][x]===k)continue;s[y][x]=k;paintCell(x,y,k);puff(x,y,k)}}
 const slabCell=d=>{let x=0,y=0;for(const p of d.px){x+=p[0];y+=p[1]}const n=d.px.length||1,X=Math.round(d.x)+x/n,Y=Math.round(d.y)+y/n;return(Y/T|0)*CW+(X/T|0)};
@@ -212,7 +212,7 @@ function mapSave(asNew){const nm=($('mname')&&$('mname').value.trim())||MNAME[cu
  MODS.maps[id]=d;saveMods();regMap(id);fillMapSel();$('sm').querySelector('header span').textContent=nm;fillMapTools()}
 function mapNew(){const cw=20,ch=14,id='mod:'+uidS(),n=Object.values(MODS.maps).filter(m=>/^New map/.test(m.name)).length;MODS.maps[id]={v:1,name:'New map'+(n?' '+(n+1):''),from:null,CW:cw,CH:ch,map:Array.from({length:ch},(_,y)=>Array.from({length:cw},(_,x)=>x===0||y===0||x===cw-1||y===ch-1?'stone':'flag')),tex:{},bodies:[]};saveMods();regMap(id);fillMapSel();goMap(id)}
 function importPack(o){const ids=[];if(!o||typeof o!=='object')return ids;if((o.px||o.rec)&&o.from){o={tex:{['m_'+uidS()]:o}}}else if(o.map&&o.CW){o={maps:{['mod:'+uidS()]:o}}}
- for(const[id,t]of Object.entries(o.tex||{}))if(t&&(t.px||t.rec)&&t.from&&(TEX[t.from]||P[t.from])){MODS.tex[id]=t;regTex(id)}
+ for(const[id,t]of Object.entries(o.tex||{}))if(t&&(t.px||t.rec)&&t.from&&TEX[t.from]){MODS.tex[id]=t;regTex(id)}
  for(const[id0,m]of Object.entries(o.maps||{}))if(m&&m.map&&m.CW){const id=id0.startsWith('mod:')?id0:'mod:'+uidS();MODS.maps[id]=m;regMap(id);ids.push(id)}
  for(const[id,p]of Object.entries(o.pat||{}))if(p&&p.g)MODS.pat[id]=p;
  saveMods();fillMapSel();if(EM==='map')fillMapTools();if(EM==='asset')aeLists();return ids.length?ids:Object.keys(o.tex||{})}
@@ -267,12 +267,6 @@ function polish(){const st=(x,y,k)=>map[y]&&map[y][x]===k;for(let cy=0;cy<CH;cy+
  const mat=CATN[k][1],F=woodFin(mat),gl=rgb(...F.gl),gt=F.gt;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(L?x:99,R?15-x:99,U?y:99,D?15-y:99);if(d>3)continue;const j=(cy*T+y)*W+cx*T+x,w=!!sol[j];let c=w?scol[j]:floor[j];
   if(d===0)c=mul(c,F.rim);else if(d===1)c=mul(c,L&&x===1||U&&y===1?1.12:.82);else if(d===3)c=mix(c,gl,gt);else continue;if(w)scol[j]=c;else floor[j]=c}}}
-// key tiles: a soft meander band along the edge of each key-tile floor
-function keyBands(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!KEYT.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>!map[y]||map[y][x]!==k,L=o(cx-1,cy),R=o(cx+1,cy),U=o(cx,cy-1),D=o(cx,cy+1);if(!L&&!R&&!U&&!D)continue;
- const g=/aur|omarble/.test(k)?rgb(190,152,94):/ver|gtile/.test(k)?rgb(210,172,96):null;
- for(let y=0;y<T;y++)for(let x=0;x<T;x++){const ds=[L?x:99,R?15-x:99,U?y:99,D?15-y:99],d=Math.min(...ds);if(d<1||d>7)continue;const side=ds.indexOf(d),t=side<2?cy*T+y:cx*T+x,u=d-2,q=((t%8)+8)%8;
-  const on=d===1||d===7||u>=0&&u<=3&&(u===0&&q!==7||u===3&&q!==3||q===0&&u<3||q===4&&u>0);if(!on)continue;const j=(cy*T+y)*W+cx*T+x;floor[j]=g?mix(floor[j],g,d===1||d===7?.2:.26):mul(floor[j],.88)}}}
-
 // cleaning: vacuum lifts debris, sponge scrubs blood and scorch, wand restores damaged cells one by one
 let PR=null,CL=null;const SPK=[],VP=[];
 // tool cursors: the yellow pixel is the working tip

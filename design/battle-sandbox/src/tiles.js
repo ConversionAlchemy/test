@@ -1,24 +1,6 @@
 const T=16;
 const hh=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)};
-const wrap=v=>((v%T)+T)%T;
-const PAL={sky:[[150,178,204],[172,198,220],[190,212,230],[214,228,240],[236,242,248]],rail:[[34,22,14],[66,44,26],[88,60,36],[108,76,46],[132,96,60]],grass:[[36,56,30],[56,84,40],[72,104,48],[90,126,58],[118,150,74]],dirt:[[68,50,34],[102,78,54],[122,96,68],[144,116,84],[168,142,108]],berm:[[42,34,26],[82,66,48],[102,84,62],[122,102,76],[148,126,96]],marble:[[150,146,140],[196,192,184],[222,218,210],[236,233,226],[249,247,242]],dmarble:[[22,30,28],[40,52,48],[56,70,66],[80,100,94],[118,140,132]],flag:[[86,70,50],[146,122,86],[176,150,108],[198,174,130],[222,202,160]],oak:[[62,40,24],[110,74,44],[138,96,58],[162,118,74],[188,146,98]],stone:[[34,32,30],[80,76,72],[106,102,96],[130,126,118],[162,158,150]],iron:[[28,30,34],[58,62,68],[88,94,102],[128,134,144],[180,186,196]],gstone:[[110,86,34],[196,160,74],[224,192,108],[240,214,140],[252,238,186]],teak:[[64,36,18],[112,64,34],[138,84,46],[160,104,62],[184,130,86]],carpet:[[50,8,12],[96,18,24],[124,26,32],[196,156,66],[230,200,110]],gfloor:[[120,92,30],[196,160,74],[224,192,108],[238,212,136],[250,234,180]],pillar:[[176,172,164],[214,210,202],[232,229,222],[244,242,236],[252,251,248]]};
-const P={
- marble:(x,y,c)=>{const v=Math.sin((x*.9+y*.35)+Math.sin(y*.5+c.s)*2.2);let t=v>.92?1:v>.8?2:3;if(hh(Math.floor(x/2),Math.floor(y/2),c.s)>.88)t=4;if((c.cx%2===1&&x===T-1)||(c.cy%2===1&&y===T-1))t=1;return t},
- dmarble:(x,y,c)=>P.marble(x,y,c),
- flag:(x,y)=>{const rows=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];for(const[a,b,cuts] of rows)if(y>=a&&y<b){const xs=[...cuts,T+cuts[0]];let k=0;while(wrap(x-xs[0])>=xs[k+1]-xs[0])k++;const l=xs[k],r=xs[k+1];const lx=wrap(x-l);if(y===a||lx===0)return 0;if(y===a+1||lx===1)return 3;if(y===b-1||lx===r-l-1)return 1;return hh(x,y,9)>.85?1:hh(x,y,10)>.9?3:2}},
- planks:(x,y,c)=>{const b=Math.floor(y/4),yy=y%4,j=(b*7+3+(c.cy%3)*5)%T;if(yy===3)return 0;if(x===j)return 0;if(yy===0)return 3;if((x===wrap(j+1)||x===wrap(j-2))&&yy===1)return 1;return hh(Math.floor(x/3),y,b+c.cx)>.82?1:hh(x,y,b)>.9?3:2},
- stone:(x,y)=>{const r=Math.floor(y/5),yy=y%5,xx=wrap(x+(r%2?5:0))%10;if(yy===0||xx===0)return 0;if(yy===1)return 3;if(yy===4)return 1;return hh(x,y,3)>.87?1:2},
- table:(x,y,c)=>{const v=hh(x,y,c.cx*7+c.cy*3);return v>.94?1:v>.9?3:2},
- carpet:(x,y)=>((x+y)%8===0||(x-y+16)%8===0)?3:hh(x,y,41)>.9?1:2,
- gfloor:(x,y)=>x===0||y===0?1:x===T-1||y===T-1?0:(x+y)%7===0?4:3,
- gstone:(x,y,c)=>P.stone(x,y,c),
- pillar:x=>x===0||x===T-1?0:x%4===1?1:x%4===3?4:3,
- grass:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T,v=hh(X,Y,5);return hh(X,Y>>1,6)>.92?(y%2?1:4):v>.86?3:v<.15?1:2},
- dirt:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T,v=hh(X,Y,8);return v>.96?4:v>.84?3:v<.1?1:hh(X>>1,Y>>1,9)>.86?1:2},
- berm:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T,v=hh(X>>1,Y>>1,12);return y%5===0&&hh(X>>2,Y,13)>.55?0:v>.85?3:v<.15?1:2},
- sky:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T,v=hh(X>>3,Y>>2,21)*.6+hh(X>>2,Y>>1,22)*.4;return v>.78?4:v>.64?3:v<.22?1:2},
- rail:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T;if(X%8===0&&Y%8===0)return 4;if(Y%4===0)return 0;if(Y%4===1)return 3;return hh(X>>2,Y,23)>.8?1:2},
- seat:(x,y)=>{if(x===0||y===0||x===T-1||y===T-1)return 0;if(x===1||y===1||x===T-2||y===T-2)return 1;if(y<=4)return 3;return (x+y)%4===0?1:(x-y+16)%4===2?3:2}};
+const SKY=[[150,178,204],[172,198,220],[190,212,230],[214,228,240],[236,242,248]];
 
 // smooth world-space textures: walls and floors join across cells without visible tiles
 const sm=t=>t*t*(3-2*t);
@@ -32,66 +14,33 @@ function plankT(X,Y,base,s=0){let c=woodT(X,Y,base,s+(Y>>3)*3);if((Y&7)===7)c=sc
 const STONE=[118,114,108],FLAG=[150,140,122];
 function stoneT(X,Y,base,s=0){const f=fbm(X/10,Y/10,50+s),d=fbm(X/3,Y/3,51+s);let k=.82+f*.3+(d-.5)*.12;const cr=Math.abs(vn(X/11,Y/11,52+s)-.5),on=vn(X/7,Y/7,54+s)>.6;if(on&&cr<.014)k*=.84;else if(on&&cr<.026)k*=.94;
  const p=hh(X,Y,53+s);if(p>.985)k*=1.12;else if(p<.015)k*=.85;return sc(base,k)}
-function flagT(X,Y,base){let c=sc(stoneT(X,Y,base),.96+hh(X>>4,Y>>4,46)*.08);if((X&15)===0||(Y&15)===0)c=sc(c,.9);return c}
-// metal: one cold core, variants are a tint plus an overlay
-const METAL=[126,140,146];
+// metal: one cold core that every metal is toned from
 function metalCore(X,Y,tint){const t=.52+(vn(X/30,Y/30,60)-.5)*.14+(hh(X>>2,Y>>1,61)-.5)*.025;let c=mx([64,66,72],[206,210,218],t);return tint?mx(c,tint,.55):c}
-const BEV=(x,y,e,c)=>e===0?sc(c,.42):e===1?(x===1||y===1?sc(c,1.38):sc(c,.68)):null;
-function metalT(X,Y,cx,cy,v,tint){const x=X-cx*T,y=Y-cy*T,g=v==='floor'?(15-x-y)/15:0;let c=sc(metalCore(X,Y,tint),1+g*.12);if(v==='floor'){let f=mx([150,164,174],[176,190,200],vn(X/24,Y/24,64)*.6+(15-x-y)/60);const e=Math.min(x,y,T-1-x,T-1-y);if(e===0)return sc(f,.7);if(e===1)return sc(f,x===1||y===1?1.12:.88);for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12]]){if(x===rx&&y===ry)return sc(f,1.14);if(x===rx+1&&y===ry+1||x===rx&&y===ry+1||x===rx+1&&y===ry)return sc(f,.9)}return f}
- if(v==='rivet')for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12]])if(x===rx&&y===ry)return sc(c,1.25);
- return c}
 const GRASS=[73,107,49],GLITE=[100,137,62],GDRY=[136,140,79],GDARK=[52,80,38],SOIL=[112,88,60];
 function grassT(X,Y){const m=fbm(X/16,Y/16,70);let c=mx(GRASS,GLITE,Math.min(1,Math.max(0,m-.42)*1.8));const dry=fbm(X/26,Y/26,73);if(dry>.6)c=mx(c,GDRY,(dry-.6)*1.6);
  const tf=vn(X/2.3,Y/1.3,71);if(tf>.68)c=mx(c,GDARK,Math.min(1,(tf-.68)*3.2));else if(tf<.2)c=sc(c,1.08);const t=hh(X,Y,72);if(t>.985)c=mx(c,GDRY,.7);return c}
 function soilT(X,Y){const f=fbm(X/9,Y/9,80);let c=sc(SOIL,.86+f*.26);const t=hh(X,Y,81);if(t>.988)c=[146,124,94];else if(t<.03)c=sc(c,.72);else if(vn(X/3,Y/3,82)>.8)c=sc(c,.92);return c}
 function foundT(X,Y){let c=stoneT(X,Y,[72,68,62],9);const g=hh(X,Y,99);if(g>.9)c=sc(c,1.25);else if(g<.12)c=sc(c,.7);return c}
 const MAHOG=[96,44,30];
-function carpetT(X,Y){const f=fbm(X/8,Y/8,30);let c=sc([128,34,38],.9+f*.16);const u=((X+Y)%8+8)%8,v=((X-Y)%8+8)%8;if(u===0||v===0)c=mx(c,[176,126,72],.32);else if(u===4&&v===4)c=mx(c,[196,150,90],.45);return c}
-function goldT(X,Y,cx,cy){const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y),c=mx(metalCore(X,Y),[226,186,96],.8);return e===0?sc(c,.7):c}
 const cE=(X,Y,cx,cy)=>{const x=X-cx*T,y=Y-cy*T;return[x,y,Math.min(x,y,T-1-x,T-1-y)]};
 function sillT(X,Y,cx,cy,m){const[x,y,e]=cE(X,Y,cx,cy);let c=m?mx(stoneT(X,Y,[236,234,228],11),[250,249,245],.4):stoneT(X,Y,[176,170,158],14);if(e===2)c=m?mx(c,[214,176,96],.6):sc(c,.82);else if(e===3)c=sc(c,1.04);return c}
-function paveT(X,Y){let c=stoneT(X,Y,[212,208,198],15);const gx=((X%32)+32)%32,gy=((Y%32)+32)%32;if(gx===0||gy===0)c=sc(c,.94);return c}
 function bushT(X,Y){const b=vn(X/3,Y/3,16),f=fbm(X/9,Y/9,17);let c=mx(GDARK,GRASS,f*.9);if(b>.62)c=mx(c,GLITE,(b-.62)*2);else if(b<.3)c=sc(c,.72);if(hh(X,Y,18)>.97)c=mx(c,GDRY,.6);return c}
-function shelfT(X,Y,cx,cy){const[x,y]=cE(X,Y,cx,cy),c=metalOf('steel',X,Y);if(y%5===0)return sc(c,.62);if(x%4===3)return sc(c,.8);return metalOf('gold',X,Y)}
-// marble with a key-pattern overlay, one motif per cell, mirrored from one quadrant
+// key motif for the retired fret inlay, mirrored from one quadrant
 const KEYQ=['........','.#######','.#......','.#.#####','.#.#....','.#.#.###','.#.#.#..','.#...#.#'];
-function omarbleT(X,Y,cx,cy){const x=X-cx*T,y=Y-cy*T,qx=x<8?x:15-x,qy=y<8?y:15-y,k=KEYQ[qy][qx]==='#'||KEYQ[qx][qy]==='#'&&qx===qy;let c=mx(stoneT(X,Y,[236,226,200],11),[246,240,226],.35);if(k)c=mx(c,[188,150,92],.42);if(x===0||y===0)c=sc(c,.92);return c}
-function mpanelT(X,Y,cx,cy){const x=X-cx*T,y=Y-cy*T,c=metalCore(X,Y),i=Math.min(x-4,y-4,11-x,11-y);return i===0?(x===4||y===4?sc(c,.78):sc(c,1.18)):c}
-// the green house: green marble with gold key tiles, plush green carpet, ebony, books
 const EBONY=[58,36,26];
-function gtileT(X,Y,cx,cy){const x=X-cx*T,y=Y-cy*T,qx=x<8?x:15-x,qy=y<8?y:15-y,k=KEYQ[qy][qx]==='#'||KEYQ[qx][qy]==='#'&&qx===qy;let c=mx(stoneT(X,Y,[78,118,96],16),[96,140,114],.25);if(k)c=mx(c,[206,168,90],.6);if(x===0||y===0)c=sc(c,.86);return c}
-function gcarpetT(X,Y){const f=fbm(X/8,Y/8,31);let c=sc([34,82,56],.9+f*.16);const u=((X+Y)%8+8)%8,v=((X-Y)%8+8)%8;if(u===0||v===0)c=mx(c,[178,142,74],.3);else if(u===4&&v===4)c=mx(c,[196,160,90],.45);return c}
-function booksT(X,Y,cx,cy){const x=X-cx*T,y=Y-cy*T;if(y%8===0||y%8===7)return sc(woodT(X,Y,EBONY,21),1.15);const col=(X>>1)+(Y>>3)*7,h=hh(col,Y>>3,22),P=[[110,34,30],[40,72,52],[92,64,36],[36,46,82],[130,104,58]];let c=P[h*5|0];if(((X>>1)&1)===0)c=sc(c,.8);if(hh(col,Y>>3,23)>.9)c=[200,170,96];return c}
-function bkmarbleT(X,Y){return mx(stoneT(X,Y,[44,62,54],17),[18,26,22],.25)}
-function bkslabT(X,Y){let c=sc(bkmarbleT(X,Y),.95+hh(X>>4,Y>>4,47)*.1);if((X&15)===0||(Y&15)===0)c=sc(c,.78);else if((X&15)===1||(Y&15)===1)c=sc(c,1.08);return c}
 // one chest per metal, fully built in that metal: key → [member, name]
 const MCHEST={schest:['steel','Steel chest'],mchest:['iron','Iron chest'],bchest:['brass','Brass chest'],gchest:['gold','Aurum chest'],uchest:['umbra','Umbra chest']};
-const TEX={bkmarble:bkmarbleT,bkslab:bkslabT,gtile:gtileT,gcarpet:gcarpetT,books:booksT,ewood:(X,Y)=>woodT(X,Y,EBONY,24),omarble:omarbleT,mpanel:mpanelT,sill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,0),msill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,1),pave:paveT,bush:bushT,shelf:shelfT,carpet:carpetT,gfloor:goldT,stone:(X,Y,cx,cy)=>stoneT(X,Y,STONE),marble:(X,Y)=>mx(stoneT(X,Y,[236,234,228],11),[250,249,245],.45),dmarble:(X,Y)=>mx(stoneT(X,Y,[84,112,104],12),[150,168,160],.12),pillar:(X,Y)=>mx(stoneT(X,Y,[232,230,224],11),[250,249,245],.4),gstone:(X,Y)=>mx(stoneT(X,Y,STONE),[214,180,96],.55),flag:(X,Y)=>flagT(X,Y,FLAG),
- wood:(X,Y)=>woodT(X,Y,WOOD.oak),dwood:(X,Y)=>woodT(X,Y,WOOD.walnut,5),rail:(X,Y)=>woodT(X,Y,WOOD.rail,9),berm:(X,Y)=>woodT(X,Y,[104,86,64],2),
- planks:(X,Y)=>plankT(X,Y,WOOD.oak),pplanks:(X,Y)=>plankT(X,Y,WOOD.pine,3),dplanks:(X,Y)=>plankT(X,Y,WOOD.teak,6),
- metal:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'panel'),mplate:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet'),iron:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet',[70,78,82]),brass:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet',[184,150,84]),mfloor:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'floor'),grass:grassT,dirt:soilT};
-const KIND={marble:'floor',dmarble:'floor',flag:'floor',planks:'floor',stone:'wall',table:'floor',seat:'floor',gstone:'wall',pillar:'wall',carpet:'floor',gfloor:'floor',grass:'floor',dirt:'floor',berm:'wall',sky:'floor',rail:'wall',wood:'wall',dwood:'wall',metal:'wall',mplate:'wall',iron:'wall',brass:'wall',mfloor:'floor',desk:'floor',sill:'floor',msill:'floor',omarble:'floor',gtile:'floor',bkmarble:'floor',bkslab:'floor',gcarpet:'floor',books:'floor',edesk:'floor',ewood:'wall',mpanel:'wall',pave:'floor',bush:'wall',shelf:'floor',chest:'floor',rack:'floor',pplanks:'floor',dplanks:'floor'};
-// purple council carpet, wheat rows, wagon bed
-function pcarpetT(X,Y){const f=fbm(X/8,Y/8,32);let c=sc([58,30,78],.9+f*.16);const u=((X+Y)%8+8)%8,v=((X-Y)%8+8)%8;if(u===0||v===0)c=mx(c,[196,190,214],.22);else if(u===4&&v===4)c=mx(c,[226,222,236],.4);return c}
+const TEX={sill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,0),msill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,1),rail:(X,Y)=>woodT(X,Y,WOOD.rail,9),grass:grassT,dirt:soilT,bush:bushT,
+ sky:(X,Y)=>{const v=hh(X>>3,Y>>2,21)*.6+hh(X>>2,Y>>1,22)*.4;return SKY[v>.78?4:v>.64?3:v<.22?1:2]}};
+const KIND={grass:'floor',dirt:'floor',sky:'floor',rail:'wall',sill:'floor',msill:'floor',bush:'wall'};
+// wheat rows
 function cropT(X,Y){const r=((X%6)+6)%6,f=fbm(X/5,Y/3,33);let c=r<2?sc([92,72,44],.85+f*.2):sc([196,166,84],.78+f*.3+vn(X/2,Y/1.5,34)*.2);if(r>=2&&hh(X,Y,35)>.9)c=sc(c,1.15);return c}
-function wagonT(X,Y){let c=woodT(X,Y,WOOD.ash,27);if(((X%5)+5)%5===0)c=sc(c,.7);return c}
-Object.assign(TEX,{pcarpet:pcarpetT,crop:cropT,wagon:wagonT});Object.assign(KIND,{pcarpet:'floor',crop:'floor',wagon:'floor'});
-// stone slabs: one bevelled slab per cell
-function slabT(X,Y){let c=sc(stoneT(X,Y,[150,144,132],18),.94+hh(X>>4,Y>>4,48)*.12);const x=X&15,y=Y&15;if(x===0||y===0)c=sc(c,.76);else if(x===1||y===1)c=sc(c,1.08);else if(x===15||y===15)c=sc(c,.93);return c}
-TEX.slab=slabT;KIND.slab='floor';
-const PALOF={planks:'oak',seat:'oak',table:'oak'};
-const cache=new Map();
-function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.has(ck))return cache.get(ck);const cv=document.createElement('canvas');cv.width=cv.height=T;const g=cv.getContext('2d'),im=g.createImageData(T,T);
- for(let y=0;y<T;y++)for(let x=0;x<T;x++){const c=TEX[key](cx*T+x,cy*T+y,cx,cy),i=(y*T+x)*4;im.data[i]=c[0];im.data[i+1]=c[1];im.data[i+2]=c[2];im.data[i+3]=255}g.putImageData(im,0,0);cache.set(ck,cv);return cv}
- const ck=key+(cx%2)+(cy%2)+(cy%3);if(cache.has(ck))return cache.get(ck);const cv=document.createElement('canvas');cv.width=cv.height=T;const g=cv.getContext('2d');const pal=PAL[PALOF[key]||key],c={s:7,cx,cy};
- for(let y=0;y<T;y++)for(let x=0;x<T;x++){const t=P[key](x,y,c);g.fillStyle=`rgb(${pal[t]})`;g.fillRect(x,y,1,1)}
- cache.set(ck,cv);return cv}
 // tile catalogue: element > material > variation, each as floor and wall ('.w'); old keys point at their new tile
 const FLB2=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];
 let LINK=()=>null;const CONNV=new Set(['lozenge','sheet']);
 // distance (px) from this pixel to the edge of its connected area on each side, then to an inner (concave) corner; 99 where the area continues
 const regionD=(X,Y,cx,cy)=>{const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy)),o=(a,b)=>!me||kid(LINK(cx+a,cy+b))!==me,x=X&15,y=Y&15;let c=99;for(const[a,b]of[[-1,-1],[1,-1],[-1,1],[1,1]])if(!o(a,0)&&!o(0,b)&&o(a,b))c=Math.min(c,Math.max(a<0?x:15-x,b<0?y:15-y));return[o(-1,0)?x:99,o(1,0)?15-x:99,o(0,-1)?y:99,o(0,1)?15-y:99,c]};
-const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
+const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set();
 // materials: a family shares its properties and three patterns; each member adds its colour, one special pattern, and any property it changes
 const ELEM={
  Earth:{p:{cls:'grass',hp:2,nowall:1},vars:{plain:'Plain',worn:'Worn'},mats:{grass:{n:'Grass'},dirt:{n:'Soil',cls:'soil',hp:3}},old:{wheat:{n:'Wheat',cls:'soil'},hedge:{n:'Hedge'}}},
@@ -241,7 +190,7 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
  return(X,Y)=>{let k=sc(c,(.9+fbm(X/8,Y/8,32+s)*.14)*((X+Y)&1?.98:1.02));
   if(wall)return sc(k,.86+.14*Math.sin(X/2.4));if(v==='diamond'){const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;if(u===0||w===0)k=mx(k,[176,140,82],.22);else if(u===4&&w===4)k=mx(k,[196,160,96],.3)}return k}}
 for(const el in ELEM)for(const mat of[...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})])for(const v of[...Object.keys(varsOf(el,mat)),...(OLDV[el]||[])])for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
- if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k);if(el==='Wood'&&v==='panel')POLT.add(k)}
+ if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(el==='Wood'&&v==='panel')POLT.add(k)}
 // condition: 5 new, 4 used, 3 worn, 2 battered, 1 ruined; a key ending ~c is that tile or piece in condition c
 let WEARF=0;const CONDN={5:'New',4:'Used',3:'Worn',2:'Battered',1:'Ruined'};
 const baseK=k=>k&&k.replace(/~\d$/,''),condK=k=>+((/~(\d)$/.exec(k)||[])[1]||5);
@@ -274,7 +223,7 @@ const AGE={
    let o=mx(k,F,a*.3);if(a>.4&&(X+Y)&1)o=sc(o,.95);const D=[150,140,124],du=fbm(X/5,Y/5,sd+7);if(du>1.02-a*.4-t*.1)o=mx(o,D,.1+.06*t);if(a>.2&&hh(X>>2,Y,sd+2)>.95-.04*t)o=mx(o,D,.16);if(a>.5)WEARF=1;if(t>.8&&a>.5&&hh(X>>1,Y>>1,sd+6)>.988)o=sc(k,.5);return o}}};
 const AGEC={},ageOf=(el,mat,cd,w)=>{if(!AGE[el]||!(cd<5))return null;const q=el+'.'+mat+'.'+cd+(w?'w':'');return AGEC[q]||(AGEC[q]=AGE[el](el,mat,ageT(cd),w))};
 for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
-for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}
+for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(POLT.has(k))POLT.add(n)}}
 // wooden furniture: each piece is [wood, shape, name], drawn as its wood's polished face; rim, bevel and inlay are drawn per piece, as on polished floors
 const WSHAPE={table:'table',desk:'desk',chest:'chest',seat:'chair'},WOLD={'oak.table':'table','oak.chest':'chest','oak.seat':'seat','mahog.desk':'desk','ebony.desk':'edesk','pine.table':'ptable','pine.chest':'pchest','pine.seat':'pseat','teak.table':'ttable','teak.chest':'tchest','teak.seat':'tseat'},WPIECE={};
 for(const m of Object.keys(ELEM.Wood.mats))for(const sh in WSHAPE)WPIECE[WOLD[m+'.'+sh]||sh+'.'+m]=[m,sh,memb('Wood',m).n+' '+WSHAPE[sh]];
@@ -291,4 +240,4 @@ const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(
 // a door's floor: each half carries on the floor of the cell beside it (the sill shows only where a side has none)
 for(const k of['sill','msill']){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const at=(x,y)=>LINK(x,y),fl=q=>q&&TEX[q]&&KIND[q]!=='wall'&&!WPIECE[baseK(q)]&&!MCHEST[baseK(q)]&&q!=='sill'&&q!=='msill'?q:null,hz=!(KIND[at(cx,cy-1)]==='wall'&&KIND[at(cx,cy+1)]==='wall'),lo=((hz?Y:X)&15)<8,dx=hz?0:lo?-1:1,dy=hz?lo?-1:1:0,q=fl(at(cx+dx,cy+dy));return q?TEX[q](X+dx*T,Y+dy*T,cx+dx,cy+dy):f(X,Y,cx,cy)}}
 TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
-for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];if(KEYT.has(n))KEYT.add(o)}
+for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];KIND[o]=KIND[n]}
