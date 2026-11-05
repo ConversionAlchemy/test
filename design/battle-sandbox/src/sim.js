@@ -19,7 +19,7 @@ const grey=c=>{const l=cl(((c&255)*.3+(c>>8&255)*.59+(c>>16&255)*.11)*.9);return
 const hx=s=>rgb(parseInt(s.slice(1,3),16),parseInt(s.slice(3,5),16),parseInt(s.slice(5,7),16));
 const css=c=>`rgb(${c&255},${c>>8&255},${c>>16&255})`;
 const K=(x,y)=>(x+512)*1024+(y+512);
-const MAT={1:{hp:3,f:.6,weld:.05},2:{hp:2,f:.82,weld:.45},3:{hp:6,f:.42,weld:.14},0:{weld:.3}};
+const MAT={1:{hp:3,f:.6,weld:.05},2:{hp:2,f:.82,weld:.45},3:{hp:6,f:.42,weld:.14},4:{hp:1,f:.9,weld:.5},0:{weld:.3}};
 
 // sound
 let gest=false,MS=null,AC=null,mute=false,RV=null;const last={};
@@ -37,20 +37,20 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&AC&&AC.st
 // map
 let map=[],UND=[];// UND: the floor laid under furniture and walls, shown when they are destroyed
 const undAt=(cx,cy)=>UND[cy]&&UND[cy][cx]||null;
-function tilePix(key,cx,cy){if(TEX[key]){const d=new Uint8ClampedArray(T*T*4);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const c=TEX[key](cx*T+x,cy*T+y,cx,cy),i=(y*T+x)*4;d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255}return d}const c=document.createElement('canvas');c.width=c.height=T;const g=c.getContext('2d');
+function tilePix(key,cx,cy){if(TEX[key]){const d=new Uint8ClampedArray(T*T*4);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const c=TEX[key](cx*T+x,cy*T+y,cx,cy)||SOIL,i=(y*T+x)*4;d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255}return d}const c=document.createElement('canvas');c.width=c.height=T;const g=c.getContext('2d');
  g.drawImage(tile(key,KIND[key]==='wall'?'11111111':'00000000',cx,cy),0,0);
  const d=g.getImageData(0,0,T,T).data,k=key==='stone'?.84:KIND[key]==='wall'?.64:key==='seat'||key==='carpet'?.25:key==='gfloor'?.15:key==='table'?.3:key==='sky'?.05:.42,lift=key==='stone'?1.3:key==='pillar'?1.05:1;let r=0,gg=0,b=0;
  for(let i=0;i<d.length;i+=4){r+=d[i];gg+=d[i+1];b+=d[i+2]}r/=T*T;gg/=T*T;b/=T*T;
  for(let i=0;i<d.length;i+=4){d[i]=cl((d[i]+(r-d[i])*k)*lift);d[i+1]=cl((d[i+1]+(gg-d[i+1])*k)*lift);d[i+2]=cl((d[i+2]+(b-d[i+2])*k)*lift)}return d}
 // every tile has one material; custom textures take their recipe's, or their parent's. Hit class: 1 stone, 2 wood, 3 metal
 let EDOK=false;
-const BMAT={flag:'stone',slab:'stone',stone:'stone',gstone:'stone',pave:'stone',sill:'stone',marble:'marble',dmarble:'marble',bkmarble:'marble',bkslab:'marble',pillar:'marble',gtile:'marble',omarble:'marble',msill:'marble',
+const BMAT={hedge:'foliage',flag:'stone',slab:'stone',stone:'stone',gstone:'stone',pave:'stone',sill:'stone',marble:'marble',dmarble:'marble',bkmarble:'marble',bkslab:'marble',pillar:'marble',gtile:'marble',omarble:'marble',msill:'marble',
  planks:'wood',pplanks:'wood',dplanks:'wood',wood:'wood',dwood:'wood',ewood:'wood',rail:'wood',table:'wood',desk:'wood',edesk:'wood',chest:'wood',rack:'wood',wagon:'wood',books:'wood',seat:'wood',
  carpet:'cloth',gcarpet:'cloth',pcarpet:'cloth',grass:'grass',bush:'grass',crop:'grass',dirt:'soil',berm:'soil',sky:'soil',
  metal:'metal',mplate:'metal',iron:'metal',brass:'metal',mpanel:'metal',mfloor:'metal',gfloor:'metal',shelf:'metal',mchest:'metal'};
 function matK(k){if(!k)return'stone';if(/[HNS]$/.test(k)&&WMAT[k.slice(0,-1)])k=k.slice(0,-1);if(EDOK){const m=MODS.tex[k];if(m)return m.rec?m.rec.mat==='plaster'?'stone':m.rec.mat:matK(m.from);
  if(CATN[k]){const[el,mm]=CATN[k];return mprop(el,mm).cls}}return BMAT[k]||'stone'}
-const hitCls=m=>m==='metal'?3:m==='stone'||m==='marble'||m==='soil'?1:2;
+const hitCls=m=>m==='metal'?3:m==='foliage'?4:m==='stone'||m==='marble'||m==='soil'?1:2;
 const WMAT={ewood:2,mpanel:3,bush:2,stone:1,gstone:1,pillar:1,berm:1,rail:2,wood:2,dwood:2,metal:3,mplate:3,iron:3,brass:3};
 const SHINE={bkmarble:22,bkslab:22,gtile:28,omarble:28,mpanel:70,metal:70,mplate:70,iron:45,brass:80,mfloor:50,marble:28,dmarble:28,gfloor:80,gstone:20,pillar:28,msill:28,shelf:80};
 let HALFF='dirt';
@@ -80,10 +80,10 @@ function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[
 const fmat=k=>hitCls(matK(k));
 function objMat(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k)continue;const m=fmat(k);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;if(OBJ[j])OBJ[j]=m}}}
 // furniture and fixtures: above the floor, block walking, bullets pass over, blasts break them
-const OBJK=new Set(['table','desk','edesk','books','shelf','chest','mchest','rack','wagon']),ONAME={mchest:'Iron chest',wagon:'Wagon',edesk:'Desk',books:'Shelves',table:'Table',desk:'Desk',seat:'Chair',shelf:'Vault shelf',chest:'Chest',rack:'Rack'};let OM=[];
+const OBJK=new Set(['table','desk','edesk','books','shelf','chest','mchest','rack','wagon','hedge']),ONAME={hedge:'Hedge',mchest:'Iron chest',wagon:'Wagon',edesk:'Desk',books:'Shelves',table:'Table',desk:'Desk',seat:'Chair',shelf:'Vault shelf',chest:'Chest',rack:'Rack'};let OM=[];
 function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(0);const cells=[];for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(OBJK.has(map[cy][cx])){OM[cy][cx]=map[cy][cx];cells.push([cx,cy])}
  for(const[cx,cy]of cells){let u=null;for(const d of [2,1,3,4])for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){if(u)break;const k=(map[cy+b*d]||[])[cx+a*d];if(k&&!OBJK.has(k)&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky')u=k}const k=OM[cy][cx],m=fmat(k);paintCell(cx,cy,undAt(cx,cy)||u||'flag');
-  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);OBJ[j]=m;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}pieces();furnish()}
+  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);if(!c)continue;OBJ[j]=m;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}pieces();furnish()}
 // storage and desks come in pieces of at most 2×2, filled from the top-left; each piece has its own rim and inventory
 const PCK=new Set(['chest','mchest','rack','books','shelf','desk','edesk']);let PCS=new Map();
 function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k||!PCK.has(k)||PCS.has(cy*CW+cx))continue;const ok=(x,y)=>OM[y]&&OM[y][x]===k&&!PCS.has(y*CW+x),w=ok(cx+1,cy)?2:1,h=ok(cx,cy+1)&&(w<2||ok(cx+1,cy+1))?2:1,p={k,x0:cx,y0:cy,w,h,cells:[]};
@@ -787,7 +787,7 @@ function impact(b,h,axis){const s=Math.hypot(b.vx,b.vy),dx=b.vx/(s||1),dy=b.vy/(
 function hitParts(x,y,m,dx,dy,k=.55){if(m===3)sparkBurst(x,y,dx,dy,k)
  else if(m===2){for(let i=0;i<5;i++)spark(x,y,Math.random()<.5?C.wood:C.woodH,-dx*2,-dy*2,1.8)}
  else{dab(SF,x-dx*2,y-dy*2,.6,2);for(let i=0;i<4;i++)spark(x,y,rgb(150,146,138),-dx*2,-dy*2,1.6)}}
-function hitFx(x,y,m,dx,dy,pel){const S=k=>pel?sfxP(k):sfx(k);hitParts(x,y,m,dx,dy,pel?.25:.55);S(m===3?'ping':m===2?'woodhit':'stonehit')}
+function hitFx(x,y,m,dx,dy,pel){const S=k=>pel?sfxP(k):sfx(k);hitParts(x,y,m,dx,dy,pel?.25:.55);S(m===3?'ping':m===4?'rustle':m===2?'woodhit':'stonehit')}
 const FALL={ball:[120,300,.6],pball:[50,170,.45],pel:[24,140,.2]};
 function fall(b){const F=FALL[b.kind];if(!F||b.sx===undefined)return 1;const d=Math.hypot(b.x-b.sx,b.y-b.sy);if(b.kind==='pel'&&d<26)return 1.8;return d<=F[0]?1:Math.max(F[2],1-(1-F[2])*(d-F[0])/(F[1]-F[0]))}
 // rods
@@ -1453,7 +1453,7 @@ function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||
  if(!b.low&&!bodies.some(t=>t.type==='token'&&t.crouch&&t.status!=='dead'&&Math.hypot(t.x-b.x,t.y-b.y)<26&&(t.x-b.x)*b.vx+(t.y-b.y)*b.vy>0))return false;
  const s=Math.hypot(b.vx,b.vy)||1,j=Y*W+X,m=OBJ[j],pel=b.kind==='pel';
  // a low shot marks the furniture by its material; only wood lets a strong shot through
- const r=m===3?1:(pel?1:1.6)*(m===1?.7:1);for(let y=Math.floor(Y-r);y<=Y+r;y++)for(let x=Math.floor(X-r);x<=X+r;x++){const q=y*W+x;if(x<0||y<0||x>=W||y>=H||!OBJ[q]||Math.hypot(x-X,y-Y)>r)continue;if(m===3){OBJC[q]=mul(OBJC[q],.72);SHN[q]=0;continue}OBJ[q]=0;SHN[q]=0;floor[q]=mix(floor[q],mul(OBJC[q],.45),.7)}ds0Need=true;{const c=bodies.find(o=>o.hidden&&o.box&&X>=o.box[0]&&X<=o.box[2]&&Y>=o.box[1]&&Y<=o.box[3]);if(c)cShot(c,X,Y,r,b)}
+ const r=m===3?1:m===4?(pel?1.6:2.6):(pel?1:1.6)*(m===1?.7:1);for(let y=Math.floor(Y-r);y<=Y+r;y++)for(let x=Math.floor(X-r);x<=X+r;x++){const q=y*W+x;if(x<0||y<0||x>=W||y>=H||!OBJ[q]||Math.hypot(x-X,y-Y)>r)continue;if(m===3){OBJC[q]=mul(OBJC[q],.72);SHN[q]=0;continue}OBJ[q]=0;SHN[q]=0;floor[q]=mix(floor[q],mul(OBJC[q],.45),.7)}ds0Need=true;{const c=bodies.find(o=>o.hidden&&o.box&&X>=o.box[0]&&X<=o.box[2]&&Y>=o.box[1]&&Y<=o.box[3]);if(c)cShot(c,X,Y,r,b)}
  if(b.inO)return false;b.inO=true;hitFx(X,Y,m,b.vx/s,b.vy/s,pel);b.pen=(b.pen||0)+1;
  if(m!==2||pel||b.pen>2||s<7){remove(b);return true}b.vx*=.6;b.vy*=.6;return false}
 function update(){tick++;for(const b of bodies)if(b.type==='token'&&(b.matA!==b.ang||b.matN!==lookOf(b)))tokMat(b);if(!aiOn)for(const b of bodies){if(b.ord){ensureRooms();ordTick(b)}else if(b.lookAt)lookTick(b)}if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%3===0)fogTick();if(tick%3===0)sightTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;b.pull=8;if(heldBlocked(b,0,0)){b.raised=true;b.pull=0;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(!b.raised&&b.pull>0&&tick%3===0){b.pull--;if(heldBlocked(b,0,0))b.pull++}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();for(const b of bodies)if(b.held)melee(b);rodTick();

@@ -92,15 +92,16 @@ const FLB2=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];
 const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
 // materials: a family shares its properties and three patterns; each member adds its colour, one special pattern, and any property it changes
 const ELEM={
- Earth:{p:{cls:'grass',hp:2},vars:{plain:'Plain',worn:'Worn'},mats:{grass:{n:'Meadow grass'},dirt:{n:'Packed dirt',cls:'soil',hp:3},wheat:{n:'Wheat',cls:'soil'},hedge:{n:'Hedge'}}},
+ Earth:{p:{cls:'grass',hp:2,nowall:1},vars:{plain:'Plain',worn:'Worn'},mats:{grass:{n:'Grass'},dirt:{n:'Soil',cls:'soil',hp:3}},old:{wheat:{n:'Wheat',cls:'soil'},hedge:{n:'Hedge'}}},
  Stone:{p:{cls:'stone',hp:3},vars:{block:'Block',flags:'Flagstones',slabs:'Slabs'},mats:{grey:{n:'Greystone',c:[124,119,111],sp:'rubble'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},lime:{n:'Limestone',c:[208,204,194],sp:'herring'},gold:{n:'Goldstone',c:[200,170,100],sp:'gvein'},
   aur:{n:'Aurelian marble',c:[236,234,228],cls:'marble',hp:4,shine:28,sp:'medallion'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',hp:4,shine:28,sp:'quatre'},night:{n:'Nightstone',c:[50,64,58],cls:'marble',hp:4,shine:22,sp:'stars'}}},
  Wood:{p:{cls:'wood',hp:2,burn:1},vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:{n:'Oak',c:WOOD.oak,sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,sp:'rough'},teak:{n:'Teak',c:WOOD.teak,sp:'deck'},walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'},mahog:{n:'Mahogany',c:MAHOG,sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,sp:'marq'}}},
  Metal:{p:{cls:'metal',hp:6,shine:60},vars:{panel:'Panels',rivet:'Riveted plate',smooth:'Smooth'},mats:{steel:{n:'Steel',hp:7,sp:'louvre'},iron:{n:'Iron',c:[70,78,82],shine:45,sp:'grate'},brass:{n:'Brass',c:[184,150,84],hp:5,shine:80,sp:'filigree'},gold:{n:'Gold',c:[226,186,96],hp:4,shine:80,sp:'engraved'},umbra:{n:'Umbra',c:[40,42,48],hp:10,shine:25,sp:'runes'}}},
- Cloth:{p:{cls:'cloth',hp:1,burn:1},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
+ Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
 const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
-const mprop=(el,mat)=>({...ELEM[el].p,...ELEM[el].mats[mat]});
-const varsOf=(el,mat)=>{const sp=ELEM[el].mats[mat].sp;return sp?{...ELEM[el].vars,[sp]:SPN[sp]}:{...ELEM[el].vars}};
+// retired members stay drawable so older maps still load
+const memb=(el,mat)=>ELEM[el].mats[mat]||(ELEM[el].old||{})[mat],mprop=(el,mat)=>({...ELEM[el].p,...memb(el,mat)});
+const varsOf=(el,mat)=>{const sp=memb(el,mat).sp;return sp?{...ELEM[el].vars,[sp]:SPN[sp]}:{...ELEM[el].vars}};
 // retired patterns stay drawable so older maps still load
 const OLDV={Stone:['paving','key','setts','ashlar','basket','rosette','lattice','checker','band','sectile'],Wood:['logs','pegged','basket','brick','inlay','fret'],Metal:['hammer','tread','grille','scale','veined']};
 const CATN={};
@@ -111,7 +112,7 @@ const tone=(id,s,a)=>1+(hh(id%9973,(id/9973|0)+s,s)-.5)*a;
 function herring(X,Y){const c=X>>3,x=X&7,d=Y+(c&1?7-x:x)+(c&1?2:0);return[(d&3)===0||x===0,c*977+(d>>2)]}
 function basket(X,Y){const q=((X>>3)+(Y>>3))&1,x=X&7,y=Y&7;return[x===0||y===0||(q?y===4:x===4),((Y>>3)*977+(X>>3))*2+(q?y>>2:x>>2)]}
 function special(el,mat,v,c,s){const A=(X,Y)=>[X&15,Y&15];
- if(el==='Stone'){const m=ELEM.Stone.mats[mat].cls==='marble',S=(X,Y)=>softStone(X,Y,c,s,m);
+ if(el==='Stone'){const m=memb('Stone',mat).cls==='marble',S=(X,Y)=>softStone(X,Y,c,s,m);
   if(v==='rubble')return(X,Y)=>{const[e,id]=vor(X,Y,7,s);return sc(S(X,Y),e<1.1?.66:e<2?.9:tone(id,s,.24))};
   if(v==='setts')return(X,Y)=>{const r=Math.floor(Y/5),o=(hh(r,0,s)*6)|0,xx=X+o,cw=6,sx=Math.floor(xx/cw);return sc(S(X,Y),Y%5===0||xx%cw===0?.7:tone(r*977+sx,s,.2))};
   if(v==='ashlar')return(X,Y)=>{const r=Y>>3,xx=X+(r&1?8:0),y=Y&7,x=xx&15;return sc(S(X,Y),y===0||x===0?.8:y===1||x===1?1.07:tone(r*977+(xx>>4),s,.08))};
@@ -154,11 +155,11 @@ function special(el,mat,v,c,s){const A=(X,Y)=>[X&15,Y&15];
  return null}
 const cellE=(X,Y)=>{const x=X&15,y=Y&15;return[x,y,Math.min(x,y,15-x,15-y)]};
 const softStone=(X,Y,c,s,m)=>m?mx(stoneT(X,Y,c,11+s),sc(c,1.04),.45):mx(stoneT(X,Y,c,s),sc(c,.93+fbm(X/14,Y/14,s+60)*.14),.4);
-function metalOf(mat,X,Y){const m=metalCore(X,Y),t=ELEM.Metal.mats[mat].c;if(!t)return m;if(mat==='umbra')return sc(mx(m,t,.82),.92);if(mat==='gold')return mx(m,t,.8);return mx(m,t,.55)}
-function genTex(el,mat,v,wall){const E=ELEM[el],M=E.mats[mat],c=M.c,s=(Object.keys(E.mats).indexOf(mat)+1)*7;{const f=special(el,mat,v,c,s);if(f)return f}
+function metalOf(mat,X,Y){const m=metalCore(X,Y),t=memb('Metal',mat).c;if(!t)return m;if(mat==='umbra')return sc(mx(m,t,.82),.92);if(mat==='gold')return mx(m,t,.8);return mx(m,t,.55)}
+function genTex(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Object.keys(E.mats),...Object.keys(E.old||{})].indexOf(mat)+1)*7;{const f=special(el,mat,v,c,s);if(f)return f}
  if(el==='Earth'){const worn=v==='worn';
   if(mat==='grass')return wall?(X,Y)=>bushT(X,Y):(X,Y)=>{const g=grassT(X,Y);if(!worn)return g;const f=fbm(X/9,Y/9,64);return f>.56?mx(g,soilT(X,Y),Math.min(1,(f-.56)*5)):g};
-  if(mat==='dirt')return wall?(X,Y)=>{let k=soilT(X,Y);k=sc(k,.86);return Y%5===0&&hh(X>>2,Y,13)>.5?sc(k,.85):k}:(X,Y)=>{const k=soilT(X,Y);return worn&&Math.abs(vn(X/40,Y/6,65)-.5)<.06?sc(k,.88):k};
+  if(mat==='dirt')return wall?(X,Y)=>{let k=soilT(X,Y);k=sc(k,.86);return Y%5===0&&hh(X>>2,Y,13)>.5?sc(k,.85):k}:(X,Y)=>{const k=soilT(X,Y);if(!worn)return k;const f=fbm(X/11,Y/11,65);if(f>.55){const t=mx(k,sc(SOIL,.76),Math.min(1,(f-.55)*6)*.8);return hh(X,Y,66)>.985?sc(t,1.25):t}return hh(X>>1,Y>>1,67)>.97?mx(k,[150,140,120],.5):k};
   if(mat==='wheat')return wall?(X,Y)=>sc(cropT(Y,X),.82):(X,Y)=>{const k=cropT(X,Y);return worn&&fbm(X/8,Y/8,66)>.58?mx(k,soilT(X,Y),.6):k};
   return wall?(X,Y)=>{const b=bushT(X,Y);return worn&&fbm(X/6,Y/6,67)>.62?sc(b,.8):b}:(X,Y)=>{const b=mx(bushT(X,Y),grassT(X,Y),.45);return worn&&fbm(X/7,Y/7,68)>.6?mx(b,soilT(X,Y),.5):b}}
  if(el==='Stone'){const m=M.cls==='marble';return(X,Y)=>{let k=softStone(X,Y,c,s,m);const[x,y,e]=cellE(X,Y);
@@ -181,9 +182,10 @@ function genTex(el,mat,v,wall){const E=ELEM[el],M=E.mats[mat],c=M.c,s=(Object.ke
   if(e===0)return sc(mx(k,[90,110,140],.3),.85);if(y===8)return sc(mx(k,[90,110,140],.18),.92);return k}}
  return(X,Y)=>{let k=sc(c,(.9+fbm(X/8,Y/8,32+s)*.14)*((X+Y)&1?.98:1.02));
   if(wall)return sc(k,.86+.14*Math.sin(X/2.4));if(v==='diamond'){const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;if(u===0||w===0)k=mx(k,[176,140,82],.22);else if(u===4&&w===4)k=mx(k,[196,160,96],.3)}return k}}
-for(const el in ELEM)for(const mat in ELEM[el].mats)for(const v of[...Object.keys(varsOf(el,mat)),...(OLDV[el]||[])])for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
+for(const el in ELEM)for(const mat of[...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})])for(const v of[...Object.keys(varsOf(el,mat)),...(OLDV[el]||[])])for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
  if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k);if(el==='Wood'&&v==='panel')POLT.add(k)}
 const OLDK={marble:'stone.aur.block',dmarble:'stone.ver.block',flag:'stone.sand.flags',stone:'stone.grey.block.w',gstone:'stone.gold.block.w',pillar:'stone.aur.block.w',pave:'stone.lime.paving',omarble:'stone.aur.key',gtile:'stone.ver.key',bkmarble:'stone.night.block',bkslab:'stone.night.slabs',slab:'stone.grey.slabs',
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.walnut.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.smooth.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mpanel:'metal.steel.panel.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};
+TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
 for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];if(KEYT.has(n))KEYT.add(o)}
