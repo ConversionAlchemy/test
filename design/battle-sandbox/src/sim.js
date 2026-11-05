@@ -16,8 +16,8 @@ const rgb=(r,g,b)=>((255<<24)|(b<<16)|(g<<8)|r)>>>0;
 const plasC=h=>{const c=opal(h);return rgb(c[0]|0,c[1]|0,c[2]|0)};
 const cl=v=>v<0?0:v>255?255:v|0;
 const mul=(c,k)=>rgb(cl((c&255)*k),cl((c>>8&255)*k),cl((c>>16&255)*k));
-// recolour a drawn piece into a metal from the table, keeping its shading
-const toneC=(mat,c)=>{const t=metalTone(mat,((c&255)+(c>>8&255)+(c>>16&255))/765);return rgb(cl(t[0]),cl(t[1]),cl(t[2]))};
+// recolour a piece drawn in steel into another metal at the same relative brightness, so it matches that metal's tiles
+const toneC=(mat,c)=>{const S=metalLit('steel'),t=metalTone(mat,((c&255)+(c>>8&255)+(c>>16&255))/(S[0]+S[1]+S[2]));return rgb(cl(t[0]),cl(t[1]),cl(t[2]))};
 const mix=(a,b,t)=>rgb(cl((a&255)+((b&255)-(a&255))*t),cl((a>>8&255)+((b>>8&255)-(a>>8&255))*t),cl((a>>16&255)+((b>>16&255)-(a>>16&255))*t));
 const grey=c=>{const l=cl(((c&255)*.3+(c>>8&255)*.59+(c>>16&255)*.11)*.9);return rgb(l,l,l)};
 const hx=s=>rgb(parseInt(s.slice(1,3),16),parseInt(s.slice(3,5),16),parseInt(s.slice(5,7),16));
