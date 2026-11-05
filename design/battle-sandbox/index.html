@@ -444,10 +444,10 @@ for(const el in ELEM)for(const mat of[...Object.keys(ELEM[el].mats),...Object.ke
  if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k);if(el==='Wood'&&v==='panel')POLT.add(k)}
 // condition: 5 new, 4 used, 3 worn, 2 battered, 1 ruined. One wear look per family spreads in patches and deepens as condition drops
 let WEARF=0;const CONDN={5:'New',4:'Used',3:'Worn',2:'Battered',1:'Ruined'};
-// metal: patches shift hue toward the metal's tarnish colour (brightness kept), with fine scratches and small dents; Ruined adds 40% less than the step before it
+// metal: tarnish is a layer over the pattern: thick patches hide the detail beneath (glyphs, rivets, slats), every patch shifts hue toward the metal's tarnish colour, with fine scratches and small dents; Ruined adds 40% less than the step before it
 const WEARM=(el,mat)=>{const T0=memb(el,mat).tarn,TL=T0[0]+T0[1]+T0[2],sd=(Object.keys(ELEM[el].mats).indexOf(mat)+5)*13,au=mat==='gold';
  return(f,t0)=>{const t=t0>.75?.75+(t0-.75)*.6:t0;return(X,Y,cx,cy)=>{let k=f(X,Y,cx,cy);if(!k)return k;const m=fbm(X/13,Y/13,sd)*.7+hh(X>>2,Y>>2,sd+1)*.3,a=Math.max(0,Math.min(1,(t*.66-m)/.14))*(.4+.6*t);if(a<=0)return k;
-  const L=k[0]+k[1]+k[2];let c=mx(k,T0.map(v=>v*L/TL),a*(au?.32:.42));if(a>.5)WEARF=1;
+  const[dl,dr,du,dd]=regionD(X,Y,cx,cy);if(Math.min(dl,dr,du,dd)>1&&a>.35)k=mx(k,metalOf(mat,X,Y),Math.min(1,(a-.35)*2));const L=k[0]+k[1]+k[2];let c=mx(k,T0.map(v=>v*L/TL),a*(au?.32:.42));if(a>.5)WEARF=1;
   if(a>.3&&(X+2*Y)%7===0&&hh(X>>2,Y>>2,sd+2)>.72-.2*t)c=sc(c,1.12);else if(hh(X,Y,sd+3)>(au?.975:.988)-.02*t)c=sc(c,.72);return c}}};
 const WEAR={Metal:WEARM,Stone:(el,mat)=>{const mb=memb(el,mat).cls==='marble',B=(memb(el,mat).c||[120,120,120]).reduce((p,q)=>p+q,0)/3,ob=!!memb(el,mat).cut,lt=!mb&&B>150,G=lt?memb(el,mat).c.map(v=>v*.66|0):[104,104,82],sd=([...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})].indexOf(mat)+3)*11;
  return(f,t)=>(X,Y,cx,cy)=>{let k=f(X,Y,cx,cy);if(!k)return k;const m=fbm(X/13,Y/13,sd)*.7+hh(X>>2,Y>>2,sd+1)*.3,cov=t*.66,a=Math.max(0,Math.min(1,(cov-m)/.14))*(.4+.6*t);if(lt&&k){const L=(k[0]+k[1]+k[2])/3;k=mx(k,[L,L,L],t*.25)}if(ob){let c=a>0?mx(k,[78,68,92],a*.32):k;const L=(c[0]+c[1]+c[2])/3;c=mx(c,[L,L,L],t*.5);if(a>.5)WEARF=1;return t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982?sc(c,(X+Y)&1?1.12:.9):c}if(a<=0)return k;
