@@ -93,11 +93,6 @@ function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.ha
 const FLB2=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];
 let LINK=()=>null;const CONNV=new Set(['lozenge','sheet']);
 // distance (px) from this pixel to the edge of its connected area on each side, then to an inner (concave) corner; 99 where the area continues
-// top and bottom tile rows of the whole connected area, so every column of a shape shares one set of vent lines; cleared whenever the map is repainted
-const AREA=new Map(),areaRows=(cx,cy)=>{const ck=cx+','+cy;if(AREA.has(ck))return AREA.get(ck);const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy));if(!me)return[cy,cy];let t=cy,b=cy;const seen=new Set([ck]),q=[[cx,cy]];
- while(q.length){const[x,y]=q.pop();t=Math.min(t,y);b=Math.max(b,y);for(const[a,c]of[[1,0],[-1,0],[0,1],[0,-1]]){const n=(x+a)+','+(y+c);if(!seen.has(n)&&kid(LINK(x+a,y+c))===me){seen.add(n);q.push([x+a,y+c])}}}const r=[t,b];for(const n of seen)AREA.set(n,r);return r};
-// rows (from the area's top) for n evenly gapped 1px vent openings inside a frame m px in, with equal margins top and bottom
-const VR=new Map(),ventRows=(H,m)=>{const key=H+','+m;if(VR.has(key))return VR.get(key);const S=H-2*m-2;let best=null;for(const rs of[2,0])for(const g of[4,3,2]){if(best)break;let n=Math.floor((S-rs+g)/(g+1));while(n>0&&(S-(n*(g+1)-g))%2)n--;if(n>0)best=[g,n]}const r=new Set();if(best){const[g,n]=best,a=m+1+(S-(n*(g+1)-g))/2;for(let i=0;i<n;i++)r.add(a+i*(g+1))}VR.set(key,r);return r};
 const regionD=(X,Y,cx,cy)=>{const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy)),o=(a,b)=>!me||kid(LINK(cx+a,cy+b))!==me,x=X&15,y=Y&15;let c=99;for(const[a,b]of[[-1,-1],[1,-1],[-1,1],[1,1]])if(!o(a,0)&&!o(0,b)&&o(a,b))c=Math.min(c,Math.max(a<0?x:15-x,b<0?y:15-y));return[o(-1,0)?x:99,o(1,0)?15-x:99,o(0,-1)?y:99,o(0,1)?15-y:99,c]};
 const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
 // materials: a family shares its properties and three patterns; each member adds its colour, one special pattern, and any property it changes
