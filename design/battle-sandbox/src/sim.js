@@ -562,7 +562,7 @@ function reshape(b,a){b.ang=a;if(b.kind==='bomb'||b.kind==='crate')return;b.px=s
 function slabPix(m,len=16,th=8){const px=[],hp=(m===2?2:7)+(len>16?(m===2?1:4):0);for(let y=-th;y<=-1;y++)for(let x=0;x<len;x++){let c;const e=y===-th||y===-1||x===0||x===len-1;
  const ed=Math.min(x,len-1-x,y+th,-1-y),sd=uid*37;let q;
  if(m===2)q=woodT(x+sd,y+sd,WOOD.oak,1);
- else{q=sc(metalCore(x+sd,y*3+sd),1+(len/2-x)/len*.16);if(ed===2&&(x===2||x===len-3)&&(y===-th+2||y===-3))q=sc(q,1.4)}
+ else{q=sc(metalOf('steel',x+sd,y*3+sd),1+(len/2-x)/len*.16);if(ed===2&&(x===2||x===len-3)&&(y===-th+2||y===-3))q=sc(q,1.4)}
  c=rgb(cl(q[0]),cl(q[1]),cl(q[2]));
  px.push([x,y,c,hp,m,0,hp,'x',x,y])}return px}
 function swingPt(b,lx,ly,a){const B=b.rot*Math.PI/2+(b.spin||0),cb=Math.cos(B),sb=Math.sin(B),ca=Math.cos(a),sa=Math.sin(a),hx=-(b.th||8)/2-1,hy=-(b.th||8)/2,dx=lx-hx,dy=ly-hy,qx=hx+dx*ca-dy*sa,qy=hy+dx*sa+dy*ca;return[qx*cb-qy*sb,qx*sb+qy*cb]}
@@ -1618,7 +1618,9 @@ $('tpr').addEventListener('pointerdown',e=>{au();e.preventDefault();const[x,y]=t
 for(const sc of document.querySelectorAll('#sm .sec')){const k='bsx:'+sc.dataset.k;try{if(localStorage.getItem(k)==='1')sc.classList.add('closed')}catch(e){}sc.querySelector('.sh').onclick=()=>{sc.classList.toggle('closed');try{localStorage.setItem(k,sc.classList.contains('closed')?'1':'0')}catch(e){}}}
 
 function dbl(m,x1,y1,x2,y2,r1,r2,lk,len,th){const a=slab(m,x1,y1,r1,len,th),b=slab(m,x2,y2,r2,len,th);a.pair=b;b.pair=a;a.locked=b.locked=lk;return[a,b]}
-function goldify(d){d.gold=true;for(const p of d.px){const c=p[2],l=((c&255)+(c>>8&255)+(c>>16&255))/765;p[2]=mix(rgb(110,84,26),rgb(252,232,160),Math.min(1,l*1.25))}}
+// recolour a drawn piece into a metal from the table, keeping its shading
+const toneC=(mat,c)=>{const t=metalTone(mat,((c&255)+(c>>8&255)+(c>>16&255))/765);return rgb(cl(t[0]),cl(t[1]),cl(t[2]))};
+function goldify(d){d.gold=true;for(const p of d.px)p[2]=toneC('gold',p[2])}
 const MAPSZ={council:[24,16],road:[30,18],alley:[22,10],stock:[26,16],count:[44,26],vault:[30,47],range:[40,40],air:[34,20]};
 function reset(){ds0Need=true;EDG.clear();{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz[1]!==CH){alloc(sz[0],sz[1]);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);camInit=true}setTimeout(fit,0)}for(const b of bodies)if(b.lab)b.lab.remove();bodies=[];parts=[];drag=null;charge=null;box=null;moveSel=null;sel.clear();build();HZ.fill(0);hzOn=false;if(NUM[curMap]){NUM[curMap]();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='air'){unitsAir();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='range'){unitsRange();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='count'){unitsCount();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='vault'){unitsVault();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='sewer'){unitsSewer();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='tavern'){unitsTavern();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='docks'){unitsDocks();for(const t of bodies)if(t.type==='token')t.hc=null;return}
  token('Aldric','Goldbank','guard',36,40,true);token('Bryn','Goldbank','rifle',62,40);token('Pell','Goldbank','rifle',88,40);

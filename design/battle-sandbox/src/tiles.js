@@ -35,7 +35,7 @@ function stoneT(X,Y,base,s=0){const f=fbm(X/10,Y/10,50+s),d=fbm(X/3,Y/3,51+s);le
 function flagT(X,Y,base){let c=sc(stoneT(X,Y,base),.96+hh(X>>4,Y>>4,46)*.08);if((X&15)===0||(Y&15)===0)c=sc(c,.9);return c}
 // metal: one cold core, variants are a tint plus an overlay
 const METAL=[126,140,146];
-function metalCore(X,Y,tint){const t=.52+(vn(X/26,Y*.85,60)-.5)*.24+(hh(X>>3,Y,61)-.5)*.07;let c=mx([60,72,68],[204,214,206],t);return tint?mx(c,tint,.55):c}
+function metalCore(X,Y,tint){const t=.52+(vn(X/30,Y/30,60)-.5)*.14+(hh(X>>2,Y>>1,61)-.5)*.025;let c=mx([64,66,72],[206,210,218],t);return tint?mx(c,tint,.55):c}
 const BEV=(x,y,e,c)=>e===0?sc(c,.42):e===1?(x===1||y===1?sc(c,1.38):sc(c,.68)):null;
 function metalT(X,Y,cx,cy,v,tint){const x=X-cx*T,y=Y-cy*T,g=v==='floor'?(15-x-y)/15:0;let c=sc(metalCore(X,Y,tint),1+g*.12);if(v==='floor'){let f=mx([150,164,174],[176,190,200],vn(X/24,Y/24,64)*.6+(15-x-y)/60);const e=Math.min(x,y,T-1-x,T-1-y);if(e===0)return sc(f,.7);if(e===1)return sc(f,x===1||y===1?1.12:.88);for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12]]){if(x===rx&&y===ry)return sc(f,1.14);if(x===rx+1&&y===ry+1||x===rx&&y===ry+1||x===rx+1&&y===ry)return sc(f,.9)}return f}
  if(v==='rivet')for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12]])if(x===rx&&y===ry)return sc(c,1.25);
@@ -53,7 +53,7 @@ const cE=(X,Y,cx,cy)=>{const x=X-cx*T,y=Y-cy*T;return[x,y,Math.min(x,y,T-1-x,T-1
 function sillT(X,Y,cx,cy,m){const[x,y,e]=cE(X,Y,cx,cy);let c=m?mx(stoneT(X,Y,[236,234,228],11),[250,249,245],.4):stoneT(X,Y,[176,170,158],14);if(e===2)c=m?mx(c,[214,176,96],.6):sc(c,.82);else if(e===3)c=sc(c,1.04);return c}
 function paveT(X,Y){let c=stoneT(X,Y,[212,208,198],15);const gx=((X%32)+32)%32,gy=((Y%32)+32)%32;if(gx===0||gy===0)c=sc(c,.94);return c}
 function bushT(X,Y){const b=vn(X/3,Y/3,16),f=fbm(X/9,Y/9,17);let c=mx(GDARK,GRASS,f*.9);if(b>.62)c=mx(c,GLITE,(b-.62)*2);else if(b<.3)c=sc(c,.72);if(hh(X,Y,18)>.97)c=mx(c,GDRY,.6);return c}
-function shelfT(X,Y,cx,cy){const[x,y]=cE(X,Y,cx,cy),c=metalCore(X,Y,[70,78,82]);if(y%5===0)return sc(c,.62);if(x%4===3)return sc(c,.8);return mx(metalCore(X,Y),[226,186,96],.78)}
+function shelfT(X,Y,cx,cy){const[x,y]=cE(X,Y,cx,cy),c=metalOf('steel',X,Y);if(y%5===0)return sc(c,.62);if(x%4===3)return sc(c,.8);return metalOf('gold',X,Y)}
 function chestT(X,Y){return woodT(X,Y,WOOD.oak,19)}
 function rackT(X,Y){return woodT(X,Y,WOOD.walnut,20)}
 // marble with a key-pattern overlay, one motif per cell, mirrored from one quadrant
@@ -67,7 +67,7 @@ function gcarpetT(X,Y){const f=fbm(X/8,Y/8,31);let c=sc([34,82,56],.9+f*.16);con
 function booksT(X,Y,cx,cy){const x=X-cx*T,y=Y-cy*T;if(y%8===0||y%8===7)return sc(woodT(X,Y,EBONY,21),1.15);const col=(X>>1)+(Y>>3)*7,h=hh(col,Y>>3,22),P=[[110,34,30],[40,72,52],[92,64,36],[36,46,82],[130,104,58]];let c=P[h*5|0];if(((X>>1)&1)===0)c=sc(c,.8);if(hh(col,Y>>3,23)>.9)c=[200,170,96];return c}
 function bkmarbleT(X,Y){return mx(stoneT(X,Y,[44,62,54],17),[18,26,22],.25)}
 function bkslabT(X,Y){let c=sc(bkmarbleT(X,Y),.95+hh(X>>4,Y>>4,47)*.1);if((X&15)===0||(Y&15)===0)c=sc(c,.78);else if((X&15)===1||(Y&15)===1)c=sc(c,1.08);return c}
-const TEX={mchest:(X,Y)=>{const c=metalCore(X,Y,[70,78,82]);return Y%8===0?sc(c,.7):c},bkmarble:bkmarbleT,bkslab:bkslabT,gtile:gtileT,gcarpet:gcarpetT,books:booksT,edesk:(X,Y)=>woodT(X,Y,EBONY,22),ewood:(X,Y)=>woodT(X,Y,EBONY,24),omarble:omarbleT,mpanel:mpanelT,sill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,0),msill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,1),pave:paveT,bush:bushT,shelf:shelfT,chest:chestT,rack:rackT,desk:(X,Y)=>woodT(X,Y,MAHOG,13),table:(X,Y)=>woodT(X,Y,WOOD.teak,7),seat:seatT,carpet:carpetT,gfloor:goldT,stone:(X,Y,cx,cy)=>stoneT(X,Y,STONE),marble:(X,Y)=>mx(stoneT(X,Y,[236,234,228],11),[250,249,245],.45),dmarble:(X,Y)=>mx(stoneT(X,Y,[84,112,104],12),[150,168,160],.12),pillar:(X,Y)=>mx(stoneT(X,Y,[232,230,224],11),[250,249,245],.4),gstone:(X,Y)=>mx(stoneT(X,Y,STONE),[214,180,96],.55),flag:(X,Y)=>flagT(X,Y,FLAG),
+const TEX={mchest:(X,Y)=>{const c=metalOf('iron',X,Y);return Y%8===0?sc(c,.7):c},bkmarble:bkmarbleT,bkslab:bkslabT,gtile:gtileT,gcarpet:gcarpetT,books:booksT,edesk:(X,Y)=>woodT(X,Y,EBONY,22),ewood:(X,Y)=>woodT(X,Y,EBONY,24),omarble:omarbleT,mpanel:mpanelT,sill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,0),msill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,1),pave:paveT,bush:bushT,shelf:shelfT,chest:chestT,rack:rackT,desk:(X,Y)=>woodT(X,Y,MAHOG,13),table:(X,Y)=>woodT(X,Y,WOOD.teak,7),seat:seatT,carpet:carpetT,gfloor:goldT,stone:(X,Y,cx,cy)=>stoneT(X,Y,STONE),marble:(X,Y)=>mx(stoneT(X,Y,[236,234,228],11),[250,249,245],.45),dmarble:(X,Y)=>mx(stoneT(X,Y,[84,112,104],12),[150,168,160],.12),pillar:(X,Y)=>mx(stoneT(X,Y,[232,230,224],11),[250,249,245],.4),gstone:(X,Y)=>mx(stoneT(X,Y,STONE),[214,180,96],.55),flag:(X,Y)=>flagT(X,Y,FLAG),
  wood:(X,Y)=>woodT(X,Y,WOOD.oak),dwood:(X,Y)=>woodT(X,Y,WOOD.walnut,5),rail:(X,Y)=>woodT(X,Y,WOOD.rail,9),berm:(X,Y)=>woodT(X,Y,[104,86,64],2),
  planks:(X,Y)=>plankT(X,Y,WOOD.oak),pplanks:(X,Y)=>plankT(X,Y,WOOD.pine,3),dplanks:(X,Y)=>plankT(X,Y,WOOD.teak,6),
  metal:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'panel'),mplate:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet'),iron:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet',[70,78,82]),brass:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet',[184,150,84]),mfloor:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'floor'),grass:grassT,dirt:soilT};
@@ -98,7 +98,7 @@ const ELEM={
   aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,shine:28,vein:1,sp:'chequer'},gold:{n:'Goldstone',c:[200,170,100],vein:'gold',sp:'lozenge'},night:{n:'Sanctis obsidian',c:[35,28,46],cls:'marble',hp:5,shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'},sp:'vent',cut:1}},
   old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',hp:4,shine:28,sp:'quatre'}}},
  Wood:{p:{cls:'wood',hp:2,burn:1},vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:{n:'Oak',c:WOOD.oak,sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,sp:'rough'},teak:{n:'Teak',c:WOOD.teak,sp:'deck'},walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'},mahog:{n:'Mahogany',c:MAHOG,sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,sp:'marq'}}},
- Metal:{p:{cls:'metal',hp:6,shine:60},vars:{panel:'Panels',rivet:'Riveted plate',smooth:'Smooth'},mats:{steel:{n:'Steel',c:[130,142,140],hp:7,w:1,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'grate'},
+ Metal:{p:{cls:'metal',hp:6,shine:60},vars:{panel:'Panels',rivet:'Riveted plate',smooth:'Smooth'},mats:{steel:{n:'Steel',c:[134,138,146],hp:7,w:1,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'grate'},
   brass:{n:'Brass',c:[200,146,88],hp:5,w:.9,age:'verdigris',shine:80,sp:'filigree'},gold:{n:'Aurum',c:[226,186,96],hp:8,w:.8,age:'dents',shine:80,sp:'engraved'},umbra:{n:'Umbra',c:[59,69,64],hp:10,w:.5,age:'dark tinge',dk:.57,shine:25,sp:'runes'}}},
  Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
 const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',vent:'Glow panel',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
@@ -180,7 +180,10 @@ const speck=(k,X,Y,s)=>{const v=hh(X,Y,s+70);return v>.965?sc(k,.8):v>.92?mx(k,[
 const softStone=(X,Y,c,s,m)=>m?mx(stoneT(X,Y,c,11+s),sc(c,1.04),.45):mx(stoneT(X,Y,c,s),sc(c,.93+fbm(X/14,Y/14,s+60)*.14),.4);
 // one metal table: tiles and armour share colour, strength, weight and wear (w and age are for armour)
 // flat tiles show a metal at its lit tone, as armour plate reads in the light
-function metalOf(mat,X,Y){const M=memb('Metal',mat),m=metalCore(X,Y),c=M.dk?sc(M.c,M.dk):sc(M.c,Math.min(1.32,235/Math.max(...M.c)));return sc(c,(m[0]+m[1]+m[2])/420)}
+function metalOf(mat,X,Y){const m=metalCore(X,Y);return sc(metalLit(mat),(m[0]+m[1]+m[2])/420)}
+const metalLit=mat=>{const M=memb('Metal',mat);return M.dk?sc(M.c,M.dk):sc(M.c,Math.min(1.32,235/Math.max(...M.c)))};
+// a metal at relative brightness l (0 dark .. 1 bright), for recolouring furniture and doors
+const metalTone=(mat,l)=>sc(metalLit(mat),.45+l*1.05);
 const cutEdge=f=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy),kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy));if(!k||!me)return k;const x=X&15,y=Y&15,o=(a,b)=>kid(LINK(a,b))!==me,e=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?15-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?15-y:99);return e===0?mx(k,[156,146,190],.6):e===1?mx(k,[118,108,156],.25):k};
 // cut stone: walls get a light cut edge, floors sit darker beneath them
 function genTex(el,mat,v,wall){const f=genTex0(el,mat,v,wall);return!memb(el,mat).cut?f:wall?cutEdge(f):(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy);return k&&sc(k,.8)}}
