@@ -240,17 +240,16 @@ window.addEventListener('pointermove',e=>{if(EM!=='map')return;const h=$('hint')
  else if(edBrush&&mouse.in&&!(edBrush.t==='clean'&&edBrush.k!=='wand')){const n=edBrush.t==='door'?1:edSize,o=Math.floor((n-1)/2),cx=(mouse.x/T|0)-o,cy=(mouse.y/T|0)-o;box2(cx*T,cy*T,n*T,n*T)}ctx.restore()}}
 
 // polished wood: the furniture finish (dark rim, light bevel, inlay line), measured from the edge of each area
-// patterns that crack, and the size of one stone: a crack never leaves its stone
-const CRKS={slabs:16,block:32};
+// a crack never leaves its 16px stone, whatever the pattern
 // cracks: a layer over each connected block of one material, sized to the block and to how battered its tiles are
 function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&WEAR[c[0]]?c[0]+c[1]+c[3]:null};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k0=map[cy][cx],g=key(k0);if(!g||seen.has(cy*CW+cx)||OM[cy]&&OM[cy][cx])continue;
   const comp=new Set(),q=[[cx,cy]];seen.add(cy*CW+cx);while(q.length){const[a,b]=q.pop();comp.add(b*CW+a);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db,i=nb*CW+na;if(na<0||nb<0||na>=CW||nb>=CH||seen.has(i)||key(map[nb][na])!==g||OM[nb]&&OM[nb][na])continue;seen.add(i);q.push([na,nb])}}
-  let s0=(cx*73856093^cy*19349663)>>>0;const R=()=>(s0=(s0*1664525+1013904223)>>>0)/4294967296,worn=[...comp].filter(i=>{const c=CATN[map[i/CW|0][i%CW]];return c[4]&&c[4]<=2&&CRKS[c[2]]});if(!worn.length)continue;
+  let s0=(cx*73856093^cy*19349663)>>>0;const R=()=>(s0=(s0*1664525+1013904223)>>>0)/4294967296,worn=[...comp].filter(i=>{const c=CATN[map[i/CW|0][i%CW]];return c[4]&&c[4]<=2});if(!worn.length)continue;
   let n=0;for(const i of worn)n+=CATN[map[i/CW|0][i%CW]][4]===1?.95:.5;n=Math.floor(n+R());const wall=CATN[k0][3],JF={slabs:.9,quarter:.82,block:.84,rubble:.8,crazy:.85}[CATN[k0][2]]||.86,JC=rgb(...(memb(CATN[k0][0],CATN[k0][1]).c||[120,116,108]).map(v=>Math.round(v*JF*.9))),LC=rgb(...(memb(CATN[k0][0],CATN[k0][1]).c||[120,116,108]).map(v=>Math.min(255,Math.round(v*1.06)))),hit=new Set(),L0=Math.min(42,7+Math.sqrt(comp.size)*6);
   let bx=0,by=0,bs=16;const walk=(x,y,ang,len,fork)=>{ang=Math.round(ang/.785)*.785;let run=0;for(let t=0;t<len;t++){if(++run>2+R()*4){run=0;ang+=(R()<.5?-1:1)*.785*(R()<.7?.5:1)}x+=Math.cos(ang);y+=Math.sin(ang);const X=Math.round(x),Y=Math.round(y),ci=(Y>>4)*CW+(X>>4);if(X<1||Y<1||X>=W-1||Y>=H-1||!comp.has(ci)||Math.floor(X/bs)!==bx||Math.floor(Y/bs)!==by)return;
     if(R()<.18)continue;const j=Y*W+X;if(hit.has(j))continue;hit.add(j);const lj=j+(Math.abs(Math.cos(ang))>.5?W:1),lit=t%3===1&&!hit.has(lj);if(wall){if(!sol[j])return;scol[j]=mix(scol[j],JC,.85);shp[j]=1;if(lit&&sol[lj])scol[lj]=mix(scol[lj],LC,.4)}else{floor[j]=mix(floor[j],JC,.85);if(lit)floor[lj]=mix(floor[lj],LC,.4)}if(fork&&t===len>>1&&R()<.3)walk(x,y,ang+(R()<.5?-.785:.785),len>>1,false)}};
-  for(let m=0;m<n;m++){const i=worn[(R()*worn.length)|0];bs=CRKS[CATN[map[i/CW|0][i%CW]][2]];bx=Math.floor((i%CW)*T/bs);by=Math.floor((i/CW|0)*T/bs);const ex=R()<.5,X0=(i%CW)*T+(ex?(R()<.5?1:T-2):2+R()*(T-4)),Y0=(i/CW|0)*T+(ex?2+R()*(T-4):(R()<.5?1:T-2));walk(X0,Y0,R()*6.283,(R()<.75?5+R()*6:L0*(.6+R()*.6))|0,true)}}}
+  for(let m=0;m<n;m++){const i=worn[(R()*worn.length)|0];bs=16;bx=Math.floor((i%CW)*T/bs);by=Math.floor((i/CW|0)*T/bs);const ex=R()<.5,X0=(i%CW)*T+(ex?(R()<.5?1:T-2):2+R()*(T-4)),Y0=(i/CW|0)*T+(ex?2+R()*(T-4):(R()<.5?1:T-2));walk(X0,Y0,R()*6.283,(R()<.75?5+R()*6:L0*(.6+R()*.6))|0,true)}}}
 function polish(){const st=(x,y,k)=>map[y]&&map[y][x]===k;for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!POLT.has(k))continue;const L=!st(cx-1,cy,k),R=!st(cx+1,cy,k),U=!st(cx,cy-1,k),D=!st(cx,cy+1,k);if(!L&&!R&&!U&&!D)continue;
  const mat=CATN[k][1],gl=mat==='mahog'||mat==='ebony'?rgb(210,168,100):rgb(176,126,84),gt=mat==='mahog'||mat==='ebony'?.4:.25;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(L?x:99,R?15-x:99,U?y:99,D?15-y:99);if(d>3)continue;const j=(cy*T+y)*W+cx*T+x,w=!!sol[j];let c=w?scol[j]:floor[j];
