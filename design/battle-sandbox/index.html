@@ -752,7 +752,7 @@ function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;key=modK(key)
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){UND=[];(NBM[curMap]||(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();relink();blendGround();objects();boards();borders();regions();keyBands();polish();cracks()}
+function build(){UND=[];(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();relink();blendGround();objects();boards();borders();regions();keyBands();polish();cracks()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(rug&&OM[y]&&OM[y][x]);
@@ -978,37 +978,6 @@ function unitsAir(){const face=(t,a)=>{t.ang=a;return t},E=0,Wd=Math.PI;
  container(16,7,[{k:'gold',n:240}]);container(20,12,[{k:'gold',n:120}]);for(const y of [132,164]){const d=barricade(2,232,y);d.rot=1;orient(d)}}
 function overboard(){for(const b of [...bodies]){if(b.type==='weapon'&&WP[b.kind].bullet||inDrag(b)||Math.hypot(b.vx,b.vy)>1.5&&b.type!=='token')continue;const r=map[b.y/T|0],k=r&&r[b.x/T|0];if(k!=='sky')continue;
  if(b.type==='token'&&b.held)dropHeld(b);dab(SF,b.x,b.y,.4,2);sfx('whoosh');remove(b)}}
-function buildSewer(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
- const F=(cx,cy)=>{if(cx<=1&&cy===2)return 'flag';if(cy===12&&cx>0)return 'dmarble';if(cy===11&&cx>0)return 'flag';if(cx===2&&cy>=1&&cy<=11)return 'flag';if(cx===3&&cy===5)return 'flag';if(cx===4&&cy===5)return 'flag';
-  if(cx>=5&&cx<=12&&cy>=3&&cy<=9)return (cx===8||cx===9)&&(cy===5||cy===6)?'table':'flag';if((cx===8||cx===9)&&cy===10)return 'flag';if(cx===13&&cy===4)return 'flag';if(cx>=14&&cx<=16&&cy>=3&&cy<=8)return (cx===14||cx===16)&&cy===3?'chest':'planks';return 'stone'};
- for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
-function unitsSewer(){const face=(t,a)=>{t.ang=a;return t};
- slab(2,68,80,1);slab(2,212,64,1);
- container(8,5,[{k:'sspear',n:2,ammo:4,res:0}]);container(14,3,[{k:'grenade',n:3}]);container(16,3,[{k:'musket',n:2,ammo:12,res:12}]);
- face(token('Ash',null,'cmd',40,30,false,'blunder'),Math.PI/2);
- face(token('Sgt. Vell','Havenport','guard',108,82,true),0);face(token('Dace','Havenport','rifle',108,110),0);face(token('Orrin','Havenport','rifle',136,150),-Math.PI/2);
- face(token('Gull','Reapers','home',180,82,false,'pistol'),Math.PI);face(token('Rask','Reapers','rifle',180,110),Math.PI);face(token('Bones','Reapers','civ',196,58,false,'pistol'),Math.PI);face(token('Skiff','Reapers','home',244,100,false,'pistol'),Math.PI)}
-function buildTavern(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
- for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='stone';
-  if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cy>=11)k='flag';else if(cy===10)k=(cx===8||cx===9)?'flag':'stone';else if(cx===13)k=cy===4?'flag':'stone';else if(cx>13)k='dmarble';else k='planks';
-   if(((cx===3||cx===4)&&cy===6)||((cx===8||cx===9)&&cy===6)||((cx===10||cx===11)&&cy===2))k='table';if((cx===5&&cy===6)||(cx===7&&cy===6)||(cx===2&&cy===6))k='seat';if(cy===2&&cx>=2&&cx<=5||cx===15&&cy===8)k='chest'}
-  if((cx===0||cx===CW-1)&&(cy===11||cy===12))k='flag';
-  paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
-function unitsTavern(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
- container(2,2,[]);container(15,8,[{k:'pistol',n:3,ammo:18,res:18},{k:'musket',n:1,ammo:12,res:12}]);
- dbl(2,128,171,159,164,0,2,false);slab(2,212,64,1);
- face(token('Wick','Havenport','civ',64,24,false,null),dn);face(token('Harbourmaster Rourke','Havenport','civ',244,60,false,'pistol'),Math.PI).look='Harbourmaster';
- face(token('Capt. Hale','Havenport','home',110,84,false,'pistol'),dn);face(token('Nell','Havenport','rifle',168,104),dn);face(token('Tobin','Havenport','civ',52,126,false,null),0);face(token('Mara','Havenport','civ',180,70,false,null),dn);
- face(token('Gull','Reapers','home',116,142,false,'pistol'),up);face(token('Bones','Reapers','rifle',150,142,false,'pistol'),up);face(token('Teague','Reapers','shock',84,140,false,'spear'),0);
- face(token('Rask','Reapers','guard',60,192),0);face(token('Skiff','Reapers','cmd',14,188,false,'pistol'),0);face(token('Brine','Reapers','home',240,192,false,'spear'),Math.PI);face(token('Old Mags',null,'civ',200,192,false,null),up).look='Merchant'}
-function buildDocks(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
- for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='stone';
-  if(cx===0&&(cy===2||cy===3))k='flag';if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cy<5)k='flag';else if(cy===5)k=(cx===3||cx===8||cx===9)?'flag':'stone';else if(cx===12)k=(cy===8||cy===9)?'flag':'stone';else if(cx>12)k=(cx+cy)%2?'marble':'dmarble';else k='planks';
-   if((cx===5&&cy===9)||(cx===9&&cy===10))k='stone';if(cx===11&&(cy===6||cy===7)||cx===8&&cy===12||cx===11&&cy===12||cx===16&&(cy===6||cy===7))k='chest'}
-  paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 function crate(x,y,items,long){items=(items||[]).filter(Boolean);const c=weapon('crate',x,y,0);if(long===undefined)long=!cFitsAll(c,items);c.name='Crate';if(long){c.long=true;c.px=shape('lcrate',0);mkSet(c)}c.si=-1;cFill(c,items);return c}
 // storage is space: items keep their real size and lie wherever their outline fits, turned if needed
 const FTC={bomb:[10,10]},foot=k=>{if(FTC[k])return FTC[k];if(!WP[k]||k==='gold')return FTC[k]=[7,7];let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of shape(k,0)){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}return FTC[k]=[x1-x0+1,y1-y0+1]};
@@ -1073,16 +1042,6 @@ function drawStores(){drawHoled(storesShown());const hit=!SDR&&!drag&&mouse.in&&
   if(c.box||!open)for(let y=0;y<g.gh*g.cs;y++)for(let x=0;x<g.gw*g.cs;x++){if(!g.ok(x/g.cs|0,y/g.cs|0))continue;const X=g.ox+x,Y=g.oy+y;if(X<0||Y<0||X>=W||Y>=H)continue;out[Y*W+X]=mul(out[Y*W+X],.3)}
   for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q||SDR&&SDR.c===c&&SDR.i===i)continue;const[w,h]=cRect(q),ip=itemPix(q.k,q.r),bx=g.ox+q.gx*g.cs,by=g.oy+q.gy*g.cs;for(const[a,b]of ip){const gx=q.gx+a+1,gy=q.gy+b+1;if(gx<g.gw&&gy<g.gh&&g.ok(gx,gy))out[(g.oy+gy)*W+g.ox+gx]=mul(out[(g.oy+gy)*W+g.ox+gx],.5)}const hv=hit&&hit.c===c&&hit.i===i;for(const[a,b,col]of ip){const X=bx+a,Y=by+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=hv?mix(col,rgb(255,255,255),.22):col}if(GLOWK.has(q.k))for(const[a,b,col]of ip){if((col>>16&255)<200||(col&255)<150)continue;for(let v=-2;v<=2;v++)for(let u=-2;u<=2;u++){const d=Math.hypot(u,v);if(!d||d>2.5)continue;const X=bx+a+u,Y=by+b+v;if(X>=0&&Y>=0&&X<W&&Y<H&&!ip.some(p=>p[0]===a+u&&p[1]===b+v))out[Y*W+X]=mix(out[Y*W+X],rgb(214,140,255),.32*(1-d/3))}}}}
  if(SDR){const q=SDR.c.inv[SDR.i];if(q){const db=dropBox(),sn=db&&!bodyAt(Math.round(mouse.x),Math.round(mouse.y),4,null,o=>o.type==='token'&&o.status!=='dead')&&cAt(db,q.k,mouse.x,mouse.y,q),sg=sn&&cGeo(db),r=sn?sn.r:q.r,[w,h]=sn?(r?[...foot(q.k)].reverse():foot(q.k)):cRect(q);for(const[a,b,col]of itemPix(q.k,r)){const X=(sn?sg.ox+sn.gx:Math.round(mouse.x-w/2))+a,Y=(sn?sg.oy+sn.gy:Math.round(mouse.y-h/2))+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}}
-function unitsDocks(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
- face(token('Corvan','Imperium','shock',56,50,false,'pgun'),dn);face(token('Varn','Imperium','shock',122,50,false,'spear'),dn);face(token('Kade','Imperium','shock',168,50,false,'pgun'),dn);
- face(token('Aurel','Imperium','rifle',36,26),dn);face(token('Ostra','Imperium','guard',96,26,true),dn);face(token('Mira','Imperium','cmd',196,26),dn);face(token('Ivo','Imperium','rifle',248,26),dn);
- const sd=slab(2,48,91,0);sd.locked=true;dbl(2,128,91,159,84,0,2,true);dbl(3,196,128,203,159,1,3,true);
- face(token('Gull','Reapers','home',100,118,false,'pistol'),up);face(token('Rask','Reapers','home',60,128),up);face(token('Mott','Reapers','civ',160,118,false,'pistol'),up);
- face(token('Teague','Reapers','rifle',112,176),up);face(token('Brine','Reapers','home',68,190,false,'blunder'),up);
- face(token('Skerry','Reapers','home',236,120),Math.PI);face(token('Fen','Reapers','civ',244,176,false,'pistol'),Math.PI);
- for(const[x,y]of[[24,200],[38,201],[24,186],[52,201],[36,188],[24,172]])weapon('bomb',x,y,0);
- container(11,6,[{k:'musket',n:3,ammo:12,res:24},{k:'pistol',n:4,ammo:18,res:18}]);container(8,12,[{k:'blunder',n:2,ammo:8,res:16}]);container(11,12,[{k:'grenade',n:4}]);
- container(16,6,[{k:'sspear',n:2,ammo:4,res:4},{k:'bomb',n:2}])}
 // mini maps for each side: one room or stretch, opening onto the void or a corridor
 const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true};
 function paintAll(f){map=Array.from({length:CH},()=>Array(CW).fill('stone'));for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,f(cx,cy));fxClear()}
@@ -1928,7 +1887,6 @@ function fireTick(){for(const b of [...bodies]){if((b.type!=='token'&&b.type!=='
   let v=0,ka=0,kc=0;for(let k=0;k<9;k++){const a=k*.785,r=k===8?0:8,X=Math.round(b.x+Math.cos(a)*r),Y=Math.round(b.y+Math.sin(a)*r);if(X<0||Y<0||X>=W||Y>=H)continue;const q=(Y>>1)*BW+(X>>1),f=Math.max(TF[q],FX.fire[q]);if(k===8)kc=f;else if(f>v){v=f;ka=a}}
   if(kc>.3){ignite(b,ka,.5,1.5);b.fw=Math.min(3.15,b.fw+.03);b.fd=Math.min(8.3,b.fd+.03)}else if(v>.3)ignite(b,ka,.45,1.5);v=Math.max(v,kc);
   if(v>.3)b.burn=Math.min(1.5,(b.burn||0)+v*.12);
-  if(curMap==='sewer'&&map[b.y/T|0]&&map[b.y/T|0][b.x/T|0]==='dmarble'&&b.burn){b.burn=0;dab(SF,b.x,b.y,.8,4);sfx('sizzle')}
   if(!(b.burn>0))continue;b.burn=Math.max(0,b.burn-.012);if(!b.burn){b.fa=undefined;continue}if(Math.random()<b.burn*.3)dab(SF,b.x,b.y-3,.25,3);
   const u=UNITS[b.unit]||UNITS.civ,bx=Math.round(b.x),by=Math.round(b.y);let hit=false;
   for(let n=0;n<Math.ceil(b.burn*3);n++){let p=null;for(let t=0;t<8&&!p;t++){const c=b.px[(Math.random()*b.px.length)|0];if(c&&inZone(b,c)&&Math.hypot(c[8],c[9])>4.4&&(!b.set.has(K(c[0]+1,c[1]))||!b.set.has(K(c[0]-1,c[1]))||!b.set.has(K(c[0],c[1]+1))||!b.set.has(K(c[0],c[1]-1))))p=c}if(!p)continue;
@@ -1937,7 +1895,6 @@ function fireTick(){for(const b of [...bodies]){if((b.type!=='token'&&b.type!=='
    else if(Math.random()<b.burn*.6){if(hitPix(b,bx+p[0],by+p[1],1)===2){hit=true;if(Math.random()<.3)spark(bx+p[0],by+p[1],rgb(60,40,30),0,0,.8)}}}
   if(hit)settle(b)}}
 // AI: one side follows orders its leader rolls each playthrough
-const AIPLAN={docks:{side:'Reapers',zones:{floor:[24,104,168,200],back:[216,104,264,200],stash:[20,160,64,204]}}};
 let aiOn=false,aiMe=null,lastSide=null;
 // AI reads the map itself (rooms, doors, cover) and acts on what each unit sees, hears and remembers
 const teamOf=b=>b.status==='captured'||b.neutral?'Neutral':b.nat?guildOf(b)||SIDE[b.nat]||b.nat:'Neutral',aiUnit=b=>b.type==='token'&&aiOn&&aiMe&&(teamOf(b)!==aiMe||b.auto&&!b.direct);
@@ -2281,8 +2238,8 @@ const bar=$('bar');
 const btn=(t,f)=>{const b=document.createElement('button');b.textContent=t;b.onclick=f;bar.appendChild(b);return b};
 
 
-const TITLE={bank:'Goldbank · Back room',docks:'Havenport · Warehouse',tavern:'Havenport · Tavern',sewer:'Havenport · Sewer',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard',council:'Sanctis · Council chamber',road:'Portsbridge · Old road',alley:'Great Keys · Guild alley',stock:"Emperor's Dock · Stockyard"};
-btn('Reset',()=>reset());{const sb=btn('Slow-mo (Z)',()=>{slowMo=!slowMo;sb.classList.toggle('on',slowMo)});window.toggleSlow=()=>sb.onclick();setTimeout(()=>bar.appendChild(sb),0)}{const ab=btn('AI',()=>{aiOn=!aiOn;aiMe=null;ab.classList.toggle('on',aiOn);if(!aiOn)for(const b of bodies){b.fogH=false;b.ai=null}aiSetup()})}{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['docks','Havenport warehouse'],['tavern','Havenport tavern'],['sewer','Havenport sewer'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"]]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
+const TITLE={bank:'Goldbank · Back room',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard',council:'Sanctis · Council chamber',road:'Portsbridge · Old road',alley:'Great Keys · Guild alley',stock:"Emperor's Dock · Stockyard"};
+btn('Reset',()=>reset());{const sb=btn('Slow-mo (Z)',()=>{slowMo=!slowMo;sb.classList.toggle('on',slowMo)});window.toggleSlow=()=>sb.onclick();setTimeout(()=>bar.appendChild(sb),0)}{const ab=btn('AI',()=>{aiOn=!aiOn;aiMe=null;ab.classList.toggle('on',aiOn);if(!aiOn)for(const b of bodies){b.fogH=false;b.ai=null}aiSetup()})}{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"]]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
 
 function icon(px,scale){const c=document.createElement('canvas');c.width=28;c.height=20;const g=c.getContext('2d'),id=g.createImageData(28,20),u=new Uint32Array(id.data.buffer);
  let mx=0,my=0;for(const p of px){mx+=p[0];my+=p[1]}mx/=px.length;my/=px.length;
@@ -2321,7 +2278,7 @@ for(const sc of document.querySelectorAll('#sm .sec')){const k='bsx:'+sc.dataset
 function dbl(m,x1,y1,x2,y2,r1,r2,lk,len,th){const a=slab(m,x1,y1,r1,len,th),b=slab(m,x2,y2,r2,len,th);a.pair=b;b.pair=a;a.locked=b.locked=lk;return[a,b]}
 function goldify(d){d.gold=true;for(const p of d.px)p[2]=toneC('gold',p[2])}
 const MAPSZ={council:[24,16],road:[30,18],alley:[22,10],stock:[26,16],count:[44,26],vault:[30,47],range:[40,40],air:[34,20]};
-function reset(){ds0Need=true;EDG.clear();{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz[1]!==CH){alloc(sz[0],sz[1]);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);camInit=true}setTimeout(fit,0)}for(const b of bodies)if(b.lab)b.lab.remove();bodies=[];parts=[];drag=null;charge=null;box=null;moveSel=null;sel.clear();build();HZ.fill(0);hzOn=false;if(NUM[curMap]){NUM[curMap]();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='air'){unitsAir();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='range'){unitsRange();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='count'){unitsCount();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='vault'){unitsVault();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='sewer'){unitsSewer();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='tavern'){unitsTavern();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='docks'){unitsDocks();for(const t of bodies)if(t.type==='token')t.hc=null;return}
+function reset(){ds0Need=true;EDG.clear();{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz[1]!==CH){alloc(sz[0],sz[1]);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);camInit=true}setTimeout(fit,0)}for(const b of bodies)if(b.lab)b.lab.remove();bodies=[];parts=[];drag=null;charge=null;box=null;moveSel=null;sel.clear();build();HZ.fill(0);hzOn=false;if(NUM[curMap]){NUM[curMap]();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='air'){unitsAir();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='range'){unitsRange();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='count'){unitsCount();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='vault'){unitsVault();for(const t of bodies)if(t.type==='token')t.hc=null;return}
  token('Aldric','Goldbank','guard',36,40,true);token('Bryn','Goldbank','rifle',62,40);token('Pell','Goldbank','rifle',88,40);
  token('Orla','Goldbank','home',28,82);token('Rook','Goldbank','cmd',28,150).leader=true;token('Tam','Goldbank','shock',150,150);token('Hask','Goldbank','shock',150,186);
  const c=token('Corin',null,'civ',90,180);c.status='captured';c.held=null;
@@ -2331,7 +2288,7 @@ function reset(){ds0Need=true;EDG.clear();{const sz=MAPSZ[curMap]||[18,14];if(sz
  slab(2,180,32,1);dbl(3,180,96,187,127,1,3,false);dbl(3,224,171,255,164,0,2,true);
  weapon('grenade',120,196,0);weapon('bomb',60,200,0);weapon('sspear',236,104,.3);
  for(const t of bodies)if(t.type==='token')t.hc=null}
-const NAMED={count:{'Lord Vane':'Bank Lord','Archivist Lell':'Head Clerk','Master Orsk':'Banker',Corvo:'Reaper'},vault:{'Master Corwin':'Banker','Manager Vance':'Bank Lord',Dorran:'Merchant',Lyse:'Noble',Sora:'Noble',Merrit:'Merchant'},sewer:{Ash:'Reaper'},bank:{}};
+const NAMED={count:{'Lord Vane':'Bank Lord','Archivist Lell':'Head Clerk','Master Orsk':'Banker',Corvo:'Reaper'},vault:{'Master Corwin':'Banker','Manager Vance':'Bank Lord',Dorran:'Merchant',Lyse:'Noble',Sora:'Noble',Merrit:'Merchant'},bank:{}};
 {const r0=reset;reset=function(){r0();setTimeout(aiSetup,0);for(const t of bodies)if(t.type==='token'&&NAMED[curMap]&&NAMED[curMap][t.name])t.look=NAMED[curMap][t.name];snapDoors();sills();arrivals();exitLabels();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
 reset();loop();
 // short recorded clips (sponge water and squeaks), 16 kHz mono WAV
