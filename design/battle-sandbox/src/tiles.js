@@ -89,7 +89,11 @@ function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.ha
  cache.set(ck,cv);return cv}
 // tile catalogue: element > material > variation, each as floor and wall ('.w'); old keys point at their new tile
 const FLB2=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];
-let LINK=()=>null;const CONNV=new Set(['lozenge','sheet']);// map lookup for connected textures, set by sim.js
+let LINK=()=>null;const CONNV=new Set(['lozenge','sheet']);
+// the visible plate inside a metal tile: the joint (and a floor's lit edge) on one side, the wall rim or the next tile's joint on the other
+// a span of about n pixels centred in [L,R] with equal margins (n shrinks by one when the parity needs it)
+const boxIn=(L,R,n)=>{const w=R-L+1,m=n-((w-n)&1),a=L+(w-m)/2;return[a,a+m-1]};
+const plateOf=(cx,cy,wall)=>{const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy)),o=(a,b)=>!me||kid(LINK(cx+a,cy+b))!==me;return wall?[o(-1,0)?3:1,o(1,0)?12:15,o(0,-1)?3:1,o(0,1)?12:15]:[2,o(1,0)?14:15,2,o(0,1)?14:15]};// map lookup for connected textures, set by sim.js
 const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
 // materials: a family shares its properties and three patterns; each member adds its colour, one special pattern, and any property it changes
 const ELEM={
@@ -157,12 +161,13 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='grate')return(X,Y)=>{const x=X&3,y=Y&3;let k=M(X,Y);if(x===0||y===0)return sc(k,x===0&&y===0?1.25:1.08);return sc(k,x===3||y===3?.32:.45)};
   if(v==='hammer')return(X,Y)=>{const d=vn(X/2.6,Y/2.6,s+40),k=M(X,Y),e=Math.min(X&31,Y&31);if(e===0)return sc(k,.62);return sc(k,.84+d*.3+(hh(X,Y,s)>.96?.1:0))};
   if(v==='tread')return(X,Y)=>{const b=((X>>2)+(Y>>2))&1,x=X&3,y=Y&3,k=M(X,Y),lug=b?x===y:x+y===3;return lug?sc(k,1.28):(b?x===y+1:x+y===4)?sc(k,.78):k};
-  if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);return wall?(x>=5&&x<=11&&(y===5||y===8||y===11)?sc(k,.3):k):x>=5&&x<=12&&(y===4||y===7||y===10||y===13)?sc(k,.3):k};
-  if(v==='filigree')return(X,Y)=>{let[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);x--;y--;const cx=x<8?2:13,cy=y<8?2:13,r=Math.hypot(x-cx,y-cy);if(Math.abs(r-4.2)<.5&&Math.abs(x-cx)<5&&Math.abs(y-cy)<5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
+  if(v==='louvre')return(X,Y,cx,cy)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);const[L,R,T,B]=plateOf(cx,cy,wall),[a,b]=boxIn(L,R,6),[c0,d]=boxIn(T,B,4);return x>=a&&x<=b&&(y===c0||y===d)?sc(k,.5):k};
+  if(v==='filigree')return(X,Y,cx,cy)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);const[L,R,T,B]=plateOf(cx,cy,wall),mx0=(L+R)/2,my0=(T+B)/2,qx=x<mx0?L:R,qy=y<my0?T:B,r=Math.hypot(x-qx,y-qy);if(Math.abs(r-4.2)<.5)return sc(k,.72);if(Math.hypot(x-mx0,y-my0)<1.6)return sc(k,1.3);return k};
   if(v==='grille')return(X,Y)=>{const u=((X+Y)%6+6)%6,w=((X-Y)%6+6)%6,k=M(X,Y);if(u===0&&w===0)return sc(k,1.4);if(u===0||w===0)return sc(k,.74);return k};
-  if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-8.5,dy=y-8.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),k=sc(M(X,Y),1.03);if(x===0||y===0)return sc(k,.82);if(Math.abs(r-6.5)<.5)return sc(k,.82);if(r>2&&r<6&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
+  if(v==='engraved')return(X,Y,cx,cy)=>{const[x,y]=A(X,Y),k=sc(M(X,Y),1.03);if(x===0||y===0)return sc(k,.82);const[L,R,T,B]=plateOf(cx,cy,wall),dx=x-(L+R)/2,dy=y-(T+B)/2,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),R0=4.5;if(Math.abs(r-R0)<.5)return sc(k,.82);if(r>2&&r<R0-.5&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
   if(v==='scale')return(X,Y)=>{const r=Y>>2,u=(X+(r&1?3:0))%6,y=Y&3,d=Math.hypot(u-2.5,y+.5),k=M(X,Y);if(Math.abs(d-2.7)<.55)return sc(k,.72);if(d<2)return sc(k,1.1);return k};
-  if(v==='runes')return(X,Y)=>{let[x,y]=A(X,Y);const k=M(X,Y),cx=X>>4,cy=Y>>4;if(x===0||y===0)return sc(k,.82);x--;y--;const gx=[4,8,11],seg=(a,b,i)=>hh(cx*7+i,cy*5,s)>.45&&a&&b;const on=seg(x===4&&y>=4&&y<=11,1,0)||seg(x===11&&y>=4&&y<=11,1,1)||seg(y===4&&x>=4&&x<=11,1,2)||seg(y===11&&x>=4&&x<=11,1,3)||seg(x===y&&x>=4&&x<=11,1,4)||seg(x+y===15&&x>=4&&x<=11,1,5)||seg(y===8&&x>=4&&x<=11,1,6);return on?mx(k,VOID,.3):k};
+  if(v==='runes')return(X,Y,cx,cy)=>{const[x,y]=A(X,Y),k=M(X,Y),gx=X>>4,gy=Y>>4;if(x===0||y===0)return sc(k,.82);const[L,R,T,B]=plateOf(cx,cy,wall),[a,b]=boxIn(L,R,8),[c0,d]=boxIn(T,B,8),mid=Math.round((c0+d)/2),inX=x>=a&&x<=b,inY=y>=c0&&y<=d,seg=i=>hh(gx*7+i,gy*5,s)>.45;
+   const on=inY&&(x===a&&seg(0)||x===b&&seg(1))||inX&&(y===c0&&seg(2)||y===d&&seg(3)||y===mid&&seg(6))||inX&&inY&&(x-a===y-c0&&seg(4)||(x-a)+(y-c0)===b-a&&seg(5));return on?mx(k,VOID,.3):k};
   if(v==='veined')return(X,Y)=>{const k=M(X,Y),d=Math.abs(vn(X/9,Y/9,s+50)-.5);return d<.018?mx(k,VOID,.45):d<.04?mx(k,VOID,.15):k}}
  return null}
 const cellE=(X,Y)=>{const x=X&15,y=Y&15;return[x,y,Math.min(x,y,15-x,15-y)]};
@@ -212,8 +217,8 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
    if(v==='smooth')return J?sc(k,.82):k;
    if(v==='sheet'){const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy)),o=(a,b)=>!me||kid(LINK(a,b))!==me,dl=o(cx-1,cy)?x:99,dr=o(cx+1,cy)?15-x:99,du=o(cx,cy-1)?y:99,dd=o(cx,cy+1)?15-y:99,e=Math.min(dl,dr,du,dd);if(e===0)return sc(k,.82);if(e===1&&(dl===1||du===1))return sc(k,1.1);
     const rv=(dl===2||dr===2)&&(Y&3)===2&&du>1&&dd>1||(du===2||dd===2)&&(X&3)===2&&dl>1&&dr>1;return rv?sc(k,1.3):k}
-  if(v==='rivet'){if(J)return sc(k,.82);return(x===4||x===13)&&(y===4||y===13)?sc(k,1.3):k}
-  if(v==='panel'){const i=Math.min(x-4,y-4,13-x,13-y);if(J)return sc(k,.82);return i===0?(x===4||y===4?sc(k,.78):sc(k,1.18)):k}
+  if(v==='rivet'){if(J)return sc(k,.82);const[L,R,T,B]=plateOf(cx,cy,wall);return(x===L+2||x===R-2)&&(y===T+2||y===B-2)?sc(k,1.3):k}
+  if(v==='panel'){if(J)return sc(k,.82);const[L,R,T,B]=plateOf(cx,cy,wall),[a,b]=boxIn(L,R,8),[c0,d]=boxIn(T,B,8),i=Math.min(x-a,y-c0,b-x,d-y);return i===0?(x===a||y===c0?sc(k,.78):sc(k,1.18)):k}
   if(mat==='iron'){if(J)return sc(k,.82);for(const[rx,ry]of[[3,3],[11,3],[3,11],[11,11]])if(x>=rx&&x<=rx+1&&y>=ry&&y<=ry+1)return sc(k,x===rx&&y===ry?1.4:1.15);return hh(X,Y,70)>.97?sc(k,.86):k}
   if(mat==='brass'){if(J)return sc(k,.82);if((x===3||x===12)&&(y===3||y===12))return sc(k,1.35);return sc(k,1+.06*Math.sin((x+y)/3))}
   if(mat==='gold'){if(J)return sc(k,.82);if(e===2)return sc(k,.82);return sc(k,1.04)}
