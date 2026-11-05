@@ -168,7 +168,9 @@ const slabCell=d=>{let x=0,y=0;for(const p of d.px){x+=p[0];y+=p[1]}const n=d.px
 const DOORK={wood:['Wood door',2],steel:['Steel door',3],iron:['Iron door',3],brass:['Brass door',3],gold:['Aurum door',3],umbra:['Umbra door',3],ebony:['Ebony door',2],mahog:['Mahogany door',2]};
 // what each material makes beyond walls and floors: furniture, doors and cover slabs
 const FURN={Earth:{grass:{furn:['hedge']}},Wood:{oak:{furn:['table','chest','rack','seat','wagon'],doors:['wood'],slabs:[[2,'Wood slab']]},mahog:{furn:['desk'],doors:['mahog']},ebony:{furn:['edesk'],doors:['ebony']}},
- Metal:{steel:{furn:['schest'],doors:['steel'],slabs:[[3,'Metal slab'],[3,'Heavy slab',32,8]]},iron:{furn:['mchest'],doors:['iron']},brass:{furn:['bchest'],doors:['brass']},gold:{furn:['gchest'],doors:['gold']},umbra:{furn:['uchest'],doors:['umbra']}}},FW={hedge:4,table:2,desk:2,edesk:2,books:2,shelf:2,rack:2,wagon:2};
+ Metal:{steel:{furn:['schest'],doors:['steel']},iron:{furn:['mchest'],doors:['iron']},brass:{furn:['bchest'],doors:['brass']},gold:{furn:['gchest'],doors:['gold']},umbra:{furn:['uchest'],doors:['umbra']}}},FW={hedge:4,table:2,desk:2,edesk:2,books:2,shelf:2,rack:2,wagon:2};
+// every metal gives a slab and a heavy slab as cover
+for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[[3,n+' slab',16,8,mat],[3,'Heavy '+n.toLowerCase()+' slab',32,8,mat]]}
 const umbraC=c=>toneC('umbra',c);
 // a door is its material's slab plus a hinge and a lock
 const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9];if(x===2&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=mul(q[2],.62);else if(x===L-4&&(y===-5||y===-4))q[2]=toneC('brass',rgb(220,220,220));else if(x===L-4&&y===-3)q[2]=mul(q[2],.5)};
