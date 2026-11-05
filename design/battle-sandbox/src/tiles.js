@@ -95,12 +95,12 @@ const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet
 const ELEM={
  Earth:{p:{cls:'grass',hp:2,nowall:1},vars:{plain:'Plain',worn:'Worn'},mats:{grass:{n:'Grass'},dirt:{n:'Soil',cls:'soil',hp:3}},old:{wheat:{n:'Wheat',cls:'soil'},hedge:{n:'Hedge'}}},
  Stone:{p:{cls:'stone',hp:3},vars:{block:'Block',quarter:'Quartered',slabs:'Slabs'},mats:{grey:{n:'Greystone',c:[124,119,111],sp:'rubble'},gran:{n:'Highland granite',c:[146,132,128],hp:4,speck:1,sp:'crazy'},
-  aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,shine:28,vein:1,sp:'chequer'},gold:{n:'Goldstone',c:[200,170,100],vein:'gold',sp:'lozenge'},night:{n:'Sanctis obsidian',c:[35,28,46],cls:'marble',hp:5,shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'}}},
+  aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,shine:28,vein:1,sp:'chequer'},gold:{n:'Goldstone',c:[200,170,100],vein:'gold',sp:'lozenge'},night:{n:'Sanctis obsidian',c:[35,28,46],cls:'marble',hp:5,shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'},sp:'vent'}},
   old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',hp:4,shine:28,sp:'quatre'}}},
  Wood:{p:{cls:'wood',hp:2,burn:1},vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:{n:'Oak',c:WOOD.oak,sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,sp:'rough'},teak:{n:'Teak',c:WOOD.teak,sp:'deck'},walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'},mahog:{n:'Mahogany',c:MAHOG,sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,sp:'marq'}}},
  Metal:{p:{cls:'metal',hp:6,shine:60},vars:{panel:'Panels',rivet:'Riveted plate',smooth:'Smooth'},mats:{steel:{n:'Steel',hp:7,sp:'louvre'},iron:{n:'Iron',c:[70,78,82],shine:45,sp:'grate'},brass:{n:'Brass',c:[184,150,84],hp:5,shine:80,sp:'filigree'},gold:{n:'Gold',c:[226,186,96],hp:4,shine:80,sp:'engraved'},umbra:{n:'Umbra',c:[40,42,48],hp:10,shine:25,sp:'runes'}}},
  Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
-const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
+const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',vent:'Glow vent',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
 // retired members stay drawable so older maps still load
 const memb=(el,mat)=>ELEM[el].mats[mat]||(ELEM[el].old||{})[mat],mprop=(el,mat)=>({...ELEM[el].p,...memb(el,mat)});
 const varsOf=(el,mat)=>{const M=memb(el,mat),o={...ELEM[el].vars};if(M.sp)o[M.sp]=SPN[M.sp];for(const a of[].concat(M.alt||[]))o[a]=SPN[a];return o};
@@ -130,6 +130,9 @@ function special(el,mat,v,c,s){const A=(X,Y)=>[X&15,Y&15];
    const u=(X*.55+Y)/40+vn(X/60,Y/60,s+96)*1.5,r=Math.abs(u%3-1.5),w=Math.max(0,vn(X/40,Y/40,s+97)-.45)*1.8;if(r<.35)k=mx(k,[146,156,200],(1-r/.35)**2*.45*w);
    k=sc(k,.86+fbm(X/2,Y/2,s+100)*.2+(hh(X,Y,s+101)-.5)*.1);const d=Math.abs(vn(X/9,Y/9,s+50)-.5);if(d<.02)k=mx(k,opal(vn(X/40,Y/40,s+85)*1.5),.7);else if(d<.045)k=mx(k,opal(vn(X/40,Y/40,s+85)*1.5),.3);
    return x===0||y===0?cutJ(k,M,X,Y,s):k};
+  if(v==='vent')return(X,Y)=>{const x=X&15,y=Y&15;let k=flowVein(softStone(X,Y,c,s,m),X,Y,s,.75);if(x===0||y===0)return cutJ(k,M,X,Y,s);
+   const g=opal(vn(X/40,Y/40,s+85)*1.5),ins=x>=4&&x<=11;if(ins&&y===6)return sc(k,.55);if(ins&&(y===7||y===8))return mx(mx([21,6,12],g,y===8?.9:.7),[240,240,250],x>4&&x<11&&y===8?.15:0);if(ins&&y===9)return mx(k,g,.3);
+   const dd=Math.max(4-x,x-11,0)+Math.max(7-y,y-8,0);return dd<=3?mx(k,g,.14*(1-dd/4)):k};
   if(v==='chequer')return(X,Y)=>{const q=((X>>4)+(Y>>4))&1,x=X&15,y=Y&15;let k=softStone(X,Y,c,s,m);if(q)k=mx(k,[52,52,58],.8);k=q?mx(k,marbling(k,X,Y,s),.55):marbling(k,X,Y,s);return x===0||y===0?sc(k,.9):k};
   if(v==='gvein')return(X,Y)=>{const k=softStone(X,Y,c,s,m),d=Math.abs(vn(X/9,Y/9,s+50)-.5);if(d<.02)return mx(k,[252,234,168],.7);if(d<.045)return mx(k,[246,222,150],.3);return hh(X,Y,s+51)>.975?mx(k,[255,240,190],.55):k};
   if(v==='rosette')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx);let k=S(X,Y);if(x===0||y===0)return sc(k,.86);if(Math.abs(r-6)<.6)return mx(k,GOLDL,.35);if(r<5.5&&Math.cos(a*6)>.2)return mx(k,[252,236,170],.3+(r<2?.2:0));return k};
@@ -170,8 +173,8 @@ const goldVein=(k,X,Y,s)=>{const d=Math.abs(vn(X/9,Y/9,s+50)-.5);if(d<.02)return
 // obsidian: purple-black glass, glitter, and folded iridescent flow bands
 const OPAL=[[146,156,180],[117,142,188],[104,170,176],[207,178,112],[93,85,107],[146,156,180]],opal=p=>{p=(p%1+1)%1*5;const i=p|0;return OPAL[i].map((v,j)=>v+(OPAL[i+1][j]-v)*(p-i))};
 // obsidian: purple-black base, the goldstone vein in iridescent hues
-const flowVein=(k,X,Y,s)=>{k=mx(k,[75,47,76],Math.max(0,vn(X/22,Y/22,s+84)-.5)*1.3);k=mx(k,[21,6,12],Math.max(0,vn(X/26,Y/26,s+89)-.55)*1.4);k=sc(k,.92+fbm(X/3,Y/4,s+87)*.16);
- const d=Math.abs(vn(X/9,Y/9,s+50)-.5);return d<.02?mx(k,opal(vn(X/40,Y/40,s+85)*1.5),.7):d<.045?mx(k,opal(vn(X/40,Y/40,s+85)*1.5),.3):k};
+const flowVein=(k,X,Y,s,mu=0)=>{k=mx(k,[75,47,76],Math.max(0,vn(X/22,Y/22,s+84)-.5)*1.3);k=mx(k,[21,6,12],Math.max(0,vn(X/26,Y/26,s+89)-.55)*1.4);k=sc(k,.92+fbm(X/3,Y/4,s+87)*.16);
+ const d=Math.abs(vn(X/9,Y/9,s+50)-.5),c=mx(opal(vn(X/40,Y/40,s+85)*1.5),[75,47,76],mu);return d<.02?mx(k,c,.7):d<.045?mx(k,c,.3):k};
 // a polished cut: faint line, catching iridescent light here and there
 const cutJ=(k,M,X,Y,s)=>{const g=vn(X/14,Y/14,s+99);return g>.68?mx(k,opal(vn(X/40,Y/40,s+85)*1.5),.45):mx(k,M.jc,.12)};
 const veinOf=(M,k,X,Y,s)=>M.vein==='gold'?goldVein(k,X,Y,s):M.vein==='flow'?flowVein(k,X,Y,s):M.vein?marbling(k,X,Y,s):k;
