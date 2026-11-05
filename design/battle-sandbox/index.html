@@ -468,10 +468,10 @@ const AGE={
    if(fbm(X/6,Y/6,sd+7)>1.1-a*.5-t*.1)o=mx(o,DP,.4);
    if(M.craze&&a>.4&&Math.abs(vn(X/3,Y/3,sd+9)-.5)<.035)o=sc(o,.84);
    if(a>.25&&hh(X>>2,Y,sd+2)>.93-.08*t*sf)o=lt?mx(o,[150,132,112],.35):sc(o,1.1);else if(hh(X,Y,sd+3)>.99-.012*t*sf)o=sc(o,.78);return o}},
- // cloth wear, kept subtle: patches fade and the weave shows through the pile; Ruined wears a few small holes (edges fray in the rug border pass)
+ // cloth wear, kept subtle: patches fade and the weave shows through the pile, with dust and scuffs; Ruined wears a few small holes (edges fray in the rug border pass)
  Cloth:(el,mat,t)=>{const c=memb(el,mat).c,L=(c[0]+c[1]+c[2])/3,F=sc(mx(c,[L,L,L],.35),1.18),sd=ageSd(el,mat);
   return(k,X,Y)=>{const a=ageA(X,Y,sd,t);if(a<=0)return k;
-   let o=mx(k,F,a*.3);if(a>.4&&(X+Y)&1)o=sc(o,.95);if(a>.5)WEARF=1;if(t>.8&&a>.5&&hh(X>>1,Y>>1,sd+6)>.988)o=sc(k,.5);return o}}};
+   let o=mx(k,F,a*.3);if(a>.4&&(X+Y)&1)o=sc(o,.95);const D=[150,140,124],du=fbm(X/5,Y/5,sd+7);if(du>1.02-a*.4-t*.1)o=mx(o,D,.1+.06*t);if(a>.2&&hh(X>>2,Y,sd+2)>.95-.04*t)o=mx(o,D,.16);if(a>.5)WEARF=1;if(t>.8&&a>.5&&hh(X>>1,Y>>1,sd+6)>.988)o=sc(k,.5);return o}}};
 const AGEC={},ageOf=(el,mat,cd,w)=>{if(!AGE[el]||!(cd<5))return null;const q=el+'.'+mat+'.'+cd+(w?'w':'');return AGEC[q]||(AGEC[q]=AGE[el](el,mat,ageT(cd),w))};
 for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
 for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}
