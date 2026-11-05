@@ -1211,7 +1211,7 @@ function strip(t,k,ammo,res){if(!CAP[k]||!needRes(t,k))return false;const n=(amm
 const fullRes=(t,k)=>RCAP(k)*(t.unit==='guard'||t.unit==='cmd'?2:1)*(k==='pgun'&&t.unit==='cmd'?1.75:1)|0,fullN=(t,k)=>k==='spear'||k==='sspear'?4:k==='grenade'||k==='bomb'?(k==='grenade'?3:1)*(t.unit==='cmd'?2:1):1;
 function refill(t,k){const h=t.inv.find(z=>z&&z.k===k);if(!h||k==='gold')return false;if(k==='pistol'&&gunsOf(t,k).length<2&&slotFor(t,k)>=0)return false;if(k==='pistol'&&gunsOf(t,k).length>1){for(const z of gunsOf(t,k)){z.ammo=CAP[k];z.res=Math.max(z.res||0,fullRes(t,k))}t.hc=null;return true}if(CAP[k]){h.ammo=CAP[k];h.res=Math.max(h.res||0,RCAP(k)*(t.unit==='guard'||t.unit==='cmd'?2:1)*(k==='pgun'&&t.unit==='cmd'?1.75:1)|0);h.spent=false;delete h.mode}else if(k==='spear'||k==='sspear')h.n=4;else h.n=Math.max(h.n||1,fullN(t,k));if(t.held===h)t.hc=null;return true}
 // civilians and units that start unarmed don't scoop up weapons unless switched on
-const autoOff=t=>t.noAuto??(t.noAuto=t.unit==='civ'||!(t.inv||[]).some(q=>q&&WP[q.k]));
+const autoOff=t=>t.noAuto??(t.noAuto=t.unit==='civ');
 const mayTake=(t,k)=>!autoOff(t)||k==='gold'||k==='cell'||k.endsWith('box')||!CAP[k]&&gunsOf(t,k).length>0;
 function autoPick(){for(const t of bodies){if(t.type!=='token'||!t.inv)continue;autoOff(t);if(t.status!=='free'||inDrag(t))continue;
   for(const w of [...bodies]){if(w.type!=='weapon'||!PICK.has(w.kind)||w.stuck||w.att||w.fuse||inDrag(w)||(w.noPick&&w.noPick>tick)||Math.hypot(w.vx,w.vy)>.3||Math.hypot(w.x-t.x,w.y-t.y)>13)continue;
