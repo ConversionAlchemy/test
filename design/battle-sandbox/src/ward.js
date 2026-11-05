@@ -143,7 +143,7 @@ function spawn(n,seed){const r=rng(seed*7919+n.length*31),age=AGE[n]||'mixed';co
 // smooth noise so wear forms patches rather than speckle
 function vn(x,y,s){const X=Math.floor(x),Y=Math.floor(y),fx=x-X,fy=y-Y,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy),a=hh(X,Y,s),b=hh(X+1,Y,s),c=hh(X,Y+1,s),d=hh(X+1,Y+1,s);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
 const LV={4:{n:'New',v:0,f:1,gone:0},3:{n:'Worn',v:.14,f:.9,gone:0},2:{n:'Battered',v:.28,f:.75,gone:0},1:{n:'Poor',v:.34,f:.55,gone:0}};
-const CLV={3:'Clean',2:'Worn',1:'Tattered'};let CLOTH=3;
+let CLOTH=3;
 const pwear=(p,lv,seed)=>LV[lv].v*(.55+.9*vn(p.x/3,p.y/3,seed));
 const pgone=(p,lv,seed,M)=>M&&!/tinge/.test(M.age)&&vn(p.x/2.5,p.y/2.5,seed+9)<LV[lv].gone;
 const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);

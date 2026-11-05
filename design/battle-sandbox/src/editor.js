@@ -187,21 +187,7 @@ function edGive(w){if(w.type!=='weapon'||w.hidden)return false;if(w.fuse){const 
 function boxAt(X,Y){if(X<0||Y<0||X>=W||Y>=H||!OBJ[Y*W+X])return null;const c=containerAt(X,Y);if(c)return c;const cx=X/T|0,cy=Y/T|0;return OM[cy]&&OM[cy][cx]?container(cx,cy,[],null):null}
 function putIn(c,k,n,w){cNorm(c);const it={k,n:k==='gold'?n:1};if(CAP[k]){it.ammo=w&&w.ammo!==undefined?w.ammo:CAP[k];it.res=w&&w.res||RCAP(k)}let ok=false;for(let i=0;i<(k==='gold'?1:n);i++){if(!cAdd(c,{...it}))break;ok=true}return ok}
 
-function fillMapTools(){const f=$('mfile');f.innerHTML='';const mod=MODS.maps[curMap];
- const r5=mk('div','er');for(const[v,t]of[['auto','Auto'],['in','Interior'],['out','Outdoor']]){const x=mk('button',null,t);if((ENVSET[curMap]||'auto')===v)x.classList.add('on');x.onclick=()=>{ENVSET[curMap]=v;envCalc();fillMapTools()};r5.appendChild(x)}r5.appendChild(mk('span','sep'));{const x=mk('button',null,'Wall tops');if(edTops)x.classList.add('on');x.onclick=()=>{edTops=!edTops;TOPS=edTops;fillMapTools()};r5.appendChild(x)}
- const r1=mk('div','er'),ni=mk('input');ni.type='text';ni.value=mod?mod.name:(TITLE[curMap]||'Map')+' (mod)';r1.append(ni);
- const r2=mk('div','er'),b=(t,fn)=>{const x=mk('button',null,t);x.onclick=()=>fn(x);r2.appendChild(x);return x};
- b('Save',x=>{mapSave(false);flashB(x,'Saved')});b('Save as',x=>{mapSave(true);flashB(x,'Saved')});b('New',()=>mapNew());b('Export',()=>{const d=serMap();d.name=ni.value;download((ni.value||'map').replace(/\W+/g,'-')+'.json',{fluoria:1,maps:{[MODS.maps[curMap]?curMap:'mod:'+uidS()]:d},tex:usedTex(d)})});b('Import',()=>pickFile(o=>{const ids=importPack(o);if(ids.length)goMap(ids[0])}));
- if(mod)b('Delete',x=>confirmB(x,()=>{const id=curMap;goMap(mod.from&&!mod.from.startsWith('mod:')&&TITLE[mod.from]?mod.from:'bank');delete MODS.maps[id];delete STATE[id];saveMods();fillMapSel()}));
- const r3=mk('div','er');r3.append(mk('span',null,'Brush'));for(const n of[1,2,3]){const x=mk('button',null,n);if(n===edSize)x.classList.add('on');x.onclick=()=>{edSize=n;for(const y of r3.querySelectorAll('button'))y.classList.toggle('on',y===x)};r3.appendChild(x)}
- const r6=mk('div','er');r6.append(mk('span',null,'Clean'));for(const[k,t]of[['vac','Vacuum'],['sponge','Sponge'],['wand','Wand']]){const x=mk('button',null,t);if(edBrush&&edBrush.t==='clean'&&edBrush.k===k)x.classList.add('on');x.onclick=()=>{edBrush=edBrush&&edBrush.k===k?null:{t:'clean',k};fillMapTools()};r6.appendChild(x)}
- f.append(r1,r2,r3,r6,r5);
- const on=k=>edBrush&&edBrush.k===k,pick=(t,k,d)=>{edBrush=on(k)?null:{t,k};for(const x of document.querySelectorAll('#sm [id^=ed-] .wp>div,#sm [id^=ed-]>div'))x.classList.toggle('arm',!!edBrush&&x.dataset.k===edBrush.k)};
- tilePicker($('ed-fl'),(k,sel)=>{if(sel||!on(k)){edBrush={t:'tile',k};addRecent(k)}else edBrush=null;fillMapTools()},on);texRows($('ed-fu'),'furn',(k,d)=>{pick('tile',k,d);if(edBrush)addRecent(k)},on,(k,m)=>m?'Mod':'');
- for(const x of document.querySelectorAll('#ed-fu>div'))x.classList.toggle('arm',on(x.dataset.k));
- const dr=$('ed-dr');dr.innerHTML='';for(const k in DOORK){const d=mk('div');d.dataset.k='door:'+k;const src=doorIcon(k);
-  d.append(icon(src,1),mk('span','n',DOORK[k][0]),mk('span','c',''));d.classList.toggle('arm',on('door:'+k));d.onpointerdown=e=>{e.preventDefault();pick('door','door:'+k,d)};dr.appendChild(d)}
- const sz=$('ed-sz');sz.innerHTML='';const r4=mk('div','er'),wi=mk('input'),hi=mk('input');wi.type=hi.type='number';wi.value=CW;hi.value=CH;const ap=mk('button',null,'Apply');ap.onclick=()=>edResize(+wi.value,+hi.value);r4.append(mk('span',null,'Size'),wi,mk('span',null,'×'),hi,ap);r4.children[2].style.minWidth='0';sz.appendChild(r4)}
+function fillMapTools(){}
 function usedTex(d){const t={};for(const r of d.map)for(const k of r)if(MODS.tex[k])t[k]=MODS.tex[k];return t}
 function mapSave(asNew){const nm=($('mname')&&$('mname').value.trim())||MNAME[curMap]||TITLE[curMap]||'Map',d=serMap();d.name=nm;let id=curMap;
  if(!asNew&&MODS.maps[id])d.from=MODS.maps[id].from;else{d.from=MODS.maps[curMap]?MODS.maps[curMap].from:curMap;id='mod:'+uidS();curMap=id}
@@ -414,8 +400,27 @@ function aeSave(asNew){aeBake();const nm=($('aen').value||'').trim()||tName(AE.k
 function aeDelete(){const id=AE.key,p=AE.from;delete MODS.tex[id];delete AE.drafts[id];saveMods();BAKE.delete(id);if(map.some(r=>r.includes(id))||OM.some(r=>r&&r.includes(id))){edSrc=srcNow().map(r=>r.map(k=>k===id?p:k));refinish();edSrc=null}AE.key=null;aeLoad(p)}
 function retex(id){if(!(map.some(r=>r.includes(id))||OM.some(r=>r&&r.includes(id))))return;srcNow();refinish();edSrc=null}
 // patterns: five tones; base ones are the patterns behind the built-in textures
+// the asset editor's pattern library: each pattern gives a shade index per pixel of a 16px cell
+const wrap=v=>((v%T)+T)%T;
+const PAT={
+ marble:(x,y,c)=>{const v=Math.sin((x*.9+y*.35)+Math.sin(y*.5+c.s)*2.2);let t=v>.92?1:v>.8?2:3;if(hh(Math.floor(x/2),Math.floor(y/2),c.s)>.88)t=4;if((c.cx%2===1&&x===T-1)||(c.cy%2===1&&y===T-1))t=1;return t},
+ dmarble:(x,y,c)=>PAT.marble(x,y,c),
+ flag:(x,y)=>{const rows=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];for(const[a,b,cuts] of rows)if(y>=a&&y<b){const xs=[...cuts,T+cuts[0]];let k=0;while(wrap(x-xs[0])>=xs[k+1]-xs[0])k++;const l=xs[k],r=xs[k+1];const lx=wrap(x-l);if(y===a||lx===0)return 0;if(y===a+1||lx===1)return 3;if(y===b-1||lx===r-l-1)return 1;return hh(x,y,9)>.85?1:hh(x,y,10)>.9?3:2}},
+ planks:(x,y,c)=>{const b=Math.floor(y/4),yy=y%4,j=(b*7+3+(c.cy%3)*5)%T;if(yy===3)return 0;if(x===j)return 0;if(yy===0)return 3;if((x===wrap(j+1)||x===wrap(j-2))&&yy===1)return 1;return hh(Math.floor(x/3),y,b+c.cx)>.82?1:hh(x,y,b)>.9?3:2},
+ stone:(x,y)=>{const r=Math.floor(y/5),yy=y%5,xx=wrap(x+(r%2?5:0))%10;if(yy===0||xx===0)return 0;if(yy===1)return 3;if(yy===4)return 1;return hh(x,y,3)>.87?1:2},
+ table:(x,y,c)=>{const v=hh(x,y,c.cx*7+c.cy*3);return v>.94?1:v>.9?3:2},
+ carpet:(x,y)=>((x+y)%8===0||(x-y+16)%8===0)?3:hh(x,y,41)>.9?1:2,
+ gfloor:(x,y)=>x===0||y===0?1:x===T-1||y===T-1?0:(x+y)%7===0?4:3,
+ gstone:(x,y,c)=>PAT.stone(x,y,c),
+ pillar:x=>x===0||x===T-1?0:x%4===1?1:x%4===3?4:3,
+ grass:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T,v=hh(X,Y,5);return hh(X,Y>>1,6)>.92?(y%2?1:4):v>.86?3:v<.15?1:2},
+ dirt:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T,v=hh(X,Y,8);return v>.96?4:v>.84?3:v<.1?1:hh(X>>1,Y>>1,9)>.86?1:2},
+ berm:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T,v=hh(X>>1,Y>>1,12);return y%5===0&&hh(X>>2,Y,13)>.55?0:v>.85?3:v<.15?1:2},
+ sky:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T,v=hh(X>>3,Y>>2,21)*.6+hh(X>>2,Y>>1,22)*.4;return v>.78?4:v>.64?3:v<.22?1:2},
+ rail:(x,y,c)=>{const X=x+c.cx*T,Y=y+c.cy*T;if(X%8===0&&Y%8===0)return 4;if(Y%4===0)return 0;if(Y%4===1)return 3;return hh(X>>2,Y,23)>.8?1:2},
+ seat:(x,y)=>{if(x===0||y===0||x===T-1||y===T-1)return 0;if(x===1||y===1||x===T-2||y===T-2)return 1;if(y<=4)return 3;return (x+y)%4===0?1:(x-y+16)%4===2?3:2}};
 const PNAME={marble:'Veins',flag:'Flagstones',planks:'Planks',stone:'Brick bond',table:'Speckle',carpet:'Diamond weave',gfloor:'Bevel',pillar:'Fluting',grass:'Tufts',dirt:'Grit',berm:'Strata',sky:'Cloud',rail:'Rails',seat:'Cushion',key:'Key motif'};
-function patGrid(k){if(MODS.pat[k])return MODS.pat[k];const g=new Uint8Array(TS*TS);for(let y=0;y<TS;y++)for(let x=0;x<TS;x++){let v;if(k==='key'){const X=x&15,Y=y&15,qx=X<8?X:15-X,qy=Y<8?Y:15-Y;v=KEYQ[qy][qx]==='#'||KEYQ[qx][qy]==='#'&&qx===qy?4:X===0||Y===0?1:2}else v=P[k](x&15,y&15,{s:7,cx:x>>4,cy:y>>4});g[y*TS+x]=v}return{w:TS,h:TS,g}}
+function patGrid(k){if(MODS.pat[k])return MODS.pat[k];const g=new Uint8Array(TS*TS);for(let y=0;y<TS;y++)for(let x=0;x<TS;x++){let v;if(k==='key'){const X=x&15,Y=y&15,qx=X<8?X:15-X,qy=Y<8?Y:15-Y;v=KEYQ[qy][qx]==='#'||KEYQ[qx][qy]==='#'&&qx===qy?4:X===0||Y===0?1:2}else v=PAT[k](x&15,y&15,{s:7,cx:x>>4,cy:y>>4});g[y*TS+x]=v}return{w:TS,h:TS,g}}
 const TONE=[[.6,.62,.66],[.8,.8,.82],[1,1,1],[1.13,1.12,1.1],[1.28,1.26,1.22]];
 function patIcon(k){const p=patGrid(k),c=mk('canvas');c.width=28;c.height=20;const g=c.getContext('2d'),im=g.createImageData(28,20);for(let y=0;y<20;y++)for(let x=0;x<28;x++){const v=(p.g[(y%p.h)*p.w+(x%p.w)]??2),l=[50,92,128,168,212][v]||128,i=(y*28+x)*4;im.data[i]=im.data[i+1]=im.data[i+2]=l;im.data[i+3]=255}g.putImageData(im,0,0);return c}
 function aePatList(){const h=$('ae-pt');h.innerHTML='';const add=(k,mine)=>{const d=mk('div');d.dataset.k=k;d.append(patIcon(k),mk('span','n',mine?MODS.pat[k].name:PNAME[k]),mk('span','c '+(mine?'md':'lk'),mine?'Mod':'🔒'));d.onpointerdown=e=>{e.preventDefault();if(e.button===2&&mine){patMenu(k,e);return}aePattern(k)};d.oncontextmenu=e=>e.preventDefault();h.appendChild(d)};

@@ -95,10 +95,10 @@ function pickTool(k){if(k!=='spawn')UI.del=false;UI.erase=false;if(k!=='hand'){f
  for(const b of ZT.querySelectorAll('.tb'))b.classList.toggle('on',b.dataset.k===k);
  if(k==='vac'||k==='sponge'||k==='wand')edBrush={t:'clean',k};else if(k==='tile')edBrush=UI.tile?{...UI.tile}:null;else if(m)edBrush=null;
  head(k);if(k==='tile')tilerCtx();if(k==='spawn')spawnCtx();if(k==='paint')paintCtx();if(k==='sign')signCtx();if(k==='teth'){TQ.a=null;tetherCtx()}cv.style.cursor=k==='vac'||k==='sponge'||k==='wand'?TOOLCUR[k]||'crosshair':m?'crosshair':CUR.arrow}
-{const s0=setMode;setMode=function(m){s0(m);SM.dataset.tool=UI.tool;for(const id of['ed-fu','ed-dr'])$(id)&&AEH0.append($(id))}}
+{const s0=setMode;setMode=function(m){s0(m);SM.dataset.tool=UI.tool}}
 
 // tiler: element tabs, a swatch per material and variation, name and floor or wall
-const TCX=mk('div','tcx');ZC.append(TCX);const AEH0=mk('div');AEH0.style.display='none';SM.append(AEH0);
+const TCX=mk('div','tcx');ZC.append(TCX);
 function tilerCtx(){TCX.innerHTML='';if(!edBrush||edBrush.t==='clean'){if(!UI.tile){for(const mat of Object.keys(ELEM[PK.el||'Stone'].mats)){const k=(PK.el||'Stone').toLowerCase()+'.'+mat+'.'+Object.keys(varsOf(PK.el||'Stone',mat))[0];if(validK(k)){UI.tile={t:'tile',k};break}}}if(UI.tile&&EM==='map')edBrush={...UI.tile}}if(!['floor','wall','furn','door'].includes(UI.tt))UI.tt=PK.w?'wall':'floor';PK.w=UI.tt==='wall'?1:0;
  if((UI.tt==='floor'||UI.tt==='wall')&&PK.el!=='Mods'&&edBrush&&edBrush.t==='tile'){if(PK.w&&!Object.keys(ELEM[PK.el].mats).some(m=>!mprop(PK.el,m).nowall))PK.el='Stone';const c=CATN[edBrush.k];if(!c||c[0]!==PK.el||!!c[3]!==!!PK.w){const e=PK.el.toLowerCase(),sf=PK.w?'.w':'';let k=e+'.'+PK.mat+'.'+PK.v+sf;if(!validK(k))for(const m of Object.keys(ELEM[PK.el].mats)){const q=e+'.'+m+'.'+Object.keys(varsOf(PK.el,m))[0]+sf;if(validK(q)){k=q;break}}if(validK(k)){pkFrom(k);edBrush.k=k;UI.tile={t:'tile',k}}}}const tabs=mk('div','tabs');for(const[t,n]of[['floor','Floor'],['wall','Wall'],['furn','Furniture'],['door','Doors']])tabs.append(ubtn(n,UI.tt===t?'on':'',()=>{UI.tt=t;tilerCtx()}));TCX.append(tabs);SM.dataset.tt=UI.tt;
  const cur=UI.erase?null:edBrush&&edBrush.t!=='clean'?edBrush.k:UI.tile&&UI.tile.k,g=mk('div','swg'),cell=(k,c,f)=>{const s=mk('span','sw'+(k===cur?' on':''));if(c){s.append(c);s.onclick=()=>{if(UI.erase)setErase(false);f()}}else s.classList.add('no');return s};let nm='';
