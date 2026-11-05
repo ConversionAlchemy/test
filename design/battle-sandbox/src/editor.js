@@ -86,6 +86,11 @@ NBM.atelier=()=>{const g=Array.from({length:ATL.CH},(_,y)=>Array.from({length:AT
  const dy=2+4,dx=ATL.rows[1].w+3;for(let x=dx;x<dx+Object.keys(DOORK).length*2+1&&x<ATL.CW-1;x++)g[dy][x]=(x-dx)%2?'stone.lime.paving':'stone.grey.block.w';paintAll((cx,cy)=>g[cy][cx])};
 NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i)=>{const cx=dx+1+i*2;if(cx<ATL.CW-1)mkDoor(k,cx*T,dy*T+T/2+4,0)});const t=U('Curator',null,'civ',2,1.5,0,null,'Clerk')};
 ENVSET.atelier='out';
+// the Blast yard: a patch of every material's floor in rows (stone, wood, metal, then cloth and earth), each with a grenade on it and a heavy grenade in the middle column, for trying blasts, wear and repair
+const BLY=[...['Stone','Wood','Metal'].map(el=>Object.keys(ELEM[el].mats).map(m=>el.toLowerCase()+'.'+m+'.'+Object.keys(varsOf(el,m))[0])),[...Object.keys(ELEM.Cloth.mats).map(m=>'cloth.'+m+'.plain'),'earth.grass.plain','earth.dirt.plain']];
+MAPSZ.blast=[22,14];TITLE.blast='Fluoria · Blast yard';ENVSET.blast='in';
+NBM.blast=()=>paintAll((cx,cy)=>cx===0||cy===0||cx===21||cy===13?'stone.grey.block.w':BLY[(cy-1)/3|0][(cx-1)/4|0]);
+NUM.blast=()=>{BLY.forEach((r,i)=>r.forEach((k,j)=>weapon(j===2?'bomb':'grenade',(3+j*4)*T,(2+i*3)*T+8)))};
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
 function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>{UND=d.und?d.und.map(r=>r.map(modK)):[];paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k})};NUM[id]=()=>spawnMap(d)}
@@ -160,6 +165,8 @@ const isWallK=k=>!!k&&!!WMAT[k];
 function edFloor(){const n={};for(const r of srcNow())for(const k of r)if(!isWallK(k)&&!furnK(k)&&KIND[k]==='floor'&&k!=='sill'&&k!=='msill')n[k]=(n[k]||0)+1;return Object.entries(n).sort((a,b)=>b[1]-a[1])[0]?.[0]||'flag'}
 function floorNear(cx,cy){const s=srcNow();for(const[a,b]of[[0,1],[0,-1],[1,0],[-1,0]]){const k=s[cy+b]&&s[cy+b][cx+a];if(k&&!isWallK(k)&&!furnK(k)&&k!=='sill'&&k!=='msill')return k}return edFloor()}
 function edPush(){edUndo.push(srcNow().map(r=>r.slice()));if(edUndo.length>60)edUndo.shift();edRedo=[]}
+// one step of map undo (or redo)
+function edStep(redo){flushPlop();const a=redo?edRedo:edUndo,b=redo?edUndo:edRedo;if(!a.length)return false;b.push(srcNow().map(r=>r.slice()));edSrc=a.pop();refinish();return true}
 function refinish(){const s=srcNow();map=s.map(r=>r.slice());for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);resill();EDG.clear();blendGround();objects();boards();borders();regions();polish();cracks();
  for(const c of bodies.filter(o=>o.hidden))if(!c.cells.every(([a,b])=>OM[b]&&OM[b][a]))remove(c);snapDoors();sills();ds0Need=true;solDirty=true;fxDirty=true;if(ROOMS)ROOMS.t=-1e9;envCalc();snapPR()}
 const slabCell=d=>{let x=0,y=0;for(const p of d.px){x+=p[0];y+=p[1]}const n=d.px.length||1,X=Math.round(d.x)+x/n,Y=Math.round(d.y)+y/n;return(Y/T|0)*CW+(X/T|0)};
@@ -211,7 +218,7 @@ function fillCells(cx,cy){const s=srcNow(),k0=s[cy][cx],seen=new Set([cy*CW+cx])
 window.addEventListener('pointerup',()=>{cleanUp();if(!edStroke)return;const s=edStroke;edStroke=null;plop(s.rect?rectCells(s):s.cells,s.k,s.er)});
 window.addEventListener('keydown',e=>{if(!EM||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase(),z=(e.ctrlKey||e.metaKey)&&k==='z',y=(e.ctrlKey||e.metaKey)&&k==='y';
  if(EM==='asset'){if(z||y){aeUndo(y||e.shiftKey);e.preventDefault();e.stopImmediatePropagation()}else if(k.startsWith('arrow')){aeShift(k==='arrowleft'?-1:k==='arrowright'?1:0,k==='arrowup'?-1:k==='arrowdown'?1:0);e.preventDefault();e.stopImmediatePropagation()}return}
- if(z||y){flushPlop();const a=y||e.shiftKey?edRedo:edUndo,b=a===edRedo?edUndo:edRedo;if(a.length){b.push(srcNow().map(r=>r.slice()));edSrc=a.pop();refinish()}e.preventDefault();e.stopImmediatePropagation();return}
+ if(z||y){edStep(y||e.shiftKey);e.preventDefault();e.stopImmediatePropagation();return}
  if('wasd'.includes(k)&&k.length===1&&!e.ctrlKey&&!e.metaKey){PANK.add(k);e.preventDefault();e.stopImmediatePropagation();return}
  if(k==='escape'&&edBrush){edBrush=null;fillMapTools()}},true);
 const PANK=new Set();window.addEventListener('keyup',e=>PANK.delete(e.key.toLowerCase()),true);window.addEventListener('blur',()=>PANK.clear());

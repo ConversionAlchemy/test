@@ -16,6 +16,7 @@ const UIC={
  drop:[['........bbb.','.......bbbbb','.......bbbbb','......kbbbb.','.....kwkbb..','....kwk.....','...kwk......','..kwk.......','.kk.........','k...........','............','d...........','dd..........'],{b:'#b23a3a',w:'#a8d0e0',k:'#c9c5b8',d:'#5f8ad0'}],
  glass:[['kkkkkkkkk','.kyyyyyk.','..kyyyk..','...kyk...','....k....','...kyk...','..k.y.k..','.k.yyy.k.','kkkkkkkkk'],{k:'#b89654',y:'#e6bc69'}],
  grid:[['wwwwwwwwww','w..w..w..w','w..w..w..w','wwwwwwwwww','w..w..w..w','w..w..w..w','wwwwwwwwww','w..w..w..w','w..w..w..w','wwwwwwwwww'],{w:'#d8d0c0'}],
+ undo:[['...k........','..kwk.......','.kwwkkkkk...','kwwwwwwwwk..','.kwwkkkkwwk.','..kwk...kwwk','...k.....kwk','.........kwk','........kwk.','.......kwk..'],{k:'#111',w:'#e8e4da'}],
  reset:[['..kkkkk..','.k.....k.','k.......k','k......kkk','k.......k.','k.........','.k.....k..','..kkkkk...'],{k:'#fff'}]};
 function pix(rows,pal,s=2){const c=mk('canvas'),w=Math.max(...rows.map(r=>r.length));c.width=w;c.height=rows.length;c.style.cssText=`width:${w*s}px;height:${rows.length*s}px;image-rendering:pixelated`;const g=c.getContext('2d');rows.forEach((r,y)=>[...r].forEach((ch,x)=>{if(pal[ch]){g.fillStyle=pal[ch];g.fillRect(x,y,1,1)}}));return c}
 const uicon=k=>pix(...UIC[k]);
@@ -64,7 +65,7 @@ VIEW.append(mk('div','frame'));
 // tool header with optional dropper
 function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1],G=mk('div','hb');TH.append(uicon(k),mk('span',null,n),G);
  if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'sq sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});G.append(z)}
- if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','sq sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});const gr=ubtn('','sq'+(GRID?' on':''),()=>{GRID=!GRID;LS.set('bs.grid',GRID);gr.classList.toggle('on',GRID)});gr.append(uicon('grid'));const er=ubtn('','sq red'+(UI.erase?' on':''),()=>setErase(!UI.erase));er.append(uicon('bin'));G.append(z,gr,er)}
+ if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','sq sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});const gr=ubtn('','sq'+(GRID?' on':''),()=>{GRID=!GRID;LS.set('bs.grid',GRID);gr.classList.toggle('on',GRID)});gr.append(uicon('grid'));const er=ubtn('','sq red'+(UI.erase?' on':''),()=>setErase(!UI.erase));er.append(uicon('bin'));const un=ubtn('','sq',()=>{if(!edStep(false))NOPE()});un.title='Undo';un.append(uicon('undo'));G.append(z,un,gr,er)}
  if(k==='tile'||k==='spawn'){const d=ubtn('','sq',()=>{UI.del=false;armDrop(k)});d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);G.append(d)}
  if(k==='spawn'){const x=ubtn('','sq red',()=>{UI.del=!UI.del;if(UI.del&&UI.drop)armDrop(k);else head(k);cv.style.cursor=UI.del?'crosshair':CUR.arrow});x.append(uicon('bin'));x.classList.toggle('on',!!UI.del);G.append(x)}}
 
