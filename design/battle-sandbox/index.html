@@ -325,9 +325,9 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='lozenge'){const kid=k=>k&&k.replace(/~\d$/,''),key='stone.'+mat+'.lozenge';return(X,Y,cx,cy)=>{let k=S(X,Y);const x=X&15,y=Y&15,me=kid(LINK(cx,cy)),o=(a,b)=>kid(LINK(a,b))!==me,e=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?15-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?15-y:99);
    if(me&&me.startsWith(key)&&e<4)return sc(k,e===0?.86:e===1?1.06:e===3?.88:1);const u=(X+Y)&15,w=(X-Y)&15;return sc(k,u===0||w===0?.86:u===1||w===1?1.05:tone(((X+Y)>>4)*977+((X-Y)>>4),s,.14))}}
   if(v==='knapped')return(X,Y)=>{const S9=16,gx=Math.floor(X/S9),gy=Math.floor(Y/S9);let d1=1e9,d2=1e9,px=0,py=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const cx=gx+i,cy=gy+j,qx=(cx+hh(cx,cy,s+90))*S9,qy=(cy+hh(cx,cy,s+91))*S9,d=Math.hypot(X+.5-qx,Y+.5-qy);if(d<d1){d2=d1;d1=d;px=qx;py=qy}else if(d<d2)d2=d}
-   const e=d2-d1,r=d1/4;return sc(S(X,Y),e<.8?1.2:e<1.6?.8:.82+(r%1)*.22)};
-  if(v==='mirror')return(X,Y)=>{const x=X&15,y=Y&15;let k=flowVein(softStone(X,Y,c,s,m),X,Y,s,1);k=sc(k,(1+(hh(X>>4,Y>>4,s+1)-.5)*.1)*(.95+(hh(X,Y,s+101)-.5)*.08)*(wall?1:.8));return x===0||y===0?cutJ(k,M,X,Y,s):k};
-  if(v==='vent')return(X,Y)=>{const x=X&15,y=Y&15;let k=sc(flowVein(softStone(X,Y,c,s,m),X,Y,s,1),(1+(hh(X>>4,Y>>4,s+1)-.5)*.1)*(.95+(hh(X,Y,s+101)-.5)*.08)*(wall?1:.8));if(x===0||y===0)return cutJ(k,M,X,Y,s);const i=Math.min(x-4,y-4,11-x,11-y);
+   const e=d2-d1;return sc(S(X,Y),e<.8?1.2:e<1.6?.8:.92+tone(px*977+py,s,.1)-1)};
+  if(v==='mirror')return(X,Y)=>{const x=X&15,y=Y&15;let k=flowVein(softStone(X,Y,c,s,m),X,Y,s,1);if(x===0||y===0)return cutJ(k,M);k=sc(k,(1+(hh(X>>4,Y>>4,s+1)-.5)*.1)*(.95+(hh(X,Y,s+101)-.5)*.08));return x===0||y===0?cutJ(k,M,X,Y,s):k};
+  if(v==='vent')return(X,Y)=>{const x=X&15,y=Y&15;let k=sc(flowVein(softStone(X,Y,c,s,m),X,Y,s,1),(1+(hh(X>>4,Y>>4,s+1)-.5)*.1)*(.95+(hh(X,Y,s+101)-.5)*.08));if(x===0||y===0)return cutJ(k,M,X,Y,s);const i=Math.min(x-4,y-4,11-x,11-y);
    if(i===0)return x===4||y===4?sc(k,.5):mx(k,M.jc,.3);if(i>0&&i<4)k=sc(k,.88);if((x===7||x===8)&&(y===7||y===8))return mx(opal(vn(X/40,Y/40,s+85)*1.5),[240,240,250],x===7&&y===7?.25:0);return k};
   if(v==='chequer')return(X,Y)=>{const q=((X>>4)+(Y>>4))&1,x=X&15,y=Y&15;let k=softStone(X,Y,c,s,m);if(q)k=mx(k,[52,52,58],.8);k=q?mx(k,marbling(k,X,Y,s),.55):marbling(k,X,Y,s);return x===0||y===0?sc(k,.9):k};
   if(v==='gvein')return(X,Y)=>{const k=softStone(X,Y,c,s,m),d=Math.abs(vn(X/9,Y/9,s+50)-.5);if(d<.02)return mx(k,[252,234,168],.7);if(d<.045)return mx(k,[246,222,150],.3);return hh(X,Y,s+51)>.975?mx(k,[255,240,190],.55):k};
@@ -379,7 +379,8 @@ const speck=(k,X,Y,s)=>{const v=hh(X,Y,s+70);return v>.965?sc(k,.8):v>.92?mx(k,[
 const softStone=(X,Y,c,s,m)=>m?mx(stoneT(X,Y,c,11+s),sc(c,1.04),.45):mx(stoneT(X,Y,c,s),sc(c,.93+fbm(X/14,Y/14,s+60)*.14),.4);
 function metalOf(mat,X,Y){const m=metalCore(X,Y),t=memb('Metal',mat).c;if(!t)return m;if(mat==='umbra')return sc(mx(m,t,.82),.92);if(mat==='gold')return mx(m,t,.8);return mx(m,t,.55)}
 const cutEdge=f=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy),kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy));if(!k||!me)return k;const x=X&15,y=Y&15,o=(a,b)=>kid(LINK(a,b))!==me,e=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?15-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?15-y:99);return e===0?mx(k,[156,146,190],.6):e===1?mx(k,[118,108,156],.25):k};
-function genTex(el,mat,v,wall){const f=genTex0(el,mat,v,wall);return wall&&memb(el,mat).cut?cutEdge(f):f}
+// cut stone: walls get a light cut edge, floors sit darker beneath them
+function genTex(el,mat,v,wall){const f=genTex0(el,mat,v,wall);return!memb(el,mat).cut?f:wall?cutEdge(f):(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy);return k&&sc(k,.8)}}
 function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Object.keys(E.mats),...Object.keys(E.old||{})].indexOf(mat)+1)*7;{const f=special(el,mat,M.as&&M.as[v]||v,c,s,wall);if(f)return f}
  if(el==='Earth'){const worn=v==='worn';
   if(mat==='grass')return wall?(X,Y)=>bushT(X,Y):(X,Y)=>{const g=grassT(X,Y);if(!worn)return g;const f=fbm(X/9,Y/9,64);return f>.56?mx(g,soilT(X,Y),Math.min(1,(f-.56)*5)):g};
