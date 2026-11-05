@@ -733,8 +733,9 @@ function boards(){const seen=new Set();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<C
    for(let yy=0;yy<8;yy++){const j=(Y+yy)*W+X;if(sol[j])continue;let c=mul(floor[j],.95+hh(row,bi,45)*.1);if(edge&&yy<7)c=mul(c,.86);floor[j]=c}}}}}
 // every laid surface gets a soft edge where it meets a different one
 const NOB=new Set(['grass','dirt','sky','bush','carpet','pcarpet','sill','msill']);
+// tile borders follow inner corners too, so a rim turns square instead of breaking
 function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>map[y]&&map[y][x]!==undefined&&map[y][x]!==k;
- for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);if(d>(WMAT[k]===3?2:1))continue;const j=(cy*T+y)*W+cx*T+x,mt=WMAT[k]===3,f=mt?[.7,1.3,.88][d]:d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){let d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);for(const[a,b]of[[-1,-1],[1,-1],[-1,1],[1,1]])if(!o(cx+a,cy)&&!o(cx,cy+b)&&o(cx+a,cy+b))d=Math.min(d,Math.max(a<0?x:T-1-x,b<0?y:T-1-y));if(d>(WMAT[k]===3?2:1))continue;const j=(cy*T+y)*W+cx*T+x,mt=WMAT[k]===3,f=mt?[.7,1.3,.88][d]:d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
 const fmat=k=>hitCls(matK(k));
 function objMat(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k)continue;const m=fmat(k);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;if(OBJ[j])OBJ[j]=m}}}
 // furniture and fixtures: above the floor, block walking, bullets pass over, blasts break them
@@ -1670,7 +1671,8 @@ const DF=[1,1,1,.93,.8,.64,.46,.3,.18,.1];
 function rebuildDS(){const B=15;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j]){DS[j]=0;continue}let d=B;if(X>0)d=Math.min(d,DS[j-1]+1);if(Y>0){d=Math.min(d,DS[j-W]+1);if(X>0)d=Math.min(d,DS[j-W-1]+1);if(X<W-1)d=Math.min(d,DS[j-W+1]+1)}DS[j]=d}
  for(let Y=H-1;Y>=0;Y--)for(let X=W-1;X>=0;X--){const j=Y*W+X;if(!sol[j])continue;let d=DS[j];if(X<W-1)d=Math.min(d,DS[j+1]+1);if(Y<H-1){d=Math.min(d,DS[j+W]+1);if(X<W-1)d=Math.min(d,DS[j+W+1]+1);if(X>0)d=Math.min(d,DS[j+W-1]+1)}DS[j]=d}}
 let DS0=null,ds0Need=true;
-function rebuildSH(){rebuildDS();if(ds0Need||!DS0||DS0.length!==DS.length){DS0=DS.slice();ds0Need=false}for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){let k=0;if(!sol[j]){if(isS(X,Y-1)||isS(X-1,Y))k=1;else if(isS(X,Y-2)||isS(X-2,Y)||isS(X-1,Y-1))k=2}else{if(!isS(X,Y-1)||!isS(X,Y+1)||!isS(X-1,Y)||!isS(X+1,Y))k=1;else if(!isS(X,Y-2)||!isS(X-2,Y))k=2;else if(!isS(X,Y+2)||!isS(X+2,Y))k=3}SH[j]=k}}
+// wall rim: a dark line wherever open ground touches (diagonals too, so inner corners close), a lit line one further in on the top and left
+function rebuildSH(){rebuildDS();if(ds0Need||!DS0||DS0.length!==DS.length){DS0=DS.slice();ds0Need=false}for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){let k=0;if(!sol[j]){if(isS(X,Y-1)||isS(X-1,Y))k=1;else if(isS(X,Y-2)||isS(X-2,Y)||isS(X-1,Y-1))k=2}else{if(!isS(X,Y-1)||!isS(X,Y+1)||!isS(X-1,Y)||!isS(X+1,Y)||!isS(X-1,Y-1)||!isS(X+1,Y-1)||!isS(X-1,Y+1)||!isS(X+1,Y+1))k=1;else if(!isS(X,Y-2)||!isS(X-2,Y)||!isS(X-2,Y-2)||!isS(X-1,Y-2)||!isS(X-2,Y-1)||!isS(X+1,Y-2)||!isS(X+2,Y-2)||!isS(X-2,Y+1)||!isS(X-2,Y+2))k=2;else if(!isS(X,Y+2)||!isS(X+2,Y))k=3}SH[j]=k}}
 function render(){
  if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick}
  sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>2*W&&OBJ[j-2*W-1])c=mul(c,.6);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=BURN[bro+(X>>1)];if(bu>.02)c=mul(c,1-.88*bu*(.92+.16*hh(X,Y,13)));const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
