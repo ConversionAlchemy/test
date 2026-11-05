@@ -142,7 +142,10 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='stars')return(X,Y)=>{const[x,y]=A(X,Y),dx=Math.abs(x-7.5),dy=Math.abs(y-7.5);let k=S(X,Y);if((X&31)===0||(Y&31)===0)return mx(k,GOLDL,.3);if(dx<.6&&dy<2.6||dy<.6&&dx<2.6)return mx(k,GOLDL,.6);return k};
   if(v==='sectile')return(X,Y)=>{const[x,y]=A(X,Y),dx=Math.abs(x-7.5),dy=Math.abs(y-7.5);let k=S(X,Y);if(Math.max(dx,dy)<2.6)return mx(k,[232,230,222],.35);if(dx+dy<7)return mx(k,[92,124,110],.4);if(Math.abs(dx+dy-7)<.6)return mx(k,GOLDL,.3);return x===0||y===0?sc(k,.85):k}}
  if(el==='Wood'){const W0=(X,Y,q)=>woodT(X,Y,c,s+q);
-  if(v==='rough')return(X,Y)=>{const r=Math.floor((Y+Math.floor(hh(X>>5,Y>>3,s)*3))/6),y=(Y+Math.floor(hh(X>>5,Y>>3,s)*3))%6;let k=sc(W0(X,Y,r*5),tone(r,s,.2));if(y===0)k=sc(k,.62);if(hh(X>>1,Y,s+9)>.985)k=sc(k,.7);return k};
+  // rough sawn: wide boards with staggered butt joints, curved saw marks across the grain, the odd knot
+  if(v==='rough')return(X,Y)=>{const r=Y>>3,y=Y&7,o=(r*19)%48,xx=(X+o)%48,b=Math.floor((X+o)/48);let k=sc(W0(X,Y,r*5),tone(r*977+b,s,.1));
+   if(y===0)return sc(k,.68);if(y===1)k=sc(k,1.06);if(xx===0)return sc(k,.78);if(((X+o)+(y-4)*(y-4)/4|0)%7===0)k=sc(k,.955);
+   const kx=4+(hh(r,b,s+3)*40|0),dx=Math.abs(xx-kx);if(hh(r,b,s+4)>.78&&y>=3&&y<=5&&dx<=2)k=sc(k,dx<=1&&y===4?.66:.86);return k};
   if(v==='logs')return(X,Y)=>{const y=Y&7,f=Math.sin(Math.PI*(y+.5)/8);let k=sc(W0(X,Y,(Y>>3)*7),.72+.36*f);if(y===0)k=mx(k,[52,36,24],.6);return k};
   if(v==='herring')return(X,Y)=>{const[j,id]=herring(X,Y);return sc(W0(X,Y,id%7),j?.82:tone(id,s,.12))};
   if(v==='pegged')return(X,Y)=>{const r=Y>>4,y=Y&15,xx=(X+r*11)&31;let k=sc(W0(X,Y,r*3),tone(r,s,.08));if(y===15)return sc(k,.74);if(xx===0)return sc(k,.76);if((xx===2||xx===29)&&(y===4||y===11))return sc(k,.5);return k};
@@ -260,10 +263,11 @@ const AGE={
 const AGEC={},ageOf=(el,mat,cd,w)=>{if(!AGE[el]||!(cd<5))return null;const q=el+'.'+mat+'.'+cd+(w?'w':'');return AGEC[q]||(AGEC[q]=AGE[el](el,mat,ageT(cd),w))};
 for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
 for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}
-// wooden furniture is its wood's polished face; rim, bevel and inlay are drawn per piece, as on polished floors
-const FWOOD={table:'oak',chest:'oak',rack:'oak',seat:'oak',desk:'mahog',edesk:'ebony'};
+// wooden furniture: each piece is [wood, shape, name], drawn as its wood's polished face; rim, bevel and inlay are drawn per piece, as on polished floors
+const WPIECE={table:['oak','table','Table'],chest:['oak','chest','Chest'],seat:['oak','seat','Chair'],rack:['oak','rack','Rack'],desk:['mahog','desk','Desk'],edesk:['ebony','desk','Ebony desk'],ptable:['pine','table','Pine table'],pchest:['pine','chest','Pine chest'],pseat:['pine','seat','Pine chair']};
+const wshape=k=>{const p=WPIECE[baseK(k)];return p&&p[1]};
 const woodFin=mat=>{const dk=mat==='mahog'||mat==='ebony';return{rim:mprop('Wood',mat).rim||.5,gl:dk?[210,168,100]:[176,126,84],gt:dk?.4:.25}};
-for(const k in FWOOD){const f=TEX['wood.'+FWOOD[k]+'.panel'];TEX[k]=k==='seat'?(X,Y,cx,cy)=>{const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y),c=f(X,Y);return e===0?sc(c,woodFin('oak').rim):e===1?sc(c,.82):sc(c,1.08-Math.hypot(x-7.5,y-7.5)/7*.18)}:f}
+for(const k in WPIECE){const[m,sh]=WPIECE[k],f=TEX['wood.'+m+'.panel'];KIND[k]='floor';TEX[k]=sh==='seat'?(X,Y,cx,cy)=>{const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y),c=f(X,Y);return e===0?sc(c,woodFin(m).rim):e===1?sc(c,.82):sc(c,1.08-Math.hypot(x-7.5,y-7.5)/7*.18)}:f}
 // old tile names from earlier maps: each is now a member of the material table
 for(const[k,a]of Object.entries({metal:'metal.steel.smooth.w',mplate:'metal.steel.rivet.w',mpanel:'metal.steel.smooth.w',iron:'metal.iron.rivet.w',brass:'metal.brass.smooth.w',mfloor:'metal.steel.smooth',gfloor:'metal.gold.smooth'})){TEX[k]=TEX[a];KIND[k]=KIND[a];CATN[k]=CATN[a]}
 const OLDK={marble:'stone.aur.block',dmarble:'stone.ver.block',flag:'stone.sand.flags',stone:'stone.grey.block.w',gstone:'stone.gold.block.w',pillar:'stone.aur.block.w',pave:'stone.lime.paving',omarble:'stone.aur.key',gtile:'stone.ver.key',bkmarble:'stone.night.block',bkslab:'stone.night.slabs',slab:'stone.grey.slabs',
