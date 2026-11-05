@@ -476,14 +476,15 @@ const AGEC={},ageOf=(el,mat,cd,w)=>{if(!AGE[el]||!(cd<5))return null;const q=el+
 for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
 for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}
 // wooden furniture: each piece is [wood, shape, name], drawn as its wood's polished face; rim, bevel and inlay are drawn per piece, as on polished floors
-const WPIECE={table:['oak','table','Table'],chest:['oak','chest','Chest'],seat:['oak','seat','Chair'],rack:['oak','rack','Rack'],desk:['mahog','desk','Desk'],edesk:['ebony','desk','Ebony desk'],ptable:['pine','table','Pine table'],pchest:['pine','chest','Pine chest'],pseat:['pine','seat','Pine chair'],ttable:['teak','table','Teak table'],tchest:['teak','chest','Teak chest'],tseat:['teak','seat','Teak chair']};
+const WPIECE={table:['oak','table','Table'],chest:['oak','chest','Chest'],seat:['oak','seat','Chair'],desk:['mahog','desk','Desk'],edesk:['ebony','desk','Ebony desk'],ptable:['pine','table','Pine table'],pchest:['pine','chest','Pine chest'],pseat:['pine','seat','Pine chair'],ttable:['teak','table','Teak table'],tchest:['teak','chest','Teak chest'],tseat:['teak','seat','Teak chair']};
 const wshape=k=>{const p=WPIECE[baseK(k)];return p&&p[1]};
 const woodFin=mat=>{const dk=mat==='mahog'||mat==='ebony';return{rim:mprop('Wood',mat).rim||.5,gl:dk?[210,168,100]:[176,126,84],gt:dk?.4:.25}};
 for(const k in WPIECE){const[m,sh]=WPIECE[k],f=TEX['wood.'+m+'.panel'];KIND[k]='floor';TEX[k]=sh==='seat'?(X,Y,cx,cy)=>{const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y),c=f(X,Y);return e===0?sc(c,woodFin(m).rim):e===1?sc(c,.82):sc(c,1.08-Math.hypot(x-7.5,y-7.5)/7*.18)}:f;
  for(let cd=1;cd<5;cd++){const A=ageOf('Wood',m,cd),g=TEX[k];KIND[k+'~'+cd]='floor';TEX[k+'~'+cd]=(X,Y,cx,cy)=>{const q=g(X,Y,cx,cy),x=X&15,y=Y&15;return q&&A(q,X*2,Y*2,()=>Math.min(x,y,15-x,15-y)-1)}}}
-// old tile names from earlier maps load as members of the material table; earth keeps its names, which the sim reads
+// old tile names from earlier maps load as members of the material table (retired furniture as chests); earth keeps its names, which the sim reads
 const OLDK={marble:'stone.aur.block',dmarble:'stone.aur.chequer',omarble:'stone.aur.chequer',gtile:'stone.aur.chequer',pillar:'stone.aur.block.w',flag:'stone.grey.slabs',slab:'stone.grey.slabs',pave:'stone.grey.quarter',stone:'stone.grey.block.w',gstone:'stone.gold.block.w',bkmarble:'stone.night.block',bkslab:'stone.night.slabs',
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.teak.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.panel.w',mpanel:'metal.steel.panel.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',
+ books:'chest',rack:'chest',wagon:'chest',shelf:'schest',
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};
 const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];return n&&!n.startsWith('earth.')?n+s:k};
 TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
@@ -775,7 +776,7 @@ function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(
  for(const[cx,cy]of cells){let u=null;for(const d of [2,1,3,4])for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){if(u)break;const k=(map[cy+b*d]||[])[cx+a*d];if(k&&!OBJK.has(k)&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky')u=k}const k=OM[cy][cx],m=fmat(k);paintCell(cx,cy,undAt(cx,cy)||u||'flag');
   for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);if(!c)continue;OBJ[j]=m;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}pieces();furnish()}
 // storage and desks come in pieces of at most 2×2, filled from the top-left; each piece has its own rim and inventory
-const PCK=new Set([...Object.keys(WPIECE).filter(k=>/chest|rack|desk/.test(WPIECE[k][1])),...Object.keys(MCHEST),'books','shelf']);let PCS=new Map();
+const PCK=new Set([...Object.keys(WPIECE).filter(k=>/chest|desk/.test(WPIECE[k][1])),...Object.keys(MCHEST),'books','shelf']);let PCS=new Map();
 for(const k of[...Object.keys(MCHEST),...Object.keys(WPIECE)])for(let c=1;c<5;c++){const n=k+'~'+c;if(OBJK.has(k))OBJK.add(n);if(PCK.has(k))PCK.add(n);ONAME[n]=ONAME[k];BMAT[n]=BMAT[k]}
 function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k||!PCK.has(k)||PCS.has(cy*CW+cx))continue;const ok=(x,y)=>OM[y]&&OM[y][x]===k&&!PCS.has(y*CW+x),w=ok(cx+1,cy)?2:1,h=ok(cx,cy+1)&&(w<2||ok(cx+1,cy+1))?2:1,p={k,x0:cx,y0:cy,w,h,cells:[]};
  for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
@@ -788,7 +789,6 @@ function furnish(){const done=new Set(),C=a=>rgb(cl(a[0]),cl(a[1]),cl(a[2])),SP=
    if(MC){const m=sc(metalLit(MC[0]),.62);
     if(d===0)c=mul(c,.5);else if(d<=2){c=C(m.map(q=>q*(d===1?hi:1)));}
     if(A&&d>0){const r=A([c&255,c>>8&255,c>>16&255],X*2,Y*2,()=>d-1);c=C(r)}}
-   else if(p.k==='rack'&&d>1&&(pw>=ph?u%4===0:v%4===0))c=mul(c,.55);
    else if(p.k==='books'){if(d===0)c=C(sc(woodT(X,Y,WOOD.walnut,21),.5));else if(d<B&&fl){const q=SP[hh(al>>1,p.x0*31+p.y0+s,22)*SP.length|0];c=C(sc(q,(al&1?.82:1)*(d===B-1?.75:1)))}else{c=C(woodT(X,Y,WOOD.walnut,21));if(d===1)c=mul(c,1.12)}}
    else if(p.k==='shelf'){const m=metalOf('steel',X,Y);if(d===0)c=C(sc(m,.5));else if(d<=2){c=C(sc(m,d===1?hi*1.1:1));if(d===1&&al%4===2)c=rgb(214,210,196)}else c=C(sc(m,v%5===0?.82:1))}
    OBJC[j]=c}}}
@@ -802,7 +802,7 @@ const containerAt=(X,Y)=>{const cx=X/T|0,cy=Y/T|0;if(!OBJ[Y*W+X])return null;ret
 const EDG=new Set();
 function cutEdges(x,y,R){const x0=Math.max(1,Math.floor(x-R-3)),x1=Math.min(W-2,Math.ceil(x+R+3)),y0=Math.max(1,Math.floor(y-R-3)),y1=Math.min(H-2,Math.ceil(y+R+3)),add=[];
  for(let Y=y0;Y<=y1;Y++)for(let X=x0;X<=x1;X++){const j=Y*W+X;if(!OBJ[j]||EDG.has(j))continue;const lt=!OBJ[j-1]||!OBJ[j-W],rb=!OBJ[j+1]||!OBJ[j+W];if(!lt&&!rb)continue;
-  if(Math.hypot(X-x,Y-y)>R+3)continue;EDG.add(j);const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0],metal=k==='shelf'||k==='rack';OBJC[j]=metal?mul(OBJC[j],rb?.7:1.25):mul(OBJC[j],rb?.55:1.15);
+  if(Math.hypot(X-x,Y-y)>R+3)continue;EDG.add(j);const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0],metal=!!k&&matK(k)==='metal';OBJC[j]=metal?mul(OBJC[j],rb?.7:1.25):mul(OBJC[j],rb?.55:1.15);
   if(!metal&&hh(X,Y,57)<.3){const sx=!OBJ[j+1]?1:!OBJ[j-1]?-1:0,len=1+(hh(X,Y,58)*2|0);if(sx)for(let i=1;i<=len;i++){const q=j+sx*i;if(OBJ[q]||sol[q])break;add.push([q,mul(OBJC[j],.8-.1*i),OBJ[j]])}}}
  for(const[q,c,m]of add){OBJ[q]=m;OBJC[q]=c;EDG.add(q)}}
 function scorchRays(x,y,s){const n=8+(Math.random()*8*Math.min(1.5,s)|0),R=18*s;for(let r=0;r<n;r++){const a=Math.random()*6.283,len=R*(.5+Math.random()*.9),w0=.6+Math.random()*1.4*s,c=Math.cos(a),sn=Math.sin(a),sd=Math.random()*99;
@@ -2566,7 +2566,8 @@ window.addEventListener('keydown',e=>{if(!EM||/INPUT|SELECT|TEXTAREA/.test(e.tar
 const PANK=new Set();window.addEventListener('keyup',e=>PANK.delete(e.key.toLowerCase()),true);window.addEventListener('blur',()=>PANK.clear());
 function edPan(){if(EM!=='map'||!PANK.size)return;const v=9;cam.x+=(PANK.has('a')?v:0)-(PANK.has('d')?v:0);cam.y+=(PANK.has('w')?v:0)-(PANK.has('s')?v:0);applyCam()}
 window.addEventListener('pointermove',e=>{if(EM!=='map')return;const h=$('hint');if(!mouse.in){h.textContent='';return}const cx=mouse.x/T|0,cy=mouse.y/T|0,k=(OM[cy]&&OM[cy][cx])||(map[cy]&&map[cy][cx]);const n=k?(ONAME[k]&&OM[cy]&&OM[cy][cx]?ONAME[k]:tName(OLDK[k]||k)):'';if(h.textContent!==n)h.textContent=n});
-{const rn0=render;render=function(){rn0();if(EM!=='map')return;ctx.save();ctx.fillStyle='rgba(120,120,120,.32)';for(let x=T;x<W;x+=T)ctx.fillRect(x,0,1,H);for(let y=T;y<H;y+=T)ctx.fillRect(0,y,W,1);
+let GRID=LS.get('bs.grid',true);
+{const rn0=render;render=function(){rn0();if(EM!=='map')return;ctx.save();ctx.fillStyle='rgba(120,120,120,.32)';if(GRID){for(let x=T;x<W;x+=T)ctx.fillRect(x,0,1,H);for(let y=T;y<H;y+=T)ctx.fillRect(0,y,W,1)}
  for(const d of DUST){if(d.d>0)continue;ctx.globalAlpha=Math.max(0,1-d.l/d.L)*d.a;ctx.fillStyle=css(d.c);const z=d.z>1?d.z+(d.l/d.L*2|0):1;ctx.fillRect((d.x|0)-(z>>1),(d.y|0)-(z>>1),z,z)}ctx.globalAlpha=1;
  const box2=(x,y,w,h)=>{ctx.strokeStyle='#000';ctx.strokeRect(x-.5,y-.5,w+1,h+1);ctx.strokeStyle='#fff';ctx.strokeRect(x+.5,y+.5,w-1,h-1)};for(const p of VP){ctx.fillStyle=css(p.c);ctx.fillRect(p.x|0,p.y|0,1,1)}for(const[q,v]of WET){ctx.globalAlpha=Math.min(1,v)*.16;ctx.fillStyle='#0a1218';ctx.fillRect((q%BW)*2,(q/BW|0)*2,2,2)}ctx.globalAlpha=1;
  if(edBrush&&edBrush.t==='clean'&&edBrush.k==='wand'&&mouse.in&&!CL){const o=Math.floor((edSize-1)/2),c0=(mouse.x/T|0)-o,r0=(mouse.y/T|0)-o;ctx.fillStyle='rgba(255,250,235,.16)';for(let y=r0;y<r0+edSize;y++)for(let x=c0;x<c0+edSize;x++)if(x>=0&&y>=0&&x<CW&&y<CH)ctx.fillRect(x*T,y*T,T,T)}
@@ -2861,6 +2862,7 @@ const UIC={
  bin:[['...wwww...','wwwwwwwwww','.wkkkkkkw.','.wkwkwkkw.','.wkwkwkkw.','.wkwkwkkw.','.wkwkwkkw.','.wkkkkkkw.','..wwwwww..'],{k:'#8a2a2e',w:'#f2efe6'}],
  drop:[['........bbb.','.......bbbbb','.......bbbbb','......kbbbb.','.....kwkbb..','....kwk.....','...kwk......','..kwk.......','.kk.........','k...........','............','d...........','dd..........'],{b:'#b23a3a',w:'#a8d0e0',k:'#c9c5b8',d:'#5f8ad0'}],
  glass:[['kkkkkkkkk','.kyyyyyk.','..kyyyk..','...kyk...','....k....','...kyk...','..k.y.k..','.k.yyy.k.','kkkkkkkkk'],{k:'#b89654',y:'#e6bc69'}],
+ grid:[['wwwwwwwwww','w..w..w..w','w..w..w..w','wwwwwwwwww','w..w..w..w','w..w..w..w','wwwwwwwwww','w..w..w..w','w..w..w..w','wwwwwwwwww'],{w:'#d8d0c0'}],
  reset:[['..kkkkk..','.k.....k.','k.......k','k......kkk','k.......k.','k.........','.k.....k..','..kkkkk...'],{k:'#fff'}]};
 function pix(rows,pal,s=2){const c=mk('canvas'),w=Math.max(...rows.map(r=>r.length));c.width=w;c.height=rows.length;c.style.cssText=`width:${w*s}px;height:${rows.length*s}px;image-rendering:pixelated`;const g=c.getContext('2d');rows.forEach((r,y)=>[...r].forEach((ch,x)=>{if(pal[ch]){g.fillStyle=pal[ch];g.fillRect(x,y,1,1)}}));return c}
 const uicon=k=>pix(...UIC[k]);
@@ -2909,7 +2911,7 @@ VIEW.append(mk('div','frame'));
 // tool header with optional dropper
 function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1],G=mk('div','hb');TH.append(uicon(k),mk('span',null,n),G);
  if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'sq sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});G.append(z)}
- if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','sq sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});G.append(z)}
+ if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','sq sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});const gr=ubtn('','sq'+(GRID?' on':''),()=>{GRID=!GRID;LS.set('bs.grid',GRID);gr.classList.toggle('on',GRID)});gr.append(uicon('grid'));G.append(z,gr)}
  if(k==='tile'||k==='spawn'){const d=ubtn('','sq',()=>{UI.del=false;armDrop(k)});d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);G.append(d)}
  if(k==='spawn'){const x=ubtn('','sq red',()=>{UI.del=!UI.del;if(UI.del&&UI.drop)armDrop(k);else head(k);cv.style.cursor=UI.del?'crosshair':CUR.arrow});x.append(uicon('bin'));x.classList.toggle('on',!!UI.del);G.append(x)}}
 
@@ -2949,7 +2951,9 @@ function tilerCtx(){TCX.innerHTML='';if(!edBrush||edBrush.t==='clean'){if(!UI.ti
  if(UI.tt==='floor'||UI.tt==='wall'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)&&(KIND[k]==='wall')===!!PK.w),els=[...EORDER.filter(e=>!PK.w||Object.keys(ELEM[e].mats).some(m=>!mprop(e,m).nowall)),...(mods.length?['Mods']:[])],et=mk('div','tabs');if(!els.includes(PK.el))PK.el='Stone';
   for(const e of els)et.append(ubtn(e,PK.el===e?'on':'',()=>{PK.el=e;if(e!=='Mods'){PK.mat=Object.keys(ELEM[e].mats)[0];PK.v=Object.keys(varsOf(e,PK.mat))[0]}else PK.mat=mods[0];tilerCtx()}));TCX.append(et);
   const tc=k=>cell(k,k&&validK(k)?swatch(bake(k),30,30):null,()=>setTile(k));
-  if(PK.el==='Mods')for(const k of mods)g.append(tc(k));else for(const mat of Object.keys(ELEM[PK.el].mats).filter(m=>!PK.w||!mprop(PK.el,m).nowall))for(const v of Object.keys(varsOf(PK.el,mat)).slice(0,7))g.append(tc(PK.el.toLowerCase()+'.'+mat+'.'+v+(PK.w?'.w':'')));
+  if(PK.el==='Mods')for(const k of mods)g.append(tc(k));else{// one row per material
+   const ms=Object.keys(ELEM[PK.el].mats).filter(m=>!PK.w||!mprop(PK.el,m).nowall),n=Math.max(...ms.map(m=>Object.keys(varsOf(PK.el,m)).length));g.style.gridTemplateColumns=`repeat(${n},1fr)`;
+   for(const mat of ms){const vs=Object.keys(varsOf(PK.el,mat));for(const v of vs)g.append(tc(PK.el.toLowerCase()+'.'+mat+'.'+v+(PK.w?'.w':'')));for(let i=vs.length;i<n;i++)g.append(mk('span'))}}
   nm=cur&&!String(cur).startsWith('door:')&&!furnK(cur)?tName(cur):''}
  else if(UI.tt==='furn'){const FO=['table','seat','chest','ptable','pseat','pchest','ttable','tseat','tchest','desk','edesk',...Object.keys(MCHEST),'hedge'];for(const k of [...baseKeys('furn').sort((a,b)=>(FO.indexOf(a)+1||99)-(FO.indexOf(b)+1||99)),...modKeys('furn')])g.append(cell(k,swatch(bake(k),30,30),()=>{UI.tile={t:'tile',k};edBrush={t:'tile',k};tilerCtx()}));nm=cur&&furnK(cur)?tName(cur):''}
  else{for(const k in DOORK){const c=icon(doorIcon(k),1);c.style.cssText='width:34px;height:24px;image-rendering:pixelated;display:block;margin-top:5px';g.append(cell('door:'+k,c,()=>{UI.tile={t:'door',k:'door:'+k};edBrush={...UI.tile};tilerCtx()}))}nm=String(cur).startsWith('door:')?DOORK[cur.slice(5)][0]:''}
