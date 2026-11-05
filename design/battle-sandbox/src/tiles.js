@@ -113,7 +113,7 @@ const tone=(id,s,a)=>1+(hh(id%9973,(id/9973|0)+s,s)-.5)*a;
 // herringbone of 8x4 blocks in staggered 8-wide columns
 function herring(X,Y){const c=X>>3,x=X&7,d=Y+(c&1?7-x:x)+(c&1?2:0);return[(d&3)===0||x===0,c*977+(d>>2)]}
 function basket(X,Y){const q=((X>>3)+(Y>>3))&1,x=X&7,y=Y&7;return[x===0||y===0||(q?y===4:x===4),((Y>>3)*977+(X>>3))*2+(q?y>>2:x>>2)]}
-function special(el,mat,v,c,s){const A=(X,Y)=>[X&15,Y&15];
+function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
  if(el==='Stone'){const M=memb('Stone',mat),m=M.cls==='marble',S=(X,Y)=>{let k=softStone(X,Y,c,s,m);if(M.speck)k=speck(k,X,Y,s);return veinOf(M,k,X,Y,s)};
   if(v==='rubble')return(X,Y)=>{const[e,id]=vor(X,Y,5,s);return sc(S(X,Y),e<.8?.8:e<1.6?.92:tone(id,s,.18))};
   if(v==='setts')return(X,Y)=>{const r=Math.floor(Y/5),o=(hh(r,0,s)*6)|0,xx=X+o,cw=6,sx=Math.floor(xx/cw);return sc(S(X,Y),Y%5===0||xx%cw===0?.7:tone(r*977+sx,s,.2))};
@@ -126,9 +126,9 @@ function special(el,mat,v,c,s){const A=(X,Y)=>[X&15,Y&15];
    if(me&&me.startsWith(key)&&e<4)return sc(k,e===0?.86:e===1?1.06:e===3?.88:1);const u=(X+Y)&15,w=(X-Y)&15;return sc(k,u===0||w===0?.86:u===1||w===1?1.05:tone(((X+Y)>>4)*977+((X-Y)>>4),s,.14))}}
   if(v==='knapped')return(X,Y)=>{const S9=16,gx=Math.floor(X/S9),gy=Math.floor(Y/S9);let d1=1e9,d2=1e9,px=0,py=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const cx=gx+i,cy=gy+j,qx=(cx+hh(cx,cy,s+90))*S9,qy=(cy+hh(cx,cy,s+91))*S9,d=Math.hypot(X+.5-qx,Y+.5-qy);if(d<d1){d2=d1;d1=d;px=qx;py=qy}else if(d<d2)d2=d}
    const e=d2-d1,r=d1/4;return sc(S(X,Y),e<.8?1.2:e<1.6?.8:.82+(r%1)*.22)};
-  if(v==='mirror')return(X,Y)=>{const x=X&15,y=Y&15;let k=flowVein(softStone(X,Y,c,s,m),X,Y,s,.75);k=sc(k,(1+(hh(X>>4,Y>>4,s+1)-.5)*.1)*(.95+(hh(X,Y,s+101)-.5)*.08));return x===0||y===0?cutJ(k,M,X,Y,s):k};
-  if(v==='vent')return(X,Y)=>{const x=X&15,y=Y&15;let k=flowVein(softStone(X,Y,c,s,m),X,Y,s,.75);if(x===0||y===0)return cutJ(k,M,X,Y,s);const i=Math.min(x-4,y-4,11-x,11-y);
-   if(i===0)return x===4||y===4?sc(k,.7):mx(k,M.jc,.3);if((x===7||x===8)&&(y===7||y===8))return mx(opal(vn(X/40,Y/40,s+85)*1.5),[240,240,250],x===7&&y===7?.25:0);return k};
+  if(v==='mirror')return(X,Y)=>{const x=X&15,y=Y&15;let k=flowVein(softStone(X,Y,c,s,m),X,Y,s,1);k=sc(k,(1+(hh(X>>4,Y>>4,s+1)-.5)*.1)*(.95+(hh(X,Y,s+101)-.5)*.08)*(wall?1:.8));return x===0||y===0?cutJ(k,M,X,Y,s):k};
+  if(v==='vent')return(X,Y)=>{const x=X&15,y=Y&15;let k=sc(flowVein(softStone(X,Y,c,s,m),X,Y,s,1),(1+(hh(X>>4,Y>>4,s+1)-.5)*.1)*(.95+(hh(X,Y,s+101)-.5)*.08)*(wall?1:.8));if(x===0||y===0)return cutJ(k,M,X,Y,s);const i=Math.min(x-4,y-4,11-x,11-y);
+   if(i===0)return x===4||y===4?sc(k,.5):mx(k,M.jc,.3);if(i>0&&i<4)k=sc(k,.88);if((x===7||x===8)&&(y===7||y===8))return mx(opal(vn(X/40,Y/40,s+85)*1.5),[240,240,250],x===7&&y===7?.25:0);return k};
   if(v==='chequer')return(X,Y)=>{const q=((X>>4)+(Y>>4))&1,x=X&15,y=Y&15;let k=softStone(X,Y,c,s,m);if(q)k=mx(k,[52,52,58],.8);k=q?mx(k,marbling(k,X,Y,s),.55):marbling(k,X,Y,s);return x===0||y===0?sc(k,.9):k};
   if(v==='gvein')return(X,Y)=>{const k=softStone(X,Y,c,s,m),d=Math.abs(vn(X/9,Y/9,s+50)-.5);if(d<.02)return mx(k,[252,234,168],.7);if(d<.045)return mx(k,[246,222,150],.3);return hh(X,Y,s+51)>.975?mx(k,[255,240,190],.55):k};
   if(v==='rosette')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx);let k=S(X,Y);if(x===0||y===0)return sc(k,.86);if(Math.abs(r-6)<.6)return mx(k,GOLDL,.35);if(r<5.5&&Math.cos(a*6)>.2)return mx(k,[252,236,170],.3+(r<2?.2:0));return k};
@@ -170,9 +170,9 @@ const goldVein=(k,X,Y,s)=>{const d=Math.abs(vn(X/9,Y/9,s+50)-.5);if(d<.02)return
 const OPAL=[[146,156,180],[117,142,188],[104,170,176],[207,178,112],[93,85,107],[146,156,180]],opal=p=>{p=(p%1+1)%1*5;const i=p|0;return OPAL[i].map((v,j)=>v+(OPAL[i+1][j]-v)*(p-i))};
 // obsidian: purple-black base, the goldstone vein in iridescent hues
 const flowVein=(k,X,Y,s,mu=0)=>{k=mx(k,[75,47,76],Math.max(0,vn(X/22,Y/22,s+84)-.5)*1.3);k=mx(k,[21,6,12],Math.max(0,vn(X/26,Y/26,s+89)-.55)*1.4);k=sc(k,.92+fbm(X/3,Y/4,s+87)*.16);
- const d=Math.abs(vn(X/9,Y/9,s+50)-.5),c=mx(opal(vn(X/40,Y/40,s+85)*1.5),[75,47,76],mu);return d<.02?mx(k,c,.7):d<.045?mx(k,c,.3):k};
-// a polished cut: faint line, catching iridescent light here and there
-const cutJ=(k,M,X,Y,s)=>{const g=vn(X/14,Y/14,s+99);return g>.68?mx(k,opal(vn(X/40,Y/40,s+85)*1.5),.45):mx(k,M.jc,.12)};
+ const d=Math.abs(vn(X/9,Y/9,s+50)-.5),c=mu?[92,86,132]:opal(vn(X/40,Y/40,s+85)*1.5);return d<.02?mx(k,c,.7):d<.045?mx(k,c,.3):k};
+// a polished cut: a faint line
+const cutJ=(k,M)=>mx(k,M.jc,.12);
 const veinOf=(M,k,X,Y,s)=>M.vein==='gold'?goldVein(k,X,Y,s):M.vein==='flow'?flowVein(k,X,Y,s):M.vein?marbling(k,X,Y,s):k;
 const marbling=(k,X,Y,s)=>{const v=vn(X/9,Y/9,s+50)-.5,d=Math.abs(v);if(d<.02)return mx(k,[255,255,252],.8);if(d<.045)return mx(k,[252,251,247],.3);if(d<.055&&v>0)return sc(k,.93);return hh(X,Y,s+51)>.978?mx(k,[255,255,252],.6):k};
 const speck=(k,X,Y,s)=>{const v=hh(X,Y,s+70);return v>.965?sc(k,.8):v>.92?mx(k,[190,164,160],.22):v<.025?mx(k,[236,228,222],.22):k};
@@ -180,13 +180,13 @@ const softStone=(X,Y,c,s,m)=>m?mx(stoneT(X,Y,c,11+s),sc(c,1.04),.45):mx(stoneT(X
 function metalOf(mat,X,Y){const m=metalCore(X,Y),t=memb('Metal',mat).c;if(!t)return m;if(mat==='umbra')return sc(mx(m,t,.82),.92);if(mat==='gold')return mx(m,t,.8);return mx(m,t,.55)}
 const cutEdge=f=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy),kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy));if(!k||!me)return k;const x=X&15,y=Y&15,o=(a,b)=>kid(LINK(a,b))!==me,e=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?15-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?15-y:99);return e===0?mx(k,[156,146,190],.6):e===1?mx(k,[118,108,156],.25):k};
 function genTex(el,mat,v,wall){const f=genTex0(el,mat,v,wall);return wall&&memb(el,mat).cut?cutEdge(f):f}
-function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Object.keys(E.mats),...Object.keys(E.old||{})].indexOf(mat)+1)*7;{const f=special(el,mat,M.as&&M.as[v]||v,c,s);if(f)return f}
+function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Object.keys(E.mats),...Object.keys(E.old||{})].indexOf(mat)+1)*7;{const f=special(el,mat,M.as&&M.as[v]||v,c,s,wall);if(f)return f}
  if(el==='Earth'){const worn=v==='worn';
   if(mat==='grass')return wall?(X,Y)=>bushT(X,Y):(X,Y)=>{const g=grassT(X,Y);if(!worn)return g;const f=fbm(X/9,Y/9,64);return f>.56?mx(g,soilT(X,Y),Math.min(1,(f-.56)*5)):g};
   if(mat==='dirt')return wall?(X,Y)=>{let k=soilT(X,Y);k=sc(k,.86);return Y%5===0&&hh(X>>2,Y,13)>.5?sc(k,.85):k}:(X,Y)=>{const k=soilT(X,Y);if(!worn)return k;const f=fbm(X/11,Y/11,65);if(f>.55){const t=mx(k,sc(SOIL,.76),Math.min(1,(f-.55)*6)*.8);return hh(X,Y,66)>.985?sc(t,1.25):t}return hh(X>>1,Y>>1,67)>.97?mx(k,[150,140,120],.5):k};
   if(mat==='wheat')return wall?(X,Y)=>sc(cropT(Y,X),.82):(X,Y)=>{const k=cropT(X,Y);return worn&&fbm(X/8,Y/8,66)>.58?mx(k,soilT(X,Y),.6):k};
   return wall?(X,Y)=>{const b=bushT(X,Y);return worn&&fbm(X/6,Y/6,67)>.62?sc(b,.8):b}:(X,Y)=>{const b=mx(bushT(X,Y),grassT(X,Y),.45);return worn&&fbm(X/7,Y/7,68)>.6?mx(b,soilT(X,Y),.5):b}}
- if(el==='Stone'){const m=M.cls==='marble';return(X,Y)=>{let k=softStone(X,Y,c,s,m);if(M.speck)k=speck(k,X,Y,s);k=M.vein==='flow'?flowVein(k,X,Y,s,.75):veinOf(M,k,X,Y,s);const[x,y,e]=cellE(X,Y);if(M.jc&&(v==='slabs'||v==='quarter')){const P=v==='quarter'?7:15,qx=X&P,qy=Y&P;if(qx===0||qy===0)return cutJ(k,M,X,Y,s)}
+ if(el==='Stone'){const m=M.cls==='marble';return(X,Y)=>{let k=softStone(X,Y,c,s,m);if(M.speck)k=speck(k,X,Y,s);k=M.vein==='flow'?flowVein(k,X,Y,s,1):veinOf(M,k,X,Y,s);const[x,y,e]=cellE(X,Y);if(M.jc&&(v==='slabs'||v==='quarter')){const P=v==='quarter'?7:15,qx=X&P,qy=Y&P;if(qx===0||qy===0)return cutJ(k,M,X,Y,s)}
   if(v==='flags'){const fx=(X>>1)&15,fy=(Y>>1)&15,cx=X>>5,cy=Y>>5,ex=!(X&1),ey=!(Y&1);for(let b=0;b<3;b++){const[a,z,cu]=FLB2[b];if(fy<a||fy>=z)continue;let n=0;for(const q of cu)if(fx>=q)n++;const j=fy===a&&ey||cu.includes(fx)&&ex;k=sc(k,j?.84:1+(hh(cx*7+n,cy*3+b,s)-.5)*.09);if(!j&&(fy===a&&!ey||cu.includes(fx)&&!ex))k=sc(k,1.04)}}
   else if(v==='slabs'){k=sc(k,(x===0||y===0?.9:x===1||y===1?1.03:x===15||y===15?.97:1)*(1+(hh(X>>4,Y>>4,s+1)-.5)*.1))}
   else if(v==='quarter'){const qx=X&7,qy=Y&7,t=1+(hh(X>>3,Y>>3,s+4)-.5)*.1;k=sc(k,(qx===0||qy===0?.82:qx===1||qy===1?1.08:qx===7||qy===7?.9:1)*t)}
