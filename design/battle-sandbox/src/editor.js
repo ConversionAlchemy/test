@@ -220,9 +220,9 @@ function importPack(o){const ids=[];if(!o||typeof o!=='object')return ids;if((o.
 // painting on the board
 const view=stage.parentElement;view.style.position='relative';
 view.addEventListener('pointerdown',e=>{if(EM!=='map'||panKey||e.button===1)return;if(!edBrush){if(e.button===0&&inBoard(e)){const[x,y]=toBoard(e),X=x|0,Y=y|0;if(!bodyAt(X,Y,1))boxAt(X,Y)}return}if(!inBoard(e))return;e.stopImmediatePropagation();e.preventDefault();closeMenu();
- const[x,y]=toBoard(e),cx=x/T|0,cy=y/T|0;if(edBrush.t==='clean'){if(e.button===0)cleanDown(edBrush.k,e);return}if(edBrush.t==='door'){if(e.button===2)clearDoor(cx,cy);else placeDoor(edBrush.k.slice(5),cx,cy);return}
- flushPlop();const k=e.button===2?edFloor():edBrush.k;edPush();if(e.shiftKey){const c=fillCells(cx,cy);plop(c,k,e.button===2);return}
- edStroke={k,er:e.button===2,rect:e.ctrlKey||e.metaKey,x0:cx,y0:cy,x1:cx,y1:cy,last:[cx,cy],cells:[],seen:new Set()};if(!edStroke.rect)addPend(edStroke,cx,cy)},true);
+ const[x,y]=toBoard(e),cx=x/T|0,cy=y/T|0;if(edBrush.t==='clean'){if(e.button===0)cleanDown(edBrush.k,e);return}const er=e.button===2||e.button===0&&UI.erase;if(edBrush.t==='door'){if(er)clearDoor(cx,cy);else placeDoor(edBrush.k.slice(5),cx,cy);return}
+ flushPlop();const k=er?edFloor():edBrush.k;edPush();if(e.shiftKey){const c=fillCells(cx,cy);plop(c,k,er);return}
+ edStroke={k,er,rect:e.ctrlKey||e.metaKey,x0:cx,y0:cy,x1:cx,y1:cy,last:[cx,cy],cells:[],seen:new Set()};if(!edStroke.rect)addPend(edStroke,cx,cy)},true);
 window.addEventListener('pointermove',e=>{if(CL&&CL.k==='wand'){wandAdd(mouse.x/T|0,mouse.y/T|0);return}if(!edStroke)return;const[x,y]=toBoard(e),cx=Math.max(0,Math.min(CW-1,x/T|0)),cy=Math.max(0,Math.min(CH-1,y/T|0));edStroke.x1=cx;edStroke.y1=cy;if(edStroke.rect)return;const[a,b]=edStroke.last,n=Math.max(Math.abs(cx-a),Math.abs(cy-b));for(let i=1;i<=n;i++)addPend(edStroke,Math.round(a+(cx-a)*i/n),Math.round(b+(cy-b)*i/n));edStroke.last=[cx,cy]});
 const rectCells=s=>{const c=[];for(let y=Math.min(s.y0,s.y1);y<=Math.max(s.y0,s.y1);y++)for(let x=Math.min(s.x0,s.x1);x<=Math.max(s.x0,s.x1);x++)c.push([x,y]);return c.sort((a,b)=>Math.abs(a[0]-s.x0)+Math.abs(a[1]-s.y0)-Math.abs(b[0]-s.x0)-Math.abs(b[1]-s.y0))};
 function fillCells(cx,cy){const s=srcNow(),k0=s[cy][cx],seen=new Set([cy*CW+cx]),q=[[cx,cy]],out=[];while(q.length){const c=q.shift();out.push(c);for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const x=c[0]+dx,y=c[1]+dy;if(x<0||y<0||x>=CW||y>=CH||seen.has(y*CW+x)||s[y][x]!==k0)continue;seen.add(y*CW+x);q.push([x,y])}}return out}
