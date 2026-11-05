@@ -229,7 +229,8 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
   // a connected area is one plate: details sit I px in from its outer edge (walls lose 3px to their rim)
   if(v==='sheet')return k;
   // quartered: 8px plates, each with a dark seam and a bright top-left lip
-  // inset panels: one per tile, a seam with a lit lip, and a square inset centred on the plate
+  // inset panels: one per tile with a square inset centred on its plate; on walls each tile gets the wall's own 3px rim so every plate is the same size
+  if(v==='inset'&&wall){const d=Math.min(x,y,15-x,15-y);if(d<3)return sc(k,[.6,1.3,.9][d]);const i=Math.min(x-4,y-4,11-x,11-y);return i===0?sc(k,x===4||y===4?.78:1.18):k}
   if(v==='inset'){if(x===0||y===0)return sc(k,.76);if(x===1||y===1)return sc(k,1.18);if(x===15||y===15)return sc(k,.92);const i=Math.min(x-4,y-4,12-x,12-y);return i===0?sc(k,x===4||y===4?.78:1.18):k}
   if(v==='quarter'){const a=X&7,b=Y&7;return a===0||b===0?sc(k,.76):a===1||b===1?sc(k,1.18):a===7||b===7?sc(k,.92):k}
   if(v==='slabs'){const r=Y>>3,a=(X+(r&1?8:0))&15,b=Y&7;return a===0||b===0?sc(k,.84):a===1||b===1?sc(k,1.06):k}
