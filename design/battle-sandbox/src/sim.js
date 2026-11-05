@@ -761,7 +761,8 @@ function impact(b,h,axis){const s=Math.hypot(b.vx,b.vy),dx=b.vx/(s||1),dy=b.vy/(
  if(b.type==='weapon'){const w=WP[b.kind];
   if(b.kind==='arc'){BLU=!!b.blue;arcBlast(cx,cy,b.big||1);if(b.pg){const l=Math.hypot(dx,dy)||1;for(let i=0;i<=12;i+=.5)damagePixel(Math.round(cx+dx/l*i),Math.round(cy+dy/l*i),3,dx/l,dy/l)}if(mx===3){sfx('boltmetal');metalSparks(cx,cy,dx,dy,true);heatMark(cx,cy,4+2*(b.big||1),.5+.15*(b.big||1))}BLU=false;remove(b);return true}if(w.rod)return rodWall(b,h,axis,mx,cx,cy,dx,dy);if(w.bullet){const cos=Math.abs(axis?dy:dx);
    const pl=b.kind==='pel';if((mx===1||mx===3)&&cos<.45){bounce(.6);hitFx(cx,cy,mx,dx,dy,pl);pl?sfxP(mx===3?'rico':'ricos',.4):sfx(mx===3?'rico':'ricos');return true}
-   let E=b.E||0;for(const[X,Y]of h){const eff=(MCOST[mx]||6)*hpF(X,Y)/Math.max(cos,.35);if(E>=eff){E-=eff;damagePixel(X,Y,99,dx,dy)}else{damagePixel(X,Y,1,dx,dy);E=0}}
+   // stone and metal: a pistol ball bites one pixel, a musket ball two (one from far off); wood is cut through by energy
+   let E=b.E||0;const lim=b.kind==='pball'?1:b.kind==='ball'?(Math.hypot(b.x-(b.sx??b.x),b.y-(b.sy??b.y))>160?1:2):1e9;for(const[X,Y]of h){const eff=(MCOST[mx]||6)*hpF(X,Y)/Math.max(cos,.35);const hard=matAt(X,Y)!==2;if(hard&&(b.dug||0)>=lim){E=0;break}if(E>=eff){E-=eff;if(hard)b.dug=(b.dug||0)+1;damagePixel(X,Y,99,dx,dy)}else{damagePixel(X,Y,1,dx,dy);E=0}}
    hitFx(cx,cy,mx,dx,dy,pl);if(b.kind==='arc')arcHit(cx,cy);b.E=E;if(E<=.01){remove(b)}return true}
   if(b.kind==='sspear'&&b.live){lancerBlast(b);return true}
   if(w.sharp){const cosn=Math.abs(axis?dy:dx);
