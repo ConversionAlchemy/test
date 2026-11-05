@@ -157,12 +157,12 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='grate')return(X,Y)=>{const x=X&3,y=Y&3;let k=M(X,Y);if(x===0||y===0)return sc(k,x===0&&y===0?1.25:1.08);return sc(k,x===3||y===3?.32:.45)};
   if(v==='hammer')return(X,Y)=>{const d=vn(X/2.6,Y/2.6,s+40),k=M(X,Y),e=Math.min(X&31,Y&31);if(e===0)return sc(k,.62);return sc(k,.84+d*.3+(hh(X,Y,s)>.96?.1:0))};
   if(v==='tread')return(X,Y)=>{const b=((X>>2)+(Y>>2))&1,x=X&3,y=Y&3,k=M(X,Y),lug=b?x===y:x+y===3;return lug?sc(k,1.28):(b?x===y+1:x+y===4)?sc(k,.78):k};
-  if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);return x>=3&&x<=13&&(y===4||y===8||y===12)?sc(k,.3):k};
-  if(v==='filigree')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);const cx=x<8?2:13,cy=y<8?2:13,r=Math.hypot(x-cx,y-cy);if(Math.abs(r-4.2)<.5&&Math.abs(x-cx)<5&&Math.abs(y-cy)<5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
+  if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);return x>=5&&x<=12&&(y===4||y===7||y===10||y===13)?sc(k,.3):k};
+  if(v==='filigree')return(X,Y)=>{let[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);x--;y--;const cx=x<8?2:13,cy=y<8?2:13,r=Math.hypot(x-cx,y-cy);if(Math.abs(r-4.2)<.5&&Math.abs(x-cx)<5&&Math.abs(y-cy)<5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
   if(v==='grille')return(X,Y)=>{const u=((X+Y)%6+6)%6,w=((X-Y)%6+6)%6,k=M(X,Y);if(u===0&&w===0)return sc(k,1.4);if(u===0||w===0)return sc(k,.74);return k};
-  if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),k=sc(M(X,Y),1.03);if(x===0||y===0)return sc(k,.82);if(Math.abs(r-6.5)<.5)return sc(k,.82);if(r>2&&r<6&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
+  if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-8.5,dy=y-8.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),k=sc(M(X,Y),1.03);if(x===0||y===0)return sc(k,.82);if(Math.abs(r-6.5)<.5)return sc(k,.82);if(r>2&&r<6&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
   if(v==='scale')return(X,Y)=>{const r=Y>>2,u=(X+(r&1?3:0))%6,y=Y&3,d=Math.hypot(u-2.5,y+.5),k=M(X,Y);if(Math.abs(d-2.7)<.55)return sc(k,.72);if(d<2)return sc(k,1.1);return k};
-  if(v==='runes')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y),cx=X>>4,cy=Y>>4;if(x===0||y===0)return sc(k,.82);const gx=[4,8,11],seg=(a,b,i)=>hh(cx*7+i,cy*5,s)>.45&&a&&b;const on=seg(x===4&&y>=4&&y<=11,1,0)||seg(x===11&&y>=4&&y<=11,1,1)||seg(y===4&&x>=4&&x<=11,1,2)||seg(y===11&&x>=4&&x<=11,1,3)||seg(x===y&&x>=4&&x<=11,1,4)||seg(x+y===15&&x>=4&&x<=11,1,5)||seg(y===8&&x>=4&&x<=11,1,6);return on?mx(k,VOID,.3):k};
+  if(v==='runes')return(X,Y)=>{let[x,y]=A(X,Y);const k=M(X,Y),cx=X>>4,cy=Y>>4;if(x===0||y===0)return sc(k,.82);x--;y--;const gx=[4,8,11],seg=(a,b,i)=>hh(cx*7+i,cy*5,s)>.45&&a&&b;const on=seg(x===4&&y>=4&&y<=11,1,0)||seg(x===11&&y>=4&&y<=11,1,1)||seg(y===4&&x>=4&&x<=11,1,2)||seg(y===11&&x>=4&&x<=11,1,3)||seg(x===y&&x>=4&&x<=11,1,4)||seg(x+y===15&&x>=4&&x<=11,1,5)||seg(y===8&&x>=4&&x<=11,1,6);return on?mx(k,VOID,.3):k};
   if(v==='veined')return(X,Y)=>{const k=M(X,Y),d=Math.abs(vn(X/9,Y/9,s+50)-.5);return d<.018?mx(k,VOID,.45):d<.04?mx(k,VOID,.15):k}}
  return null}
 const cellE=(X,Y)=>{const x=X&15,y=Y&15;return[x,y,Math.min(x,y,15-x,15-y)]};
@@ -186,7 +186,9 @@ const metalLit=mat=>{const M=memb('Metal',mat);return M.dk?sc(M.c,M.dk):sc(M.c,M
 const metalTone=(mat,l)=>sc(metalLit(mat),.45+l*1.05);
 const cutEdge=f=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy),kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy));if(!k||!me)return k;const x=X&15,y=Y&15,o=(a,b)=>kid(LINK(a,b))!==me,e=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?15-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?15-y:99);return e===0?mx(k,[156,146,190],.6):e===1?mx(k,[118,108,156],.25):k};
 // cut stone: walls get a light cut edge, floors sit darker beneath them
-function genTex(el,mat,v,wall){const f=genTex0(el,mat,v,wall);return!memb(el,mat).cut?f:wall?cutEdge(f):(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy);return k&&sc(k,.8)}}
+// metal floor plates: a lit edge inside each joint, a softer copy of the wall bevel
+const bevel=f=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy),x=X&15,y=Y&15;return k&&x&&y&&(x===1||y===1)?sc(k,1.1):k};
+function genTex(el,mat,v,wall){const f=genTex0(el,mat,v,wall);if(el==='Metal'&&!wall&&v!=='sheet'&&v!=='grate')return bevel(f);return!memb(el,mat).cut?f:wall?cutEdge(f):(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy);return k&&sc(k,.8)}}
 function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Object.keys(E.mats),...Object.keys(E.old||{})].indexOf(mat)+1)*7;{const f=special(el,mat,M.as&&M.as[v]||v,c,s,wall);if(f)return f}
  if(el==='Earth'){const worn=v==='worn';
   if(mat==='grass')return wall?(X,Y)=>bushT(X,Y):(X,Y)=>{const g=grassT(X,Y);if(!worn)return g;const f=fbm(X/9,Y/9,64);return f>.56?mx(g,soilT(X,Y),Math.min(1,(f-.56)*5)):g};
@@ -208,10 +210,10 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
  if(el==='Metal'){return(X,Y,cx,cy)=>{const[x,y,e]=cellE(X,Y);let k=metalOf(mat,X,Y);
   const J=x===0||y===0;
    if(v==='smooth')return J?sc(k,.82):k;
-   if(v==='sheet'){const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy)),o=(a,b)=>!me||kid(LINK(a,b))!==me,dl=o(cx-1,cy)?x:99,dr=o(cx+1,cy)?15-x:99,du=o(cx,cy-1)?y:99,dd=o(cx,cy+1)?15-y:99,e=Math.min(dl,dr,du,dd);if(e===0)return sc(k,.82);
+   if(v==='sheet'){const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy)),o=(a,b)=>!me||kid(LINK(a,b))!==me,dl=o(cx-1,cy)?x:99,dr=o(cx+1,cy)?15-x:99,du=o(cx,cy-1)?y:99,dd=o(cx,cy+1)?15-y:99,e=Math.min(dl,dr,du,dd);if(e===0)return sc(k,.82);if(e===1&&(dl===1||du===1))return sc(k,1.1);
     const rv=(dl===2||dr===2)&&(Y&3)===2&&du>1&&dd>1||(du===2||dd===2)&&(X&3)===2&&dl>1&&dr>1;return rv?sc(k,1.3):k}
-  if(v==='rivet'){if(J)return sc(k,.82);return(x===3||x===12)&&(y===3||y===12)?sc(k,1.3):k}
-  if(v==='panel'){const i=Math.min(x-4,y-4,12-x,12-y);if(J)return sc(k,.82);return i===0?(x===4||y===4?sc(k,.78):sc(k,1.18)):k}
+  if(v==='rivet'){if(J)return sc(k,.82);return(x===4||x===13)&&(y===4||y===13)?sc(k,1.3):k}
+  if(v==='panel'){const i=Math.min(x-4,y-4,13-x,13-y);if(J)return sc(k,.82);return i===0?(x===4||y===4?sc(k,.78):sc(k,1.18)):k}
   if(mat==='iron'){if(J)return sc(k,.82);for(const[rx,ry]of[[3,3],[11,3],[3,11],[11,11]])if(x>=rx&&x<=rx+1&&y>=ry&&y<=ry+1)return sc(k,x===rx&&y===ry?1.4:1.15);return hh(X,Y,70)>.97?sc(k,.86):k}
   if(mat==='brass'){if(J)return sc(k,.82);if((x===3||x===12)&&(y===3||y===12))return sc(k,1.35);return sc(k,1+.06*Math.sin((x+y)/3))}
   if(mat==='gold'){if(J)return sc(k,.82);if(e===2)return sc(k,.82);return sc(k,1.04)}
