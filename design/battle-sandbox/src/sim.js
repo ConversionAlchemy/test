@@ -58,7 +58,7 @@ function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;key=modK(key)
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){UND=[];(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks()}
+function build(){UND=[];(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(rug&&OM[y]&&OM[y][x]);
@@ -150,9 +150,14 @@ function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k o
   floor[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));GT[j]=g?1:2}}
 // blasts on open ground tear up grass, dig a soft crater and throw soil round it
 // blasts wear the floor around them, by cells from the blast: a grenade wears its own cell two condition steps and the cells touching it one; a heavy grenade wears four, three, two, then one step out to three cells away; tough materials take one step less (always at least one). The worn look becomes the cell's clean state, so cleaning keeps it and the wand undoes it
+// a floor cell in worse condition than its neighbour sits a little lower: its pixels along that edge draw darker (two pixels, the outer fainter; a bigger gap is darker). Drawn at render only, so cleaning and repair never touch it
+let EDGM=new Uint8Array(0);const EDF=[1,.9,.95,.82,.91];
+function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);const cond=(x,y)=>{const k=map[y]&&map[y][x],c=CATN[k];return c&&!c[3]&&c[0]!=='Earth'&&c[0]!=='Cloth'&&!(OM[y]&&OM[y][x])?c[4]||5:0};
+ for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=cond(cx,cy);if(!c||c===5)continue;for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){const n=cond(cx+dx,cy+dy);if(n<=c)continue;const hi=n-c>=3?2:0;
+  for(let i=0;i<T;i++)for(let d=0;d<2;d++){const x=dx<0?d:dx>0?T-1-d:i,y=dy<0?d:dy>0?T-1-d:i,j=(cy*T+y)*W+cx*T+x,v=1+d+hi;if(!EDGM[j]||EDF[v]<EDF[EDGM[j]])EDGM[j]=v}}}}
 function blastWear(x,y,s){const hv=s>1.5,DROP=hv?[4,3,2,1]:[2,1],r=DROP.length-1,bx=x/T|0,by=y/T|0;for(let cy=Math.max(0,by-r);cy<=Math.min(CH-1,by+r);cy++)for(let cx=Math.max(0,bx-r);cx<=Math.min(CW-1,bx+r);cx++){const k=map[cy][cx],c=CATN[k];if(!c||c[3]||!AGE[c[0]]||OM[cy]&&OM[cy][cx])continue;
  const c0=c[4]||5,tough=(mprop(c[0],c[1]).hp||3)>=7,cd=Math.max(1,c0-Math.max(1,DROP[Math.max(Math.abs(cx-bx),Math.abs(cy-by))]-(tough?1:0)));if(cd===c0)continue;const A=ageOf(c[0],c[1],cd);map[cy][cx]=baseK(k)+'~'+cd;
- for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>{const g=regionD(X,Y,cx,cy);return Math.min(g[0],g[1],g[2],g[3])});floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]));if(PR)PR.floor[j]=floor[j]}}}
+ for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>{const g=regionD(X,Y,cx,cy);return Math.min(g[0],g[1],g[2],g[3])});floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]));if(PR)PR.floor[j]=floor[j]}}edgeMask()}
 // a built floor breaks through to the soil beneath: dug earth in the middle, loose fragments of the floor, a chipped edge, then hairline cracks
 function crater(x,y,s){const r=6.5*s,rr=s>1.5?.85:.5;for(let Y=Math.floor(y-r*2);Y<=y+r*2;Y++)for(let X=Math.floor(x-r*2);X<=x+r*2;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j])continue;
   const dx=X-x,dy=Y-y,e=r*(.78+.44*fbm(X/4,Y/4,93)),q=Math.hypot(dx,dy)/e;if(q>=2)continue;
@@ -192,7 +197,7 @@ function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of 
  STATE[curMap]={CW,CH,map,UND,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG,TF,SF,SS,ST,BURN,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
 function loadMap(m){const q=STATE[m];delete STATE[m];CW=q.CW;CH=q.CH;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
  ({SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG=new Uint8Array(N),TF,SF,SS,ST,BURN,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}=q.a);for(const k in q.FX)FX[k]=q.FX[k];
- map=q.map;UND=q.UND||[];OM=q.OM;DS0=q.DS0;ds0Need=false;alarm=q.alarm;bodies=q.bodies;parts=q.parts;whOn=q.whOn;hzOn=q.hzOn;solDirty=true;fxDirty=true;camInit=true;setTimeout(fit,0);
+ map=q.map;UND=q.UND||[];OM=q.OM;DS0=q.DS0;ds0Need=false;alarm=q.alarm;bodies=q.bodies;parts=q.parts;whOn=q.whOn;hzOn=q.hzOn;solDirty=true;fxDirty=true;camInit=true;edgeMask();setTimeout(fit,0);
  for(const b of bodies)if(b.lab)stage.appendChild(b.lab);arrivals();exitLabels()}
 function goMap(v){if(v===curMap)return;saveMap();curMap=v;const ms=$('msel');if(ms)ms.value=v;$('sm').querySelector('header span').textContent=TITLE[v]||'';sel.clear();openCrate=null;drag=null;charge=null;box=null;moveSel=null;lastHud='';if(STATE[v])loadMap(v);else{camInit=true;CW=-1;reset()}}
 function arrivals(){const q=PEND[curMap];if(!q)return;delete PEND[curMap];for(const b of q){bodies.push(b);if(b.lab)stage.appendChild(b.lab)}}
@@ -975,7 +980,7 @@ let DS0=null,ds0Need=true;
 function rebuildSH(){rebuildDS();if(ds0Need||!DS0||DS0.length!==DS.length){DS0=DS.slice();ds0Need=false}for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){let k=0;if(!sol[j]){if(isS(X,Y-1)||isS(X-1,Y))k=1;else if(isS(X,Y-2)||isS(X-2,Y)||isS(X-1,Y-1))k=2}else{if(!isS(X,Y-1)||!isS(X,Y+1)||!isS(X-1,Y)||!isS(X+1,Y)||!isS(X-1,Y-1)||!isS(X+1,Y-1)||!isS(X-1,Y+1)||!isS(X+1,Y+1))k=1;else if(!isS(X,Y-2)||!isS(X-2,Y)||!isS(X-2,Y-2)||!isS(X-1,Y-2)||!isS(X-2,Y-1)||!isS(X+1,Y-2)||!isS(X+2,Y-2)||!isS(X-2,Y+1)||!isS(X-2,Y+2))k=2;else if(!isS(X,Y+2)||!isS(X+2,Y))k=3}SH[j]=k}}
 function render(){
  if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick}
- sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>2*W&&OBJ[j-2*W-1])c=mul(c,.6);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=BURN[bro+(X>>1)];if(bu>.02)c=mul(c,1-.88*bu*(.92+.16*hh(X,Y,13)));const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
+ sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>2*W&&OBJ[j-2*W-1])c=mul(c,.6);if(EDGM[j]&&!OBJ[j])c=mul(c,EDF[EDGM[j]]);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=BURN[bro+(X>>1)];if(bu>.02)c=mul(c,1-.88*bu*(.92+.16*hh(X,Y,13)));const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
  if(fxDirty||(fxActive&&tick%3===0)||(tick%7===0&&FX.fire.some(v=>v>.3)))buildFx();
  for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}

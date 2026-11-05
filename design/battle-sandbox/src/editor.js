@@ -86,11 +86,15 @@ NBM.atelier=()=>{const g=Array.from({length:ATL.CH},(_,y)=>Array.from({length:AT
  const dy=2+4,dx=ATL.rows[1].w+3;for(let x=dx;x<dx+Object.keys(DOORK).length*2+1&&x<ATL.CW-1;x++)g[dy][x]=(x-dx)%2?'stone.lime.paving':'stone.grey.block.w';paintAll((cx,cy)=>g[cy][cx])};
 NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i)=>{const cx=dx+1+i*2;if(cx<ATL.CW-1)mkDoor(k,cx*T,dy*T+T/2+4,0)});const t=U('Curator',null,'civ',2,1.5,0,null,'Clerk')};
 ENVSET.atelier='out';
-// the Blast yard: a patch of every material's floor in rows (stone, wood, metal, then cloth and earth), each with a grenade on it and a heavy grenade in the middle column, for trying blasts, wear and repair
-const BLY=[...['Stone','Wood','Metal'].map(el=>Object.keys(ELEM[el].mats).map(m=>el.toLowerCase()+'.'+m+'.'+Object.keys(varsOf(el,m))[0])),[...Object.keys(ELEM.Cloth.mats).map(m=>'cloth.'+m+'.plain'),'earth.grass.plain','earth.dirt.plain']];
-MAPSZ.blast=[22,14];TITLE.blast='Fluoria · Blast yard';ENVSET.blast='in';
-NBM.blast=()=>paintAll((cx,cy)=>cx===0||cy===0||cx===21||cy===13?'stone.grey.block.w':BLY[(cy-1)/3|0][(cx-1)/4|0]);
-NUM.blast=()=>{BLY.forEach((r,i)=>r.forEach((k,j)=>weapon(j===2?'bomb':'grenade',(3+j*4)*T,(2+i*3)*T+8)))};
+// the Blast yard: one row per material, one column per state, each a 7x7 patch so a heavy blast stays inside it: untouched with a grenade and a heavy grenade waiting, after a grenade, after a heavy grenade, after a heavy grenade with two cells mended by the wand, after two heavy grenades
+const BLR=['stone.grey.block','stone.aur.block','wood.oak.planks','wood.mahog.planks','metal.steel.rivet','metal.brass.rivet'];let PRSET=false;
+MAPSZ.blast=[37,44];TITLE.blast='Fluoria · Blast yard';ENVSET.blast='in';
+NBM.blast=()=>paintAll((cx,cy)=>cx===0||cy===0||cx===36||cy===43?'stone.grey.block.w':BLR[(cy-1)/7|0]);
+NUM.blast=()=>{snapPR();PRSET=true;const m0=mute;mute=true;
+ BLR.forEach((_,i)=>{const cy=4+i*7;for(let j=0;j<5;j++){const cx=4+j*7,X=cx*T+8,Y=cy*T+8;
+  if(j===0){weapon('grenade',X-14,Y);weapon('bomb',X+14,Y)}else if(j===1)explode(X,Y,1.3);else{explode(X,Y,1.95);if(j===4)explode(X+5,Y-4,1.95);if(j===3){repairCell(cx,cy);repairCell(cx+1,cy)}}}});
+ // keep the scorch and debris; clear smoke, fire, light and shake
+ for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,ST])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);tls.length=0;parts=parts.filter(p=>p.em===undefined&&p.life===undefined);shake=0;alarm=false;mute=m0;fxDirty=true};
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
 function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>{UND=d.und?d.und.map(r=>r.map(modK)):[];paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k})};NUM[id]=()=>spawnMap(d)}
@@ -154,7 +158,7 @@ function plopTick(){const p=PLOP;if(!p)return;const t=performance.now();if(t<p.n
   s[y][x]=k;paintCell(x,y,k);puff(x,y,k)}p.run++;sndT=0;edSnd(p.m,1+Math.min(.25,p.run*.012),.75,p.heavy);p.next=t+Math.max(30,70-p.run*4);if(!p.q.length){PLOP=null;refinish()}}
 function flushPlop(){const p=PLOP;if(!p)return;PLOP=null;const s=srcNow();for(const[x,y]of p.q)s[y][x]=p.k;refinish()}
 {const s0=startDrag;startDrag=function(...a){s0(...a);if(EM&&drag)drag.free=true}}
-{const r0=reset;reset=function(){PLOP=null;WQ=null;edSrc=null;edUndo=[];edRedo=[];r0();snapPR();envCalc();if(EM==='map')fillMapTools()}}
+{const r0=reset;reset=function(){PLOP=null;WQ=null;edSrc=null;edUndo=[];edRedo=[];r0();if(!PRSET)snapPR();PRSET=false;envCalc();if(EM==='map')fillMapTools()}}
 {const PRS={};const g0=goMap;goMap=function(v){flushPlop();WQ=null;if(PR)PRS[curMap]=PR;edSrc=null;edUndo=[];edRedo=[];g0(v);PR=PRS[v]&&PRS[v].CW===CW&&PRS[v].CH===CH?PRS[v]:PR;if(!prOK())snapPR();envCalc();if(EM==='map')fillMapTools()}}
 envCalc();
 
@@ -169,7 +173,7 @@ function floorNear(cx,cy){const s=srcNow();for(const[a,b]of[[0,1],[0,-1],[1,0],[
 function edPush(){edUndo.push(srcNow().map(r=>r.slice()));if(edUndo.length>60)edUndo.shift();edRedo=[]}
 // one step of map undo (or redo)
 function edStep(redo){flushPlop();const a=redo?edRedo:edUndo,b=redo?edUndo:edRedo;if(!a.length)return false;b.push(srcNow().map(r=>r.slice()));edSrc=a.pop();refinish();return true}
-function refinish(){const s=srcNow();map=s.map(r=>r.slice());for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);resill();EDG.clear();blendGround();objects();boards();borders();regions();polish();cracks();
+function refinish(){const s=srcNow();map=s.map(r=>r.slice());for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);resill();EDG.clear();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask();
  for(const c of bodies.filter(o=>o.hidden))if(!c.cells.every(([a,b])=>OM[b]&&OM[b][a]))remove(c);snapDoors();sills();ds0Need=true;solDirty=true;fxDirty=true;if(ROOMS)ROOMS.t=-1e9;envCalc();snapPR()}
 const slabCell=d=>{let x=0,y=0;for(const p of d.px){x+=p[0];y+=p[1]}const n=d.px.length||1,X=Math.round(d.x)+x/n,Y=Math.round(d.y)+y/n;return(Y/T|0)*CW+(X/T|0)};
 const DOORK={wood:['Wood door',2],pine:['Pine door',2],teak:['Teak door',2],steel:['Steel door',3],iron:['Iron door',3],brass:['Brass door',3],gold:['Aurum door',3],umbra:['Umbra door',3],ebony:['Ebony door',2],mahog:['Mahogany door',2]};
@@ -272,7 +276,7 @@ function cellIdx(cx,cy,f){for(let y=0;y<T;y++)for(let x=0;x<T;x++)if(f((cy*T+y)*
 function stainBad(cx,cy){if(!prOK())return false;if(cellIdx(cx,cy,j=>SCH[j]&&!sol[j]&&!PR.sol[j]&&(OBJ[j]?chDiff(OBJC[j],PR.OBJC[j])>14:chDiff(floor[j],PR.floor[j])>14)))return true;for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;if(FX.blood[q]>.04||BURN[q]>.04||FX.fire[q]>.05)return true}return false}
 function cellBad(cx,cy){const k0=PR&&PR.map&&PR.map[cy]&&PR.map[cy][cx];return prOK()&&(stainBad(cx,cy)||!!k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)||cellIdx(cx,cy,j=>DMG[j]||sol[j]!==PR.sol[j]||shp[j]!==PR.shp[j]||crk[j]!==PR.crk[j]||OBJ[j]!==PR.OBJ[j]))}
 // the wand puts a cell back as the map was laid: chips, holes, wear and the tile's condition
-function repairCell(cx,cy){const k0=PR.map&&PR.map[cy]&&PR.map[cy][cx];if(k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)){map[cy][cx]=k0;if(edSrc&&edSrc[cy])edSrc[cy][cx]=k0}for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;DMG[j]=0;for(const k of['sol','shp','scol','crk','GT','OBJ','OBJC','SHN','GOLD','NOD'])({sol,shp,scol,crk,GT,OBJ,OBJC,SHN,GOLD,NOD})[k][j]=PR[k][j];floor[j]=PR.floor[j]=PR.floor0[j];EDG.delete(j);SCH[j]=0}
+function repairCell(cx,cy){const k0=PR.map&&PR.map[cy]&&PR.map[cy][cx];if(k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)){map[cy][cx]=k0;if(edSrc&&edSrc[cy])edSrc[cy][cx]=k0}for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;DMG[j]=0;for(const k of['sol','shp','scol','crk','GT','OBJ','OBJC','SHN','GOLD','NOD'])({sol,shp,scol,crk,GT,OBJ,OBJC,SHN,GOLD,NOD})[k][j]=PR[k][j];floor[j]=PR.floor[j]=PR.floor0[j];EDG.delete(j);SCH[j]=0}edgeMask();
  for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;FX.blood[q]=0;BURN[q]=0;FX.fire[q]=0;FX.smoke[q]=0}solDirty=true;fxDirty=true;sparkle(cx,cy,14)}
 function sparkle(cx,cy,n){for(let i=0;i<n;i++)SPK.push({x:cx*T+Math.random()*T,y:cy*T+Math.random()*T,vx:(Math.random()-.5)*.12,vy:-.05-Math.random()*.1,h:Math.random()*360,l:0,L:90+Math.random()*90,tw:Math.random()*6})}
 // recorded clips: water squelch while scrubbing, rubber squeaks on clean tiles
