@@ -91,7 +91,7 @@ function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(
   for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);if(!c)continue;OBJ[j]=m;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}pieces();furnish()}
 // storage and desks come in pieces of at most 2×2, filled from the top-left; each piece has its own rim and inventory
 const PCK=new Set([...Object.keys(WPIECE).filter(k=>/chest|rack|desk/.test(WPIECE[k][1])),...Object.keys(MCHEST),'books','shelf']);let PCS=new Map();
-for(const k in MCHEST)for(let c=1;c<5;c++){const n=k+'~'+c;OBJK.add(n);PCK.add(n);ONAME[n]=ONAME[k];BMAT[n]=BMAT[k]}
+for(const k of[...Object.keys(MCHEST),...Object.keys(WPIECE)])for(let c=1;c<5;c++){const n=k+'~'+c;if(OBJK.has(k))OBJK.add(n);if(PCK.has(k))PCK.add(n);ONAME[n]=ONAME[k];BMAT[n]=BMAT[k]}
 function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k||!PCK.has(k)||PCS.has(cy*CW+cx))continue;const ok=(x,y)=>OM[y]&&OM[y][x]===k&&!PCS.has(y*CW+x),w=ok(cx+1,cy)?2:1,h=ok(cx,cy+1)&&(w<2||ok(cx+1,cy+1))?2:1,p={k,x0:cx,y0:cy,w,h,cells:[]};
  for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
 // finishes: riveted iron band on chests and racks, book spines on a bookshelf's open edges, a riveted steel vault shelf
@@ -582,7 +582,7 @@ function orient(b){let a=b.ang||0;if(!b.src){for(const p of b.px){const q=swingP
  b.px=px;b.used=used;mkSet(b)}
 function slab(m,x,y,rot=0,len=16,th=8){const b={id:uid++,type:'slab',mat:m,x,y,vx:0,vy:0,rot,ang:0,tgt:0,len,th,src:slabPix(m,len,th),px:[],mass:9*len/16};orient(b);bodies.push(b);return b}
 // metal slabs are drawn in steel, then recoloured into their own metal
-function barricade(m,x,y,len,th,mat,cd){const b=slab(m,x,y,0,len,th);b.free=true;if(m===3&&mat&&mat!=="steel"){for(const q of b.src)q[2]=toneC(mat,q[2]);b.used=null;b.px=[];orient(b)}if(m===3)wearSrc(b,'Metal',mat||'steel',cd);else if(mat&&ELEM.Wood.mats[mat]&&mat!=='oak')mahogany(b,memb('Wood',mat).c,0);return b}
+function barricade(m,x,y,len,th,mat,cd){const b=slab(m,x,y,0,len,th);b.free=true;if(m===3&&mat&&mat!=="steel"){for(const q of b.src)q[2]=toneC(mat,q[2]);b.used=null;b.px=[];orient(b)}if(m===3)wearSrc(b,'Metal',mat||'steel',cd);else{if(mat&&ELEM.Wood.mats[mat]&&mat!=='oak')mahogany(b,memb('Wood',mat).c,0);wearSrc(b,'Wood',mat||'oak',cd)}return b}
 // a slab or door in condition cd: its material's wear over each pixel, from the slab's own edge; pieces sample the wear at twice the scale of tiles so small ones still show patches
 function wearSrc(b,el,mat,cd){const A=ageOf(el,mat,cd);if(!A)return;const L=b.len||16,th=b.th||8,o=b.id*37;for(const q of b.src){const x=q[8],y=q[9],c=q[2],r=A([c&255,c>>8&255,c>>16&255],(x+o)*2,(y+o)*2,()=>Math.min(x,L-1-x,y+th,-1-y)-1);q[2]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}b.cond=cd;b.used=null;b.px=[];orient(b)}
 function slabFits(d,ignore){const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H)return false;const j=Y*W+X;if(sol[j]||(slabG[j]&&slabG[j]!==d.id&&!(ignore&&ignore.has(slabG[j]))))return false}return true}
