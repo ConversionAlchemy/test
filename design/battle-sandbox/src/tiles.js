@@ -161,14 +161,14 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='grate')return(X,Y)=>{const x=X&3,y=Y&3;let k=M(X,Y);if(x===0||y===0)return sc(k,x===0&&y===0?1.25:1.08);return sc(k,x===3||y===3?.32:.45)};
   if(v==='hammer')return(X,Y)=>{const d=vn(X/2.6,Y/2.6,s+40),k=M(X,Y),e=Math.min(X&31,Y&31);if(e===0)return sc(k,.62);return sc(k,.84+d*.3+(hh(X,Y,s)>.96?.1:0))};
   if(v==='tread')return(X,Y)=>{const b=((X>>2)+(Y>>2))&1,x=X&3,y=Y&3,k=M(X,Y),lug=b?x===y:x+y===3;return lug?sc(k,1.28):(b?x===y+1:x+y===4)?sc(k,.78):k};
-  // steel vents: horizontal louvres inside a framed margin; the 2px openings sit on rows 7–8 and the seam, so they mirror in any size
+  // steel vents: horizontal louvres inside a framed margin; 1px openings on rows 2, 6, 9 and 13 of each tile mirror in any size
   // connected specials: each area keeps a plain margin m in from its edge
   if(v==='treadplate')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd,dc]=regionD(X,Y,cx,cy);if(Math.min(dl,dr,du,dd,dc)<(wall?4:2))return k;const lx=X&3,ly=Y&3,t=.92+hh(X>>2,Y>>2,s+110)*.16;if(lx===3||ly===3)return sc(k,.9*t);return sc(k,(lx===ly||lx+ly===2?(lx===1?1.32:1.18):.96)*t)};
   if(v==='fluted')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd,dc]=regionD(X,Y,cx,cy),m=wall?5:3,e=Math.min(dl,dr,du,dd,dc);if(e<m)return k;if(e===m&&(du===m||dd===m||dc===m))return sc(k,.9);return sc(k,[.8,1.16,1.05,.95][X&3])};
   // aurum ceiling: each tile a sunken coffer with a boss, framed by the area's raised band
   if(v==='coffer2')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd]=regionD(X,Y,cx,cy),m=wall?4:2,e=Math.min(dl,dr,du,dd);if(e<m)return k;if(e<=m+1)return sc(k,e===m?(dl===e||du===e?1.2:.84):1.05);const x=X&15,y=Y&15,i=Math.min(x,y,15-x,15-y),r=Math.hypot(x-7.5,y-7.5);if(i<=1)return sc(k,i===0?1.12:1.04);if(i===2)return sc(k,x===2||y===2?.74:1.16);if(r<1.6)return sc(k,1.3);if(r<2.4)return sc(k,.84);return sc(k,.94)};
   if(v==='coffer')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd]=regionD(X,Y,cx,cy),m=wall?4:2,e=Math.min(dl,dr,du,dd);if(e<m)return k;if(e<=m+2)return sc(k,e===m?(dl===e||du===e?1.2:.86):e===m+2?(dl===e||du===e?.8:1.15):1.05);const u=((X+Y)%6+6)%6===0,w=((X-Y)%6+6)%6===0;return u&&w?sc(k,1.22):u||w?sc(k,.88):k};
-  if(v==='louvre')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd,dc]=regionD(X,Y,cx,cy),m=wall?5:3,e=Math.min(dl,dr,du,dd,dc);if(e<m)return k;if(e===m)return sc(k,dl===m||du===m?.8:1.12);return sc(k,[.38,.38,1.22,1.1,1.02,.96,.9,.84][(Y+1)&7])};
+  if(v==='louvre')return(X,Y,cx,cy)=>{const k=M(X,Y),[dl,dr,du,dd,dc]=regionD(X,Y,cx,cy),m=wall?5:3,e=Math.min(dl,dr,du,dd,dc);if(e<m)return k;if(e===m)return sc(k,dl===m||du===m?.8:1.12);return sc(k,[1.04,.9,.38,1.2,1.04,.9,.38,1.2,.9,.38,1.2,1.04,.9,.38,1.2,1.04][Y&15])};
   if(v==='filigree')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y),qx=x<8?0:15,qy=y<8?0:15;if(Math.abs(Math.hypot(x-qx,y-qy)-4.2)<.5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
   if(v==='grille')return(X,Y)=>{const u=((X+Y)%6+6)%6,w=((X-Y)%6+6)%6,k=M(X,Y);if(u===0&&w===0)return sc(k,1.4);if(u===0||w===0)return sc(k,.74);return k};
   if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),k=sc(M(X,Y),1.03),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx);if(Math.abs(r-5.5)<.5)return sc(k,.82);if(r>2&&r<5&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
