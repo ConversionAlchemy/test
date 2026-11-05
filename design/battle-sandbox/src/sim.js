@@ -58,7 +58,7 @@ function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;key=modK(key)
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){UND=[];(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();relink();blendGround();objects();boards();borders();regions();polish();cracks()}
+function build(){UND=[];(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(rug&&OM[y]&&OM[y][x]);
@@ -149,13 +149,14 @@ function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k o
   const v=ind[j]+(fbm(X/7,Y/7,90)-.5)*.5+(hh(X,Y,91)-.5)*.1,g=v>.5;let c=g?grassT(X,Y):soilT(X,Y);if(g&&v<.62&&hh(X,Y,92)>(v-.5)/.12)c=mx(GDRY,soilT(X,Y),.5);
   floor[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));GT[j]=g?1:2}}
 // blasts on open ground tear up grass, dig a soft crater and throw soil round it
-// blasts wear the floor around them: the inner cells drop two condition steps, the ring one (tough materials one); the wear is drawn over what is there, so scorch and shading stay
+// blasts wear the floor around them: inner cells drop two condition steps, the ring one, a heavy blast one more, tough materials one less (always at least one); the wear is drawn over what is there, so scorch and shading stay
 function blastWear(x,y,s){const R=22*s;for(let cy=Math.max(0,(y-R)/T|0);cy<=Math.min(CH-1,(y+R)/T|0);cy++)for(let cx=Math.max(0,(x-R)/T|0);cx<=Math.min(CW-1,(x+R)/T|0);cx++){const k=map[cy][cx],c=CATN[k];if(!c||c[3]||!AGE[c[0]]||OM[cy]&&OM[cy][cx])continue;
- const d=Math.hypot(cx*T+8-x,cy*T+8-y);if(d>R)continue;const c0=c[4]||5,cd=Math.max(1,c0-(d<R*.5&&(mprop(c[0],c[1]).hp||3)<7?2:1));if(cd===c0)continue;const A=ageOf(c[0],c[1],cd);map[cy][cx]=baseK(k)+'~'+cd;
+ const d=Math.hypot(cx*T+8-x,cy*T+8-y);if(d>R)continue;const c0=c[4]||5,tough=(mprop(c[0],c[1]).hp||3)>=7,cd=Math.max(1,c0-Math.max(1,(d<R*.5?2:1)+(s>1.5?1:0)-(tough?1:0)));if(cd===c0)continue;const A=ageOf(c[0],c[1],cd);map[cy][cx]=baseK(k)+'~'+cd;
  for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>{const g=regionD(X,Y,cx,cy);return Math.min(g[0],g[1],g[2],g[3])});floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}}
-function crater(x,y,s){const r=6.5*s,rr=s>1.5?.72:.4;for(let Y=Math.floor(y-r*2);Y<=y+r*2;Y++)for(let X=Math.floor(x-r*2);X<=x+r*2;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j])continue;
+// a built floor breaks through to the soil beneath: dug earth in the middle, loose fragments of the floor, a chipped edge, then hairline cracks
+function crater(x,y,s){const r=6.5*s,rr=s>1.5?.85:.5;for(let Y=Math.floor(y-r*2);Y<=y+r*2;Y++)for(let X=Math.floor(x-r*2);X<=x+r*2;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j])continue;
   const dx=X-x,dy=Y-y,e=r*(.78+.44*fbm(X/4,Y/4,93)),q=Math.hypot(dx,dy)/e;if(q>=2)continue;
-  if(GT[j]!==1&&GT[j]!==2){const mk=map[Y/T|0][X/T|0];if(mk==='sky')continue;if(q<rr){const f=curMap==='air'?woodT(X,Y,WOOD.walnut,4):foundT(X,Y),k=GT[j]===3?.9:1;floor[j]=GT[j]===3?mul(floor[j],k):rgb(cl(f[0]*.72),cl(f[1]*.72),cl(f[2]*.72));GT[j]=3;SHN[j]=0}else if(q<rr*1.6&&GT[j]!==3&&Math.abs(vn(X/2.5,Y/2.5,95)-.5)<.07)floor[j]=mul(floor[j],.72);continue}const so=soilT(X,Y);let c=null;
+  if(GT[j]!==1&&GT[j]!==2){const mk=map[Y/T|0][X/T|0];if(mk==='sky')continue;if(q<rr){if(GT[j]===3)floor[j]=mul(floor[j],.94);else{const f=curMap==='air'?woodT(X,Y,WOOD.walnut,4):sc(soilT(X,Y),.62+.3*q/rr),g=hh(X>>1,Y>>1,98);floor[j]=g>.86&&q>rr*.4?mul(floor[j],.62):rgb(cl(f[0]),cl(f[1]),cl(f[2]))}GT[j]=3;SHN[j]=0}else if(q<rr*1.25&&GT[j]!==3&&hh(X,Y,99)>.45){floor[j]=mul(floor[j],.5);SHN[j]=0}else if(q<rr*1.9&&GT[j]!==3&&Math.abs(vn(X/2.5,Y/2.5,95)-.5)<.07)floor[j]=mul(floor[j],.72);continue}const so=soilT(X,Y);let c=null;
   if(q<1){const lit=(-dx*.6-dy*.8)/e;const k=(.6+.32*q)*(1-lit*.16*(1-q))*(q<.45?.85:1);c=sc(so,k*(GT[j]===2?.92:1))}
   else if(q<1.35){if(hh(X,Y,94)<(1.35-q)/.35*1.3)c=sc(so,1.02+hh(X,Y,95)*.08)}
   else if(hh(X,Y,96)<(2-q)*.22&&parts.length<1500){const k=sc(so,.8+hh(X,Y,97)*.2);parts.push({x:X,y:Y,vx:0,vy:0,c:rgb(cl(k[0]),cl(k[1]),cl(k[2]))})}
@@ -351,6 +352,8 @@ function drawStores(){drawHoled(storesShown());const hit=!SDR&&!drag&&mouse.in&&
  if(SDR){const q=SDR.c.inv[SDR.i];if(q){const db=dropBox(),sn=db&&!bodyAt(Math.round(mouse.x),Math.round(mouse.y),4,null,o=>o.type==='token'&&o.status!=='dead')&&cAt(db,q.k,mouse.x,mouse.y,q),sg=sn&&cGeo(db),r=sn?sn.r:q.r,[w,h]=sn?(r?[...foot(q.k)].reverse():foot(q.k)):cRect(q);for(const[a,b,col]of itemPix(q.k,r)){const X=(sn?sg.ox+sn.gx:Math.round(mouse.x-w/2))+a,Y=(sn?sg.oy+sn.gy:Math.round(mouse.y-h/2))+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}}
 // mini maps for each side: one room or stretch, opening onto the void or a corridor
 const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true};
+// doorways draw from both neighbours, so they are redrawn once the whole map is laid
+function resill(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(k==='sill'||k==='msill')paintCell(cx,cy,k)}}
 function paintAll(f){map=Array.from({length:CH},()=>Array(CW).fill('stone'));for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,f(cx,cy));fxClear()}
 const UP=-Math.PI/2,DN=Math.PI/2,LF=Math.PI,RT=0;
 const LOOKKIT={'Imperial Striped Guard':'spear',Officer:'pistol'};
@@ -409,11 +412,11 @@ function unitsStock(){for(const x of [3,9,15,21]){const d=slab(3,x*T,5*T+8,0);d.
  U('Pip','Imperium','civ',3.4,12.4,UP,null);U('Mercer',null,'civ',4.6,9.8,RT,null,'Merchant')}
 function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone.grey.block.w'));
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='stone.grey.block.w';
-  if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cx===11)k=(cy===2||cy===6||cy===7)?'stone.grey.slabs':'stone.grey.block.w';else if(cx<11)k='stone.aur.chequer';else k='wood.oak.planks'}
+  if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cx===11)k=(cy===2||cy===6||cy===7)?'sill':'stone.grey.block.w';else if(cx<11)k='stone.aur.chequer';else k='wood.oak.planks'}
   if(cx>=3&&cx<=7&&(cy===6||cy===7))k='table';
   if((cx===4||cx===6)&&(cy===5||cy===8))k='seat';
   if(cx>=15&&cx<=16&&cy===2)k='table';
-  if(cy===10&&cx>11&&cx<CW-1)k=(cx===14||cx===15)?'stone.grey.slabs':'stone.grey.block.w';
+  if(cy===10&&cx>11&&cx<CW-1)k=(cx===14||cx===15)?'sill':'stone.grey.block.w';
   paintCell(cx,cy,k)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);fxDirty=true}
 
