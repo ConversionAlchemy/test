@@ -49,14 +49,14 @@ const BMAT={flag:'stone',slab:'stone',stone:'stone',gstone:'stone',pave:'stone',
  carpet:'cloth',gcarpet:'cloth',pcarpet:'cloth',grass:'grass',bush:'grass',crop:'grass',dirt:'soil',berm:'soil',sky:'soil',
  metal:'metal',mplate:'metal',iron:'metal',brass:'metal',mpanel:'metal',mfloor:'metal',gfloor:'metal',shelf:'metal',mchest:'metal'};
 function matK(k){if(!k)return'stone';if(/[HNS]$/.test(k)&&WMAT[k.slice(0,-1)])k=k.slice(0,-1);if(EDOK){const m=MODS.tex[k];if(m)return m.rec?m.rec.mat==='plaster'?'stone':m.rec.mat:matK(m.from);
- if(CATN[k]){const[el,mm]=CATN[k];return el==='Stone'?(ELEM.Stone.mats[mm][2]?'marble':'stone'):el==='Wood'?'wood':el==='Metal'?'metal':el==='Cloth'?'cloth':mm==='dirt'||mm==='wheat'?'soil':'grass'}}return BMAT[k]||'stone'}
+ if(CATN[k]){const[el,mm]=CATN[k];return mprop(el,mm).cls}}return BMAT[k]||'stone'}
 const hitCls=m=>m==='metal'?3:m==='stone'||m==='marble'||m==='soil'?1:2;
 const WMAT={ewood:2,mpanel:3,bush:2,stone:1,gstone:1,pillar:1,berm:1,rail:2,wood:2,dwood:2,metal:3,mplate:3,iron:3,brass:3};
 const SHINE={bkmarble:22,bkslab:22,gtile:28,omarble:28,mpanel:70,metal:70,mplate:70,iron:45,brass:80,mfloor:50,marble:28,dmarble:28,gfloor:80,gstone:20,pillar:28,msill:28,shelf:80};
 let HALFF='dirt';
-function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(undAt(cx,cy)||HALFF,cx,cy):null,m=WMAT[bk]||0,gk=bk==='gstone'?1:0,ud=m&&undAt(cx,cy)?tilePix(undAt(cx,cy),cx,cy):null;
+function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(undAt(cx,cy)||HALFF,cx,cy):null,m=WMAT[bk]||0,hpK=CATN[bk]?mprop(CATN[bk][0],CATN[bk][1]).hp:(MAT[m]||{}).hp,gk=bk==='gstone'?1:0,ud=m&&undAt(cx,cy)?tilePix(undAt(cx,cy),cx,cy):null;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&(hv==='H'?x>=T/2:hv==='N'?y>=T/2:y<T/2),c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=NODK.has(bk)?1:0;
-  GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;shp[j]=MAT[m].hp;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
+  GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;shp[j]=hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
 function build(){UND=[];(NBM[curMap]||(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();blendGround();objects();boards();borders();regions();keyBands();polish()}
