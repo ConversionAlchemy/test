@@ -1598,7 +1598,7 @@ function icon(px,scale){const c=document.createElement('canvas');c.width=28;c.he
 function panelItem(host,name,ic,make){const d=document.createElement('div');d.appendChild(ic);d.appendChild(document.createTextNode(name));
  d.addEventListener('pointerdown',e=>{au();e.preventDefault();const[x,y]=toBoard(e);charge=null;const b=make(x,y);startDrag(b,x,y,true)});host.appendChild(d)}
 for(const k of ['rod','pgun','sspear','musket','blunder','pistol','spear','bomb','grenade']){const w=WP[k];panelItem($('wp'),w.n,icon(shape(k,0),k==='spear'?.6:1),(x,y)=>weapon(k,x,y,0))}
-panelItem($('cov'),'Wood slab',icon(slabPix(2),1),(x,y)=>barricade(2,x,y));panelItem($('cov'),'Pine slab',icon(slabPix(2).map(q=>{const w=woodT(q[8]+93,q[9],WOOD.pine,13);return[q[0],q[1],rgb(cl(w[0]),cl(w[1]),cl(w[2]))]}),1),(x,y)=>barricade(2,x,y,16,8,'pine'));
+panelItem($('cov'),'Wood slab',icon(slabPix(2),1),(x,y)=>barricade(2,x,y));for(const mat of['pine','teak'])panelItem($('cov'),memb('Wood',mat).n+' slab',icon(slabPix(2).map(q=>{const w=woodT(q[8]+93,q[9],memb('Wood',mat).c,13);return[q[0],q[1],rgb(cl(w[0]),cl(w[1]),cl(w[2]))]}),1),(x,y)=>barricade(2,x,y,16,8,mat));
 for(const mat in ELEM.Metal.mats){const n=memb('Metal',mat).n,tint=px=>mat==='steel'?px:px.map(q=>{q=q.slice();q[2]=toneC(mat,q[2]);return q});panelItem($('cov'),n+' slab',icon(tint(slabPix(3)),1),(x,y)=>barricade(3,x,y,16,8,mat));panelItem($('cov'),'Heavy '+n.toLowerCase()+' slab',icon(tint(slabPix(3,32,8)),.8),(x,y)=>barricade(3,x,y,32,8,mat))}
 
 // people
