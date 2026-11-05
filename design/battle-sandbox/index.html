@@ -636,12 +636,12 @@ let S=2,EM=null,TOPS=false,OUTD=false;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
 let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),SCH=new Uint8Array(N),OBJC=new Uint32Array(N),DMG=new Uint8Array(N);// DMG: chips and holes blasts leave in the floor, which only the wand repairs
 const FX={blood:new Float32Array(NB),fire:new Float32Array(NB),smoke:new Float32Array(NB)};
-let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
+let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),FH=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
 let WH=new Float32Array(N);let whOn=false;
 let fxLow=new Uint32Array(N),fxTop=new Uint32Array(N),fxA=new Uint8Array(N),HZ=new Float32Array(NB),OPEN=new Uint8Array(NB);let hzOn=false;let fxDirty=true;
 function alloc(cw,ch){CW=cw;CH=ch;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
  SH=new Uint8Array(N);solDirty=true;GOLD=new Uint8Array(N);floor=new Uint32Array(N);sol=new Uint8Array(N);shp=new Uint8Array(N);scol=new Uint32Array(N);crk=new Uint8Array(N);slabG=new Int32Array(N);GT=new Uint8Array(N);SHN=new Uint8Array(N);DS=new Uint8Array(N);NOD=new Uint8Array(N);OBJ=new Uint8Array(N);SCH=new Uint8Array(N);OBJC=new Uint32Array(N);DMG=new Uint8Array(N);
- for(const k in FX)FX[k]=new Float32Array(NB);TF=new Float32Array(NB);SF=new Float32Array(NB);SS=new Float32Array(NB);ST=new Float32Array(NB);BURN=new Float32Array(NB);FV=new Float32Array(NB);SV=new Float32Array(NB);DV=new Float32Array(NB);TMP=new Float32Array(NB);
+ for(const k in FX)FX[k]=new Float32Array(NB);TF=new Float32Array(NB);SF=new Float32Array(NB);SS=new Float32Array(NB);ST=new Float32Array(NB);BURN=new Float32Array(NB);FH=new Float32Array(NB);FV=new Float32Array(NB);SV=new Float32Array(NB);DV=new Float32Array(NB);TMP=new Float32Array(NB);
  WH=new Float32Array(N);fxLow=new Uint32Array(N);fxTop=new Uint32Array(N);fxA=new Uint8Array(N);HZ=new Float32Array(NB);OPEN=new Uint8Array(NB)}
 const rgb=(r,g,b)=>((255<<24)|(b<<16)|(g<<8)|r)>>>0;
 // plasma is Umbrastone's energy: its light runs through the stone's iridescent palette
@@ -747,8 +747,8 @@ function cutEdges(x,y,R){const x0=Math.max(1,Math.floor(x-R-3)),x1=Math.min(W-2,
   if(Math.hypot(X-x,Y-y)>R+3)continue;EDG.add(j);const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0],metal=!!k&&matK(k)==='metal';OBJC[j]=metal?mul(OBJC[j],rb?.7:1.25):mul(OBJC[j],rb?.55:1.15);
   if(!metal&&hh(X,Y,57)<.3){const sx=!OBJ[j+1]?1:!OBJ[j-1]?-1:0,len=1+(hh(X,Y,58)*2|0);if(sx)for(let i=1;i<=len;i++){const q=j+sx*i;if(OBJ[q]||sol[q])break;add.push([q,mul(OBJC[j],.8-.1*i),OBJ[j]])}}}
  for(const[q,c,m]of add){OBJ[q]=m;OBJC[q]=c;EDG.add(q)}}
-function scorchRays(x,y,s){const n=8+(Math.random()*8*Math.min(1.5,s)|0),R=18*s;for(let r=0;r<n;r++){const a=Math.random()*6.283,len=R*(.5+Math.random()*.9),w0=.6+Math.random()*1.4*s,c=Math.cos(a),sn=Math.sin(a),sd=Math.random()*99;
- for(let t=3;t<len;t+=.5){const f=1-t/len,w=w0*f;for(let u=-w;u<=w;u+=.5){const X=Math.round(x+c*t-sn*u),Y=Math.round(y+sn*t+c*u);if(X<1||Y<1||X>=W-1||Y>=H-1)continue;const j=Y*W+X;if(sol[j])continue;const al=.26*Math.pow(f,1.4)*(.75+.4*hh(X,Y,60));SCH[j]=1;if(OBJ[j])OBJC[j]=mix(OBJC[j],rgb(30,22,16),al);else floor[j]=mix(floor[j],rgb(26,22,20),al)}}}}
+function scorchRays(x,y,s){const n=8+(Math.random()*8*Math.min(1.5,s)|0),R=18*s;for(let r=0;r<n;r++){const a=Math.random()*6.283,len=R*(.5+Math.random()*.9),w0=.4+Math.random()*.7*s,c=Math.cos(a),sn=Math.sin(a),sd=Math.random()*99;
+ for(let t=3;t<len;t+=.5){const f=1-t/len,w=w0*f;for(let u=-w;u<=w;u+=.5){const X=Math.round(x+c*t-sn*u),Y=Math.round(y+sn*t+c*u);if(X<1||Y<1||X>=W-1||Y>=H-1)continue;const j=Y*W+X;if(sol[j])continue;const al=.15*Math.pow(f,1.4)*(.75+.4*hh(X,Y,60));SCH[j]=1;if(OBJ[j])OBJC[j]=mix(OBJC[j],rgb(30,22,16),al);else floor[j]=mix(floor[j],rgb(26,22,20),al)}}}}
 function wreck(x,y,s){const R=10*s;let hit=false;for(let Y=Math.floor(y-R);Y<=y+R;Y++)for(let X=Math.floor(x-R);X<=x+R;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(!OBJ[j])continue;const q=Math.hypot(X-x,Y-y)/R*(.8+.4*hh(X,Y,88));if(q>=1)continue;OBJ[j]=0;SHN[j]=0;hit=true;if(hh(X,Y,89)<.55)floor[j]=mix(floor[j],mul(OBJC[j],.45),.7)}
  if(!hit)return;cutEdges(x,y,R);for(const c of bodies.filter(o=>o.hidden)){let n=0;for(const[a,b]of c.cells)for(let yy=0;yy<T;yy++)for(let xx=0;xx<T;xx++)n+=OBJ[(b*T+yy)*W+a*T+xx];if(n>=c.n0*.7)continue;
   for(const it of c.inv){if(!it)continue;if(it.k==='note'){placeNote(it,c.x,c.y);continue}for(let i=0;i<Math.min(6,it.k==='gold'?1:it.n||1);i++){const a=Math.random()*6.283;let px=c.x+Math.cos(a)*6,py=c.y+Math.sin(a)*6;const w=weapon(it.k,px,py,a);if(solidHits(w,0,0)){[px,py]=spillAt(c);w.x=px;w.y=py}if(it.k==='gold')w.amt=it.n;if(CAP[it.k]){w.ammo=it.ammo??CAP[it.k];w.res=it.res||0}if(it.k==='grenade'||it.k==='bomb')w.fuse=8+(Math.random()*30|0);w.vx=Math.cos(a)*2;w.vy=Math.sin(a)*2}}remove(c);if(openCrate===c)openCrate=null}}
@@ -834,7 +834,7 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
   if((x===27||x===37)&&y>=14&&y<=24||(y===14||y===24)&&x>=27&&x<=37)return 'metal.iron.rivet.w';
   return 'stone.gold.block.w'};
  HALFF='stone.night.block';for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));HALFF='dirt';
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 const EXITS={vault:[{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392}],count:[{dir:'e',cell:[43,12],to:'vault',arrive:[664,200],label:'The Aurum',lx:640,ly:182},{dir:'w',cell:[0,17],label:'Back alley',lx:2,ly:262}]};
 const STATE={},PEND={};
 function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of document.querySelectorAll('#sm .xlab'))e.remove();
@@ -881,7 +881,7 @@ function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('grass'));
    if(cx===11&&t!=='door')k=t==='stone2'?'stone.grey.block.w':t;if(cx===12&&t==='stone2')k='stone.grey.block.w'}
   const yi=Math.floor((cx-17)/3),yo=(cx-17)%3<2&&cx>=17;if(yo&&cy>=1&&cy<=2&&Y0[yi])k=Y0[yi];if(yo&&cy>=4&&cy<=5&&W0[yi])k=W0[yi];if(yo&&cy>=7&&cy<=8&&W1[yi])k=W1[yi];
   if(cx>=24&&cx<=38&&cy>=13&&cy<=CH-2&&soil(cx,cy))k='dirt';if(cx===5&&(cy===8||cy===18||cy===21||cy===24))k=cy===18?'chest':'chest';paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
  for(const[n,u,y]of[['Vey','home',40],['Oren','home',72],['Pip','civ',104],['Lask','guard',136],['Hale','rifle',176],['Isk','rifle',256]])token(n,'Imperium',u,56,y,false,null);
  {const w=weapon('rod',92,70,0);w.ammo=3;w.res=15}container(5,8,[{k:'rbox',n:6}]);container(5,18,[{k:'musket',n:4,ammo:12,res:24}]);container(5,21,[{k:'grenade',n:8}]);container(5,24,[{k:'bomb',n:4}]);
@@ -901,7 +901,7 @@ function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
   return 'stone.gold.block.w'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,cx<=14?F(cx,cy):F(29-cx,cy));for(const cx of [0,1,2])paintCell(cx,25,'stone.aur.block');
  for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='metal.gold.panel')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='metal.gold.panel';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};slab(3,36,400,1);
  dbl(3,208,124,271,115,0,2,true,32,8);dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,true,32,8);
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
@@ -924,7 +924,7 @@ function buildAir(){map=Array.from({length:CH},()=>Array(CW).fill('sky'));
   if(plank(cx,cy))k='wood.oak.planks';if(cx===2&&(cy===6||cy===9)||cy===7&&(cx===16||cx===17)||cx===20&&cy===12)k='chest';
   if(cx===18&&(cy===6||cy===13)||cx>=23&&cx<=24&&cy>=9&&cy<=10)k='rail';
   paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsAir(){const face=(t,a)=>{t.ang=a;return t},E=0,Wd=Math.PI;
  const C=[['Kade','pistol',2],['Vos','pistol',2],['Ash','blunder'],['Rook','blunder'],['Sere','pgun'],['Holt','rod']];
  C.forEach(([n,w,dual],i)=>{const t=face(token(n,'Imperium','cmd',56+(i%2)*28,104+(i>>1)*36,false,w),E);if(dual)addItem(t,{k:'pistol',n:1,ammo:18,res:18})});
@@ -1000,7 +1000,7 @@ function drawStores(){drawHoled(storesShown());const hit=!SDR&&!drag&&mouse.in&&
   for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q||SDR&&SDR.c===c&&SDR.i===i)continue;const[w,h]=cRect(q),ip=itemPix(q.k,q.r),bx=g.ox+q.gx*g.cs,by=g.oy+q.gy*g.cs;for(const[a,b]of ip){const gx=q.gx+a+1,gy=q.gy+b+1;if(gx<g.gw&&gy<g.gh&&g.ok(gx,gy))out[(g.oy+gy)*W+g.ox+gx]=mul(out[(g.oy+gy)*W+g.ox+gx],.5)}const hv=hit&&hit.c===c&&hit.i===i;for(const[a,b,col]of ip){const X=bx+a,Y=by+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=hv?mix(col,rgb(255,255,255),.22):col}if(GLOWK.has(q.k))for(const[a,b,col]of ip){if((col>>16&255)<200||(col&255)<150)continue;for(let v=-2;v<=2;v++)for(let u=-2;u<=2;u++){const d=Math.hypot(u,v);if(!d||d>2.5)continue;const X=bx+a+u,Y=by+b+v;if(X>=0&&Y>=0&&X<W&&Y<H&&!ip.some(p=>p[0]===a+u&&p[1]===b+v))out[Y*W+X]=mix(out[Y*W+X],rgb(214,140,255),.32*(1-d/3))}}}}
  if(SDR){const q=SDR.c.inv[SDR.i];if(q){const db=dropBox(),sn=db&&!bodyAt(Math.round(mouse.x),Math.round(mouse.y),4,null,o=>o.type==='token'&&o.status!=='dead')&&cAt(db,q.k,mouse.x,mouse.y,q),sg=sn&&cGeo(db),r=sn?sn.r:q.r,[w,h]=sn?(r?[...foot(q.k)].reverse():foot(q.k)):cRect(q);for(const[a,b,col]of itemPix(q.k,r)){const X=(sn?sg.ox+sn.gx:Math.round(mouse.x-w/2))+a,Y=(sn?sg.oy+sn.gy:Math.round(mouse.y-h/2))+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}}
 // mini maps for each side: one room or stretch, opening onto the void or a corridor
-const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true};
+const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true};
 // doorways draw from both neighbours, so they are redrawn once the whole map is laid
 function resill(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(k==='sill'||k==='msill')paintCell(cx,cy,k)}}
 function paintAll(f){map=Array.from({length:CH},()=>Array(CW).fill('stone'));for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,f(cx,cy));fxClear()}
@@ -1067,7 +1067,7 @@ function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone.grey.b
   if(cx>=15&&cx<=16&&cy===2)k='table';
   if(cy===10&&cx>11&&cx<CW-1)k=(cx===14||cx===15)?'sill':'stone.grey.block.w';
   paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);fxDirty=true}
 
 // units and nations
 const NAT={Neutral:null,Pirates:'#8a5a2b',Goldbank:'#c9a227',Havenport:'#2f5fa8',Imperium:'#b03a2a',Sanctis:'#8e5cc0',Portsbridge:'#c98a4a','Great Keys':'#3fa39a',Thaselore:'#7d4fa0',Holverland:'#3e8e5a',Reapers:'#5b6b3a'};
@@ -1298,7 +1298,7 @@ function explode(x,y,s=1){raiseAlarm();hear(x,y,520*s,null,'boom');sfx(s>1?'bigb
  if(s>1){embers(x,y,70);for(let i=0;i<60;i++){const a=Math.random()*6.283,rr=Math.random()*12,X=Math.round(x+Math.cos(a)*rr),Y=Math.round(y+Math.sin(a)*rr);if(X>=0&&Y>=0&&X<W&&Y<H)spark(x,y,mul(sol[Y*W+X]?scol[Y*W+X]:floor[Y*W+X],.8),0,0,6)}
   for(let i=0;i<7;i++){const a=Math.random()*6.283,rr=6+Math.random()*16;dab(SF,x+Math.cos(a)*rr,y+Math.sin(a)*rr,2,7)}dab(SS,x,y,2.6,14);room(x,y,.12)}}
 function scorch(x,y,R){const r=R/2,cx=x/2,cy=y/2,sd=Math.random()*99;for(let j=-Math.ceil(r);j<=r;j++)for(let i=-Math.ceil(r);i<=r;i++){const X=Math.floor(cx+i),Y=Math.floor(cy+j);if(X<0||Y<0||X>=BW||Y>=BH)continue;
-  const d=Math.hypot(i,j),k=Math.floor((Math.atan2(j,i)+Math.PI)/6.2832*44),len=r*(.6+.4*hh(k,0,sd)),core=r*(R>20?.42:.28),t=d<core?0:Math.min(1,(d-core)/Math.max(1,len-core)),v=.92*Math.pow(1-t*t*(3-2*t),1.3);if(v<=.02)continue;const q=Y*BW+X;BURN[q]=Math.min(.92,Math.max(BURN[q],v*(.85+.15*hh(X,Y,sd+1))))}fxDirty=true}
+  const d=Math.hypot(i,j),k=Math.floor((Math.atan2(j,i)+Math.PI)/6.2832*44),len=r*(.6+.4*hh(k,0,sd)),core=r*.3,t=Math.min(1,d/Math.max(1,len)),v=.36*Math.pow(1-t*t*(3-2*t),1.2)+.56*Math.exp(-((d/core)**2));if(v<=.02)continue;const q=Y*BW+X;BURN[q]=Math.min(.92,Math.max(BURN[q],v*(.85+.15*hh(X,Y,sd+1))));const h=Math.min(1,R/16)*Math.exp(-((d/(core*1.4))**2));if(h>.05)FH[q]=Math.max(FH[q],h)}fxDirty=true}
 function embers(x,y,n,blue){for(let i=0;i<n&&parts.length<1500;i++){const a=Math.random()*6.283,s=1+Math.random()*5,c=blue&&Math.random()<.4?rgb(170,220,255):Math.random()<.5?rgb(255,214,120):rgb(255,140,50),e=120+(Math.random()*200|0);parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,c,c0:c,em:e,em0:e})}}
 function shatter(b){sfx('crash');for(let i=0;i<4;i++)dab(TF,b.x+(Math.random()-.5)*14,b.y+(Math.random()-.5)*14,2,4);dab(TF,b.x,b.y,2.6,6);dab(SF,b.x,b.y-4,1.6,9);
  for(let i=0;i<24;i++)spark(b.x,b.y,Math.random()<.5?C.clay:C.clayD,0,0,3);remove(b)}
@@ -1569,7 +1569,7 @@ function room(px,py,amt){openMap();const s=(Math.floor(py)>>1)*BW+(Math.floor(px
  while(h<q.length){const i=q[h++],d=dist[i];HZ[i]=Math.min(.5,HZ[i]+amt*1.6*(1-d/R));if(d>=R)continue;const X=i%BW;for(const n of [X>0?i-1:-1,X<BW-1?i+1:-1,i-BW,i+BW])if(n>=0&&n<NB&&dist[n]<0&&OPEN[n]){dist[n]=d+1;q.push(n)}}hzOn=true}
 function plume(x,y,a,sc){const c=Math.cos(a),s=Math.sin(a),n=sc>.6?10:6;for(let i=0;i<n;i++){const d=i*3.6*(sc>.6?1:.75),j=(Math.random()-.5)*i*1.1;dab(SS,x+c*d-s*j,y+s*d+c*j,(1.9-i*.12)*sc,Math.max(2,Math.round((3+i*.5)*(sc>.6?1:.7))))}dab(SF,x,y,.8,3)}
 function fxTick(){let act=false;
- for(let i=0;i<NB;i++){if(TF[i]>0){act=true;if(TF[i]>.3)BURN[i]=Math.min(.75,BURN[i]+.0016);TF[i]=Math.max(0,TF[i]-.0015)}if(SF[i]>0){act=true;SF[i]=Math.max(0,SF[i]-.012)}if(SS[i]>0){act=true;SS[i]=Math.max(0,SS[i]-.00035)}if(ST[i]>0){act=true;ST[i]=Math.max(0,ST[i]*.996-.0015)}}
+ for(let i=0;i<NB;i++){if(TF[i]>0){act=true;if(TF[i]>.3)BURN[i]=Math.min(.75,BURN[i]+.0016);TF[i]=Math.max(0,TF[i]-.0015)}if(SF[i]>0){act=true;SF[i]=Math.max(0,SF[i]-.012)}if(SS[i]>0){act=true;SS[i]=Math.max(0,SS[i]-.00035)}if(ST[i]>0){act=true;ST[i]=Math.max(0,ST[i]*.996-.0015)}if(FH[i]>0){act=true;FH[i]=FH[i]>.01?FH[i]*.997-.0001:0}}
  if(act&&tick%6===0)diffuse(ST,.7);
  if(act&&tick%4===0)diffuse(SF,.6);if(act&&tick%12===0)diffuse(SS,.8);fxActive=act;
  if(hzOn){let mx=0;for(let i=0;i<NB;i++){HZ[i]*=.99991;if(HZ[i]>mx)mx=HZ[i]}
@@ -1622,9 +1622,18 @@ function rebuildDS(){const B=15;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++)
 let DS0=null,ds0Need=true;
 // wall rim: a dark line wherever open ground touches (diagonals too, so inner corners close), a lit line one further in on the top and left
 function rebuildSH(){rebuildDS();if(ds0Need||!DS0||DS0.length!==DS.length){DS0=DS.slice();ds0Need=false}for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){let k=0;if(!sol[j]){if(isS(X,Y-1)||isS(X-1,Y))k=1;else if(isS(X,Y-2)||isS(X-2,Y)||isS(X-1,Y-1))k=2}else{if(!isS(X,Y-1)||!isS(X,Y+1)||!isS(X-1,Y)||!isS(X+1,Y)||!isS(X-1,Y-1)||!isS(X+1,Y-1)||!isS(X-1,Y+1)||!isS(X+1,Y+1))k=1;else if(!isS(X,Y-2)||!isS(X-2,Y)||!isS(X-2,Y-2)||!isS(X-1,Y-2)||!isS(X-2,Y-1)||!isS(X+1,Y-2)||!isS(X+2,Y-2)||!isS(X-2,Y+1)||!isS(X-2,Y+2))k=2;else if(!isS(X,Y+2)||!isS(X+2,Y))k=3}SH[j]=k}}
+// scorch is a soot film tinted by the floor: grey on stone, char on wood, tarnish on brass and gold, temper colours on other metals, singed cloth
+const burnAt=(X,Y)=>{const fx=Math.max(0,(X-.5)/2),fy=Math.max(0,(Y-.5)/2),x0=Math.min(BW-1,fx|0),y0=Math.min(BH-1,fy|0),x1=Math.min(BW-1,x0+1),y1=Math.min(BH-1,y0+1),a=fx-x0,b=fy-y0,B=BURN;
+ const p=B[y0*BW+x0],q=B[y0*BW+x1],r=B[y1*BW+x0],s=B[y1*BW+x1];return p+q+r+s?(p*(1-a)+q*a)*(1-b)+(r*(1-a)+s*a)*b:0};
+const SCT={Stone:[.17,.16,.155],Wood:[.22,.13,.07],Cloth:[.4,.25,.14],tar:[.46,.36,.24]},TEMPER=[[0,[1,1,1]],[.14,[1.02,.94,.78]],[.3,[.82,.66,.56]],[.46,[.56,.56,.7]],[.66,[.32,.33,.39]],[.9,[.15,.15,.17]]],tintC={};
+function scorchT(X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4];if(k in tintC)return tintC[k];const c=CATN[k];return tintC[k]=!c?SCT.Stone:c[0]==='Metal'?(c[1]==='brass'||c[1]==='gold'?SCT.tar:'temper'):SCT[c[0]]||SCT.Stone}
+function scorchC(c,a,X,Y){a=Math.min(1,a);const t=scorchT(X,Y);let f;if(t==='temper'){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0,f0]=TEMPER[i-1],[p1,f1]=TEMPER[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0)));f=f0.map((v,k)=>v+(f1[k]-v)*u)}else f=t.map(v=>1-a*(1-v));
+ return rgb(cl((c&255)*f[0]),cl((c>>8&255)*f[1]),cl((c>>16&255)*f[2]))}
+// fresh blast heat glows and cools: metal brightest, wood embers flicker, stone a dull red
+function glowC(c,h,X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4],e=CATN[k]?CATN[k][0]:'Stone',g=e==='Metal'?1:e==='Wood'?.8*(.8+.4*hh(X>>1,Y>>1,tick>>3)):e==='Cloth'?.75:.5;return heatCol(h*g,c)}
 function render(){
  if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick}
- sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>2*W&&OBJ[j-2*W-1])c=mul(c,.6);if(EDGM[j]&&!OBJ[j])c=mul(c,EDF[EDGM[j]]);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=BURN[bro+(X>>1)];if(bu>.02)c=mul(c,1-.88*bu*(.92+.16*hh(X,Y,13)));const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
+ sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>2*W&&OBJ[j-2*W-1])c=mul(c,.6);if(EDGM[j]&&!OBJ[j])c=mul(c,EDF[EDGM[j]]);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);const fh=FH[bro+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y);const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
  if(fxDirty||(fxActive&&tick%3===0)||(tick%7===0&&FX.fire.some(v=>v>.3)))buildFx();
  for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}
@@ -1790,7 +1799,7 @@ function addL(x,y,r,g,b,i,rad=0){const cx=x/2|0,cy=y/2|0,R=Math.ceil(rad);lbx(cx
 let LBX=[0,0,-1,-1],PBX=null;const lbx=(x,y)=>{if(LBX[2]<0){LBX=[x,y,x,y];return}if(x<LBX[0])LBX[0]=x;if(y<LBX[1])LBX[1]=y;if(x>LBX[2])LBX[2]=x;if(y>LBX[3])LBX[3]=y};
 function blurL(a,x0,y0,x1,y1){for(let p=0;p<3;p++){for(let Y=y0;Y<=y1;Y++){let acc=0;const o=Y*BW;for(let X=x0-2;X<=x1+2;X++){if(X+2<=x1)acc+=a[o+X+2];if(X-3>=x0)acc-=a[o+X-3];if(X>=x0&&X<=x1)LT[o+X]=acc/5}}for(let X=x0;X<=x1;X++){let acc=0;for(let Y=y0-2;Y<=y1+2;Y++){if(Y+2<=y1)acc+=LT[(Y+2)*BW+X];if(Y-3>=y0)acc-=LT[(Y-3)*BW+X];if(Y>=y0&&Y<=y1)a[Y*BW+X]=acc/5}}}}
 function lightPass(){if(PBX){const[x0,y0,x1,y1]=PBX;for(let Y=y0;Y<=y1;Y++){const o=Y*BW;LR.fill(0,o+x0,o+x1+1);LG.fill(0,o+x0,o+x1+1);LB.fill(0,o+x0,o+x1+1)}PBX=null}LBX=[0,0,-1,-1];let any=false;
- for(let i=0;i<NB;i++){const v=Math.max(FX.fire[i],TF[i]);if(v>.05){const f=Math.min(1.2,v)*1.7*(.85+.15*Math.sin(tick*.3+i));LR[i]+=f;LG[i]+=f*.5;LB[i]+=f*.16;any=true;lbx(i%BW,i/BW|0)}}
+ for(let i=0;i<NB;i++){const v=Math.max(FX.fire[i],TF[i],FH[i]*.6);if(v>.05){const f=Math.min(1.2,v)*1.7*(.85+.15*Math.sin(tick*.3+i));LR[i]+=f;LG[i]+=f*.5;LB[i]+=f*.16;any=true;lbx(i%BW,i/BW|0)}}
  for(const p of parts){const c=p.c,l=(c&255)+(c>>8&255)+(c>>16&255);if(l<420)continue;let k=p.life!==undefined?1:p.em!==undefined?p.em/p.em0:0;if(k<=0)continue;const q=(p.y>>1)*BW+(p.x>>1);if(q<0||q>=NB)continue;lbx(p.x>>1,p.y>>1);k*=1.1;LR[q]+=(c&255)/255*k;LG[q]+=(c>>8&255)/255*k;LB[q]+=(c>>16&255)/255*k;any=true}
  for(const z of zaps){addL(z.x1,z.y1,z.b?.45:.75,z.b?.75:.45,1,.8);any=true}
  const pul=.85+.15*Math.sin(tick*.12);for(const b of bodies){if(unseen(b))continue;if(b.kind==='arc'){addL(b.x,b.y,.62,.66,1,1.6);any=true}else if(b.kind==='sspear'&&!b.spent){const[x,y]=spearTip(b);addL(x,y,.62,.66,1,b.timer>0?.6+.7*(1-b.timer/b.timer0):b.fizz>0?.3+.4*b.fizz/150:.9*pul,2);any=true}
@@ -2331,7 +2340,7 @@ NUM.blast=()=>{snapPR();PRSET=true;const m0=mute;mute=true;
  BLR.forEach((_,i)=>{const cy=4+i*7;for(let j=0;j<5;j++){const cx=4+j*7,X=cx*T+8,Y=cy*T+8;
   if(j===0){weapon('grenade',X-14,Y);weapon('bomb',X+14,Y)}else if(j===1)explode(X,Y,1.3);else{explode(X,Y,1.95);if(j===4)explode(X+5,Y-4,1.95);}}});for(let i=0;i<80;i++)stepParts();BLR.forEach((_,i)=>{repairCell(25,4+i*7);repairCell(26,4+i*7)});
  // keep the scorch and debris; clear smoke, fire, light and shake
- for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,ST])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);tls.length=0;parts=parts.filter(p=>p.em===undefined&&p.life===undefined);shake=0;alarm=false;mute=m0;fxDirty=true};
+ for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,ST,FH])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);tls.length=0;parts=parts.filter(p=>p.em===undefined&&p.life===undefined);shake=0;alarm=false;mute=m0;fxDirty=true};
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
 function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>{UND=d.und?d.und.map(r=>r.map(modK)):[];paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k})};NUM[id]=()=>spawnMap(d)}
@@ -2510,11 +2519,11 @@ function snapPR(){PR={CW,CH,map:map.map(r=>r.slice()),floor0:floor.slice(),sol:s
 const prOK=()=>PR&&PR.CW===CW&&PR.CH===CH&&PR.floor.length===N;snapPR();
 const chDiff=(a,b)=>Math.abs((a&255)-(b&255))+Math.abs((a>>8&255)-(b>>8&255))+Math.abs((a>>16&255)-(b>>16&255));
 function cellIdx(cx,cy,f){for(let y=0;y<T;y++)for(let x=0;x<T;x++)if(f((cy*T+y)*W+cx*T+x))return true;return false}
-function stainBad(cx,cy){if(!prOK())return false;if(cellIdx(cx,cy,j=>SCH[j]&&!sol[j]&&!PR.sol[j]&&(OBJ[j]?chDiff(OBJC[j],PR.OBJC[j])>14:chDiff(floor[j],PR.floor[j])>14)))return true;for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;if(FX.blood[q]>.04||BURN[q]>.04||FX.fire[q]>.05)return true}return false}
+function stainBad(cx,cy){if(!prOK())return false;if(cellIdx(cx,cy,j=>SCH[j]&&!sol[j]&&!PR.sol[j]&&(OBJ[j]?chDiff(OBJC[j],PR.OBJC[j])>14:chDiff(floor[j],PR.floor[j])>14)))return true;for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;if(FX.blood[q]>.04||BURN[q]>.04||FX.fire[q]>.05||TF[q]>.03||FH[q]>.05)return true}return parts.some(p=>p.life===undefined&&(p.x/T|0)===cx&&(p.y/T|0)===cy)}
 function cellBad(cx,cy){const k0=PR&&PR.map&&PR.map[cy]&&PR.map[cy][cx];return prOK()&&(stainBad(cx,cy)||!!k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)||cellIdx(cx,cy,j=>DMG[j]||sol[j]!==PR.sol[j]||shp[j]!==PR.shp[j]||crk[j]!==PR.crk[j]||OBJ[j]!==PR.OBJ[j]))}
 // the wand mends a cell as the map was laid (chips, holes, wear and the tile's condition) and leaves the soot and debris on it for the sponge and vacuum
 function repairCell(cx,cy){const k0=PR.map&&PR.map[cy]&&PR.map[cy][cx];if(k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)){map[cy][cx]=k0;if(edSrc&&edSrc[cy])edSrc[cy][cx]=k0}for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;for(const k of['sol','shp','scol','crk','GT','OBJ','OBJC','SHN','GOLD','NOD'])({sol,shp,scol,crk,GT,OBJ,OBJC,SHN,GOLD,NOD})[k][j]=PR[k][j];floor[j]=PR.floor0[j];SCH[j]=0;PR.floor[j]=PR.floor0[j];EDG.delete(j);DMG[j]=0}{const ck=CATN[map[cy][cx]];if(ck&&!ck[3])REP.add(cy*CW+cx)}edgeMask();
- parts=parts.filter(p=>p.em!==undefined||p.life!==undefined||(p.x/T|0)!==cx||(p.y/T|0)!==cy);for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;FX.blood[q]=0;BURN[q]=0;FX.fire[q]=0;FX.smoke[q]=0}solDirty=true;fxDirty=true;sparkle(cx,cy,14)}
+ parts=parts.filter(p=>p.life!==undefined||(p.x/T|0)!==cx||(p.y/T|0)!==cy);for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;FX.blood[q]=0;BURN[q]=0;FX.fire[q]=0;FX.smoke[q]=0;TF[q]=0;SF[q]=0;SS[q]=0;ST[q]=0;FH[q]=0}solDirty=true;fxDirty=true;sparkle(cx,cy,14)}
 function sparkle(cx,cy,n){for(let i=0;i<n;i++)SPK.push({x:cx*T+Math.random()*T,y:cy*T+Math.random()*T,vx:(Math.random()-.5)*.12,vy:-.05-Math.random()*.1,h:Math.random()*360,l:0,L:90+Math.random()*90,tw:Math.random()*6})}
 // recorded clips: water squelch while scrubbing, rubber squeaks on clean tiles
 const SBUF={};function sample(n,vol,rate){if(mute||!gest)return;try{const a=au(),go=bufs=>{const b=bufs[Math.random()*bufs.length|0],s=a.createBufferSource(),g=a.createGain();s.buffer=b;s.playbackRate.value=rate||(.92+Math.random()*.16);g.gain.value=vol;s.connect(g).connect(MS);s.start()};
