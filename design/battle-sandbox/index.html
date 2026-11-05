@@ -307,7 +307,7 @@ const ELEM={
   aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,shine:28,vein:[255,255,252],sp:'chequer'},gold:{n:'Goldstone',c:[200,170,100],vein:[252,234,168],sp:'lozenge'},night:{n:'Sanctis obsidian',c:[35,28,46],cls:'marble',hp:5,shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'},sp:'vent',cut:1}},
   old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',hp:4,shine:28,sp:'quatre'}}},
  Wood:{p:{cls:'wood',hp:2,burn:1},vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:{n:'Oak',c:WOOD.oak,sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,sp:'rough'},teak:{n:'Teak',c:WOOD.teak,sp:'deck'},mahog:{n:'Mahogany',c:MAHOG,sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,sp:'marq'}},old:{walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'}}},
- Metal:{p:{cls:'metal',hp:6,shine:60},vars:{rivet:'Riveted plate',quarter:'Quartered',panel:'Panels'},mats:{steel:{n:'Steel',c:[145,148,151],hp:7,w:1,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'treadplate'},
+ Metal:{p:{cls:'metal',hp:6,shine:60},vars:{rivet:'Riveted plate',inset:'Inset panels',panel:'Panels'},mats:{steel:{n:'Steel',c:[145,148,151],hp:7,w:1,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'treadplate'},
   brass:{n:'Brass',c:[200,146,88],hp:5,w:.9,age:'verdigris',shine:80,sp:'fluted'},gold:{n:'Aurum',c:[226,186,96],hp:8,w:.8,age:'dents',shine:80,sp:'fluted'},umbra:{n:'Umbra',c:[59,69,64],hp:10,w:.5,age:'dark tinge',dk:.57,shine:25,sp:'runes'}}},
  Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
 const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',treadplate:'Tread plate',fluted:'Fluted',coffer:'Coffered',coffer2:'Coffered ceiling',vent:'Glow panel',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
@@ -315,7 +315,7 @@ const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gol
 const memb=(el,mat)=>ELEM[el].mats[mat]||(ELEM[el].old||{})[mat],mprop=(el,mat)=>({...ELEM[el].p,...memb(el,mat)});
 const varsOf=(el,mat)=>{const M=memb(el,mat),o={...ELEM[el].vars};if(M.sp)o[M.sp]=SPN[M.sp];for(const a of[].concat(M.alt||[]))o[a]=SPN[a];return o};
 // retired patterns stay drawable so older maps still load
-const OLDV={Stone:['gvein','stars','quartero','flags','medallion','paving','key','setts','ashlar','basket','rosette','lattice','checker','band','sectile'],Wood:['logs','pegged','basket','brick','inlay','fret'],Metal:['sheet','slabs','coffer','coffer2','smooth','grate','filigree','engraved','hammer','tread','grille','scale','veined']};
+const OLDV={Stone:['gvein','stars','quartero','flags','medallion','paving','key','setts','ashlar','basket','rosette','lattice','checker','band','sectile'],Wood:['logs','pegged','basket','brick','inlay','fret'],Metal:['sheet','quarter','slabs','coffer','coffer2','smooth','grate','filigree','engraved','hammer','tread','grille','scale','veined']};
 const CATN={};
 const GOLDL=[214,176,96],VOID=[110,150,220];
 function vor(X,Y,S,s){const gx=Math.floor(X/S),gy=Math.floor(Y/S);let d1=1e9,d2=1e9,id=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const cx=gx+i,cy=gy+j,px=(cx+.15+hh(cx,cy,s)*.7)*S,py=(cy+.15+hh(cx,cy,s+1)*.7)*S,d=Math.hypot(X+.5-px,Y+.5-py);if(d<d1){d2=d1;d1=d;id=cx*977+cy}else if(d<d2)d2=d}return[d2-d1,id]}
@@ -429,6 +429,8 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
   // a connected area is one plate: details sit I px in from its outer edge (walls lose 3px to their rim)
   if(v==='sheet')return k;
   // quartered: 8px plates, each with a dark seam and a bright top-left lip
+  // inset panels: one per tile, a seam with a lit lip, and a square inset centred on the plate
+  if(v==='inset'){if(x===0||y===0)return sc(k,.76);if(x===1||y===1)return sc(k,1.18);if(x===15||y===15)return sc(k,.92);const i=Math.min(x-4,y-4,12-x,12-y);return i===0?sc(k,x===4||y===4?.78:1.18):k}
   if(v==='quarter'){const a=X&7,b=Y&7;return a===0||b===0?sc(k,.76):a===1||b===1?sc(k,1.18):a===7||b===7?sc(k,.92):k}
   if(v==='slabs'){const r=Y>>3,a=(X+(r&1?8:0))&15,b=Y&7;return a===0||b===0?sc(k,.84):a===1||b===1?sc(k,1.06):k}
   if(v==='rivet')return(dl===I||dr===I)&&(du===I||dd===I)?sc(k,1.3):k;
