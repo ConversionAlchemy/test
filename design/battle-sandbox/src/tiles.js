@@ -208,11 +208,11 @@ const AGE={
    let o=mx(k,G,a*(mb?.24:.34));if(a>.5)WEARF=1;if(t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982)o=sc(o,(X+Y)&1?1.07:.9);
    if(MO&&a>.3){const g=fbm(X/6,Y/6,sd+7)*.82+hh(X,Y,sd+8)*.18,th=1.02-a*.45-(jt?.22:0)-t*.05;if(g>th){const r=hh(X,Y,sd+9);o=mx(o,sc(MO,g>th+.1?1.14:r<.2?.8:1),.82)}}
    return o}},
- // wood weathering: patches, stretched along the grain, lose their finish and fade toward the wood's weathered colour; damp darkens the joints first, then spreads in stains; scuffs run along the grain; Ruined breaks a few slivers out of the board ends
- Wood:(el,mat,t,w)=>{const M=mprop(el,mat),c=M.c,B=(c[0]+c[1]+c[2])/3,G=M.tarn,sd=ageSd(el,mat),s=([...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})].indexOf(mat)+1)*7,DP=sc(c,.5),sf=M.scuff||1,lt=B<70;
+ // wood weathering: patches, stretched along the grain, fade toward the wood's weathered colour with the boards' seams and grain kept; damp darkens the joints first, then spreads in stains; scuffs run along the grain; Ruined breaks a few slivers out of the board ends
+ Wood:(el,mat,t,w)=>{const M=mprop(el,mat),c=M.c,B=(c[0]+c[1]+c[2])/3,G=M.tarn,sd=ageSd(el,mat),DP=sc(c,.5),sf=M.scuff||1,lt=B<70;
   return(k,X,Y,e)=>{const L=(k[0]+k[1]+k[2])/3,jt=L<B*.8;if(t>.8&&hh(X>>4,Y>>2,sd+11)>.982&&((X&15)<4&&(Y&3)===1||(X&15)<2&&(Y&3)===2))return sc(DP,.72);
    let o=jt?mx(k,DP,.6*t):k;const a=ageA(X*.45,Y*1.3,sd,t);if(a<=0)return o;
-   if(a>.35&&e()>1&&!jt)o=mx(o,woodT(X,Y,c,s+13),Math.min(1,(a-.35)*2));o=mx(o,G,a*.42);if(a>.5)WEARF=1;
+   o=mx(o,G,a*.42);if(a>.5)WEARF=1;
    if(fbm(X/6,Y/6,sd+7)>1.1-a*.5-t*.1)o=mx(o,DP,.4);
    if(M.craze&&a>.4&&Math.abs(vn(X/3,Y/3,sd+9)-.5)<.035)o=sc(o,.84);
    if(a>.25&&hh(X>>2,Y,sd+2)>.93-.08*t*sf)o=lt?mx(o,[150,132,112],.35):sc(o,1.1);else if(hh(X,Y,sd+3)>.99-.012*t*sf)o=sc(o,.78);return o}},

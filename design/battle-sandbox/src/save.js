@@ -1,6 +1,6 @@
 
 // save games: every visited map's pixels as changes from a fresh build, plus the whole body graph
-const GSK=['SH','GOLD','floor','sol','shp','scol','crk','slabG','GT','SHN','DS','NOD','OBJ','OBJC','SCH','TF','SF','SS','ST','BURN','FV','SV','DV','TMP','WH','fxLow','fxTop','fxA','HZ','OPEN','LR','LG','LB','LT'];
+const GSK=['SH','GOLD','floor','sol','shp','scol','crk','slabG','GT','SHN','DS','NOD','OBJ','OBJC','SCH','DMG','TF','SF','SS','ST','BURN','FV','SV','DV','TMP','WH','fxLow','fxTop','fxA','HZ','OPEN','LR','LG','LB','LT'];
 const seeded=s=>()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 function gBase(m,q){const nb=NBM[m],sz=MAPSZ[m],R=Math.random,mu=mute;curMap=m;MAPSZ[m]=[q.CW,q.CH];
  if(MODS.maps[m]||m.startsWith('mod:'))NBM[m]=()=>{UND=q.UND?q.UND.map(r=>r.slice()):[];paintAll((cx,cy)=>q.map[cy][cx])};
