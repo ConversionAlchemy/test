@@ -634,7 +634,7 @@ return{SPR,TAG,CLS,MET,LV,FACTIONS,UNITS,nm,has:n=>!!SPR[n]&&!!TAG[n],spawn,grid
 const $=id=>document.getElementById(id);
 let S=2,EM=null,TOPS=false,OUTD=false;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/2,N=W*H,NB=BW*BH;
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
-let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),SCH=new Uint8Array(N),OBJC=new Uint32Array(N),DMG=new Uint8Array(N);// DMG: blast damage to the floor, which only the wand repairs
+let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),SCH=new Uint8Array(N),OBJC=new Uint32Array(N),DMG=new Uint8Array(N);// DMG: chips and holes blasts leave in the floor, which only the wand repairs
 const FX={blood:new Float32Array(NB),fire:new Float32Array(NB),smoke:new Float32Array(NB)};
 let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
 let WH=new Float32Array(N);let whOn=false;
@@ -781,10 +781,10 @@ function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k o
   const v=ind[j]+(fbm(X/7,Y/7,90)-.5)*.5+(hh(X,Y,91)-.5)*.1,g=v>.5;let c=g?grassT(X,Y):soilT(X,Y);if(g&&v<.62&&hh(X,Y,92)>(v-.5)/.12)c=mx(GDRY,soilT(X,Y),.5);
   floor[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));GT[j]=g?1:2}}
 // blasts on open ground tear up grass, dig a soft crater and throw soil round it
-// blasts wear the floor around them: inner cells drop two condition steps, the ring one, a heavy blast one more, tough materials one less (always at least one); the wear is drawn over what is there, so scorch and shading stay
+// blasts wear the floor around them (the worn look becomes the cell's clean state, so cleaning keeps it): inner cells drop two condition steps, the ring one, a heavy blast one more, tough materials one less (always at least one); the wear is drawn over what is there, so scorch and shading stay
 function blastWear(x,y,s){const R=22*s;for(let cy=Math.max(0,(y-R)/T|0);cy<=Math.min(CH-1,(y+R)/T|0);cy++)for(let cx=Math.max(0,(x-R)/T|0);cx<=Math.min(CW-1,(x+R)/T|0);cx++){const k=map[cy][cx],c=CATN[k];if(!c||c[3]||!AGE[c[0]]||OM[cy]&&OM[cy][cx])continue;
  const d=Math.hypot(cx*T+8-x,cy*T+8-y);if(d>R)continue;const c0=c[4]||5,tough=(mprop(c[0],c[1]).hp||3)>=7,cd=Math.max(1,c0-Math.max(1,(d<R*.5?2:1)+(s>1.5?1:0)-(tough?1:0)));if(cd===c0)continue;const A=ageOf(c[0],c[1],cd);map[cy][cx]=baseK(k)+'~'+cd;
- for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;DMG[j]=1;const q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>{const g=regionD(X,Y,cx,cy);return Math.min(g[0],g[1],g[2],g[3])});floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}}
+ for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>{const g=regionD(X,Y,cx,cy);return Math.min(g[0],g[1],g[2],g[3])});floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]));if(PR)PR.floor[j]=floor[j]}}}
 // a built floor breaks through to the soil beneath: dug earth in the middle, loose fragments of the floor, a chipped edge, then hairline cracks
 function crater(x,y,s){const r=6.5*s,rr=s>1.5?.85:.5;for(let Y=Math.floor(y-r*2);Y<=y+r*2;Y++)for(let X=Math.floor(x-r*2);X<=x+r*2;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j])continue;
   const dx=X-x,dy=Y-y,e=r*(.78+.44*fbm(X/4,Y/4,93)),q=Math.hypot(dx,dy)/e;if(q>=2)continue;
@@ -2475,14 +2475,15 @@ const TOOLCUR=(()=>{const mkC=(rows,pal,hx,hy)=>{const c=document.createElement(
  return{vac:mkC(['y...........','kk..........','.kgk........','..kgk.......','...kgk......','....kggk....','.....kgggk..','......kgggk.','.......kgggk','........kggk','.........kk.'],{y:'#ffd84a',k:'#111',g:'#8c9298'},0,0),
   sponge:mkC(['.kkkkkkkk.','kyyyyyyyyk','kyoyyyoyyk','kyyyyoyyyk','kyoyyyyoyk','kyyyoyyyyk','.kkkkkkkk.'],{y:'#f2d04a',o:'#c79a26',k:'#3a2e10'},10,7),
   wand:mkC(['w.w.........','.y..........','w.k.........','...k........','....k.......','.....b......','......b.....','.......b....','........b...','.........b..'],{y:'#ffe066',w:'#fff6c8',k:'#d8d0c0',b:'#5a3c22'},2,2)}})();
-function snapPR(){PR={CW,CH,map:map.map(r=>r.slice()),sol:sol.slice(),shp:shp.slice(),scol:scol.slice(),crk:crk.slice(),floor:floor.slice(),GT:GT.slice(),OBJ:OBJ.slice(),OBJC:OBJC.slice(),SHN:SHN.slice(),GOLD:GOLD.slice(),NOD:NOD.slice()}}
+// PR: the map as laid; floor is the clean state the vacuum and sponge return to (blast wear joins it), floor0 and map are what the wand restores
+function snapPR(){PR={CW,CH,map:map.map(r=>r.slice()),floor0:floor.slice(),sol:sol.slice(),shp:shp.slice(),scol:scol.slice(),crk:crk.slice(),floor:floor.slice(),GT:GT.slice(),OBJ:OBJ.slice(),OBJC:OBJC.slice(),SHN:SHN.slice(),GOLD:GOLD.slice(),NOD:NOD.slice()}}
 const prOK=()=>PR&&PR.CW===CW&&PR.CH===CH&&PR.floor.length===N;snapPR();
 const chDiff=(a,b)=>Math.abs((a&255)-(b&255))+Math.abs((a>>8&255)-(b>>8&255))+Math.abs((a>>16&255)-(b>>16&255));
 function cellIdx(cx,cy,f){for(let y=0;y<T;y++)for(let x=0;x<T;x++)if(f((cy*T+y)*W+cx*T+x))return true;return false}
 function stainBad(cx,cy){if(!prOK())return false;if(cellIdx(cx,cy,j=>SCH[j]&&!sol[j]&&!PR.sol[j]&&(OBJ[j]?chDiff(OBJC[j],PR.OBJC[j])>14:chDiff(floor[j],PR.floor[j])>14)))return true;for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;if(FX.blood[q]>.04||BURN[q]>.04||FX.fire[q]>.05)return true}return false}
-function cellBad(cx,cy){return prOK()&&(stainBad(cx,cy)||cellIdx(cx,cy,j=>sol[j]!==PR.sol[j]||shp[j]!==PR.shp[j]||crk[j]!==PR.crk[j]||OBJ[j]!==PR.OBJ[j]))}
-// the wand puts a cell back as the map was laid: pixels, blast damage and the tile's condition
-function repairCell(cx,cy){const k0=PR.map&&PR.map[cy]&&PR.map[cy][cx];if(k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)){map[cy][cx]=k0;if(edSrc&&edSrc[cy])edSrc[cy][cx]=k0}for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;DMG[j]=0;for(const k of['sol','shp','scol','crk','floor','GT','OBJ','OBJC','SHN','GOLD','NOD'])({sol,shp,scol,crk,floor,GT,OBJ,OBJC,SHN,GOLD,NOD})[k][j]=PR[k][j];EDG.delete(j);SCH[j]=0}
+function cellBad(cx,cy){const k0=PR&&PR.map&&PR.map[cy]&&PR.map[cy][cx];return prOK()&&(stainBad(cx,cy)||!!k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)||cellIdx(cx,cy,j=>DMG[j]||sol[j]!==PR.sol[j]||shp[j]!==PR.shp[j]||crk[j]!==PR.crk[j]||OBJ[j]!==PR.OBJ[j]))}
+// the wand puts a cell back as the map was laid: chips, holes, wear and the tile's condition
+function repairCell(cx,cy){const k0=PR.map&&PR.map[cy]&&PR.map[cy][cx];if(k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)){map[cy][cx]=k0;if(edSrc&&edSrc[cy])edSrc[cy][cx]=k0}for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;DMG[j]=0;for(const k of['sol','shp','scol','crk','GT','OBJ','OBJC','SHN','GOLD','NOD'])({sol,shp,scol,crk,GT,OBJ,OBJC,SHN,GOLD,NOD})[k][j]=PR[k][j];floor[j]=PR.floor[j]=PR.floor0[j];EDG.delete(j);SCH[j]=0}
  for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;FX.blood[q]=0;BURN[q]=0;FX.fire[q]=0;FX.smoke[q]=0}solDirty=true;fxDirty=true;sparkle(cx,cy,14)}
 function sparkle(cx,cy,n){for(let i=0;i<n;i++)SPK.push({x:cx*T+Math.random()*T,y:cy*T+Math.random()*T,vx:(Math.random()-.5)*.12,vy:-.05-Math.random()*.1,h:Math.random()*360,l:0,L:90+Math.random()*90,tw:Math.random()*6})}
 // recorded clips: water squelch while scrubbing, rubber squeaks on clean tiles

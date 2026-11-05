@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 let S=2,EM=null,TOPS=false,OUTD=false;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/2,N=W*H,NB=BW*BH;
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
-let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),SCH=new Uint8Array(N),OBJC=new Uint32Array(N),DMG=new Uint8Array(N);// DMG: blast damage to the floor, which only the wand repairs
+let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),SCH=new Uint8Array(N),OBJC=new Uint32Array(N),DMG=new Uint8Array(N);// DMG: chips and holes blasts leave in the floor, which only the wand repairs
 const FX={blood:new Float32Array(NB),fire:new Float32Array(NB),smoke:new Float32Array(NB)};
 let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
 let WH=new Float32Array(N);let whOn=false;
@@ -149,10 +149,10 @@ function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k o
   const v=ind[j]+(fbm(X/7,Y/7,90)-.5)*.5+(hh(X,Y,91)-.5)*.1,g=v>.5;let c=g?grassT(X,Y):soilT(X,Y);if(g&&v<.62&&hh(X,Y,92)>(v-.5)/.12)c=mx(GDRY,soilT(X,Y),.5);
   floor[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));GT[j]=g?1:2}}
 // blasts on open ground tear up grass, dig a soft crater and throw soil round it
-// blasts wear the floor around them: inner cells drop two condition steps, the ring one, a heavy blast one more, tough materials one less (always at least one); the wear is drawn over what is there, so scorch and shading stay
+// blasts wear the floor around them (the worn look becomes the cell's clean state, so cleaning keeps it): inner cells drop two condition steps, the ring one, a heavy blast one more, tough materials one less (always at least one); the wear is drawn over what is there, so scorch and shading stay
 function blastWear(x,y,s){const R=22*s;for(let cy=Math.max(0,(y-R)/T|0);cy<=Math.min(CH-1,(y+R)/T|0);cy++)for(let cx=Math.max(0,(x-R)/T|0);cx<=Math.min(CW-1,(x+R)/T|0);cx++){const k=map[cy][cx],c=CATN[k];if(!c||c[3]||!AGE[c[0]]||OM[cy]&&OM[cy][cx])continue;
  const d=Math.hypot(cx*T+8-x,cy*T+8-y);if(d>R)continue;const c0=c[4]||5,tough=(mprop(c[0],c[1]).hp||3)>=7,cd=Math.max(1,c0-Math.max(1,(d<R*.5?2:1)+(s>1.5?1:0)-(tough?1:0)));if(cd===c0)continue;const A=ageOf(c[0],c[1],cd);map[cy][cx]=baseK(k)+'~'+cd;
- for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;DMG[j]=1;const q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>{const g=regionD(X,Y,cx,cy);return Math.min(g[0],g[1],g[2],g[3])});floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}}
+ for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>{const g=regionD(X,Y,cx,cy);return Math.min(g[0],g[1],g[2],g[3])});floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]));if(PR)PR.floor[j]=floor[j]}}}
 // a built floor breaks through to the soil beneath: dug earth in the middle, loose fragments of the floor, a chipped edge, then hairline cracks
 function crater(x,y,s){const r=6.5*s,rr=s>1.5?.85:.5;for(let Y=Math.floor(y-r*2);Y<=y+r*2;Y++)for(let X=Math.floor(x-r*2);X<=x+r*2;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j])continue;
   const dx=X-x,dy=Y-y,e=r*(.78+.44*fbm(X/4,Y/4,93)),q=Math.hypot(dx,dy)/e;if(q>=2)continue;

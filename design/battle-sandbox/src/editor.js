@@ -255,14 +255,15 @@ const TOOLCUR=(()=>{const mkC=(rows,pal,hx,hy)=>{const c=document.createElement(
  return{vac:mkC(['y...........','kk..........','.kgk........','..kgk.......','...kgk......','....kggk....','.....kgggk..','......kgggk.','.......kgggk','........kggk','.........kk.'],{y:'#ffd84a',k:'#111',g:'#8c9298'},0,0),
   sponge:mkC(['.kkkkkkkk.','kyyyyyyyyk','kyoyyyoyyk','kyyyyoyyyk','kyoyyyyoyk','kyyyoyyyyk','.kkkkkkkk.'],{y:'#f2d04a',o:'#c79a26',k:'#3a2e10'},10,7),
   wand:mkC(['w.w.........','.y..........','w.k.........','...k........','....k.......','.....b......','......b.....','.......b....','........b...','.........b..'],{y:'#ffe066',w:'#fff6c8',k:'#d8d0c0',b:'#5a3c22'},2,2)}})();
-function snapPR(){PR={CW,CH,map:map.map(r=>r.slice()),sol:sol.slice(),shp:shp.slice(),scol:scol.slice(),crk:crk.slice(),floor:floor.slice(),GT:GT.slice(),OBJ:OBJ.slice(),OBJC:OBJC.slice(),SHN:SHN.slice(),GOLD:GOLD.slice(),NOD:NOD.slice()}}
+// PR: the map as laid; floor is the clean state the vacuum and sponge return to (blast wear joins it), floor0 and map are what the wand restores
+function snapPR(){PR={CW,CH,map:map.map(r=>r.slice()),floor0:floor.slice(),sol:sol.slice(),shp:shp.slice(),scol:scol.slice(),crk:crk.slice(),floor:floor.slice(),GT:GT.slice(),OBJ:OBJ.slice(),OBJC:OBJC.slice(),SHN:SHN.slice(),GOLD:GOLD.slice(),NOD:NOD.slice()}}
 const prOK=()=>PR&&PR.CW===CW&&PR.CH===CH&&PR.floor.length===N;snapPR();
 const chDiff=(a,b)=>Math.abs((a&255)-(b&255))+Math.abs((a>>8&255)-(b>>8&255))+Math.abs((a>>16&255)-(b>>16&255));
 function cellIdx(cx,cy,f){for(let y=0;y<T;y++)for(let x=0;x<T;x++)if(f((cy*T+y)*W+cx*T+x))return true;return false}
 function stainBad(cx,cy){if(!prOK())return false;if(cellIdx(cx,cy,j=>SCH[j]&&!sol[j]&&!PR.sol[j]&&(OBJ[j]?chDiff(OBJC[j],PR.OBJC[j])>14:chDiff(floor[j],PR.floor[j])>14)))return true;for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;if(FX.blood[q]>.04||BURN[q]>.04||FX.fire[q]>.05)return true}return false}
-function cellBad(cx,cy){return prOK()&&(stainBad(cx,cy)||cellIdx(cx,cy,j=>sol[j]!==PR.sol[j]||shp[j]!==PR.shp[j]||crk[j]!==PR.crk[j]||OBJ[j]!==PR.OBJ[j]))}
-// the wand puts a cell back as the map was laid: pixels, blast damage and the tile's condition
-function repairCell(cx,cy){const k0=PR.map&&PR.map[cy]&&PR.map[cy][cx];if(k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)){map[cy][cx]=k0;if(edSrc&&edSrc[cy])edSrc[cy][cx]=k0}for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;DMG[j]=0;for(const k of['sol','shp','scol','crk','floor','GT','OBJ','OBJC','SHN','GOLD','NOD'])({sol,shp,scol,crk,floor,GT,OBJ,OBJC,SHN,GOLD,NOD})[k][j]=PR[k][j];EDG.delete(j);SCH[j]=0}
+function cellBad(cx,cy){const k0=PR&&PR.map&&PR.map[cy]&&PR.map[cy][cx];return prOK()&&(stainBad(cx,cy)||!!k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)||cellIdx(cx,cy,j=>DMG[j]||sol[j]!==PR.sol[j]||shp[j]!==PR.shp[j]||crk[j]!==PR.crk[j]||OBJ[j]!==PR.OBJ[j]))}
+// the wand puts a cell back as the map was laid: chips, holes, wear and the tile's condition
+function repairCell(cx,cy){const k0=PR.map&&PR.map[cy]&&PR.map[cy][cx];if(k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)){map[cy][cx]=k0;if(edSrc&&edSrc[cy])edSrc[cy][cx]=k0}for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;DMG[j]=0;for(const k of['sol','shp','scol','crk','GT','OBJ','OBJC','SHN','GOLD','NOD'])({sol,shp,scol,crk,GT,OBJ,OBJC,SHN,GOLD,NOD})[k][j]=PR[k][j];floor[j]=PR.floor[j]=PR.floor0[j];EDG.delete(j);SCH[j]=0}
  for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;FX.blood[q]=0;BURN[q]=0;FX.fire[q]=0;FX.smoke[q]=0}solDirty=true;fxDirty=true;sparkle(cx,cy,14)}
 function sparkle(cx,cy,n){for(let i=0;i<n;i++)SPK.push({x:cx*T+Math.random()*T,y:cy*T+Math.random()*T,vx:(Math.random()-.5)*.12,vy:-.05-Math.random()*.1,h:Math.random()*360,l:0,L:90+Math.random()*90,tw:Math.random()*6})}
 // recorded clips: water squelch while scrubbing, rubber squeaks on clean tiles
