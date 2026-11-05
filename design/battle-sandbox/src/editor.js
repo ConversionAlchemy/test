@@ -19,8 +19,7 @@ function pickFile(f){const i=document.createElement('input');i.type='file';i.acc
 
 // textures
 const TNAME={grass:'Grass',dirt:'Dirt',sky:'Sky',sill:'Sill',msill:'Marble sill',crop:'Wheat',berm:'Earth bank',rail:'Fence',bush:'Hedge'};
-for(const k in WPIECE)TNAME[k]=WPIECE[k][2];TNAME.hedge='Hedge';for(const k in MCHEST){TNAME[k]=MCHEST[k][1];SHINE[k]=mprop('Metal',MCHEST[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}SHINE.mchest=60;
-for(const k in CATN){const[el,mat,v,w]=CATN[k];const P=mprop(el,mat),cd=CATN[k][4]||5;if(w)WMAT[k]=hitCls(P.cls);if(P.shine)SHINE[k]=Math.round(P.shine*(.4+.6*(cd-1)/4));if(!w&&(el==='Earth'||el==='Cloth')||el==='Wood'&&v==='panel')NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
+for(const k in WPIECE)TNAME[k]=WPIECE[k][2];TNAME.hedge='Hedge';for(const k in MCHEST)TNAME[k]=MCHEST[k][1];
 const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w,cd]=c;return memb(el,mat).n+' · '+(varsOf(el,mat)[v]||v)+(w?' wall':'')+(cd?' · '+CONDN[cd]:'')};
 const tName=k=>MODS.tex[k]?MODS.tex[k].name:catName(k)||TNAME[k]||k;
 const TS=32,enc=a=>{let s='';for(const v of a)s+=(v<16?'0':'')+v.toString(16);return s},dec=s=>{const a=new Uint8ClampedArray(s.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(s.substr(i*2,2),16);return a};
