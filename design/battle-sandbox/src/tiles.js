@@ -157,7 +157,7 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='grate')return(X,Y)=>{const x=X&3,y=Y&3;let k=M(X,Y);if(x===0||y===0)return sc(k,x===0&&y===0?1.25:1.08);return sc(k,x===3||y===3?.32:.45)};
   if(v==='hammer')return(X,Y)=>{const d=vn(X/2.6,Y/2.6,s+40),k=M(X,Y),e=Math.min(X&31,Y&31);if(e===0)return sc(k,.62);return sc(k,.84+d*.3+(hh(X,Y,s)>.96?.1:0))};
   if(v==='tread')return(X,Y)=>{const b=((X>>2)+(Y>>2))&1,x=X&3,y=Y&3,k=M(X,Y),lug=b?x===y:x+y===3;return lug?sc(k,1.28):(b?x===y+1:x+y===4)?sc(k,.78):k};
-  if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);return x>=5&&x<=12&&(y===4||y===7||y===10||y===13)?sc(k,.3):k};
+  if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);return wall?(x>=5&&x<=11&&(y===5||y===8||y===11)?sc(k,.3):k):x>=5&&x<=12&&(y===4||y===7||y===10||y===13)?sc(k,.3):k};
   if(v==='filigree')return(X,Y)=>{let[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);x--;y--;const cx=x<8?2:13,cy=y<8?2:13,r=Math.hypot(x-cx,y-cy);if(Math.abs(r-4.2)<.5&&Math.abs(x-cx)<5&&Math.abs(y-cy)<5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
   if(v==='grille')return(X,Y)=>{const u=((X+Y)%6+6)%6,w=((X-Y)%6+6)%6,k=M(X,Y);if(u===0&&w===0)return sc(k,1.4);if(u===0||w===0)return sc(k,.74);return k};
   if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-8.5,dy=y-8.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),k=sc(M(X,Y),1.03);if(x===0||y===0)return sc(k,.82);if(Math.abs(r-6.5)<.5)return sc(k,.82);if(r>2&&r<6&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
@@ -187,7 +187,7 @@ const metalTone=(mat,l)=>sc(metalLit(mat),.45+l*1.05);
 const cutEdge=f=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy),kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy));if(!k||!me)return k;const x=X&15,y=Y&15,o=(a,b)=>kid(LINK(a,b))!==me,e=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?15-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?15-y:99);return e===0?mx(k,[156,146,190],.6):e===1?mx(k,[118,108,156],.25):k};
 // cut stone: walls get a light cut edge, floors sit darker beneath them
 // metal floor plates: a lit edge inside each joint, a softer copy of the wall bevel
-const bevel=f=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy),x=X&15,y=Y&15;return k&&x&&y&&(x===1||y===1)?sc(k,1.1):k};
+const bevel=f=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy),x=X&15,y=Y&15;if(!k)return k;const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy));if(me&&(x===15&&kid(LINK(cx+1,cy))!==me||y===15&&kid(LINK(cx,cy+1))!==me))return sc(k,.82);return x&&y&&(x===1||y===1)?sc(k,1.1):k};
 function genTex(el,mat,v,wall){const f=genTex0(el,mat,v,wall);if(el==='Metal'&&!wall&&v!=='sheet'&&v!=='grate')return bevel(f);return!memb(el,mat).cut?f:wall?cutEdge(f):(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy);return k&&sc(k,.8)}}
 function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Object.keys(E.mats),...Object.keys(E.old||{})].indexOf(mat)+1)*7;{const f=special(el,mat,M.as&&M.as[v]||v,c,s,wall);if(f)return f}
  if(el==='Earth'){const worn=v==='worn';
