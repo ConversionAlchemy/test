@@ -189,19 +189,9 @@ for(const el in ELEM)for(const mat of[...Object.keys(ELEM[el].mats),...Object.ke
  if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k);if(el==='Wood'&&v==='panel')POLT.add(k)}
 // condition: 5 new, 4 used, 3 worn, 2 battered, 1 ruined. One wear look per family spreads in patches and deepens as condition drops
 let WEARF=0;const CONDN={5:'New',4:'Used',3:'Worn',2:'Battered',1:'Ruined'};
-// crack stamps: # split, + lit edge beside it; each worn tile takes one, mirrored or turned by its position
-const CRK=[
- ['#...............','+#..............','.+#.............','..##............','...+#...........','....#...........','....+#..........','.....##.........','......+#........','.......#........'],
- ['................','................','................','................','................','##..............','+###............','....##..........','.....+###.......','........+#......','.........##.....','.....#....+#....','....#+.....#....','...#+...........'],
- ['................','................','................','................','................','................','................','................','................','.........#......','........#+......','........#.......','.......+#.......','.......#........','......+#........','.......#........'],
- ['................','................','................','................','................','................','................','................','................','................','................','...............#','.............##+','............#+..','...........#....','..........#+....'],
- ['...............#','..............#+','.............#..','............+#..','...........##...','..........#+....','.........#......','........##......'],
- ['................','................','................','................','..........#.....','.........#+.....','.........#......','........#+......','.....##+#.......','....#+..#.......','...#....+#......','.........#......','.........+#.....']];
-function crackAt(X,Y,sd,t){const cx=X>>4,cy=Y>>4,x=X&15,y=Y&15;let r=0;
- for(let n=0;n<(t>=1?2:1);n++){if(hh(cx,cy,sd+9+n*5)>(n?.18:t>=1?.5:.28))continue;const S=CRK[(hh(cx,cy,sd+10+n*5)*CRK.length)|0],f=(hh(cx,cy,sd+11+n*5)*8)|0;let u=f&1?15-x:x,v=f&2?15-y:y;if(f&4)[u,v]=[v,u];const ch=(S[v]||'')[u];if(ch==='#')return 2;if(ch==='+')r=1}return r}
 const WEAR={Stone:(el,mat)=>{const mb=memb(el,mat).cls==='marble',B=(memb(el,mat).c||[120,120,120]).reduce((p,q)=>p+q,0)/3,sd=([...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})].indexOf(mat)+3)*11;
  return(f,t)=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy);if(!k)return k;const m=fbm(X/13,Y/13,sd)*.7+hh(X>>2,Y>>2,sd+1)*.3,cov=t*.66,a=Math.max(0,Math.min(1,(cov-m)/.14))*(.4+.6*t);if(a<=0)return k;
-  let c=mx(k,mb?[188,176,150]:[104,104,82],a*(mb?.22:.32));if(a>.5)WEARF=1;if(t>=.75&&a>.3){const q=crackAt(X,Y,sd,t);if(q===2&&hh(X,Y,sd+12)<.78){c=sc(c,.76);WEARF=2}else if(q===1)c=sc(c,1.04)}if(t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982)c=sc(c,(X+Y)&1?1.07:.9);
+  let c=mx(k,mb?[188,176,150]:[104,104,82],a*(mb?.22:.32));if(a>.5)WEARF=1;if(t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982)c=sc(c,(X+Y)&1?1.07:.9);
   const L=(k[0]+k[1]+k[2])/3;if(!mb&&L<B*.88&&a>.3)c=mx(c,[78,100,52],.6*a);else if(!mb&&hh(X,Y,sd+4)>.93-.1*t)c=mx(c,[86,108,56],.6*a);return c}}};
 for(const el in WEAR)for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(e!==el)continue;const W=WEAR[el](el,mat),f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c;TEX[n]=W(f,(5-c)/4);KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}
 const OLDK={marble:'stone.aur.block',dmarble:'stone.ver.block',flag:'stone.sand.flags',stone:'stone.grey.block.w',gstone:'stone.gold.block.w',pillar:'stone.aur.block.w',pave:'stone.lime.paving',omarble:'stone.aur.key',gtile:'stone.ver.key',bkmarble:'stone.night.block',bkslab:'stone.night.slabs',slab:'stone.grey.slabs',
