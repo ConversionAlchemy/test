@@ -64,7 +64,7 @@ VIEW.append(mk('div','frame'));
 // tool header with optional dropper
 function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1],G=mk('div','hb');TH.append(uicon(k),mk('span',null,n),G);
  if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'sq sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});G.append(z)}
- if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','sq sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});const gr=ubtn('','sq'+(GRID?' on':''),()=>{GRID=!GRID;LS.set('bs.grid',GRID);gr.classList.toggle('on',GRID)});gr.append(uicon('grid'));const er=ubtn('','sq red'+(UI.erase?' on':''),()=>{UI.erase=!UI.erase;er.classList.toggle('on',UI.erase)});er.append(uicon('bin'));G.append(z,gr,er)}
+ if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','sq sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});const gr=ubtn('','sq'+(GRID?' on':''),()=>{GRID=!GRID;LS.set('bs.grid',GRID);gr.classList.toggle('on',GRID)});gr.append(uicon('grid'));const er=ubtn('','sq red'+(UI.erase?' on':''),()=>setErase(!UI.erase));er.append(uicon('bin'));G.append(z,gr,er)}
  if(k==='tile'||k==='spawn'){const d=ubtn('','sq',()=>{UI.del=false;armDrop(k)});d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);G.append(d)}
  if(k==='spawn'){const x=ubtn('','sq red',()=>{UI.del=!UI.del;if(UI.del&&UI.drop)armDrop(k);else head(k);cv.style.cursor=UI.del?'crosshair':CUR.arrow});x.append(uicon('bin'));x.classList.toggle('on',!!UI.del);G.append(x)}}
 
@@ -91,7 +91,7 @@ const OWN={};function MAPOWN(){if(OWN[curMap])return OWN[curMap];const m=MODS.ma
 {const s0=serMap;serMap=function(){const d=s0();d.owner=MAPOWN();d.signs=(SIGNS[curMap]||[]).map(s=>({...s}));return d}}
 
 // tools
-function pickTool(k){if(k!=='spawn')UI.del=false;if(k!=='hand'){for(const b of bodies)b.direct=false;sel.clear();openCrate=null;keys.clear()}if(UI.pop==='ae'||UI.pop==='sign')closePop();UI.tool=k;LS.set('bs.tool',k);UI.drop=null;const m=UT.find(t=>t[0]===k)[2];setMode(m);SM.dataset.tool=k;
+function pickTool(k){if(k!=='spawn')UI.del=false;UI.erase=false;if(k!=='hand'){for(const b of bodies)b.direct=false;sel.clear();openCrate=null;keys.clear()}if(UI.pop==='ae'||UI.pop==='sign')closePop();UI.tool=k;LS.set('bs.tool',k);UI.drop=null;const m=UT.find(t=>t[0]===k)[2];setMode(m);SM.dataset.tool=k;
  for(const b of ZT.querySelectorAll('.tb'))b.classList.toggle('on',b.dataset.k===k);
  if(k==='vac'||k==='sponge'||k==='wand')edBrush={t:'clean',k};else if(k==='tile')edBrush=UI.tile?{...UI.tile}:null;else if(m)edBrush=null;
  head(k);if(k==='tile')tilerCtx();if(k==='spawn')spawnCtx();if(k==='paint')paintCtx();if(k==='sign')signCtx();if(k==='teth'){TQ.a=null;tetherCtx()}cv.style.cursor=k==='vac'||k==='sponge'||k==='wand'?TOOLCUR[k]||'crosshair':m?'crosshair':CUR.arrow}
@@ -101,7 +101,7 @@ function pickTool(k){if(k!=='spawn')UI.del=false;if(k!=='hand'){for(const b of b
 const TCX=mk('div','tcx');ZC.append(TCX);const AEH0=mk('div');AEH0.style.display='none';SM.append(AEH0);
 function tilerCtx(){TCX.innerHTML='';if(!edBrush||edBrush.t==='clean'){if(!UI.tile){for(const mat of Object.keys(ELEM[PK.el||'Stone'].mats)){const k=(PK.el||'Stone').toLowerCase()+'.'+mat+'.'+Object.keys(varsOf(PK.el||'Stone',mat))[0];if(validK(k)){UI.tile={t:'tile',k};break}}}if(UI.tile&&EM==='map')edBrush={...UI.tile}}if(!['floor','wall','furn','door'].includes(UI.tt))UI.tt=PK.w?'wall':'floor';PK.w=UI.tt==='wall'?1:0;
  if((UI.tt==='floor'||UI.tt==='wall')&&PK.el!=='Mods'&&edBrush&&edBrush.t==='tile'){if(PK.w&&!Object.keys(ELEM[PK.el].mats).some(m=>!mprop(PK.el,m).nowall))PK.el='Stone';const c=CATN[edBrush.k];if(!c||c[0]!==PK.el||!!c[3]!==!!PK.w){const e=PK.el.toLowerCase(),sf=PK.w?'.w':'';let k=e+'.'+PK.mat+'.'+PK.v+sf;if(!validK(k))for(const m of Object.keys(ELEM[PK.el].mats)){const q=e+'.'+m+'.'+Object.keys(varsOf(PK.el,m))[0]+sf;if(validK(q)){k=q;break}}if(validK(k)){pkFrom(k);edBrush.k=k;UI.tile={t:'tile',k}}}}const tabs=mk('div','tabs');for(const[t,n]of[['floor','Floor'],['wall','Wall'],['furn','Furniture'],['door','Doors']])tabs.append(ubtn(n,UI.tt===t?'on':'',()=>{UI.tt=t;tilerCtx()}));TCX.append(tabs);SM.dataset.tt=UI.tt;
- const cur=edBrush&&edBrush.t!=='clean'?edBrush.k:UI.tile&&UI.tile.k,g=mk('div','swg'),cell=(k,c,f)=>{const s=mk('span','sw'+(k===cur?' on':''));if(c){s.append(c);s.onclick=f}else s.classList.add('no');return s};let nm='';
+ const cur=UI.erase?null:edBrush&&edBrush.t!=='clean'?edBrush.k:UI.tile&&UI.tile.k,g=mk('div','swg'),cell=(k,c,f)=>{const s=mk('span','sw'+(k===cur?' on':''));if(c){s.append(c);s.onclick=()=>{if(UI.erase)setErase(false);f()}}else s.classList.add('no');return s};let nm='';
  if(UI.tt==='floor'||UI.tt==='wall'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)&&(KIND[k]==='wall')===!!PK.w),els=[...EORDER.filter(e=>!PK.w||Object.keys(ELEM[e].mats).some(m=>!mprop(e,m).nowall)),...(mods.length?['Mods']:[])],et=mk('div','tabs');if(!els.includes(PK.el))PK.el='Stone';
   for(const e of els)et.append(ubtn(e,PK.el===e?'on':'',()=>{PK.el=e;if(e!=='Mods'){PK.mat=Object.keys(ELEM[e].mats)[0];PK.v=Object.keys(varsOf(e,PK.mat))[0]}else PK.mat=mods[0];tilerCtx()}));TCX.append(et);
   const tc=k=>cell(k,k&&validK(k)?swatch(bake(k),30,30):null,()=>setTile(k));
@@ -135,6 +135,9 @@ function spawnCtx(){SCX.innerHTML='';SM.dataset.st=UI.st;const tabs=mk('div','ta
 
 // dropper: Tiler copies a tile, Spawner copies a unit and places copies until Esc
 const GHO=mk('canvas','ghost');GHO.width=GHO.height=17;document.body.append(GHO);
+// erasing: no swatch is chosen while it is on, the cursor is a hammer, picking a swatch turns it off
+const HAMMER=(()=>{const c=pix(['..kkkkk.....','.kwwwwgk....','kwwgggggk...','kwggggggk...','.kkggggk....','...kkkhk....','.....khhk...','......khhk..','.......khhk.','........khhk','.........kk.'],{k:'#111',w:'#e8e4da',g:'#9a9690',h:'#9a6a3a'},1),d=mk('canvas');d.width=24;d.height=22;const g=d.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(c,0,0,24,22);return`url(${d.toDataURL()}) 4 4, crosshair`})();
+function setErase(on){UI.erase=on;cv.style.cursor=on?HAMMER:'crosshair';if(UI.tool==='tile'){head('tile');tilerCtx()}}
 function armDrop(k){UI.drop=UI.drop===k?null:k;UI.place=false;GHO.style.display='none';head(k);cv.style.cursor=UI.drop?'copy':k==='tile'?'crosshair':CUR.arrow}
 VIEW.addEventListener('pointerdown',e=>{if(panKey||!UI.drop||e.button||!inBoard(e))return;const[x,y]=toBoard(e);e.stopPropagation();e.preventDefault();
  if(UI.drop==='tile'){const s=srcNow(),k=s[y/T|0]&&s[y/T|0][x/T|0];if(k)setTile(k);armDrop('tile');return}

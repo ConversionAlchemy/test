@@ -141,8 +141,7 @@ function drawTethers(){for(const b of bodies){const t=b.tether;if(!t)continue;co
  for(const[a,c]of[[-1,0],[1,0],[0,-1],[0,1],[0,0]]){const X=Math.round(t.x)+a,Y=Math.round(t.y)+c;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=a||c?rgb(150,160,154):rgb(40,44,42)}}}
 // doorways get a threshold stone under the leaf
 function sills(){for(const d of bodies){if(d.type!=='slab'||d.free)continue;const cs=new Set(),bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px)cs.add(((by+p[1])/T|0)*CW+((bx+p[0])/T|0));
- for(const k of cs){const cx=k%CW,cy=k/CW|0,key=map[cy]&&map[cy][cx];if(!key||WMAT[key]||key==='sky'||key==='dirt'||key==='grass'||key==='sill'||key==='msill')continue;const m=[[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>{const q=(map[cy+b]||[])[cx+a];return!!q&&matK(q)==='marble'}),hz=(d.rot&1)===0,fl=q=>q&&TEX[q]&&!WMAT[q]&&!OBJK.has(q)?q:null,ka=fl(hz?(map[cy-1]||[])[cx]:map[cy][cx-1]),kb=fl(hz?(map[cy+1]||[])[cx]:map[cy][cx+1]);paintCell(cx,cy,m?'msill':'sill');
-  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const u=hz?y:x;if(u>=5&&u<=10)continue;const kk=u<5?ka:kb;if(!kk)continue;const X=cx*T+x,Y=cy*T+y,c=TEX[kk](X,Y,cx,cy);floor[Y*W+X]=rgb(cl(c[0]),cl(c[1]),cl(c[2]))}}}}
+ for(const k of cs){const cx=k%CW,cy=k/CW|0,key=map[cy]&&map[cy][cx];if(!key||WMAT[key]||key==='sky'||key==='dirt'||key==='grass'||key==='sill'||key==='msill')continue;const m=[[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>{const q=(map[cy+b]||[])[cx+a];return!!q&&matK(q)==='marble'});paintCell(cx,cy,m?'msill':'sill')}}}
 // doors sit centred in the wall line and meet the wall ends
 function snapDoors(){for(const d of bodies){if(d.type!=='slab'||d.free)continue;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){x0=Math.min(x0,bx+p[0]);x1=Math.max(x1,bx+p[0]);y0=Math.min(y0,by+p[1]);y1=Math.max(y1,by+p[1])}
  let sx,sy;if(x1-x0>y1-y0){sx=Math.round(x0/(T/2))*(T/2)-x0;sy=Math.floor((y0+y1)/2/T)*T+T/2-(d.th||8)/2-y0}else{sy=Math.round(y0/(T/2))*(T/2)-y0;sx=Math.floor((x0+x1)/2/T)*T+T/2-(d.th||8)/2-x0}d.x=bx+sx;d.y=by+sy;orient(d)}}
@@ -451,7 +450,7 @@ function unitsStock(){for(const x of [3,9,15,21]){const d=slab(3,x*T,5*T+8,0);d.
  U('Pip','Imperium','civ',3.4,12.4,UP,null);U('Mercer',null,'civ',4.6,9.8,RT,null,'Merchant')}
 function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='stone';
-  if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cx===11)k=(cy===2||cy===6||cy===7)?'flag':'stone';else if(cx<11)k=(cx+cy)%2?'marble':'dmarble';else k='planks'}
+  if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cx===11)k=(cy===2||cy===6||cy===7)?'flag':'stone';else if(cx<11)k='stone.aur.chequer';else k='planks'}
   if(cx>=3&&cx<=7&&(cy===6||cy===7))k='table';
   if((cx===4||cx===6)&&(cy===5||cy===8))k='seat';
   if(cx>=15&&cx<=16&&cy===2)k='table';
