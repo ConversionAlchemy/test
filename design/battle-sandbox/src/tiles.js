@@ -98,9 +98,9 @@ const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet
 // materials: a family shares its properties and three patterns; each member adds its colour, one special pattern, and any property it changes
 const ELEM={
  Earth:{p:{cls:'grass',hp:2,nowall:1},vars:{plain:'Plain',worn:'Worn'},mats:{grass:{n:'Grass'},dirt:{n:'Soil',cls:'soil',hp:3}},old:{wheat:{n:'Wheat',cls:'soil'},hedge:{n:'Hedge'}}},
- Stone:{p:{cls:'stone',hp:3},vars:{block:'Block',quarter:'Quartered',slabs:'Slabs'},mats:{grey:{n:'Greystone',c:[124,119,111],sp:'rubble'},gran:{n:'Highland granite',c:[146,132,128],hp:4,speck:1,sp:'crazy'},
-  aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,shine:28,vein:[255,255,252],sp:'chequer'},gold:{n:'Aurumstone',c:[200,170,100],vein:[252,234,168],sp:'lozenge'},night:{n:'Umbrastone',c:[35,28,46],cls:'marble',hp:5,shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'},sp:'vent',cut:1}},
-  old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',hp:4,shine:28,sp:'quatre'}}},
+ Stone:{p:{cls:'stone',hp:3,tarn:[96,94,80],moss:[78,100,52],age:'moss'},vars:{block:'Block',quarter:'Quartered',slabs:'Slabs'},mats:{grey:{n:'Greystone',c:[124,119,111],sp:'rubble'},gran:{n:'Highland granite',c:[146,132,128],hp:4,tarn:[108,100,94],moss:[150,156,118],age:'lichen',speck:1,sp:'crazy'},
+  aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,tarn:[196,180,146],moss:0,age:'staining',shine:28,vein:[255,255,252],sp:'chequer'},gold:{n:'Aurumstone',c:[200,170,100],tarn:[128,104,62],moss:0,fade:.25,age:'grime',vein:[252,234,168],sp:'lozenge'},night:{n:'Umbrastone',c:[35,28,46],cls:'marble',hp:5,tarn:[78,68,92],moss:0,fade:.5,age:'dulling',shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'},sp:'vent',cut:1}},
+  old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',tarn:[150,150,124],moss:0,hp:4,shine:28,sp:'quatre'}}},
  Wood:{p:{cls:'wood',hp:2,burn:1},vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:{n:'Oak',c:WOOD.oak,sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,sp:'rough'},teak:{n:'Teak',c:WOOD.teak,sp:'deck'},mahog:{n:'Mahogany',c:MAHOG,sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,sp:'marq'}},old:{walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'}}},
  Metal:{p:{cls:'metal',hp:6,shine:60},vars:{rivet:'Riveted plate',inset:'Inset panels',panel:'Panels'},mats:{steel:{n:'Steel',c:[145,148,151],tarn:[112,124,146],hp:7,w:1,shine:70,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],tarn:[146,98,62],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'treadplate'},
   brass:{n:'Brass',c:[200,146,88],tarn:[96,150,122],hp:5,w:.9,age:'verdigris',shine:80,sp:'fluted'},gold:{n:'Aurum',c:[228,196,104],tarn:[176,124,70],hp:8,w:.8,age:'dents',shine:80,sp:'mosaic'},umbra:{n:'Umbra',c:[56,56,67],tarn:[36,41,41],hp:10,w:.5,age:'dark tinge',dk:.57,shine:25,sp:'runes'}}},
@@ -242,19 +242,27 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
   if(wall)return sc(k,.86+.14*Math.sin(X/2.4));if(v==='diamond'){const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;if(u===0||w===0)k=mx(k,[176,140,82],.22);else if(u===4&&w===4)k=mx(k,[196,160,96],.3)}return k}}
 for(const el in ELEM)for(const mat of[...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})])for(const v of[...Object.keys(varsOf(el,mat)),...(OLDV[el]||[])])for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
  if(w&&el==='Earth'&&(mat==='hedge'||mat==='grass'))NODK.add(k);if(!w&&el==='Cloth'&&v!=='plain')RUG.add(k);if(!w&&v==='key')KEYT.add(k);if(el==='Wood'&&v==='panel')POLT.add(k)}
-// condition: 5 new, 4 used, 3 worn, 2 battered, 1 ruined. One wear look per family spreads in patches and deepens as condition drops
+// condition: 5 new, 4 used, 3 worn, 2 battered, 1 ruined; a key ending ~c is that tile or piece in condition c
 let WEARF=0;const CONDN={5:'New',4:'Used',3:'Worn',2:'Battered',1:'Ruined'};
-// metal: tarnish is a layer over the pattern: thick patches hide the detail beneath (glyphs, rivets, slats), every patch shifts hue toward the metal's tarnish colour, with fine scratches and small dents; Ruined adds 40% less than the step before it
-const WEARM=(el,mat)=>{const T0=memb(el,mat).tarn,TL=T0[0]+T0[1]+T0[2],sd=(Object.keys(ELEM[el].mats).indexOf(mat)+5)*13,au=mat==='gold';
- return(f,t0)=>{const t=t0>.75?.75+(t0-.75)*.6:t0;return(X,Y,cx,cy)=>{let k=f(X,Y,cx,cy);if(!k)return k;const m=fbm(X/13,Y/13,sd)*.7+hh(X>>2,Y>>2,sd+1)*.3,a=Math.max(0,Math.min(1,(t*.66-m)/.14))*(.4+.6*t);if(a<=0)return k;
-  const[dl,dr,du,dd]=regionD(X,Y,cx,cy);if(Math.min(dl,dr,du,dd)>1&&a>.35)k=mx(k,metalOf(mat,X,Y),Math.min(1,(a-.35)*2));const L=k[0]+k[1]+k[2];let c=mx(k,T0.map(v=>v*L/TL),a*(au?.32:.42));if(a>.5)WEARF=1;
-  if(a>.3&&(X+2*Y)%7===0&&hh(X>>2,Y>>2,sd+2)>.72-.2*t)c=sc(c,1.12);else if(hh(X,Y,sd+3)>(au?.975:.988)-.02*t)c=sc(c,.72);return c}}};
-const WEAR={Metal:WEARM,Stone:(el,mat)=>{const mb=memb(el,mat).cls==='marble',B=(memb(el,mat).c||[120,120,120]).reduce((p,q)=>p+q,0)/3,ob=!!memb(el,mat).cut,lt=!mb&&B>150,G=lt?memb(el,mat).c.map(v=>v*.66|0):[104,104,82],sd=([...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})].indexOf(mat)+3)*11;
- return(f,t)=>(X,Y,cx,cy)=>{let k=f(X,Y,cx,cy);if(!k)return k;const m=fbm(X/13,Y/13,sd)*.7+hh(X>>2,Y>>2,sd+1)*.3,cov=t*.66,a=Math.max(0,Math.min(1,(cov-m)/.14))*(.4+.6*t);if(lt&&k){const L=(k[0]+k[1]+k[2])/3;k=mx(k,[L,L,L],t*.25)}if(ob){let c=a>0?mx(k,[78,68,92],a*.32):k;const L=(c[0]+c[1]+c[2])/3;c=mx(c,[L,L,L],t*.5);if(a>.5)WEARF=1;return t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982?sc(c,(X+Y)&1?1.12:.9):c}if(a<=0)return k;
-  let c=mx(k,mb?[188,176,150]:G,a*(mb?.22:.32));if(a>.5)WEARF=1;if(t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982)c=sc(c,(X+Y)&1?1.07:.9);
-  const L=(k[0]+k[1]+k[2])/3;if(!mb&&L<B*(lt?.72:.88)&&a>.3)c=mx(c,[78,100,52],.6*a);else if(!mb&&!lt&&hh(X,Y,sd+4)>.93-.1*t)c=mx(c,[86,108,56],.6*a);return c}}};
-for(const k in MCHEST){TEX[k]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[k]='floor'}
-for(const el in WEAR)for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(e!==el)continue;const W=WEAR[el](el,mat),f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c;TEX[n]=W(f,(5-c)/4);KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}
+const baseK=k=>k&&k.replace(/~\d$/,''),condK=k=>+((/~(\d)$/.exec(k)||[])[1]||5);
+// wear is a layer over any pixel of a material (tiles, furniture, doors, slabs): patches spread as condition drops and thick ones cover the detail beneath; e() is the px to the piece's edge, which stays drawn. Ruined adds 40% less than the step before it
+const ageT=cd=>{const t=(5-cd)/4;return t>.75?.75+(t-.75)*.6:t},ageSd=(el,mat)=>([...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})].indexOf(mat)+5)*13;
+const ageA=(X,Y,sd,t)=>{const m=fbm(X/13,Y/13,sd)*.7+hh(X>>2,Y>>2,sd+1)*.3;return Math.max(0,Math.min(1,(t*.66-m)/.14))*(.4+.6*t)};
+const AGE={
+ // metal tarnish: every patch shifts hue toward the metal's tarnish colour at the same brightness, with fine scratches and small dents
+ Metal:(el,mat,t)=>{const T0=memb(el,mat).tarn,TL=T0[0]+T0[1]+T0[2],sd=ageSd(el,mat),au=mat==='gold';
+  return(k,X,Y,e)=>{const a=ageA(X,Y,sd,t);if(a<=0)return k;if(a>.35&&e()>1)k=mx(k,metalOf(mat,X,Y),Math.min(1,(a-.35)*2));const L=k[0]+k[1]+k[2];let c=mx(k,T0.map(v=>v*L/TL),a*(au?.32:.42));if(a>.5)WEARF=1;
+   if(a>.3&&(X+2*Y)%7===0&&hh(X>>2,Y>>2,sd+2)>.72-.2*t)c=sc(c,1.12);else if(hh(X,Y,sd+3)>(au?.975:.988)-.02*t)c=sc(c,.72);return c}},
+ // stone weathering: patches stain toward the stone's weathering colour and wear its face plain; growth (moss, lichen, ash bloom) takes the joints first, then clumps over the thickest patches; fade greys the whole stone
+ Stone:(el,mat,t,w)=>{const M=mprop(el,mat),c=M.c,mb=M.cls==='marble',B=(c[0]+c[1]+c[2])/3,G=M.tarn,MO=M.moss,fd=(M.fade||0)*t,sd=ageSd(el,mat),s=([...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})].indexOf(mat)+1)*7,dk=M.cut&&!w?.8:1;
+  return(k,X,Y,e)=>{const a=ageA(X,Y,sd,t),L=(k[0]+k[1]+k[2])/3,jt=!M.cut&&L<B*.84;if(fd)k=mx(k,[L,L,L],fd);if(a<=0)return k;
+   const p=sc(softStone(X,Y,c,s,mb),dk),Lp=(p[0]+p[1]+p[2])/3;if(a>.35&&e()>1&&Math.abs(L-Lp)<Lp*.3)k=mx(k,fd?mx(p,[L,L,L],fd):p,Math.min(1,(a-.35)*2))
+   let o=mx(k,G,a*(mb?.24:.34));if(a>.5)WEARF=1;if(t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982)o=sc(o,(X+Y)&1?1.07:.9);
+   if(MO&&a>.3){const g=fbm(X/6,Y/6,sd+7)*.82+hh(X,Y,sd+8)*.18,th=1.02-a*.45-(jt?.22:0)-t*.05;if(g>th){const r=hh(X,Y,sd+9);o=mx(o,sc(MO,g>th+.1?1.14:r<.2?.8:1),.82)}}
+   return o}}};
+const AGEC={},ageOf=(el,mat,cd,w)=>{if(!AGE[el]||!(cd<5))return null;const q=el+'.'+mat+'.'+cd+(w?'w':'');return AGEC[q]||(AGEC[q]=AGE[el](el,mat,ageT(cd),w))};
+for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
+for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}
 // old tile names from earlier maps: each is now a member of the material table
 for(const[k,a]of Object.entries({metal:'metal.steel.smooth.w',mplate:'metal.steel.rivet.w',mpanel:'metal.steel.smooth.w',iron:'metal.iron.rivet.w',brass:'metal.brass.smooth.w',mfloor:'metal.steel.smooth',gfloor:'metal.gold.smooth'})){TEX[k]=TEX[a];KIND[k]=KIND[a];CATN[k]=CATN[a]}
 const OLDK={marble:'stone.aur.block',dmarble:'stone.ver.block',flag:'stone.sand.flags',stone:'stone.grey.block.w',gstone:'stone.gold.block.w',pillar:'stone.aur.block.w',pave:'stone.lime.paving',omarble:'stone.aur.key',gtile:'stone.ver.key',bkmarble:'stone.night.block',bkslab:'stone.night.slabs',slab:'stone.grey.slabs',

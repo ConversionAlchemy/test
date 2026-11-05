@@ -20,7 +20,7 @@ function pickFile(f){const i=document.createElement('input');i.type='file';i.acc
 // textures
 const TNAME={marble:'White marble',dmarble:'Green marble',flag:'Flagstone',planks:'Oak planks',pplanks:'Pine planks',dplanks:'Teak planks',table:'Table',seat:'Chair',carpet:'Red carpet',gcarpet:'Green carpet',pcarpet:'Purple carpet',gfloor:'Gold floor',grass:'Grass',dirt:'Dirt',sky:'Sky',mfloor:'Metal floor',desk:'Desk',edesk:'Ebony desk',sill:'Sill',msill:'Marble sill',omarble:'Key marble',gtile:'Green key tile',bkmarble:'Black marble',bkslab:'Black slab',books:'Shelves',pave:'Paving',shelf:'Vault shelf',chest:'Chest',rack:'Rack',crop:'Wheat',wagon:'Wagon',
  stone:'Stone',gstone:'Gold stone',pillar:'Pillar',berm:'Earth bank',rail:'Fence',wood:'Oak',dwood:'Walnut',ewood:'Ebony',metal:'Metal',mplate:'Riveted plate',iron:'Iron',brass:'Brass',mpanel:'Metal panel',bush:'Hedge'};
-TNAME.slab='Stone slabs';TNAME.hedge='Hedge';for(const k in MCHEST){TNAME[k]=MCHEST[k][1];SHINE[k]=mprop('Metal',MCHEST[k][0]).shine}SHINE.mchest=60;
+TNAME.slab='Stone slabs';TNAME.hedge='Hedge';for(const k in MCHEST){TNAME[k]=MCHEST[k][1];SHINE[k]=mprop('Metal',MCHEST[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}SHINE.mchest=60;
 for(const k in CATN){const[el,mat,v,w]=CATN[k];const P=mprop(el,mat),cd=CATN[k][4]||5;if(w)WMAT[k]=hitCls(P.cls);if(P.shine)SHINE[k]=Math.round(P.shine*(.4+.6*(cd-1)/4));if(!w&&(el==='Earth'||el==='Cloth')||el==='Wood'&&v==='panel')NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
 const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w,cd]=c;return memb(el,mat).n+' · '+(varsOf(el,mat)[v]||v)+(w?' wall':'')+(cd?' · '+CONDN[cd]:'')};
 const tName=k=>MODS.tex[k]?MODS.tex[k].name:catName(k)||TNAME[k]||k;
@@ -174,7 +174,7 @@ for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[
 const umbraC=c=>toneC('umbra',c);
 // a door is its material's slab plus a hinge and a lock
 const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9];if(x===2&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=mul(q[2],.62);else if(x===L-4&&(y===-5||y===-4))q[2]=toneC('brass',rgb(220,220,220))};
-function mkDoor(k,x,y,rot){const d=slab(DOORK[k][1],x,y,rot);if(k==='umbra'){for(const q of d.src)q[2]=umbraC(q[2]);d.umbra=true;d.mass*=.6}else if(k==='gold'||k==='iron'||k==='brass'){for(const q of d.src)q[2]=toneC(k,q[2]);if(k==='gold')d.gold=true}else if(k==='ebony')mahogany(d,EBONY);else if(k==='mahog')mahogany(d);for(const q of d.src)doorMarks(q);d.used=null;d.px=[];orient(d);return d}
+function mkDoor(k0,x,y,rot){const k=baseK(k0),d=slab(DOORK[k][1],x,y,rot);if(k==='umbra'){for(const q of d.src)q[2]=umbraC(q[2]);d.umbra=true;d.mass*=.6}else if(k==='gold'||k==='iron'||k==='brass'){for(const q of d.src)q[2]=toneC(k,q[2]);if(k==='gold')d.gold=true}else if(k==='ebony')mahogany(d,EBONY);else if(k==='mahog')mahogany(d);for(const q of d.src)doorMarks(q);d.used=null;d.px=[];orient(d);if(ELEM.Metal.mats[k])wearSrc(d,'Metal',k,condK(k0));return d}
 function doorIcon(k){const s=slabPix(DOORK[k][1]);for(const q of s){const c=q[2];if(k==='umbra')q[2]=umbraC(c);else if(k==='gold'||k==='iron'||k==='brass')q[2]=toneC(k,c);else if(k==='ebony'||k==='mahog'){const x=q[8],y=q[9],e=Math.min(x,15-x,y+8,-1-y),w=woodT(x+93,y,k==='ebony'?EBONY:MAHOG,13);q[2]=e===2?rgb(cl(w[0]*.6+84),cl(w[1]*.6+67),cl(w[2]*.6+40)):rgb(cl(w[0]),cl(w[1]),cl(w[2]))}doorMarks(q)}return s.map(q=>[q[8],q[9],q[2]])}
 function clearDoor(cx,cy){for(const d of bodies.filter(o=>o.type==='slab'&&!o.free&&slabCell(o)===cy*CW+cx)){if(d.pair)d.pair.pair=null;remove(d)}}
 function placeDoor(k,cx,cy){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]);clearDoor(cx,cy);const L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
@@ -246,7 +246,7 @@ window.addEventListener('pointermove',e=>{if(EM!=='map')return;const h=$('hint')
 // polished wood: the furniture finish (dark rim, light bevel, inlay line), measured from the edge of each area
 // a crack never leaves its 16px stone, whatever the pattern
 // cracks: a layer over each connected block of one material, sized to the block and to how battered its tiles are
-function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&WEAR[c[0]]&&c[0]!=='Metal'?c[0]+c[1]+c[3]:null};
+function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&AGE[c[0]]&&c[0]!=='Metal'?c[0]+c[1]+c[3]:null};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k0=map[cy][cx],g=key(k0);if(!g||seen.has(cy*CW+cx)||OM[cy]&&OM[cy][cx])continue;
   const comp=new Set(),q=[[cx,cy]];seen.add(cy*CW+cx);while(q.length){const[a,b]=q.pop();comp.add(b*CW+a);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db,i=nb*CW+na;if(na<0||nb<0||na>=CW||nb>=CH||seen.has(i)||key(map[nb][na])!==g||OM[nb]&&OM[nb][na])continue;seen.add(i);q.push([na,nb])}}
   let s0=(cx*73856093^cy*19349663)>>>0;const R=()=>(s0=(s0*1664525+1013904223)>>>0)/4294967296,worn=[...comp].filter(i=>{const c=CATN[map[i/CW|0][i%CW]];return c[4]&&c[4]<=2});if(!worn.length)continue;

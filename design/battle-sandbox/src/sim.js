@@ -91,17 +91,18 @@ function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(
   for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);if(!c)continue;OBJ[j]=m;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}pieces();furnish()}
 // storage and desks come in pieces of at most 2×2, filled from the top-left; each piece has its own rim and inventory
 const PCK=new Set(['chest',...Object.keys(MCHEST),'rack','books','shelf','desk','edesk']);let PCS=new Map();
+for(const k in MCHEST)for(let c=1;c<5;c++){const n=k+'~'+c;OBJK.add(n);PCK.add(n);ONAME[n]=ONAME[k];BMAT[n]=BMAT[k]}
 function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k||!PCK.has(k)||PCS.has(cy*CW+cx))continue;const ok=(x,y)=>OM[y]&&OM[y][x]===k&&!PCS.has(y*CW+x),w=ok(cx+1,cy)?2:1,h=ok(cx,cy+1)&&(w<2||ok(cx+1,cy+1))?2:1,p={k,x0:cx,y0:cy,w,h,cells:[]};
  for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
 // finishes: riveted iron band on chests and racks, book spines on a bookshelf's open edges, a riveted steel vault shelf
 function furnish(){const done=new Set(),C=a=>rgb(cl(a[0]),cl(a[1]),cl(a[2])),SP=[[110,34,30],[40,72,52],[92,64,36],[36,46,82],[130,104,58],[70,40,60]];
  const open=(x,y)=>{const k=map[y]&&map[y][x];return !!k&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky'&&!(OM[y]&&OM[y][x])};
- for(const p of PCS.values()){if(done.has(p)||p.k==='desk'||p.k==='edesk')continue;done.add(p);const pw=p.w*T,ph=p.h*T,X0=p.x0*T,Y0=p.y0*T,B=Math.max(3,Math.round(Math.min(pw,ph)*.25));
+ for(const p of PCS.values()){if(done.has(p)||p.k==='desk'||p.k==='edesk')continue;done.add(p);const MC=MCHEST[baseK(p.k)],A=MC&&ageOf('Metal',MC[0],condK(p.k)),pw=p.w*T,ph=p.h*T,X0=p.x0*T,Y0=p.y0*T,B=Math.max(3,Math.round(Math.min(pw,ph)*.25));
   for(let v=0;v<ph;v++)for(let u=0;u<pw;u++){const X=X0+u,Y=Y0+v,j=Y*W+X,e=[u,v,pw-1-u,ph-1-v],d=Math.min(...e),s=e.indexOf(d),al=s===0||s===2?v:u;let c=OBJC[j];
    const cx=X/T|0,cy=Y/T|0,fl=open(cx+(s===0?-1:s===2?1:0),cy+(s===1?-1:s===3?1:0)),hi=s<2?1.15:.82;
-   if(p.k==='chest'||MCHEST[p.k]||p.k==='rack'){const m=sc(metalLit(MCHEST[p.k]?MCHEST[p.k][0]:'iron'),MCHEST[p.k]?.62:p.k==='rack'?.8:.9);
+   if(p.k==='chest'||MC||p.k==='rack'){const m=sc(metalLit(MC?MC[0]:'iron'),MC?.62:p.k==='rack'?.8:.9);
     if(d===0)c=mul(c,.5);else if(d<=2){c=C(m.map(q=>q*(d===1?hi:1)));}
-    else if(p.k==='rack'&&(pw>=ph?u%4===0:v%4===0))c=mul(c,.55)}
+    else if(p.k==='rack'&&(pw>=ph?u%4===0:v%4===0))c=mul(c,.55);if(A&&d>0){const r=A([c&255,c>>8&255,c>>16&255],X*2,Y*2,()=>d-1);c=C(r)}}
    else if(p.k==='books'){if(d===0)c=C(sc(woodT(X,Y,WOOD.walnut,21),.5));else if(d<B&&fl){const q=SP[hh(al>>1,p.x0*31+p.y0+s,22)*SP.length|0];c=C(sc(q,(al&1?.82:1)*(d===B-1?.75:1)))}else{c=C(woodT(X,Y,WOOD.walnut,21));if(d===1)c=mul(c,1.12)}}
    else if(p.k==='shelf'){const m=metalOf('steel',X,Y);if(d===0)c=C(sc(m,.5));else if(d<=2){c=C(sc(m,d===1?hi*1.1:1));if(d===1&&al%4===2)c=rgb(214,210,196)}else c=C(sc(m,v%5===0?.82:1))}
    OBJC[j]=c}}}
@@ -579,7 +580,9 @@ function orient(b){let a=b.ang||0;if(!b.src){for(const p of b.px){const q=swingP
  b.px=px;b.used=used;mkSet(b)}
 function slab(m,x,y,rot=0,len=16,th=8){const b={id:uid++,type:'slab',mat:m,x,y,vx:0,vy:0,rot,ang:0,tgt:0,len,th,src:slabPix(m,len,th),px:[],mass:9*len/16};orient(b);bodies.push(b);return b}
 // metal slabs are drawn in steel, then recoloured into their own metal
-function barricade(m,x,y,len,th,mat){const b=slab(m,x,y,0,len,th);b.free=true;if(mat&&mat!=="steel"){for(const q of b.src)q[2]=toneC(mat,q[2]);b.used=null;b.px=[];orient(b)}return b}
+function barricade(m,x,y,len,th,mat,cd){const b=slab(m,x,y,0,len,th);b.free=true;if(mat&&mat!=="steel"){for(const q of b.src)q[2]=toneC(mat,q[2]);b.used=null;b.px=[];orient(b)}if(m===3)wearSrc(b,'Metal',mat||'steel',cd);return b}
+// a slab or door in condition cd: its material's wear over each pixel, from the slab's own edge; pieces sample the wear at twice the scale of tiles so small ones still show patches
+function wearSrc(b,el,mat,cd){const A=ageOf(el,mat,cd);if(!A)return;const L=b.len||16,th=b.th||8,o=b.id*37;for(const q of b.src){const x=q[8],y=q[9],c=q[2],r=A([c&255,c>>8&255,c>>16&255],(x+o)*2,(y+o)*2,()=>Math.min(x,L-1-x,y+th,-1-y)-1);q[2]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}b.cond=cd;b.used=null;b.px=[];orient(b)}
 function slabFits(d,ignore){const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H)return false;const j=Y*W+X;if(sol[j]||(slabG[j]&&slabG[j]!==d.id&&!(ignore&&ignore.has(slabG[j]))))return false}return true}
 function remark(d,on){const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H){const j=Y*W+X;if(on)slabG[j]=d.id;else if(slabG[j]===d.id)slabG[j]=0}}}
 function spinTo(d,a){const L=(d.len||16)/2,Tq=-(d.th||8)/2,c0=swingPt(d,L,Tq,0),s0=d.spin||0,x0=d.x,y0=d.y;remark(d,false);d.spin=a-d.rot*Math.PI/2;const c1=swingPt(d,L,Tq,0);d.x+=c0[0]-c1[0];d.y+=c0[1]-c1[1];orient(d);
