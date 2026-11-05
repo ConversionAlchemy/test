@@ -173,7 +173,7 @@ const FURN={Earth:{grass:{furn:['hedge']}},Wood:{oak:{furn:['table','chest','rac
 for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[[3,n+' slab',16,8,mat],[3,'Heavy '+n.toLowerCase()+' slab',32,8,mat]]}
 const umbraC=c=>toneC('umbra',c);
 // a door is its material's slab plus a hinge and a lock
-const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9];if(x===2&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=mul(q[2],.62);else if(x===L-4&&(y===-5||y===-4))q[2]=toneC('brass',rgb(220,220,220));else if(x===L-4&&y===-3)q[2]=mul(q[2],.5)};
+const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9];if(x===2&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=mul(q[2],.62);else if(x===L-4&&(y===-5||y===-4))q[2]=toneC('brass',rgb(220,220,220))};
 function mkDoor(k,x,y,rot){const d=slab(DOORK[k][1],x,y,rot);if(k==='umbra'){for(const q of d.src)q[2]=umbraC(q[2]);d.umbra=true;d.mass*=.6}else if(k==='gold'||k==='iron'||k==='brass'){for(const q of d.src)q[2]=toneC(k,q[2]);if(k==='gold')d.gold=true}else if(k==='ebony')mahogany(d,EBONY);else if(k==='mahog')mahogany(d);for(const q of d.src)doorMarks(q);d.used=null;d.px=[];orient(d);return d}
 function doorIcon(k){const s=slabPix(DOORK[k][1]);for(const q of s){const c=q[2];if(k==='umbra')q[2]=umbraC(c);else if(k==='gold'||k==='iron'||k==='brass')q[2]=toneC(k,c);else if(k==='ebony'||k==='mahog'){const x=q[8],y=q[9],e=Math.min(x,15-x,y+8,-1-y),w=woodT(x+93,y,k==='ebony'?EBONY:MAHOG,13);q[2]=e===2?rgb(cl(w[0]*.6+84),cl(w[1]*.6+67),cl(w[2]*.6+40)):rgb(cl(w[0]),cl(w[1]),cl(w[2]))}doorMarks(q)}return s.map(q=>[q[8],q[9],q[2]])}
 function clearDoor(cx,cy){for(const d of bodies.filter(o=>o.type==='slab'&&!o.free&&slabCell(o)===cy*CW+cx)){if(d.pair)d.pair.pair=null;remove(d)}}
@@ -246,7 +246,7 @@ window.addEventListener('pointermove',e=>{if(EM!=='map')return;const h=$('hint')
 // polished wood: the furniture finish (dark rim, light bevel, inlay line), measured from the edge of each area
 // a crack never leaves its 16px stone, whatever the pattern
 // cracks: a layer over each connected block of one material, sized to the block and to how battered its tiles are
-function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&WEAR[c[0]]?c[0]+c[1]+c[3]:null};
+function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&WEAR[c[0]]&&c[0]!=='Metal'?c[0]+c[1]+c[3]:null};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k0=map[cy][cx],g=key(k0);if(!g||seen.has(cy*CW+cx)||OM[cy]&&OM[cy][cx])continue;
   const comp=new Set(),q=[[cx,cy]];seen.add(cy*CW+cx);while(q.length){const[a,b]=q.pop();comp.add(b*CW+a);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db,i=nb*CW+na;if(na<0||nb<0||na>=CW||nb>=CH||seen.has(i)||key(map[nb][na])!==g||OM[nb]&&OM[nb][na])continue;seen.add(i);q.push([na,nb])}}
   let s0=(cx*73856093^cy*19349663)>>>0;const R=()=>(s0=(s0*1664525+1013904223)>>>0)/4294967296,worn=[...comp].filter(i=>{const c=CATN[map[i/CW|0][i%CW]];return c[4]&&c[4]<=2});if(!worn.length)continue;
