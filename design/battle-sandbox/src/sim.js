@@ -97,7 +97,7 @@ function furnish(){const done=new Set(),C=a=>rgb(cl(a[0]),cl(a[1]),cl(a[2])),SP=
   for(let v=0;v<ph;v++)for(let u=0;u<pw;u++){const X=X0+u,Y=Y0+v,j=Y*W+X,e=[u,v,pw-1-u,ph-1-v],d=Math.min(...e),s=e.indexOf(d),al=s===0||s===2?v:u;let c=OBJC[j];
    const cx=X/T|0,cy=Y/T|0,fl=open(cx+(s===0?-1:s===2?1:0),cy+(s===1?-1:s===3?1:0)),hi=s<2?1.15:.82;
    if(p.k==='chest'||p.k==='mchest'||p.k==='schest'||p.k==='rack'){const m=sc(metalLit(p.k==='schest'?'steel':'iron'),p.k==='mchest'?.62:p.k==='rack'?.8:.9);
-    if(d===0)c=mul(c,.5);else if(d<=2){c=C(m.map(q=>q*(d===1?hi:1)));if(d===1&&al%4===2)c=rgb(222,218,204)}
+    if(d===0)c=mul(c,.5);else if(d<=2){c=C(m.map(q=>q*(d===1?hi:1)));}
     else if(p.k==='rack'?(pw>=ph?u%4===0:v%4===0):(pw>=ph?v===ph>>1:u===pw>>1))c=mul(c,.55)}
    else if(p.k==='books'){if(d===0)c=C(sc(woodT(X,Y,WOOD.walnut,21),.5));else if(d<B&&fl){const q=SP[hh(al>>1,p.x0*31+p.y0+s,22)*SP.length|0];c=C(sc(q,(al&1?.82:1)*(d===B-1?.75:1)))}else{c=C(woodT(X,Y,WOOD.walnut,21));if(d===1)c=mul(c,1.12)}}
    else if(p.k==='shelf'){const m=metalOf('steel',X,Y);if(d===0)c=C(sc(m,.5));else if(d<=2){c=C(sc(m,d===1?hi*1.1:1));if(d===1&&al%4===2)c=rgb(214,210,196)}else c=C(sc(m,v%5===0?.82:1))}
@@ -562,7 +562,7 @@ function reshape(b,a){b.ang=a;if(b.kind==='bomb'||b.kind==='crate')return;b.px=s
 function slabPix(m,len=16,th=8){const px=[],hp=(m===2?2:7)+(len>16?(m===2?1:4):0);for(let y=-th;y<=-1;y++)for(let x=0;x<len;x++){let c;const e=y===-th||y===-1||x===0||x===len-1;
  const ed=Math.min(x,len-1-x,y+th,-1-y),sd=uid*37;let q;
  if(m===2)q=woodT(x+sd,y+sd,WOOD.oak,1);
- else{q=sc(metalOf('steel',x+sd,y*3+sd),1+(len/2-x)/len*.16);if(ed===2&&(((x===2||x===len-3)?y:x)&3)<2)q=sc(q,.82)}
+ else{q=sc(metalOf('steel',x+sd,y*3+sd),1+(len/2-x)/len*.16);}
  c=rgb(cl(q[0]),cl(q[1]),cl(q[2]));
  px.push([x,y,c,hp,m,0,hp,'x',x,y])}return px}
 function swingPt(b,lx,ly,a){const B=b.rot*Math.PI/2+(b.spin||0),cb=Math.cos(B),sb=Math.sin(B),ca=Math.cos(a),sa=Math.sin(a),hx=-(b.th||8)/2-1,hy=-(b.th||8)/2,dx=lx-hx,dy=ly-hy,qx=hx+dx*ca-dy*sa,qy=hy+dx*sa+dy*ca;return[qx*cb-qy*sb,qx*sb+qy*cb]}

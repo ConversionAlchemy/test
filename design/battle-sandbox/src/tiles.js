@@ -218,9 +218,8 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
   return woodT(X,Y,c,s+13)}}
  if(el==='Metal'){const I=wall?5:4;return(X,Y,cx,cy)=>{const x=X&15,y=Y&15,k=metalOf(mat,X,Y),[dl,dr,du,dd]=regionD(X,Y,cx,cy),e=Math.min(dl,dr,du,dd);
   // a connected area is one plate: details sit I px in from its outer edge (walls lose 3px to their rim)
-  if(v==='sheet'){if(wall){const rv=(dl===2||dr===2)&&(Y&3)===2&&du>1&&dd>1||(du===2||dd===2)&&(X&3)===2&&dl>1&&dr>1;return rv?sc(k,1.3):k}
-   return k}
-  if(v==='rivet'){const P=t=>t===I||t===15-I,on=(dl===I||dr===I)&&du>=I&&dd>=I&&P(y)||(du===I||dd===I)&&dl>=I&&dr>=I&&P(x);return on?sc(k,1.3):k}
+  if(v==='sheet')return k;
+  if(v==='rivet'){const on=(dl===I||dr===I)&&du>=I&&dd>=I&&(y%4===0||du===I||dd===I)||(du===I||dd===I)&&dl>=I&&dr>=I&&(x%4===0||dl===I||dr===I);return on?sc(k,1.3):k}
   if(v==='panel'){if(e!==I||Math.min(dl,dr,du,dd)<I)return k;return dl===I||du===I?sc(k,.78):sc(k,1.18)}
   if(v==='smooth')return k;
   if(mat==='brass'){if((x===3||x===12)&&(y===3||y===12))return sc(k,1.35);return sc(k,1+.06*Math.sin((x+y)/3))}
