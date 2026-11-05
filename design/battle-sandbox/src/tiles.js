@@ -172,7 +172,7 @@ const OPAL=[[146,156,180],[117,142,188],[104,170,176],[207,178,112],[93,85,107],
 const flowVein=(k,X,Y,s,mu=0)=>{k=mx(k,[75,47,76],Math.max(0,vn(X/22,Y/22,s+84)-.5)*1.3);k=mx(k,[21,6,12],Math.max(0,vn(X/26,Y/26,s+89)-.55)*1.4);k=sc(k,.92+fbm(X/3,Y/4,s+87)*.16);
  const d=Math.abs(vn(X/9,Y/9,s+50)-.5),c=mu?[92,86,132]:opal(vn(X/40,Y/40,s+85)*1.5);return d<.02?mx(k,c,.7):d<.045?mx(k,c,.3):k};
 // a polished cut: a faint line
-const cutJ=(k,M)=>mx(k,M.jc,.12);
+const cutJ=()=>[52,41,71];// #2A2139 once floors darken
 const veinOf=(M,k,X,Y,s)=>M.vein==='gold'?goldVein(k,X,Y,s):M.vein==='flow'?flowVein(k,X,Y,s):M.vein?marbling(k,X,Y,s):k;
 const marbling=(k,X,Y,s)=>{const v=vn(X/9,Y/9,s+50)-.5,d=Math.abs(v);if(d<.02)return mx(k,[255,255,252],.8);if(d<.045)return mx(k,[252,251,247],.3);if(d<.055&&v>0)return sc(k,.93);return hh(X,Y,s+51)>.978?mx(k,[255,255,252],.6):k};
 const speck=(k,X,Y,s)=>{const v=hh(X,Y,s+70);return v>.965?sc(k,.8):v>.92?mx(k,[190,164,160],.22):v<.025?mx(k,[236,228,222],.22):k};
@@ -214,7 +214,7 @@ for(const el in ELEM)for(const mat of[...Object.keys(ELEM[el].mats),...Object.ke
 // condition: 5 new, 4 used, 3 worn, 2 battered, 1 ruined. One wear look per family spreads in patches and deepens as condition drops
 let WEARF=0;const CONDN={5:'New',4:'Used',3:'Worn',2:'Battered',1:'Ruined'};
 const WEAR={Stone:(el,mat)=>{const mb=memb(el,mat).cls==='marble',B=(memb(el,mat).c||[120,120,120]).reduce((p,q)=>p+q,0)/3,ob=!!memb(el,mat).cut,lt=!mb&&B>150,G=lt?memb(el,mat).c.map(v=>v*.66|0):[104,104,82],sd=([...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})].indexOf(mat)+3)*11;
- return(f,t)=>(X,Y,cx,cy)=>{const k=f(X,Y,cx,cy);if(!k)return k;const m=fbm(X/13,Y/13,sd)*.7+hh(X>>2,Y>>2,sd+1)*.3,cov=t*.66,a=Math.max(0,Math.min(1,(cov-m)/.14))*(.4+.6*t);if(ob){let c=a>0?mx(k,[78,68,92],a*.32):k;const L=(c[0]+c[1]+c[2])/3;c=mx(c,[L,L,L],t*.5);if(a>.5)WEARF=1;return t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982?sc(c,(X+Y)&1?1.12:.9):c}if(a<=0)return k;
+ return(f,t)=>(X,Y,cx,cy)=>{let k=f(X,Y,cx,cy);if(!k)return k;const m=fbm(X/13,Y/13,sd)*.7+hh(X>>2,Y>>2,sd+1)*.3,cov=t*.66,a=Math.max(0,Math.min(1,(cov-m)/.14))*(.4+.6*t);if(lt&&k){const L=(k[0]+k[1]+k[2])/3;k=mx(k,[L,L,L],t*.25)}if(ob){let c=a>0?mx(k,[78,68,92],a*.32):k;const L=(c[0]+c[1]+c[2])/3;c=mx(c,[L,L,L],t*.5);if(a>.5)WEARF=1;return t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982?sc(c,(X+Y)&1?1.12:.9):c}if(a<=0)return k;
   let c=mx(k,mb?[188,176,150]:G,a*(mb?.22:.32));if(a>.5)WEARF=1;if(t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982)c=sc(c,(X+Y)&1?1.07:.9);
   const L=(k[0]+k[1]+k[2])/3;if(!mb&&L<B*(lt?.72:.88)&&a>.3)c=mx(c,[78,100,52],.6*a);else if(!mb&&!lt&&hh(X,Y,sd+4)>.93-.1*t)c=mx(c,[86,108,56],.6*a);return c}}};
 for(const el in WEAR)for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(e!==el)continue;const W=WEAR[el](el,mat),f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c;TEX[n]=W(f,(5-c)/4);KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}
