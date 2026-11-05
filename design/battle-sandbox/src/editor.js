@@ -159,6 +159,8 @@ function flushPlop(){const p=PLOP;if(!p)return;PLOP=null;const s=srcNow();for(co
 envCalc();
 
 // map editor
+// brush size: the tiler's, and one each for vacuum and sponge (1 or 2)
+const CLSZ={vac:1,sponge:1};
 let edBrush=null,edSize=1,edStroke=null,edSrc=null,edUndo=[],edRedo=[];
 const srcNow=()=>edSrc&&edSrc.length===CH&&edSrc[0].length===CW?edSrc:(edSrc=map.map((r,y)=>r.map((k,x)=>OM[y]&&OM[y][x]||k)));
 const isWallK=k=>!!k&&!!WMAT[k];
@@ -232,7 +234,7 @@ let GRID=LS.get('bs.grid',true);
  {const c=edBrush&&edBrush.t==='clean'?TOOLCUR[edBrush.k]:null;if(c&&cv.style.cursor!==c)cv.style.cursor=c}
  for(const p of SPK){const a=Math.min(1,p.l/8)*Math.max(0,1-p.l/p.L)*(.55+.45*Math.sin(p.l*.35+p.tw));ctx.globalAlpha=a;ctx.fillStyle=`hsl(${(p.h+p.l*3)%360},95%,78%)`;ctx.fillRect(p.x|0,p.y|0,1,1);if(a>.7&&p.l%20<4){ctx.globalAlpha=a*.4;ctx.fillRect((p.x|0)-1,p.y|0,3,1);ctx.fillRect(p.x|0,(p.y|0)-1,1,3)}}ctx.globalAlpha=1;
  if(CL&&CL.k==='wand'){ctx.strokeStyle='rgba(200,170,255,.9)';for(const[x,y]of CL.cells)ctx.strokeRect(x*T+.5,y*T+.5,T-1,T-1)}if(WQ){ctx.strokeStyle='rgba(200,170,255,.6)';for(const[x,y]of WQ.q)ctx.strokeRect(x*T+.5,y*T+.5,T-1,T-1)}
- if(edBrush&&edBrush.t==='clean'&&edBrush.k!=='wand'&&mouse.in){const R=edBrush.k==='vac'?7+edSize*4:4+edSize*3;ctx.lineWidth=1;ctx.strokeStyle='#000';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R+.5,0,6.283);ctx.stroke();ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R-.5,0,6.283);ctx.stroke()}
+ if(edBrush&&edBrush.t==='clean'&&edBrush.k!=='wand'&&mouse.in){const R=edBrush.k==='vac'?7+CLSZ.vac*4:4+CLSZ.sponge*3;ctx.lineWidth=1;ctx.strokeStyle='#000';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R+.5,0,6.283);ctx.stroke();ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R-.5,0,6.283);ctx.stroke()}
  ctx.globalAlpha=.72;const gh=(cells,k)=>{const g=ghostOf(k);for(const[x,y]of cells)ctx.drawImage(g,x*T,y*T)};if(PLOP)gh(PLOP.q,PLOP.k);if(edStroke)gh(edStroke.rect?rectCells(edStroke):edStroke.cells,edStroke.k);ctx.globalAlpha=1;
  ctx.lineWidth=1;const s=edStroke;if(s&&s.rect){const x0=Math.min(s.x0,s.x1),y0=Math.min(s.y0,s.y1);box2(x0*T,y0*T,(Math.abs(s.x1-s.x0)+1)*T,(Math.abs(s.y1-s.y0)+1)*T)}
  else if(edBrush&&mouse.in&&!(edBrush.t==='clean'&&edBrush.k!=='wand')){const n=edBrush.t==='door'?1:edSize,o=Math.floor((n-1)/2),cx=(mouse.x/T|0)-o,cy=(mouse.y/T|0)-o;box2(cx*T,cy*T,n*T,n*T)}ctx.restore()}}
@@ -283,7 +285,7 @@ let scrT=0;function scrub(){const t=performance.now();if(t-scrT<140)return;scrT=
 let chT=0;function chime(p){if(mute||!gest)return;try{tone(1180*p,.28,.02);tone(1770*p,.22,.012);tone(2360*p,.16,.006);noise(.05,6000,1,.015,'highpass')}catch(e){}}
 let VAC=null;function vacOn(){if(VAC||mute||!gest)return;try{const a=au(),len=a.sampleRate|0,buf=a.createBuffer(1,len,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;const n=a.createBufferSource();n.buffer=buf;n.loop=true;const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=420;const o=a.createOscillator();o.type='sawtooth';o.frequency.value=92;const of=a.createBiquadFilter();of.type='lowpass';of.frequency.value=260;const g=a.createGain();g.gain.value=0;g.gain.linearRampToValueAtTime(.06,a.currentTime+.15);const og=a.createGain();og.gain.value=.25;n.connect(f).connect(g);o.connect(of).connect(og).connect(g);g.connect(MS);n.start();o.start();VAC={g,f,o,n}}catch(e){}}
 function vacOff(){if(!VAC)return;const v=VAC;VAC=null;try{const t=AC.currentTime;v.g.gain.cancelScheduledValues(t);v.g.gain.setValueAtTime(v.g.gain.value,t);v.g.gain.linearRampToValueAtTime(0,t+.15);v.n.stop(t+.2);v.o.stop(t+.2)}catch(e){}}
-const clR=()=>CL&&CL.k==='vac'?7+edSize*4:4+edSize*3;
+const clR=()=>CL&&CL.k==='vac'?7+CLSZ.vac*4:4+CLSZ.sponge*3;
 const WET=new Map();function wetAt(x,y,R){for(let Y=Math.floor((y-R)/2);Y<=(y+R)/2;Y++)for(let X=Math.floor((x-R)/2);X<=(x+R)/2;X++){if(X<0||Y<0||X>=BW||Y>=BH||Math.hypot(X*2+1-x,Y*2+1-y)>R)continue;const q=Y*BW+X;if(sol[(Y*2)*W+X*2])continue;WET.set(q,Math.max(WET.get(q)||0,1))}}
 function cleanTick(){for(let i=VP.length-1;i>=0;i--){const p=VP[i],dx=mouse.x-p.x,dy=mouse.y-p.y,d=Math.hypot(dx,dy);if(d<2||!CL){VP.splice(i,1);continue}const v=Math.min(d,2+d*.15);p.x+=dx/d*v;p.y+=dy/d*v}for(const[q,v]of WET){const n=v*.985-.002;if(n<=0)WET.delete(q);else WET.set(q,n)}for(const p of SPK){p.x+=p.vx;p.y+=p.vy;p.l++}for(let i=SPK.length-1;i>=0;i--)if(SPK[i].l>SPK[i].L)SPK.splice(i,1);
  if(!CL)return;const mx=mouse.x,my=mouse.y,R=clR();

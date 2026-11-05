@@ -65,6 +65,7 @@ VIEW.append(mk('div','frame'));
 // tool header with optional dropper
 function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1],G=mk('div','hb');TH.append(uicon(k),mk('span',null,n),G);
  if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'sq sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});G.append(z)}
+ if(k==='vac'||k==='sponge'){const z=ubtn(CLSZ[k]>1?'2×2':'1×1','sq sz',()=>{CLSZ[k]=CLSZ[k]>1?1:2;z.textContent=CLSZ[k]>1?'2×2':'1×1'});G.append(z)}
  if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','sq sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});const gr=ubtn('','sq'+(GRID?' on':''),()=>{GRID=!GRID;LS.set('bs.grid',GRID);gr.classList.toggle('on',GRID)});gr.append(uicon('grid'));const er=ubtn('','sq red'+(UI.erase?' on':''),()=>setErase(!UI.erase));er.append(uicon('bin'));const un=ubtn('','sq',()=>{if(!edStep(false))NOPE()});un.title='Undo';un.append(uicon('undo'));G.append(z,un,gr,er)}
  if(k==='tile'||k==='spawn'){const d=ubtn('','sq',()=>{UI.del=false;armDrop(k)});d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);G.append(d)}
  if(k==='spawn'){const x=ubtn('','sq red',()=>{UI.del=!UI.del;if(UI.del&&UI.drop)armDrop(k);else head(k);cv.style.cursor=UI.del?'crosshair':CUR.arrow});x.append(uicon('bin'));x.classList.toggle('on',!!UI.del);G.append(x)}}
