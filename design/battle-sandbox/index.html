@@ -671,7 +671,7 @@ function alloc(cw,ch){CW=cw;CH=ch;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.
  for(const k in FX)FX[k]=new Float32Array(NB);TF=new Float32Array(NB);SF=new Float32Array(NB);SS=new Float32Array(NB);ST=new Float32Array(NB);BURN=new Float32Array(NB);FV=new Float32Array(NB);SV=new Float32Array(NB);DV=new Float32Array(NB);TMP=new Float32Array(NB);
  WH=new Float32Array(N);fxLow=new Uint32Array(N);fxTop=new Uint32Array(N);fxA=new Uint8Array(N);HZ=new Float32Array(NB);OPEN=new Uint8Array(NB)}
 const rgb=(r,g,b)=>((255<<24)|(b<<16)|(g<<8)|r)>>>0;
-// plasma is Sanctis obsidian's energy: its light runs through the stone's iridescent palette
+// plasma is Umbrastone's energy: its light runs through the stone's iridescent palette
 const plasC=h=>{const c=opal(h);return rgb(c[0]|0,c[1]|0,c[2]|0)};
 const cl=v=>v<0?0:v>255?255:v|0;
 const mul=(c,k)=>rgb(cl((c&255)*k),cl((c>>8&255)*k),cl((c>>16&255)*k));
