@@ -78,15 +78,15 @@ function texRows(host,kind,click,isOn,badge){host.innerHTML='';const add=(k,mod)
 // maps
 // interior maps hide the inside of thick walls; outdoor maps (and the editor's wall-tops view) show their tops
 const ENVSET={};let edTops=true;
-const natK=k=>/^(grass|soil)$/.test(matK(k));
+const natK=k=>matK(k)==='grass';// bare soil can be a cellar floor, so only grass makes a map read as outdoors
 function autoOut(){let nat=0,open=0,cells=0,bd=0,bo=0;for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){const k=map[y][x],w=!!WMAT[k]||/[HNS]$/.test(k)&&!!WMAT[k.slice(0,-1)];if(!w){open++;if(natK(k))nat++}if(x===0||y===0||x===CW-1||y===CH-1){bd++;if(!w||k==='bush')bo++}}return nat/(open||1)>.3||bo/(bd||1)>.3}
 function envCalc(){const e=ENVSET[curMap]||'auto';OUTD=e==='out'||e==='auto'&&autoOut()}
 // the Atelier: every element's materials in alcoves, walls above floors, with doors and furniture
-const ATL=(()=>{const rows=EORDER.map(el=>{const E=ELEM[el],mats=Object.keys(E.mats),vars=mats.map(m=>Object.keys(varsOf(el,m)));return{el,mats,vars,w:vars.reduce((a,v)=>a+v.length+1,0)}});return{rows,CW:Math.max(...rows.map(r=>r.w))+3,CH:2+rows.length*4+1}})();
+const ATL=(()=>{const rows=EORDER.map(el=>{const E=ELEM[el],mats=Object.keys(E.mats),vars=mats.map(m=>Object.keys(varsOf(el,m)));return{el,mats,vars,w:vars.reduce((a,v)=>a+v.length+1,0)}});return{rows,CW:Math.max(...rows.map(r=>r.w))+3,CH:2+rows.length*4+7}})();
 MAPSZ.atelier=[ATL.CW,ATL.CH];TITLE.atelier='Fluoria · The Atelier';
 NBM.atelier=()=>{const g=Array.from({length:ATL.CH},(_,y)=>Array.from({length:ATL.CW},(_,x)=>x===0||y===0||x===ATL.CW-1||y===ATL.CH-1?'stone.grey.block.w':'stone.lime.paving'));
  ATL.rows.forEach((r,i)=>{const y0=2+i*4;let x=2;r.mats.forEach((m,mi)=>{const vs=r.vars[mi];vs.forEach((v,j)=>{const b=r.el.toLowerCase()+'.'+m+'.'+v;g[y0][x+j]=b+'.w';g[y0+1][x+j]=b;g[y0+2][x+j]=b});x+=vs.length+1})});
- const fx=ATL.rows[0].w+3,fy=3;[['table',2],['desk',2],['edesk',2],['chest',1],...Object.keys(MCHEST).map(k=>[k,1]),['seat',1],['ptable',2],['pchest',1],['pseat',1],['ttable',2],['tchest',1],['tseat',1]].reduce((x,[k,n])=>{for(let i=0;i<n;i++)g[fy][x+i]=k;return x+n+1},fx);
+ let fx=2,fy=ATL.CH-6;for(const[k,n]of[...Object.keys(WPIECE).filter(k=>!RETIRED.has(k)).map(k=>[k,/table|desk/.test(WPIECE[k][1])?2:1]),...Object.keys(MCHEST).map(k=>[k,1])]){if(fx+n>ATL.CW-2){fx=2;fy+=2}if(fy>ATL.CH-2)break;for(let i=0;i<n;i++)g[fy][fx+i]=k;fx+=n+1}
  const dy=2+4,dx=ATL.rows[1].w+3;for(let x=dx;x<dx+Object.keys(DOORK).length*2+1&&x<ATL.CW-1;x++)g[dy][x]=(x-dx)%2?'stone.lime.paving':'stone.grey.block.w';paintAll((cx,cy)=>g[cy][cx])};
 NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i)=>{const cx=dx+1+i*2;if(cx<ATL.CW-1)mkDoor(k,cx*T,dy*T+T/2+4,0)});const t=U('Curator',null,'civ',2,1.5,0,null,'Clerk')};
 ENVSET.atelier='out';
