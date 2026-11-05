@@ -159,7 +159,10 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='grate')return(X,Y)=>{const x=X&3,y=Y&3;let k=M(X,Y);if(x===0||y===0)return sc(k,x===0&&y===0?1.25:1.08);return sc(k,x===3||y===3?.32:.45)};
   if(v==='hammer')return(X,Y)=>{const d=vn(X/2.6,Y/2.6,s+40),k=M(X,Y),e=Math.min(X&31,Y&31);if(e===0)return sc(k,.62);return sc(k,.84+d*.3+(hh(X,Y,s)>.96?.1:0))};
   if(v==='tread')return(X,Y)=>{const b=((X>>2)+(Y>>2))&1,x=X&3,y=Y&3,k=M(X,Y),lug=b?x===y:x+y===3;return lug?sc(k,1.28):(b?x===y+1:x+y===4)?sc(k,.78):k};
-  if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);return x>=5&&x<=10&&(y===6||y===9)?sc(k,.5):k};
+  // vents run round the area's edge like rivets: 6×2 slots, dark on the top/left side, lit on the other; side slots only between the top and bottom rows
+  if(v==='louvre')return(X,Y,cx,cy)=>{const x=X&15,y=Y&15,k=M(X,Y),[dl,dr,du,dd]=regionD(X,Y,cx,cy),I=wall?5:4,al=t=>t>=5&&t<=10,f=near=>sc(k,near?.45:1.15);
+   if((du===I||du===I+1)&&dl>=I&&dr>=I&&al(x))return f(du===I);if((dd===I||dd===I+1)&&dl>=I&&dr>=I&&al(x))return f(dd===I+1);
+   const mid=du>15&&dd>15;if(mid&&(dl===I||dl===I+1)&&al(y))return f(dl===I);if(mid&&(dr===I||dr===I+1)&&al(y))return f(dr===I+1);return k};
   if(v==='filigree')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y),qx=x<8?0:15,qy=y<8?0:15;if(Math.abs(Math.hypot(x-qx,y-qy)-4.2)<.5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
   if(v==='grille')return(X,Y)=>{const u=((X+Y)%6+6)%6,w=((X-Y)%6+6)%6,k=M(X,Y);if(u===0&&w===0)return sc(k,1.4);if(u===0||w===0)return sc(k,.74);return k};
   if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),k=sc(M(X,Y),1.03),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx);if(Math.abs(r-5.5)<.5)return sc(k,.82);if(r>2&&r<5&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
