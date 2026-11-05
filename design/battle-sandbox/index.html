@@ -855,28 +855,28 @@ function crater(x,y,s){const r=6.5*s,rr=s>1.5?.72:.4;for(let Y=Math.floor(y-r*2)
   if(!c)continue;const n=rgb(cl(c[0]),cl(c[1]),cl(c[2])),o=floor[j],lum=v=>(v&255)+(v>>8&255)+(v>>16&255);floor[j]=GT[j]===2&&q<1&&lum(o)<lum(n)?o:n;GT[j]=2}}
 // counting house: library and board rooms over a pillared gallery; guard post, armoury, ledger office and strongroom below
 const CO=4;
-function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
+function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.block.w'));
  const F=(cx,cy)=>{const x=cx-CO,y=cy;
-  if(y===12&&x>=37)return 'bkmarble';if(y===17&&x>=-4&&x<0)return 'bkslab';
-  if(x>=0&&x<=6&&y>=1&&y<=7)return x>=2&&x<=4&&y>=3&&y<=5?'edesk':(x===1||x===5)&&y>=3&&y<=5||(y===2||y===6)&&x===3?'seat':x>=1&&x<=5&&y>=2&&y<=6?'gcarpet':'dplanks';
-  if(x>=30&&x<=36&&y>=1&&y<=7)return x>=32&&x<=34&&y>=3&&y<=5?'desk':(x===31||x===35)&&y===4||(y===2||y===6)&&x===33?'seat':x>=31&&x<=35&&y>=2&&y<=6?'carpet':'dplanks';
+  if(y===12&&x>=37)return 'stone.night.block';if(y===17&&x>=-4&&x<0)return 'stone.night.slabs';
+  if(x>=0&&x<=6&&y>=1&&y<=7)return x>=2&&x<=4&&y>=3&&y<=5?'edesk':(x===1||x===5)&&y>=3&&y<=5||(y===2||y===6)&&x===3?'seat':x>=1&&x<=5&&y>=2&&y<=6?'cloth.verdant.diamond':'wood.teak.planks';
+  if(x>=30&&x<=36&&y>=1&&y<=7)return x>=32&&x<=34&&y>=3&&y<=5?'desk':(x===31||x===35)&&y===4||(y===2||y===6)&&x===33?'seat':x>=31&&x<=35&&y>=2&&y<=6?'cloth.crimson.diamond':'wood.teak.planks';
   if(x>=8&&x<=28&&y>=1&&y<=9){
-   if(x>=13&&x<=23&&y>=2&&y<=7){if(x===13||x===23||y===2||y===7)return (y===7||y===2)&&x===18?'bkslab':'ewood';
-    if(y>=4&&y<=5&&x>=15&&x<=21)return 'edesk';if((y===3||y===6)&&(x===16||x===17||x===19||x===20))return 'seat';if(x===14||x===22)return 'shelf';return 'bkslab'}
-   if(y===1&&x!==18||(x===8||x===28)&&y>=2&&y<=8&&y!==4)return 'books';if(y>=8&&y<=9&&x>=11&&x<=25)return 'gcarpet';return 'dplanks'}
-  if(x===7&&y===4||x===29&&y===4)return 'dplanks';
-  if(y===10&&(x===12||x===24))return 'bkmarble';
-  if(y>=11&&y<=13&&x>=0&&x<=36)return (y===11||y===13)&&[1,6,16,28,33].includes(x)?(y===11?'gstoneN':'gstoneS'):'bkmarble';
-  if(y===14&&(x===3||x===11||x===21))return 'bkmarble';
-  if(x>=0&&x<=6&&y>=15&&y<=19)return y===16&&x>=2&&x<=4?'table':y===15&&x===3?'seat':x===0&&y===15?'rack':x===6&&y===15?'chest':'bkslab';
-  if(y===20&&(x===1||x===5))return 'bkslab';if(y>=21&&y<=23&&(x>=0&&x<=2||x>=4&&x<=6))return 'flag';
-  if(x>=8&&x<=14&&y>=15&&y<=23)return x===8&&y>=16&&y<=22?'rack':x===14&&y%2===0&&y>=16?'chest':'dplanks';
-  if(x>=16&&x<=26&&y>=15&&y<=23){if(y===18&&x>=20&&x<=22)return 'edesk';if(y===19&&x===21)return 'seat';if(y===15&&(x<=18||x>=24))return 'books';if(x===16&&y===23)return 'chest';if(x>=18&&x<=24&&y>=16&&y<=22)return 'gcarpet';return 'dplanks'}
-  if(x===27&&y===19)return 'mfloor';
-  if(x>=28&&x<=36&&y>=15&&y<=23){if((y===15||y===23)&&x>=29&&x<=35)return 'shelf';if(y===19&&x>=31&&x<=33)return 'chest';return 'mfloor'}
-  if((x===27||x===37)&&y>=14&&y<=24||(y===14||y===24)&&x>=27&&x<=37)return 'iron';
-  return 'gstone'};
- HALFF='bkmarble';for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));HALFF='dirt';
+   if(x>=13&&x<=23&&y>=2&&y<=7){if(x===13||x===23||y===2||y===7)return (y===7||y===2)&&x===18?'stone.night.slabs':'wood.ebony.boards.w';
+    if(y>=4&&y<=5&&x>=15&&x<=21)return 'edesk';if((y===3||y===6)&&(x===16||x===17||x===19||x===20))return 'seat';if(x===14||x===22)return 'schest';return 'stone.night.slabs'}
+   if(y===1&&x!==18||(x===8||x===28)&&y>=2&&y<=8&&y!==4)return 'chest';if(y>=8&&y<=9&&x>=11&&x<=25)return 'cloth.verdant.diamond';return 'wood.teak.planks'}
+  if(x===7&&y===4||x===29&&y===4)return 'wood.teak.planks';
+  if(y===10&&(x===12||x===24))return 'stone.night.block';
+  if(y>=11&&y<=13&&x>=0&&x<=36)return (y===11||y===13)&&[1,6,16,28,33].includes(x)?(y===11?'stone.gold.block.wN':'stone.gold.block.wS'):'stone.night.block';
+  if(y===14&&(x===3||x===11||x===21))return 'stone.night.block';
+  if(x>=0&&x<=6&&y>=15&&y<=19)return y===16&&x>=2&&x<=4?'table':y===15&&x===3?'seat':x===0&&y===15?'chest':x===6&&y===15?'chest':'stone.night.slabs';
+  if(y===20&&(x===1||x===5))return 'stone.night.slabs';if(y>=21&&y<=23&&(x>=0&&x<=2||x>=4&&x<=6))return 'stone.grey.slabs';
+  if(x>=8&&x<=14&&y>=15&&y<=23)return x===8&&y>=16&&y<=22?'chest':x===14&&y%2===0&&y>=16?'chest':'wood.teak.planks';
+  if(x>=16&&x<=26&&y>=15&&y<=23){if(y===18&&x>=20&&x<=22)return 'edesk';if(y===19&&x===21)return 'seat';if(y===15&&(x<=18||x>=24))return 'chest';if(x===16&&y===23)return 'chest';if(x>=18&&x<=24&&y>=16&&y<=22)return 'cloth.verdant.diamond';return 'wood.teak.planks'}
+  if(x===27&&y===19)return 'metal.steel.rivet';
+  if(x>=28&&x<=36&&y>=15&&y<=23){if((y===15||y===23)&&x>=29&&x<=35)return 'schest';if(y===19&&x>=31&&x<=33)return 'chest';return 'metal.steel.rivet'}
+  if((x===27||x===37)&&y>=14&&y<=24||(y===14||y===24)&&x>=27&&x<=37)return 'metal.iron.rivet.w';
+  return 'stone.gold.block.w'};
+ HALFF='stone.night.block';for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));HALFF='dirt';
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 const EXITS={vault:[{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392}],count:[{dir:'e',cell:[43,12],to:'vault',arrive:[664,200],label:'The Aurum',lx:640,ly:182},{dir:'w',cell:[0,17],label:'Back alley',lx:2,ly:262}]};
 const STATE={},PEND={};
@@ -916,14 +916,14 @@ function mahogany(d,base,inl=1){base=base||MAHOG;const L=d.len||16,th=d.th||8;fo
 const RLANE=['stone','stoneH','stone2','wood','woodH','metal','metalH','door'];
 function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('grass'));
  const soil=(cx,cy)=>{const dx=(cx-33.5)/4.2,dy=(cy-26)/6.5;return dx*dx+dy*dy+(hh(cx,cy,98)-.5)*.35<1};
- const Y0=['flag','planks','pplanks','dplanks','mfloor','marble','dmarble','omarble'],W0=['stone','wood','dwood','metal','mplate','mpanel','iron','brass'],W1=['gstone','rail','metalH','mplateH','woodH','stoneH'];
+ const Y0=['stone.grey.slabs','wood.oak.planks','wood.pine.planks','wood.teak.planks','metal.steel.rivet','stone.aur.block','stone.aur.chequer','stone.aur.chequer'],W0=['stone.grey.block.w','wood.oak.boards.w','wood.teak.boards.w','metal.steel.panel.w','metal.steel.rivet.w','metal.steel.panel.w','metal.iron.rivet.w','metal.brass.rivet.w'],W1=['stone.gold.block.w','rail','metal.steel.panel.wH','metal.steel.rivet.wH','wood.oak.boards.wH','stone.grey.block.wH'];
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='grass';if(cx>=2&&cx<=4&&cy>=1&&cy<=CH-2)k='dirt';
   if(cy>=1&&cy<=8){if(cx>=2&&cx<14)k='dirt';if(cx===14||cx===15)k='berm'}
   if(cy>=10&&cy<=11){if(cx>=2&&cx<37)k='dirt';if(cx===37||cx===38)k='berm'}
   for(let i=0;i<RLANE.length;i++){const a=13+i*3;if(cy<a||cy>a+1)continue;if(cx>=2&&cx<20)k='dirt';if(cx===20||cx===21)k='berm';const t=RLANE[i];
-   if(cx===11&&t!=='door')k=t==='stone2'?'stone':t;if(cx===12&&t==='stone2')k='stone'}
+   if(cx===11&&t!=='door')k=t==='stone2'?'stone.grey.block.w':t;if(cx===12&&t==='stone2')k='stone.grey.block.w'}
   const yi=Math.floor((cx-17)/3),yo=(cx-17)%3<2&&cx>=17;if(yo&&cy>=1&&cy<=2&&Y0[yi])k=Y0[yi];if(yo&&cy>=4&&cy<=5&&W0[yi])k=W0[yi];if(yo&&cy>=7&&cy<=8&&W1[yi])k=W1[yi];
-  if(cx>=24&&cx<=38&&cy>=13&&cy<=CH-2&&soil(cx,cy))k='dirt';if(cx===5&&(cy===8||cy===18||cy===21||cy===24))k=cy===18?'rack':'chest';paintCell(cx,cy,k)}
+  if(cx>=24&&cx<=38&&cy>=13&&cy<=CH-2&&soil(cx,cy))k='dirt';if(cx===5&&(cy===8||cy===18||cy===21||cy===24))k=cy===18?'chest':'chest';paintCell(cx,cy,k)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
  for(const[n,u,y]of[['Vey','home',40],['Oren','home',72],['Pip','civ',104],['Lask','guard',136],['Hale','rifle',176],['Isk','rifle',256]])token(n,'Imperium',u,56,y,false,null);
@@ -933,17 +933,17 @@ function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
  RLANE.forEach((t,i)=>{const y=13*16+i*48+16;face(token(['Ade','Bel','Cole','Dace','Eel','Fenn','Gale','Hart'][i],'Reapers','rifle',280,y,false,null));if(t==='door'){const d=slab(3,180,y-16,1,32,8);d.locked=true}});
  for(const[x,y,k]of[[408,248,'grenade'],[440,248,'bomb'],[408,600,'grenade'],[440,600,'bomb'],[520,392,'grenade'],[552,392,'bomb'],[536,456,'grenade']])weapon(k,x,y,0);
  barricade(2,392,312);barricade(3,456,312);barricade(3,560,560,32,8);for(const t of bodies)if(t.type==='token'&&t.nat==='Reapers')tie(t,t.unit==='guard'||t.unit==='shock'||t.unit==='cmd'||['Bel','Dace','Fenn','Hart'].includes(t.name)?'chain':'rope');}
-function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('gstone'));
- const F=(cx,cy)=>{if(cy>=39&&cy<=45)return cx>=1&&cx<=4&&cy>=41&&cy<=44?(cx>=2&&cx<=3&&cy>=42&&cy<=43?'bush':'grass'):'pave';if(cy===46)return 'bush';if(cy===38)return cx>=13?'marble':'gstone';if(cx<=2||cy<=1)return 'gstone';
-  if(cy>=2&&cy<=6&&cx>=8)return cx===10&&cy===4?'pillar':cy===2&&(cx<=10||cx>=13)?'shelf':'marble';if(cy===7)return cx>=13?'marble':'gstone';
-  if(cy>=8&&cy<=18){if(cx>=11)return cx===12&&(cy===10||cy===16)?'pillar':'omarble';if(cx===10)return cy===13?'marble':'gstone';if(cx>=3&&cy>=9&&cy<=17)return cy===10&&cx>=5&&cx<=7?'desk':cx>=4&&cx<=8&&cy>=11&&cy<=16?'carpet':'marble';return 'gstone'}
-  if(cy===19)return cx>=13?'marble':'gstone';
-  if(cy>=20&&cy<=30){if((cx===6||cx===10)&&(cy===22||cy===28))return 'pillar';if(cy===25&&cx>=5&&cx<=9)return 'table';return 'marble'}
-  if(cy===31)return cx>=13?'marble':'gstone';
-  if(cy>=32&&cy<=37){if(cx>=11)return cx===12&&(cy===33||cy===36)?'pillar':'marble';if(cx===10)return cy===34?'marble':'gstone';if(cx>=3)return cy===33&&cx>=5&&cx<=7?'desk':cx>=4&&cx<=8&&cy>=34&&cy<=36?'carpet':'marble';return 'gstone'}
-  return 'gstone'};
- for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,cx<=14?F(cx,cy):F(29-cx,cy));for(const cx of [0,1,2])paintCell(cx,25,'marble');
- for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='gfloor')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='gfloor';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
+function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.block.w'));
+ const F=(cx,cy)=>{if(cy>=39&&cy<=45)return cx>=1&&cx<=4&&cy>=41&&cy<=44?(cx>=2&&cx<=3&&cy>=42&&cy<=43?'bush':'grass'):'stone.grey.quarter';if(cy===46)return 'bush';if(cy===38)return cx>=13?'stone.aur.block':'stone.gold.block.w';if(cx<=2||cy<=1)return 'stone.gold.block.w';
+  if(cy>=2&&cy<=6&&cx>=8)return cx===10&&cy===4?'stone.aur.block.w':cy===2&&(cx<=10||cx>=13)?'schest':'stone.aur.block';if(cy===7)return cx>=13?'stone.aur.block':'stone.gold.block.w';
+  if(cy>=8&&cy<=18){if(cx>=11)return cx===12&&(cy===10||cy===16)?'stone.aur.block.w':'stone.aur.chequer';if(cx===10)return cy===13?'stone.aur.block':'stone.gold.block.w';if(cx>=3&&cy>=9&&cy<=17)return cy===10&&cx>=5&&cx<=7?'desk':cx>=4&&cx<=8&&cy>=11&&cy<=16?'cloth.crimson.diamond':'stone.aur.block';return 'stone.gold.block.w'}
+  if(cy===19)return cx>=13?'stone.aur.block':'stone.gold.block.w';
+  if(cy>=20&&cy<=30){if((cx===6||cx===10)&&(cy===22||cy===28))return 'stone.aur.block.w';if(cy===25&&cx>=5&&cx<=9)return 'table';return 'stone.aur.block'}
+  if(cy===31)return cx>=13?'stone.aur.block':'stone.gold.block.w';
+  if(cy>=32&&cy<=37){if(cx>=11)return cx===12&&(cy===33||cy===36)?'stone.aur.block.w':'stone.aur.block';if(cx===10)return cy===34?'stone.aur.block':'stone.gold.block.w';if(cx>=3)return cy===33&&cx>=5&&cx<=7?'desk':cx>=4&&cx<=8&&cy>=34&&cy<=36?'cloth.crimson.diamond':'stone.aur.block';return 'stone.gold.block.w'}
+  return 'stone.gold.block.w'};
+ for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,cx<=14?F(cx,cy):F(29-cx,cy));for(const cx of [0,1,2])paintCell(cx,25,'stone.aur.block');
+ for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='metal.gold.panel')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='metal.gold.panel';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};slab(3,36,400,1);
  dbl(3,208,124,271,115,0,2,true,32,8);dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,true,32,8);
@@ -963,8 +963,8 @@ function buildAir(){map=Array.from({length:CH},()=>Array(CW).fill('sky'));
  const edge=(f,cx,cy)=>f(cx,cy)&&(!f(cx-1,cy)||!f(cx+1,cy)||!f(cx,cy-1)||!f(cx,cy+1));
  const gap=(cx,cy)=>(cy===7||cy===12)&&(cx===6||cx===10);
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='sky';
-  if(own(cx,cy)||pir(cx,cy))k=(edge(own,cx,cy)||edge(pir,cx,cy))&&!gap(cx,cy)?'rail':'planks';
-  if(plank(cx,cy))k='planks';if(cx===2&&(cy===6||cy===9)||cy===7&&(cx===16||cx===17)||cx===20&&cy===12)k='chest';
+  if(own(cx,cy)||pir(cx,cy))k=(edge(own,cx,cy)||edge(pir,cx,cy))&&!gap(cx,cy)?'rail':'wood.oak.planks';
+  if(plank(cx,cy))k='wood.oak.planks';if(cx===2&&(cy===6||cy===9)||cy===7&&(cx===16||cx===17)||cx===20&&cy===12)k='chest';
   if(cx===18&&(cy===6||cy===13)||cx>=23&&cx<=24&&cy>=9&&cy<=10)k='rail';
   paintCell(cx,cy,k)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);WH.fill(0);fxDirty=true}
@@ -1050,12 +1050,12 @@ const LOOKKIT={'Imperial Striped Guard':'spear',Officer:'pistol'};
 function U(n,nat,u,cx,cy,a,w,look){if(w===undefined&&look&&LOOKKIT[look]!==undefined)w=LOOKKIT[look];const t=token(n,nat,u,cx*T,cy*T,false,w,look);t.ang=a;return t}
 function cap(t,k){t.status='captured';t.held=null;if(k)tie(t,k);return t}
 function buildCouncil(){paintAll((cx,cy)=>{const E=cx===0||cx===CW-1||cy===0||cy===CH-1;
- if(E)return cy===CH-1&&(cx===11||cx===12)||cy===8&&(cx===0||cx===CW-1)?'bkmarble':'ewood';
- if((cx===3||cx===20)&&(cy===3||cy===7||cy===11))return 'pillar';
- if(cy===1&&(cx===11||cx===12))return 'seat';if(cy>=1&&cy<=3&&cx>=8&&cx<=15)return 'marble';
+ if(E)return cy===CH-1&&(cx===11||cx===12)||cy===8&&(cx===0||cx===CW-1)?'stone.night.block':'wood.ebony.boards.w';
+ if((cx===3||cx===20)&&(cy===3||cy===7||cy===11))return 'stone.aur.block.w';
+ if(cy===1&&(cx===11||cx===12))return 'seat';if(cy>=1&&cy<=3&&cx>=8&&cx<=15)return 'stone.aur.block';
  if(cx>=9&&cx<=14&&cy>=6&&cy<=9)return 'edesk';
  if((cx===8||cx===15)&&cy>=6&&cy<=9||cy===10&&(cx===11||cx===12))return 'seat';
- if(cx>=7&&cx<=16&&cy>=5&&cy<=11||cx>=10&&cx<=13&&cy>=4)return 'pcarpet';return 'bkmarble'})}
+ if(cx>=7&&cx<=16&&cy>=5&&cy<=11||cx>=10&&cx<=13&&cy>=4)return 'cloth.purple.diamond';return 'stone.night.block'})}
 function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,EBONY);mahogany(b,EBONY);for(const[x,r]of[[0,1],[CW-1,1]]){const d=slab(2,x*T+8,128,r);mahogany(d,EBONY)}
  U('The Emperor','Sanctis','civ',12,1.6,DN,null,'Emperor');
  U('Hierarch Aurex','Sanctis','civ',9.5,2.5,DN,null,'Hierarch');U('Hierarch Senna','Sanctis','civ',14.5,2.5,DN,null,'Hierarch');U('Brother Ilm','Sanctis','civ',2,1.8,DN,null,'Acolyte');
@@ -1066,7 +1066,7 @@ function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,E
  U('Alba','Imperium','civ',11.5,10.5,UP,'pistol','Officer');U('Meran','Imperium','civ',12.5,10.5,UP,null,'Imperial Noble');
  for(const[n,x,y,a]of[['Quill',6.2,6.2,RT],['Brask',6.2,9.4,RT],['Hode',10.4,12.6,UP],['Lusk',4.6,13.4,UP]])U(n,'Imperium','rifle',x,y,a,undefined,'Imperial Striped Guard');
  U('Ser Davin','Imperium','civ',19.5,13.5,UP,'pistol','Officer')}
-function buildRoad(){paintAll((cx,cy)=>{if(cx>=13&&cx<=15&&cy>=8&&cy<=9)return 'wagon';if(cy>=8&&cy<=10)return 'dirt';
+function buildRoad(){paintAll((cx,cy)=>{if(cx>=13&&cx<=15&&cy>=8&&cy<=9)return 'chest';if(cy>=8&&cy<=10)return 'dirt';
  if(cy===6&&cx>=1&&cx<=14&&cx!==7||(cx===1||cx===14)&&cy>=1&&cy<=6)return 'rail';if(cx>=2&&cx<=13&&cy>=1&&cy<=5)return 'crop';
  const B=[[6,12],[7,12],[8,12],[7,13],[15,12],[16,12],[17,12],[16,13],[22,13],[23,13],[24,13],[23,14],[25,12],[20,4],[21,4],[22,4],[21,5],[24,3],[25,3],[26,3],[25,2]];return B.some(([a,b])=>a===cx&&b===cy)?'bush':'grass'})}
 function unitsRoad(){container(13,8,[{k:'gold',n:640},{k:'musket',n:3,ammo:12,res:24},{k:'grenade',n:4}],'Company wagon');
@@ -1074,10 +1074,10 @@ function unitsRoad(){container(13,8,[{k:'gold',n:640},{k:'musket',n:3,ammo:12,re
  U('Holt','Portsbridge','home',13.5,7.4,RT);U('Pike','Portsbridge','home',14.5,10.6,RT);U('Sorrel','Portsbridge','rifle',11.2,8.2,RT);U('Wren','Portsbridge','rifle',18.4,10.2,RT);U('Brannock','Portsbridge','guard',19.6,8.4,RT);
  U('Gull','Reapers','home',7.5,14.4,UP,'pistol');U('Mott','Reapers','home',6.2,13.6,UP,'spear');U('Rask','Reapers','guard',16.5,14.2,UP);U('Teague','Reapers','shock',17.8,13.6,UP,'spear');U('Brine','Reapers','home',23.5,15.4,UP,'blunder');
  U('Skiff','Reapers','cmd',21.5,3.2,DN,'pistol');U('Bones','Reapers','rifle',25.5,1.6,DN)}
-function buildAlley(){paintAll((cx,cy)=>{if(cy===0||cy===CH-1)return cy===CH-1&&cx===15?'pave':cy===0?'stone':'wood';
- if(cy>=1&&cy<=3)return cx===0||cx===CW-1?'stone':cy===2&&cx>=4&&cx<=7?'table':cx===16&&cy===1||cx===17&&cy===1?'chest':'dplanks';
- if(cy===4)return cx===10||cx===11?'pave':'stone';
- if(cx===2&&cy===5||cx>=19&&cx<=20&&cy===8||cx===20&&cy===7)return 'chest';return 'pave'})}
+function buildAlley(){paintAll((cx,cy)=>{if(cy===0||cy===CH-1)return cy===CH-1&&cx===15?'stone.grey.quarter':cy===0?'stone.grey.block.w':'wood.oak.boards.w';
+ if(cy>=1&&cy<=3)return cx===0||cx===CW-1?'stone.grey.block.w':cy===2&&cx>=4&&cx<=7?'table':cx===16&&cy===1||cx===17&&cy===1?'chest':'wood.teak.planks';
+ if(cy===4)return cx===10||cx===11?'stone.grey.quarter':'stone.grey.block.w';
+ if(cx===2&&cy===5||cx>=19&&cx<=20&&cy===8||cx===20&&cy===7)return 'chest';return 'stone.grey.quarter'})}
 function unitsAlley(){dbl(2,160,72,191,64,0,2,false);slab(2,240,CH*T-8,0);
  container(2,5,[{k:'spear',n:2}]);container(19,8,[]);container(16,1,[{k:'gold',n:180}],'Guild chest');
  U('Aldo','Great Keys','civ',9.2,6.4,RT,null);U('Mabb','Great Keys','civ',12.6,7.4,LF,null);U('Corr','Great Keys','civ',10.4,7.8,UP,'spear','Fisher');U('Wynn','Great Keys','civ',8,5.6,DN,null,'Fisher');
@@ -1085,9 +1085,9 @@ function unitsAlley(){dbl(2,160,72,191,64,0,2,false);slab(2,240,CH*T-8,0);
  U('Ivo','Great Keys','home',10.5,4.6,DN);U('Sten','Great Keys','home',11.6,3.2,DN);U('Dorn','Great Keys','guard',11,2,DN);U('Lark','Great Keys','rifle',20.4,6,LF);
  U('Cutter','Reapers','rifle',1.4,7,RT,'pistol')}
 function buildStock(){paintAll((cx,cy)=>{const E=cx===0||cx===CW-1||cy===0||cy===CH-1;
- if(E)return cy===CH-1&&(cx===12||cx===13)||cx===0&&cy===9?'flag':'stone';
- if(cy<=4)return cx===6||cx===12||cx===18?'iron':'flag';if(cy===5)return cx===3||cx===9||cx===15||cx===21?'flag':'iron';
- if(cy===11&&cx>=3&&cx<=5)return 'table';if(cy===13&&cx>=1&&cx<=2)return 'chest';if(cx===24&&cy>=10&&cy<=11)return 'rack';if(cx>=20&&cx<=21&&cy>=13&&cy<=14)return 'chest';return 'planks'})}
+ if(E)return cy===CH-1&&(cx===12||cx===13)||cx===0&&cy===9?'stone.grey.slabs':'stone.grey.block.w';
+ if(cy<=4)return cx===6||cx===12||cx===18?'metal.iron.rivet.w':'stone.grey.slabs';if(cy===5)return cx===3||cx===9||cx===15||cx===21?'stone.grey.slabs':'metal.iron.rivet.w';
+ if(cy===11&&cx>=3&&cx<=5)return 'table';if(cy===13&&cx>=1&&cx<=2)return 'chest';if(cx===24&&cy>=10&&cy<=11)return 'chest';if(cx>=20&&cx<=21&&cy>=13&&cy<=14)return 'chest';return 'wood.oak.planks'})}
 function unitsStock(){for(const x of [3,9,15,21]){const d=slab(3,x*T,5*T+8,0);d.locked=true}dbl(3,192,248,223,240,0,2,true);slab(2,8,9*T,1);
  container(1,13,[{k:'musket',n:2,ammo:12,res:12}]);container(24,10,[{k:'musket',n:3,ammo:12,res:24},{k:'spear',n:3}]);container(20,13,[{k:'gold',n:300}],'Bond chest');container(3,11,[]);
  cap(U('Tobin','Havenport','civ',2,2,DN,null),'chain');cap(U('Wynn','Great Keys','civ',4.6,3.4,UP,null,'Fisher'));
@@ -1100,13 +1100,13 @@ function unitsStock(){for(const x of [3,9,15,21]){const d=slab(3,x*T,5*T+8,0);d.
  U('Warden Crass','Imperium','guard',5.4,8.8,RT);
  U('Overseer Malcor','Imperium','civ',12.5,12.4,UP,null,'Overseer');U('Legate Thane','Imperium','civ',10.9,13.2,UP,'pistol','Officer');U('Tribune Corvin','Imperium','civ',14.1,13.2,UP,'pistol','Officer');U('Capt. Sorne','Imperium','civ',12.5,14.2,UP,'pistol','Officer');
  U('Pip','Imperium','civ',3.4,12.4,UP,null);U('Mercer',null,'civ',4.6,9.8,RT,null,'Merchant')}
-function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone'));
- for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='stone';
-  if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cx===11)k=(cy===2||cy===6||cy===7)?'flag':'stone';else if(cx<11)k='stone.aur.chequer';else k='planks'}
+function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone.grey.block.w'));
+ for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='stone.grey.block.w';
+  if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cx===11)k=(cy===2||cy===6||cy===7)?'stone.grey.slabs':'stone.grey.block.w';else if(cx<11)k='stone.aur.chequer';else k='wood.oak.planks'}
   if(cx>=3&&cx<=7&&(cy===6||cy===7))k='table';
   if((cx===4||cx===6)&&(cy===5||cy===8))k='seat';
   if(cx>=15&&cx<=16&&cy===2)k='table';
-  if(cy===10&&cx>11&&cx<CW-1)k=(cx===14||cx===15)?'flag':'stone';
+  if(cy===10&&cx>11&&cx<CW-1)k=(cx===14||cx===15)?'stone.grey.slabs':'stone.grey.block.w';
   paintCell(cx,cy,k)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN])a.fill(0);fxDirty=true}
 
