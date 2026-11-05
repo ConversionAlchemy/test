@@ -67,11 +67,11 @@ function gcarpetT(X,Y){const f=fbm(X/8,Y/8,31);let c=sc([34,82,56],.9+f*.16);con
 function booksT(X,Y,cx,cy){const x=X-cx*T,y=Y-cy*T;if(y%8===0||y%8===7)return sc(woodT(X,Y,EBONY,21),1.15);const col=(X>>1)+(Y>>3)*7,h=hh(col,Y>>3,22),P=[[110,34,30],[40,72,52],[92,64,36],[36,46,82],[130,104,58]];let c=P[h*5|0];if(((X>>1)&1)===0)c=sc(c,.8);if(hh(col,Y>>3,23)>.9)c=[200,170,96];return c}
 function bkmarbleT(X,Y){return mx(stoneT(X,Y,[44,62,54],17),[18,26,22],.25)}
 function bkslabT(X,Y){let c=sc(bkmarbleT(X,Y),.95+hh(X>>4,Y>>4,47)*.1);if((X&15)===0||(Y&15)===0)c=sc(c,.78);else if((X&15)===1||(Y&15)===1)c=sc(c,1.08);return c}
-const TEX={mchest:(X,Y)=>{const c=metalOf('iron',X,Y);return Y%8===0?sc(c,.7):c},bkmarble:bkmarbleT,bkslab:bkslabT,gtile:gtileT,gcarpet:gcarpetT,books:booksT,edesk:(X,Y)=>woodT(X,Y,EBONY,22),ewood:(X,Y)=>woodT(X,Y,EBONY,24),omarble:omarbleT,mpanel:mpanelT,sill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,0),msill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,1),pave:paveT,bush:bushT,shelf:shelfT,chest:chestT,rack:rackT,desk:(X,Y)=>woodT(X,Y,MAHOG,13),table:(X,Y)=>woodT(X,Y,WOOD.teak,7),seat:seatT,carpet:carpetT,gfloor:goldT,stone:(X,Y,cx,cy)=>stoneT(X,Y,STONE),marble:(X,Y)=>mx(stoneT(X,Y,[236,234,228],11),[250,249,245],.45),dmarble:(X,Y)=>mx(stoneT(X,Y,[84,112,104],12),[150,168,160],.12),pillar:(X,Y)=>mx(stoneT(X,Y,[232,230,224],11),[250,249,245],.4),gstone:(X,Y)=>mx(stoneT(X,Y,STONE),[214,180,96],.55),flag:(X,Y)=>flagT(X,Y,FLAG),
+const TEX={mchest:(X,Y)=>metalOf('iron',X,Y),schest:(X,Y)=>metalOf('steel',X,Y),bkmarble:bkmarbleT,bkslab:bkslabT,gtile:gtileT,gcarpet:gcarpetT,books:booksT,edesk:(X,Y)=>woodT(X,Y,EBONY,22),ewood:(X,Y)=>woodT(X,Y,EBONY,24),omarble:omarbleT,mpanel:mpanelT,sill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,0),msill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,1),pave:paveT,bush:bushT,shelf:shelfT,chest:chestT,rack:rackT,desk:(X,Y)=>woodT(X,Y,MAHOG,13),table:(X,Y)=>woodT(X,Y,WOOD.teak,7),seat:seatT,carpet:carpetT,gfloor:goldT,stone:(X,Y,cx,cy)=>stoneT(X,Y,STONE),marble:(X,Y)=>mx(stoneT(X,Y,[236,234,228],11),[250,249,245],.45),dmarble:(X,Y)=>mx(stoneT(X,Y,[84,112,104],12),[150,168,160],.12),pillar:(X,Y)=>mx(stoneT(X,Y,[232,230,224],11),[250,249,245],.4),gstone:(X,Y)=>mx(stoneT(X,Y,STONE),[214,180,96],.55),flag:(X,Y)=>flagT(X,Y,FLAG),
  wood:(X,Y)=>woodT(X,Y,WOOD.oak),dwood:(X,Y)=>woodT(X,Y,WOOD.walnut,5),rail:(X,Y)=>woodT(X,Y,WOOD.rail,9),berm:(X,Y)=>woodT(X,Y,[104,86,64],2),
  planks:(X,Y)=>plankT(X,Y,WOOD.oak),pplanks:(X,Y)=>plankT(X,Y,WOOD.pine,3),dplanks:(X,Y)=>plankT(X,Y,WOOD.teak,6),
  metal:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'panel'),mplate:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet'),iron:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet',[70,78,82]),brass:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'rivet',[184,150,84]),mfloor:(X,Y,cx,cy)=>metalT(X,Y,cx,cy,'floor'),grass:grassT,dirt:soilT};
-const KIND={mchest:'floor',marble:'floor',dmarble:'floor',flag:'floor',planks:'floor',stone:'wall',table:'floor',seat:'floor',gstone:'wall',pillar:'wall',carpet:'floor',gfloor:'floor',grass:'floor',dirt:'floor',berm:'wall',sky:'floor',rail:'wall',wood:'wall',dwood:'wall',metal:'wall',mplate:'wall',iron:'wall',brass:'wall',mfloor:'floor',desk:'floor',sill:'floor',msill:'floor',omarble:'floor',gtile:'floor',bkmarble:'floor',bkslab:'floor',gcarpet:'floor',books:'floor',edesk:'floor',ewood:'wall',mpanel:'wall',pave:'floor',bush:'wall',shelf:'floor',chest:'floor',rack:'floor',pplanks:'floor',dplanks:'floor'};
+const KIND={mchest:'floor',schest:'floor',marble:'floor',dmarble:'floor',flag:'floor',planks:'floor',stone:'wall',table:'floor',seat:'floor',gstone:'wall',pillar:'wall',carpet:'floor',gfloor:'floor',grass:'floor',dirt:'floor',berm:'wall',sky:'floor',rail:'wall',wood:'wall',dwood:'wall',metal:'wall',mplate:'wall',iron:'wall',brass:'wall',mfloor:'floor',desk:'floor',sill:'floor',msill:'floor',omarble:'floor',gtile:'floor',bkmarble:'floor',bkslab:'floor',gcarpet:'floor',books:'floor',edesk:'floor',ewood:'wall',mpanel:'wall',pave:'floor',bush:'wall',shelf:'floor',chest:'floor',rack:'floor',pplanks:'floor',dplanks:'floor'};
 // purple council carpet, wheat rows, wagon bed
 function pcarpetT(X,Y){const f=fbm(X/8,Y/8,32);let c=sc([58,30,78],.9+f*.16);const u=((X+Y)%8+8)%8,v=((X-Y)%8+8)%8;if(u===0||v===0)c=mx(c,[196,190,214],.22);else if(u===4&&v===4)c=mx(c,[226,222,236],.4);return c}
 function cropT(X,Y){const r=((X%6)+6)%6,f=fbm(X/5,Y/3,33);let c=r<2?sc([92,72,44],.85+f*.2):sc([196,166,84],.78+f*.3+vn(X/2,Y/1.5,34)*.2);if(r>=2&&hh(X,Y,35)>.9)c=sc(c,1.15);return c}
@@ -89,7 +89,7 @@ function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.ha
  cache.set(ck,cv);return cv}
 // tile catalogue: element > material > variation, each as floor and wall ('.w'); old keys point at their new tile
 const FLB2=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];
-let LINK=()=>null;// map lookup for connected textures, set by sim.js
+let LINK=()=>null;const CONNV=new Set(['lozenge','sheet']);// map lookup for connected textures, set by sim.js
 const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
 // materials: a family shares its properties and three patterns; each member adds its colour, one special pattern, and any property it changes
 const ELEM={
@@ -98,7 +98,7 @@ const ELEM={
   aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,shine:28,vein:1,sp:'chequer'},gold:{n:'Goldstone',c:[200,170,100],vein:'gold',sp:'lozenge'},night:{n:'Sanctis obsidian',c:[35,28,46],cls:'marble',hp:5,shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'},sp:'vent',cut:1}},
   old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',hp:4,shine:28,sp:'quatre'}}},
  Wood:{p:{cls:'wood',hp:2,burn:1},vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:{n:'Oak',c:WOOD.oak,sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,sp:'rough'},teak:{n:'Teak',c:WOOD.teak,sp:'deck'},walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'},mahog:{n:'Mahogany',c:MAHOG,sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,sp:'marq'}}},
- Metal:{p:{cls:'metal',hp:6,shine:60},vars:{panel:'Panels',rivet:'Riveted plate',smooth:'Smooth'},mats:{steel:{n:'Steel',c:[134,138,146],hp:7,w:1,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'grate'},
+ Metal:{p:{cls:'metal',hp:6,shine:60},vars:{smooth:'Smooth',rivet:'Riveted plate',sheet:'Sheet'},mats:{steel:{n:'Steel',c:[134,138,146],hp:7,w:1,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'grate'},
   brass:{n:'Brass',c:[200,146,88],hp:5,w:.9,age:'verdigris',shine:80,sp:'filigree'},gold:{n:'Aurum',c:[226,186,96],hp:8,w:.8,age:'dents',shine:80,sp:'engraved'},umbra:{n:'Umbra',c:[59,69,64],hp:10,w:.5,age:'dark tinge',dk:.57,shine:25,sp:'runes'}}},
  Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
 const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',vent:'Glow panel',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
@@ -106,7 +106,7 @@ const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gol
 const memb=(el,mat)=>ELEM[el].mats[mat]||(ELEM[el].old||{})[mat],mprop=(el,mat)=>({...ELEM[el].p,...memb(el,mat)});
 const varsOf=(el,mat)=>{const M=memb(el,mat),o={...ELEM[el].vars};if(M.sp)o[M.sp]=SPN[M.sp];for(const a of[].concat(M.alt||[]))o[a]=SPN[a];return o};
 // retired patterns stay drawable so older maps still load
-const OLDV={Stone:['gvein','stars','quartero','flags','medallion','paving','key','setts','ashlar','basket','rosette','lattice','checker','band','sectile'],Wood:['logs','pegged','basket','brick','inlay','fret'],Metal:['hammer','tread','grille','scale','veined']};
+const OLDV={Stone:['gvein','stars','quartero','flags','medallion','paving','key','setts','ashlar','basket','rosette','lattice','checker','band','sectile'],Wood:['logs','pegged','basket','brick','inlay','fret'],Metal:['panel','hammer','tread','grille','scale','veined']};
 const CATN={};
 const GOLDL=[214,176,96],VOID=[110,150,220];
 function vor(X,Y,S,s){const gx=Math.floor(X/S),gy=Math.floor(Y/S);let d1=1e9,d2=1e9,id=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const cx=gx+i,cy=gy+j,px=(cx+.15+hh(cx,cy,s)*.7)*S,py=(cy+.15+hh(cx,cy,s+1)*.7)*S,d=Math.hypot(X+.5-px,Y+.5-py);if(d<d1){d2=d1;d1=d;id=cx*977+cy}else if(d<d2)d2=d}return[d2-d1,id]}
@@ -157,12 +157,12 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='grate')return(X,Y)=>{const x=X&3,y=Y&3;let k=M(X,Y);if(x===0||y===0)return sc(k,x===0&&y===0?1.25:1.08);return sc(k,x===3||y===3?.32:.45)};
   if(v==='hammer')return(X,Y)=>{const d=vn(X/2.6,Y/2.6,s+40),k=M(X,Y),e=Math.min(X&31,Y&31);if(e===0)return sc(k,.62);return sc(k,.84+d*.3+(hh(X,Y,s)>.96?.1:0))};
   if(v==='tread')return(X,Y)=>{const b=((X>>2)+(Y>>2))&1,x=X&3,y=Y&3,k=M(X,Y),lug=b?x===y:x+y===3;return lug?sc(k,1.28):(b?x===y+1:x+y===4)?sc(k,.78):k};
-  if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.78);if(x>=3&&x<=12&&(y===4||y===8||y===12))return sc(k,.3);if(x>=3&&x<=12&&(y===5||y===9||y===13))return sc(k,1.22);return k};
-  if(v==='filigree')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.6);const cx=x<8?2:13,cy=y<8?2:13,r=Math.hypot(x-cx,y-cy);if(Math.abs(r-4.2)<.5&&Math.abs(x-cx)<5&&Math.abs(y-cy)<5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
+  if(v==='louvre')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);if(x>=3&&x<=12&&(y===4||y===8||y===12))return sc(k,.3);if(x>=3&&x<=12&&(y===5||y===9||y===13))return sc(k,1.22);return k};
+  if(v==='filigree')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y);if(x===0||y===0)return sc(k,.82);const cx=x<8?2:13,cy=y<8?2:13,r=Math.hypot(x-cx,y-cy);if(Math.abs(r-4.2)<.5&&Math.abs(x-cx)<5&&Math.abs(y-cy)<5)return sc(k,.72);if(Math.hypot(x-7.5,y-7.5)<1.6)return sc(k,1.3);return k};
   if(v==='grille')return(X,Y)=>{const u=((X+Y)%6+6)%6,w=((X-Y)%6+6)%6,k=M(X,Y);if(u===0&&w===0)return sc(k,1.4);if(u===0||w===0)return sc(k,.74);return k};
-  if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),k=sc(M(X,Y),1.03);if(x===0||y===0)return sc(k,.72);if(Math.abs(r-6.5)<.5)return sc(k,.82);if(r>2&&r<6&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
+  if(v==='engraved')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),k=sc(M(X,Y),1.03);if(x===0||y===0)return sc(k,.82);if(Math.abs(r-6.5)<.5)return sc(k,.82);if(r>2&&r<6&&(((a/Math.PI*8)%1+1)%1)<.18)return sc(k,.84);return k};
   if(v==='scale')return(X,Y)=>{const r=Y>>2,u=(X+(r&1?3:0))%6,y=Y&3,d=Math.hypot(u-2.5,y+.5),k=M(X,Y);if(Math.abs(d-2.7)<.55)return sc(k,.72);if(d<2)return sc(k,1.1);return k};
-  if(v==='runes')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y),cx=X>>4,cy=Y>>4;if(x===0||y===0)return sc(mx(k,VOID,.25),.85);const gx=[4,8,11],seg=(a,b,i)=>hh(cx*7+i,cy*5,s)>.45&&a&&b;const on=seg(x===4&&y>=4&&y<=11,1,0)||seg(x===11&&y>=4&&y<=11,1,1)||seg(y===4&&x>=4&&x<=11,1,2)||seg(y===11&&x>=4&&x<=11,1,3)||seg(x===y&&x>=4&&x<=11,1,4)||seg(x+y===15&&x>=4&&x<=11,1,5)||seg(y===8&&x>=4&&x<=11,1,6);return on?mx(k,VOID,.3):k};
+  if(v==='runes')return(X,Y)=>{const[x,y]=A(X,Y),k=M(X,Y),cx=X>>4,cy=Y>>4;if(x===0||y===0)return sc(k,.82);const gx=[4,8,11],seg=(a,b,i)=>hh(cx*7+i,cy*5,s)>.45&&a&&b;const on=seg(x===4&&y>=4&&y<=11,1,0)||seg(x===11&&y>=4&&y<=11,1,1)||seg(y===4&&x>=4&&x<=11,1,2)||seg(y===11&&x>=4&&x<=11,1,3)||seg(x===y&&x>=4&&x<=11,1,4)||seg(x+y===15&&x>=4&&x<=11,1,5)||seg(y===8&&x>=4&&x<=11,1,6);return on?mx(k,VOID,.3):k};
   if(v==='veined')return(X,Y)=>{const k=M(X,Y),d=Math.abs(vn(X/9,Y/9,s+50)-.5);return d<.018?mx(k,VOID,.45):d<.04?mx(k,VOID,.15):k}}
  return null}
 const cellE=(X,Y)=>{const x=X&15,y=Y&15;return[x,y,Math.min(x,y,15-x,15-y)]};
@@ -205,14 +205,17 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
   if(v==='planks')return wall?sc(plankT(X,Y,c,s),1):plankT(X,Y,c,s);
   if(v==='boards'){let k=woodT(X,Y,c,s+(Y>>4)*3);k=sc(k,1+(hh(Y>>4,s,9)-.5)*.08);if((Y&15)===15)k=sc(k,.84);else if((Y&15)===0)k=sc(k,1.04);return k}
   return woodT(X,Y,c,s+13)}}
- if(el==='Metal'){return(X,Y)=>{const[x,y,e]=cellE(X,Y);let k=metalOf(mat,X,Y);
-  if(v==='smooth'){return x===0||y===0?sc(k,.86):k}
-  if(v==='rivet'){if(x===0||y===0)return sc(k,.68);for(const[rx,ry]of[[3,3],[12,3],[3,12],[12,12],[8,3],[8,12]]){if(x===rx&&y===ry)return sc(k,1.32);if(x===rx+1&&y===ry+1)return sc(k,.8)}return k}
-  if(v==='panel'){const i=Math.min(x-4,y-4,11-x,11-y);if(x===0||y===0)return sc(k,.82);return i===0?(x===4||y===4?sc(k,.78):sc(k,1.18)):k}
-  if(mat==='iron'){if(x===0||y===0)return sc(k,.55);for(const[rx,ry]of[[3,3],[11,3],[3,11],[11,11]])if(x>=rx&&x<=rx+1&&y>=ry&&y<=ry+1)return sc(k,x===rx&&y===ry?1.4:1.15);return hh(X,Y,70)>.97?sc(k,.86):k}
-  if(mat==='brass'){if(x===0||y===0)return sc(k,.6);if((x===3||x===12)&&(y===3||y===12))return sc(k,1.35);return sc(k,1+.06*Math.sin((x+y)/3))}
-  if(mat==='gold'){if(x===0||y===0)return sc(k,.7);if(e===2)return sc(k,.82);return sc(k,1.04)}
-  if(x===0||y===0)return sc(mx(k,[90,110,140],.3),.85);if(y===8)return sc(mx(k,[90,110,140],.18),.92);return k}}
+ if(el==='Metal'){return(X,Y,cx,cy)=>{const[x,y,e]=cellE(X,Y);let k=metalOf(mat,X,Y);
+  const J=x===0||y===0;
+   if(v==='smooth')return J?sc(k,.82):k;
+   if(v==='sheet'){const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,cy)),o=(a,b)=>!me||kid(LINK(a,b))!==me,dl=o(cx-1,cy)?x:99,dr=o(cx+1,cy)?15-x:99,du=o(cx,cy-1)?y:99,dd=o(cx,cy+1)?15-y:99,e=Math.min(dl,dr,du,dd);if(e===0)return sc(k,.82);
+    const rv=(dl===2||dr===2)&&(Y&3)===2&&du>1&&dd>1||(du===2||dd===2)&&(X&3)===2&&dl>1&&dr>1;return rv?sc(k,1.3):k}
+  if(v==='rivet'){if(J)return sc(k,.82);return(x===3||x===12)&&(y===3||y===12)?sc(k,1.3):k}
+  if(v==='panel'){const i=Math.min(x-4,y-4,11-x,11-y);if(J)return sc(k,.82);return i===0?(x===4||y===4?sc(k,.78):sc(k,1.18)):k}
+  if(mat==='iron'){if(J)return sc(k,.82);for(const[rx,ry]of[[3,3],[11,3],[3,11],[11,11]])if(x>=rx&&x<=rx+1&&y>=ry&&y<=ry+1)return sc(k,x===rx&&y===ry?1.4:1.15);return hh(X,Y,70)>.97?sc(k,.86):k}
+  if(mat==='brass'){if(J)return sc(k,.82);if((x===3||x===12)&&(y===3||y===12))return sc(k,1.35);return sc(k,1+.06*Math.sin((x+y)/3))}
+  if(mat==='gold'){if(J)return sc(k,.82);if(e===2)return sc(k,.82);return sc(k,1.04)}
+  if(J)return sc(k,.82);if(y===8)return sc(mx(k,[90,110,140],.18),.92);return k}}
  return(X,Y)=>{let k=sc(c,(.9+fbm(X/8,Y/8,32+s)*.14)*((X+Y)&1?.98:1.02));
   if(wall)return sc(k,.86+.14*Math.sin(X/2.4));if(v==='diamond'){const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;if(u===0||w===0)k=mx(k,[176,140,82],.22);else if(u===4&&w===4)k=mx(k,[196,160,96],.3)}return k}}
 for(const el in ELEM)for(const mat of[...Object.keys(ELEM[el].mats),...Object.keys(ELEM[el].old||{})])for(const v of[...Object.keys(varsOf(el,mat)),...(OLDV[el]||[])])for(const w of[0,1]){const k=el.toLowerCase()+'.'+mat+'.'+v+(w?'.w':'');TEX[k]=genTex(el,mat,v,w);KIND[k]=w?'wall':'floor';CATN[k]=[el,mat,v,w];
@@ -224,6 +227,8 @@ const WEAR={Stone:(el,mat)=>{const mb=memb(el,mat).cls==='marble',B=(memb(el,mat
   let c=mx(k,mb?[188,176,150]:G,a*(mb?.22:.32));if(a>.5)WEARF=1;if(t>=.5&&a>.35&&hh(X>>1,Y>>1,sd+13)>.982)c=sc(c,(X+Y)&1?1.07:.9);
   const L=(k[0]+k[1]+k[2])/3;if(!mb&&L<B*(lt?.72:.88)&&a>.3)c=mx(c,[78,100,52],.6*a);else if(!mb&&!lt&&hh(X,Y,sd+4)>.93-.1*t)c=mx(c,[86,108,56],.6*a);return c}}};
 for(const el in WEAR)for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(e!==el)continue;const W=WEAR[el](el,mat),f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c;TEX[n]=W(f,(5-c)/4);KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}
+// old tile names from earlier maps: each is now a member of the material table
+for(const[k,a]of Object.entries({metal:'metal.steel.smooth.w',mplate:'metal.steel.rivet.w',mpanel:'metal.steel.smooth.w',iron:'metal.iron.rivet.w',brass:'metal.brass.smooth.w',mfloor:'metal.steel.smooth',gfloor:'metal.gold.smooth'})){TEX[k]=TEX[a];KIND[k]=KIND[a];CATN[k]=CATN[a]}
 const OLDK={marble:'stone.aur.block',dmarble:'stone.ver.block',flag:'stone.sand.flags',stone:'stone.grey.block.w',gstone:'stone.gold.block.w',pillar:'stone.aur.block.w',pave:'stone.lime.paving',omarble:'stone.aur.key',gtile:'stone.ver.key',bkmarble:'stone.night.block',bkslab:'stone.night.slabs',slab:'stone.grey.slabs',
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.walnut.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.smooth.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mpanel:'metal.steel.panel.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};
