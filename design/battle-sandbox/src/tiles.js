@@ -101,7 +101,7 @@ const ELEM={
  Wood:{p:{cls:'wood',hp:2,burn:1,tarn:[140,136,126],split:1,scuff:1,age:'weathering'},vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:{n:'Oak',c:WOOD.oak,rim:.575,tarn:[150,148,140],age:'silvering',sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,tarn:[184,166,118],scuff:1.7,age:'yellowing, dents',sp:'rough'},teak:{n:'Teak',c:WOOD.teak,tarn:[176,172,162],split:.4,age:'pale silver',sp:'rough'},mahog:{n:'Mahogany',c:MAHOG,tarn:[176,96,72],split:.8,craze:1,age:'fading, crazing',sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,tarn:[64,58,54],scuff:1.8,age:'light scratches',sp:'marq'}},old:{walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'}}},
  Metal:{p:{cls:'metal',hp:6,shine:60},vars:{rivet:'Riveted plate',inset:'Inset panels',panel:'Panels'},mats:{steel:{n:'Steel',c:[145,148,151],tarn:[112,124,146],hp:7,w:1,shine:70,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],tarn:[146,98,62],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'treadplate'},
   brass:{n:'Brass',c:[200,146,88],tarn:[96,150,122],hp:5,w:.9,age:'verdigris',shine:80,sp:'fluted'},gold:{n:'Aurum',c:[228,196,104],tarn:[176,124,70],hp:8,w:.8,age:'dents',shine:80,sp:'mosaic'},umbra:{n:'Umbra',c:[56,56,67],tarn:[36,41,41],hp:10,w:.5,age:'dark tinge',dk:.57,shine:25,sp:'runes'}}},
- Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
+ Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1,age:'fading, fraying'},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
 const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',treadplate:'Tread plate',fluted:'Fluted',coffer:'Coffered',coffer2:'Coffered ceiling',mosaic:'Solari mosaic',vent:'Glow panel',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
 // retired members stay drawable so older maps still load
 const memb=(el,mat)=>ELEM[el].mats[mat]||(ELEM[el].old||{})[mat],mprop=(el,mat)=>({...ELEM[el].p,...memb(el,mat)});
@@ -267,7 +267,11 @@ const AGE={
    if(a>.35&&e()>1&&!jt)o=mx(o,woodT(X,Y,c,s+13),Math.min(1,(a-.35)*2));o=mx(o,G,a*.42);if(a>.5)WEARF=1;
    if(fbm(X/6,Y/6,sd+7)>1.1-a*.5-t*.1)o=mx(o,DP,.4);
    if(M.craze&&a>.4&&Math.abs(vn(X/3,Y/3,sd+9)-.5)<.035)o=sc(o,.84);
-   if(a>.25&&hh(X>>2,Y,sd+2)>.93-.08*t*sf)o=lt?mx(o,[150,132,112],.35):sc(o,1.1);else if(hh(X,Y,sd+3)>.99-.012*t*sf)o=sc(o,.78);return o}}};
+   if(a>.25&&hh(X>>2,Y,sd+2)>.93-.08*t*sf)o=lt?mx(o,[150,132,112],.35):sc(o,1.1);else if(hh(X,Y,sd+3)>.99-.012*t*sf)o=sc(o,.78);return o}},
+ // cloth wear, kept subtle: patches fade and the weave shows through the pile; Ruined wears a few small holes (edges fray in the rug border pass)
+ Cloth:(el,mat,t)=>{const c=memb(el,mat).c,L=(c[0]+c[1]+c[2])/3,F=sc(mx(c,[L,L,L],.35),1.18),sd=ageSd(el,mat);
+  return(k,X,Y)=>{const a=ageA(X,Y,sd,t);if(a<=0)return k;
+   let o=mx(k,F,a*.3);if(a>.4&&(X+Y)&1)o=sc(o,.95);if(a>.5)WEARF=1;if(t>.8&&a>.5&&hh(X>>1,Y>>1,sd+6)>.988)o=sc(k,.5);return o}}};
 const AGEC={},ageOf=(el,mat,cd,w)=>{if(!AGE[el]||!(cd<5))return null;const q=el+'.'+mat+'.'+cd+(w?'w':'');return AGEC[q]||(AGEC[q]=AGE[el](el,mat,ageT(cd),w))};
 for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
 for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(KEYT.has(k))KEYT.add(n);if(POLT.has(k))POLT.add(n)}}

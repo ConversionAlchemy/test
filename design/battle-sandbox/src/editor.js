@@ -250,7 +250,7 @@ window.addEventListener('pointermove',e=>{if(EM!=='map')return;const h=$('hint')
 // polished wood: the furniture finish (dark rim, light bevel, inlay line), measured from the edge of each area
 // a crack never leaves its 16px stone, whatever the pattern
 // cracks: a layer over each connected block of one material, sized to the block and to how battered its tiles are
-function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&AGE[c[0]]&&c[0]!=='Metal'?c[0]+c[1]+c[3]:null};
+function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&AGE[c[0]]&&c[0]!=='Metal'&&c[0]!=='Cloth'?c[0]+c[1]+c[3]:null};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k0=map[cy][cx],g=key(k0);if(!g||seen.has(cy*CW+cx)||OM[cy]&&OM[cy][cx])continue;
   const comp=new Set(),q=[[cx,cy]];seen.add(cy*CW+cx);while(q.length){const[a,b]=q.pop();comp.add(b*CW+a);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db,i=nb*CW+na;if(na<0||nb<0||na>=CW||nb>=CH||seen.has(i)||key(map[nb][na])!==g||OM[nb]&&OM[nb][na])continue;seen.add(i);q.push([na,nb])}}
   let s0=(cx*73856093^cy*19349663)>>>0;const R=()=>(s0=(s0*1664525+1013904223)>>>0)/4294967296,worn=[...comp].filter(i=>{const c=CATN[map[i/CW|0][i%CW]];return c[4]&&c[4]<=2});if(!worn.length)continue;
