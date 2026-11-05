@@ -58,7 +58,7 @@ function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;key=modK(key)
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){UND=[];REP.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
+function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(rug&&OM[y]&&OM[y][x]);
@@ -157,10 +157,22 @@ function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);
 // blasts wear the floor in a ragged circle, strongest at the blast: how far and how hard follow the floor's toughness from the material table (soft wood further, umbra hardly at all). Each pixel takes the wear of the condition it reaches; each cell's condition is what its centre reached. The worn look becomes the cell's clean state, so cleaning keeps it and the wand undoes it
 const softOf=(el,mat)=>Math.max(.3,Math.min(1.6,3/(mprop(el,mat).hp||3)));
 function blastWear(x,y,s){const hv=s>1.5,R=(hv?3.3:1.5)*T,top=hv?4:2,AC={};
- for(let cy=Math.max(0,(y-R*1.6)/T|0);cy<=Math.min(CH-1,(y+R*1.6)/T|0);cy++)for(let cx=Math.max(0,(x-R*1.6)/T|0);cx<=Math.min(CW-1,(x+R*1.6)/T|0);cx++){const k=map[cy][cx],c=CATN[k];if(!c||c[3]||!AGE[c[0]]||OM[cy]&&OM[cy][cx])continue;
+ for(let cy=Math.max(0,(y-R*1.6)/T|0);cy<=Math.min(CH-1,(y+R*1.6)/T|0);cy++)for(let cx=Math.max(0,(x-R*1.6)/T|0);cx<=Math.min(CW-1,(x+R*1.6)/T|0);cx++){const k=map[cy][cx],c=CATN[k];if(c&&c[3]&&AGE[c[0]]){const so=softOf(c[0],c[1]),Rm=R*1.3*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearWall(cx,cy,(1-d/Rm)*top*26/so);continue}if(!c||c[3]||!AGE[c[0]]||OM[cy]&&OM[cy][cx])continue;
   const c0=c[4]||5,so=softOf(c[0],c[1]),Rm=R*(.55+.45*Math.min(1.2,so)),lv=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?c0:Math.max(1,Math.min(c0,5-Math.round((1-d)*top*Math.min(1.2,so)+.3)))};
   const cc=lv(cx*T+8,cy*T+8);if(cc<c0)map[cy][cx]=baseK(k)+'~'+cc;
   for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const p=lv(X,Y);if(p>=c0)continue;const A=AC[p]||(AC[p]=ageOf(c[0],c[1],p)),q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9);floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]));if(PR)PR.floor[j]=floor[j]}}edgeMask()}
+// walls lose condition as they're shot, chipped and blasted: each cell keeps a tally, every step of it wears one condition, softer materials faster; its wall neighbours take a share
+const WWT=new Map(),WB0=new Map(),HTM=new Map();
+function wallHit(X,Y,amt){const cx=X>>4,cy=Y>>4;wearWall(cx,cy,amt);for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]])wearWall(cx+dx,cy+dy,amt*.3)}
+function wearWall(cx,cy,amt){if(cx<0||cy<0||cx>=CW||cy>=CH)return;const k=map[cy][cx],c=CATN[k];if(!c||!c[3]||!AGE[c[0]])return;const id=cy*CW+cx,v=(WWT.get(id)||0)+amt*softOf(c[0],c[1]);WWT.set(id,v);
+ const o=WB0.get(id),c0=o?o.c0:c[4]||5,cc=Math.max(1,c0-Math.floor(v/9));if(cc>=(c[4]||5))return;
+ if(!o){const a=new Uint32Array(T*T);for(let y=0;y<T;y++)for(let x=0;x<T;x++)a[y*T+x]=scol[(cy*T+y)*W+cx*T+x];WB0.set(id,{a,c0})}
+ const a=WB0.get(id).a,A=ageOf(c[0],c[1],cc,true)||ageOf(c[0],c[1],cc);map[cy][cx]=baseK(k)+'~'+cc;if(!A)return;
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X;if(!sol[j])continue;const q=a[y*T+x],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9);scol[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}solDirty=true}
+// very hot hits leave temper colours on metal: straw, bronze, blue at the centre
+function temperF(a){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0,f0]=TEMPER[i-1],[p1,f1]=TEMPER[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0)));return f0.map((v,k)=>v+(f1[k]-v)*u)}
+function heatMark(x,y,r,k){for(let Y=Math.floor(y-r);Y<=y+r;Y++)for(let X=Math.floor(x-r);X<=x+r;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j]!==3)continue;const d=Math.hypot(X-x,Y-y);if(d>r)continue;
+  const a=Math.min(.85,k*(1-d/r)*(.85+.3*hh(X,Y,71))),o=HTM.get(j)||0;if(a<=o)continue;const f1=temperF(a),f0=temperF(o),c=scol[j];scol[j]=rgb(cl((c&255)*f1[0]/f0[0]),cl((c>>8&255)*f1[1]/f0[1]),cl((c>>16&255)*f1[2]/f0[2]));HTM.set(j,a)}solDirty=true}
 // a blast breaks a built floor by its material: stone and marble through to soil with a chipped edge and hairline cracks, wood split open along the grain over a dark gap, cloth burnt through, metal dented with a bright lip; how far follows toughness
 function crater(x,y,s){const r=6.5*s,rr=s>1.5?.85:.5;for(let Y=Math.floor(y-r*2);Y<=y+r*2;Y++)for(let X=Math.floor(x-r*2);X<=x+r*2;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j])continue;
   const dx=X-x,dy=Y-y,e=r*(.78+.44*fbm(X/4,Y/4,93)),q=Math.hypot(dx,dy)/e;if(q>=2)continue;
@@ -251,7 +263,7 @@ function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('grass'));
   if(cx>=24&&cx<=38&&cy>=13&&cy<=CH-2&&soil(cx,cy))k='dirt';if(cx===5&&(cy===8||cy===18||cy===21||cy===24))k=cy===18?'chest':'chest';paintCell(cx,cy,k)}
  for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
- for(const[n,u,y]of[['Vey','home',40],['Oren','home',72],['Pip','civ',104],['Lask','guard',136],['Hale','rifle',176],['Isk','rifle',256]])token(n,'Imperium',u,56,y,false,null);
+ for(const[n,u,y]of[['Vey','home',40],['Oren','home',72],['Pip','civ',104],['Lask','guard',136],['Hale','rifle',176],['Isk','rifle',256]])token(n,'Imperium',u,56,y,false,n==='Lask'?'rod':null);
  {const w=weapon('rod',92,70,0);w.ammo=3;w.res=15}container(5,8,[{k:'rbox',n:6}]);container(5,18,[{k:'musket',n:4,ammo:12,res:24}]);container(5,21,[{k:'grenade',n:8}]);container(5,24,[{k:'bomb',n:4}]);
  for(const[n,u,y]of[['Silas','civ',26],['Gull','home',47],['Rask','rifle',68],['Brant','guard',89],['Tam','shock',110],['Mira','cmd',131]])face(token(n,'Reapers',u,208,y,false,null));
  face(token('Dunn','Reapers','home',584,176,false,null));
@@ -592,7 +604,7 @@ function settle(o){o.px=o.px.filter(p=>o.set.has(K(p[0],p[1])));if(o.type!=='sla
  if(comps.length<2)return;o.px=hinge;mkSet(o);
  for(const cp of comps)if(cp!==hinge){const f={id:uid++,type:'slab',mat:o.mat,x:o.x,y:o.y,vx:0,vy:0,rot:o.rot,ang:o.ang,tgt:o.ang,fallen:true,mass:9,px:cp};mkSet(f);bodies.push(f);sfx('drop')}}
 function damagePixel(X,Y,pow,dx=0,dy=0){if(X<1||Y<1||X>=W-1||Y>=H-1)return 1;const j=Y*W+X;
- if(sol[j]){const m=sol[j];if(shp[j]>pow){shp[j]-=pow;scol[j]=mul(scol[j],.9);return m}sol[j]=0;solDirty=true;rubble(j);if(Math.random()<.45)spark(X,Y,scol[j],dx,dy);return m}
+ if(sol[j]){const m=sol[j];if(shp[j]>pow){shp[j]-=pow;scol[j]=mul(scol[j],.9);wallHit(X,Y,.25);return m}sol[j]=0;solDirty=true;rubble(j);wallHit(X,Y,1);if(Math.random()<.45)spark(X,Y,scol[j],dx,dy);return m}
  const s=slabG[j]&&byId(slabG[j]);if(s){doorPart(s,X,Y);const r=hitPix(s,X,Y,pow);if(r===2){slabG[j]=0;if(Math.random()<.5)spark(X,Y,s.mat===2?C.wood:C.iron,dx,dy);settle(s)}return s.mat}return 0}
 function carve(cx,cy,r,pow,dx,dy){const R=Math.ceil(r)+1;for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const X=Math.round(cx+i),Y=Math.round(cy+j);if(Math.hypot(i,j)+hh(X,Y,4)*1.2>r)continue;if(matAt(X,Y))damagePixel(X,Y,pow,dx,dy)}}
 let BLU=false;const swb=c=>{const r=c&255,g=c>>8&255,b=c>>16&255;return b>=r&&b>g+30?rgb(g,r,b):c};
@@ -747,7 +759,7 @@ function impact(b,h,axis){const s=Math.hypot(b.vx,b.vy),dx=b.vx/(s||1),dy=b.vy/(
  if(b.knock>0&&b.type!=='weapon'){pinTo(b,cx,cy,mx);return true}
  const bounce=k=>{if(axis){b.vy*=-k;b.vx*=.65}else{b.vx*=-k;b.vy*=.65}};
  if(b.type==='weapon'){const w=WP[b.kind];
-  if(b.kind==='arc'){BLU=!!b.blue;arcBlast(cx,cy,b.big||1);if(b.pg){const l=Math.hypot(dx,dy)||1;for(let i=0;i<=12;i+=.5)damagePixel(Math.round(cx+dx/l*i),Math.round(cy+dy/l*i),3,dx/l,dy/l)}if(mx===3){sfx('boltmetal');metalSparks(cx,cy,dx,dy,true)}BLU=false;remove(b);return true}if(w.rod)return rodWall(b,h,axis,mx,cx,cy,dx,dy);if(w.bullet){const cos=Math.abs(axis?dy:dx);
+  if(b.kind==='arc'){BLU=!!b.blue;arcBlast(cx,cy,b.big||1);if(b.pg){const l=Math.hypot(dx,dy)||1;for(let i=0;i<=12;i+=.5)damagePixel(Math.round(cx+dx/l*i),Math.round(cy+dy/l*i),3,dx/l,dy/l)}if(mx===3){sfx('boltmetal');metalSparks(cx,cy,dx,dy,true);heatMark(cx,cy,4+2*(b.big||1),.5+.15*(b.big||1))}BLU=false;remove(b);return true}if(w.rod)return rodWall(b,h,axis,mx,cx,cy,dx,dy);if(w.bullet){const cos=Math.abs(axis?dy:dx);
    const pl=b.kind==='pel';if((mx===1||mx===3)&&cos<.45){bounce(.6);hitFx(cx,cy,mx,dx,dy,pl);pl?sfxP(mx===3?'rico':'ricos',.4):sfx(mx===3?'rico':'ricos');return true}
    let E=b.E||0;for(const[X,Y]of h){const eff=(MCOST[mx]||6)*hpF(X,Y)/Math.max(cos,.35);if(E>=eff){E-=eff;damagePixel(X,Y,99,dx,dy)}else{damagePixel(X,Y,1,dx,dy);E=0}}
    hitFx(cx,cy,mx,dx,dy,pl);if(b.kind==='arc')arcHit(cx,cy);b.E=E;if(E<=.01){remove(b)}return true}
@@ -804,7 +816,7 @@ function rodWall(b,h,axis,mx,cx,cy,dx,dy){const cos=Math.abs(axis?dy:dx);
  if(rodHot(b)&&b.E>0){if(!b.lw||Math.hypot(cx-b.lw[0],cy-b.lw[1])>4){emberPatch(cx-dx*6,cy-dy*6,8,6);debris(cx-dx*2,cy-dy*2,scol[Math.round(cy)*W+Math.round(cx)]||rgb(130,126,118),6,-dx,-dy);scorch(cx-dx*2,cy-dy*2,6);dab(SS,cx-dx*6,cy-dy*6,3,8);dab(ST,cx-dx*4,cy-dy*4,1.6,4)}b.lw=[cx,cy];if(b.wb===undefined)b.wb=(16+Math.round(16*(.2+Math.random()*.2)))*(b.salvo?2:1);
   let hc=0;for(const[X,Y]of h){const m=matAt(X,Y);hc+=(m===3?1.4:m===2?.6:1)*hpF(X,Y)}if((b.wb-=hc/h.length)<0){emberPatch(cx-dx*6,cy-dy*6,12,8);dab(SS,cx-dx*5,cy-dy*5,3.2,9);dab(ST,cx-dx*3,cy-dy*3,2,5);b.hot=0;b.vx=b.vy=0;b.stuck=true;b.x+=dx*2;b.y+=dy*2;for(let i=0;i<8;i++)spark(cx,cy,Math.random()<.5?rgb(255,226,150):rgb(255,140,50),-dx*2,-dy*2,2,8+(Math.random()*8|0));sfx('sizzle');sfx('crack');return true}
   for(const[X,Y]of h)for(const[i,j]of[[0,0],[-dy,dx]]){const x=Math.round(X+i),y=Math.round(Y+j);damagePixel(x,y,99,dx,dy);for(let v=-1;v<=1;v++)for(let u=-1;u<=1;u++){const q=(y+v)*W+x+u;if(x+u>0&&y+v>0&&x+u<W&&y+v<H&&sol[q]){WH[q]=Math.min(1.1,WH[q]+.4);whOn=true}}}
-  b.E-=mx===3?.6:.3;if(Math.random()<.5)spark(cx,cy,Math.random()<.5?rgb(255,226,150):rgb(255,140,50),-dx*1.5,-dy*1.5,1.8,8+(Math.random()*8|0));if(Math.random()<.2)sfx('sizzle');return true}
+  if(mx===3)heatMark(cx,cy,b.salvo?7:5,b.salvo?.85:.65);b.E-=mx===3?.6:.3;if(Math.random()<.5)spark(cx,cy,Math.random()<.5?rgb(255,226,150):rgb(255,140,50),-dx*1.5,-dy*1.5,1.8,8+(Math.random()*8|0));if(Math.random()<.2)sfx('sizzle');return true}
  if((mx===1||mx===3)&&cos<.4){if(axis){b.vy*=-.8;b.vx*=.9}else{b.vx*=-.8;b.vy*=.9}b.x-=dx*2;b.y-=dy*2;rodPx(b,Math.atan2(b.vy,b.vx));b.E*=.75;sfx(mx===3?'rico':'ricos');dab(SF,cx,cy,1.4,4);for(let i=0;i<8;i++)spark(cx,cy,Math.random()<.5?rgb(255,226,140):rgb(255,170,70),-dx*2,-dy*2,2.2,6+(Math.random()*8|0));sfx('rico');return true}
  for(const[X,Y]of h){const eff=(mx===3?4.5:mx===2?.6:2.5)*hpF(X,Y)/Math.max(cos,.4);if(b.E>=eff){b.E-=eff;damagePixel(X,Y,99,dx,dy)}else{damagePixel(X,Y,2,dx,dy);b.E=0}}
  if(mx===3){const sl=slabG[Math.round(cy)*W+Math.round(cx)]&&byId(slabG[Math.round(cy)*W+Math.round(cx)]);if(sl)heatAt(sl,cx,cy,3,.8);if(Math.random()<.3)emberPatch(cx-dx*5,cy-dy*5,7,5);metalSparks(cx,cy,dx,dy,false);if(!b.mchk){b.mchk=1;if(Math.random()<.1){rodBurst(cx-dx*2,cy-dy*2);remove(b);return true}}}
