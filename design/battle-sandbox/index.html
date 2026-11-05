@@ -289,22 +289,23 @@ function tile(key,sig,cx,cy){if(TEX[key]){const ck=key+','+cx+','+cy;if(cache.ha
  cache.set(ck,cv);return cv}
 // tile catalogue: element > material > variation, each as floor and wall ('.w'); old keys point at their new tile
 const FLB2=[[0,6,[0,7]],[6,11,[3,10]],[11,16,[1,9,13]]];
+let LINK=()=>null;// map lookup for connected textures, set by sim.js
 const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set(['carpet','gcarpet','pcarpet']),KEYT=new Set();
 // materials: a family shares its properties and three patterns; each member adds its colour, one special pattern, and any property it changes
 const ELEM={
  Earth:{p:{cls:'grass',hp:2,nowall:1},vars:{plain:'Plain',worn:'Worn'},mats:{grass:{n:'Grass'},dirt:{n:'Soil',cls:'soil',hp:3}},old:{wheat:{n:'Wheat',cls:'soil'},hedge:{n:'Hedge'}}},
  Stone:{p:{cls:'stone',hp:3},vars:{block:'Block',quarter:'Quartered',slabs:'Slabs'},mats:{grey:{n:'Greystone',c:[124,119,111],sp:'rubble'},gran:{n:'Highland granite',c:[146,132,128],hp:4,speck:1,sp:'crazy'},
-  aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,shine:28,vein:1,sp:'chequer'},gold:{n:'Goldstone',c:[200,170,100],sp:'gvein'},night:{n:'Nightstone',c:[50,64,58],cls:'marble',hp:4,shine:22,sp:'stars'}},
+  aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,shine:28,vein:1,sp:'chequer'},gold:{n:'Goldstone',c:[200,170,100],vein:'gold',sp:'lozenge'},night:{n:'Nightstone',c:[50,64,58],cls:'marble',hp:4,shine:22,sp:'stars'}},
   old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',hp:4,shine:28,sp:'quatre'}}},
  Wood:{p:{cls:'wood',hp:2,burn:1},vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:{n:'Oak',c:WOOD.oak,sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,sp:'rough'},teak:{n:'Teak',c:WOOD.teak,sp:'deck'},walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'},mahog:{n:'Mahogany',c:MAHOG,sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,sp:'marq'}}},
  Metal:{p:{cls:'metal',hp:6,shine:60},vars:{panel:'Panels',rivet:'Riveted plate',smooth:'Smooth'},mats:{steel:{n:'Steel',hp:7,sp:'louvre'},iron:{n:'Iron',c:[70,78,82],shine:45,sp:'grate'},brass:{n:'Brass',c:[184,150,84],hp:5,shine:80,sp:'filigree'},gold:{n:'Gold',c:[226,186,96],hp:4,shine:80,sp:'engraved'},umbra:{n:'Umbra',c:[40,42,48],hp:10,shine:25,sp:'runes'}}},
  Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
-const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
+const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
 // retired members stay drawable so older maps still load
 const memb=(el,mat)=>ELEM[el].mats[mat]||(ELEM[el].old||{})[mat],mprop=(el,mat)=>({...ELEM[el].p,...memb(el,mat)});
 const varsOf=(el,mat)=>{const M=memb(el,mat),o={...ELEM[el].vars};if(M.sp)o[M.sp]=SPN[M.sp];if(M.alt)o[M.alt]=SPN[M.alt];return o};
 // retired patterns stay drawable so older maps still load
-const OLDV={Stone:['quartero','flags','medallion','paving','key','setts','ashlar','basket','rosette','lattice','checker','band','sectile'],Wood:['logs','pegged','basket','brick','inlay','fret'],Metal:['hammer','tread','grille','scale','veined']};
+const OLDV={Stone:['gvein','quartero','flags','medallion','paving','key','setts','ashlar','basket','rosette','lattice','checker','band','sectile'],Wood:['logs','pegged','basket','brick','inlay','fret'],Metal:['hammer','tread','grille','scale','veined']};
 const CATN={};
 const GOLDL=[214,176,96],VOID=[110,150,220];
 function vor(X,Y,S,s){const gx=Math.floor(X/S),gy=Math.floor(Y/S);let d1=1e9,d2=1e9,id=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const cx=gx+i,cy=gy+j,px=(cx+.15+hh(cx,cy,s)*.7)*S,py=(cy+.15+hh(cx,cy,s+1)*.7)*S,d=Math.hypot(X+.5-px,Y+.5-py);if(d<d1){d2=d1;d1=d;id=cx*977+cy}else if(d<d2)d2=d}return[d2-d1,id]}
@@ -313,7 +314,7 @@ const tone=(id,s,a)=>1+(hh(id%9973,(id/9973|0)+s,s)-.5)*a;
 function herring(X,Y){const c=X>>3,x=X&7,d=Y+(c&1?7-x:x)+(c&1?2:0);return[(d&3)===0||x===0,c*977+(d>>2)]}
 function basket(X,Y){const q=((X>>3)+(Y>>3))&1,x=X&7,y=Y&7;return[x===0||y===0||(q?y===4:x===4),((Y>>3)*977+(X>>3))*2+(q?y>>2:x>>2)]}
 function special(el,mat,v,c,s){const A=(X,Y)=>[X&15,Y&15];
- if(el==='Stone'){const m=memb('Stone',mat).cls==='marble',sk=memb('Stone',mat).speck,vb=memb('Stone',mat).vein,S=(X,Y)=>{let k=softStone(X,Y,c,s,m);if(sk)k=speck(k,X,Y,s);return vb?marbling(k,X,Y,s):k};
+ if(el==='Stone'){const M=memb('Stone',mat),m=M.cls==='marble',S=(X,Y)=>{let k=softStone(X,Y,c,s,m);if(M.speck)k=speck(k,X,Y,s);return veinOf(M,k,X,Y,s)};
   if(v==='rubble')return(X,Y)=>{const[e,id]=vor(X,Y,5,s);return sc(S(X,Y),e<.8?.8:e<1.6?.92:tone(id,s,.18))};
   if(v==='setts')return(X,Y)=>{const r=Math.floor(Y/5),o=(hh(r,0,s)*6)|0,xx=X+o,cw=6,sx=Math.floor(xx/cw);return sc(S(X,Y),Y%5===0||xx%cw===0?.7:tone(r*977+sx,s,.2))};
   if(v==='ashlar')return(X,Y)=>{const r=Y>>3,xx=X+(r&1?8:0),y=Y&7,x=xx&15;return sc(S(X,Y),y===0||x===0?.8:y===1||x===1?1.07:tone(r*977+(xx>>4),s,.08))};
@@ -321,8 +322,10 @@ function special(el,mat,v,c,s){const A=(X,Y)=>[X&15,Y&15];
   if(v==='herring')return(X,Y)=>{const[j,id]=herring(X,Y);return sc(S(X,Y),j?.86:tone(id,s,.08))};
   if(v==='basket')return(X,Y)=>{const[j,id]=basket(X,Y);return sc(S(X,Y),j?.86:tone(id,s,.08))};
   if(v==='mvein'||v==='wvein'){const VC=v==='mvein'?[226,196,128]:[168,164,158],VL=v==='mvein'?[240,220,170]:[200,196,190];return(X,Y)=>{const k=S(X,Y),d=Math.abs(vn(X/11,Y/11,s+52)-.5),d2=Math.abs(vn(X/5,Y/7,s+53)-.5);if(d<.016)return mx(k,VC,v==='mvein'?.42:.65);if(d<.035)return mx(k,VL,v==='mvein'?.16:.25);if(d2<.012)return mx(k,VL,.3);return k}}
+  if(v==='lozenge'){const kid=k=>k&&k.replace(/~\d$/,''),key='stone.'+mat+'.lozenge';return(X,Y,cx,cy)=>{let k=S(X,Y);const x=X&15,y=Y&15,me=kid(LINK(cx,cy)),o=(a,b)=>kid(LINK(a,b))!==me,e=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?15-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?15-y:99);
+   if(me&&me.startsWith(key)&&e<4)return sc(k,e===0?.86:e===1?1.06:e===3?.88:1);const u=(X+Y)&15,w=(X-Y)&15;return sc(k,u===0||w===0?.86:u===1||w===1?1.05:tone(((X+Y)>>4)*977+((X-Y)>>4),s,.14))}}
   if(v==='chequer')return(X,Y)=>{const q=((X>>4)+(Y>>4))&1,x=X&15,y=Y&15;let k=softStone(X,Y,c,s,m);if(q)k=mx(k,[52,52,58],.8);k=q?mx(k,marbling(k,X,Y,s),.55):marbling(k,X,Y,s);return x===0||y===0?sc(k,.9):k};
-  if(v==='gvein')return(X,Y)=>{const k=S(X,Y),d=Math.abs(vn(X/9,Y/9,s+50)-.5);if(d<.02)return mx(k,[252,234,168],.7);if(d<.045)return mx(k,[246,222,150],.3);return hh(X,Y,s+51)>.975?mx(k,[255,240,190],.55):k};
+  if(v==='gvein')return(X,Y)=>{const k=softStone(X,Y,c,s,m),d=Math.abs(vn(X/9,Y/9,s+50)-.5);if(d<.02)return mx(k,[252,234,168],.7);if(d<.045)return mx(k,[246,222,150],.3);return hh(X,Y,s+51)>.975?mx(k,[255,240,190],.55):k};
   if(v==='rosette')return(X,Y)=>{const[x,y]=A(X,Y),dx=x-7.5,dy=y-7.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx);let k=S(X,Y);if(x===0||y===0)return sc(k,.86);if(Math.abs(r-6)<.6)return mx(k,GOLDL,.35);if(r<5.5&&Math.cos(a*6)>.2)return mx(k,[252,236,170],.3+(r<2?.2:0));return k};
   if(v==='lattice')return(X,Y)=>{const u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;let k=S(X,Y);if(u===0&&w===0)return mx(k,GOLDL,.6);if(u===0||w===0)return sc(k,.84);return k};
   if(v==='checker')return(X,Y)=>{const a=Math.floor((X+Y)/8),b=Math.floor((X-Y)/8),q=(a+b)&1,u=((X+Y)%8+8)%8,w=((X-Y)%8+8)%8;let k=S(X,Y);if(q)k=sc(mx(k,[200,198,192],.5),.96);if(u===0||w===0)k=mx(k,GOLDL,.25);return k};
@@ -357,6 +360,8 @@ function special(el,mat,v,c,s){const A=(X,Y)=>[X&15,Y&15];
   if(v==='veined')return(X,Y)=>{const k=M(X,Y),d=Math.abs(vn(X/9,Y/9,s+50)-.5);return d<.018?mx(k,VOID,.45):d<.04?mx(k,VOID,.15):k}}
  return null}
 const cellE=(X,Y)=>{const x=X&15,y=Y&15;return[x,y,Math.min(x,y,15-x,15-y)]};
+const goldVein=(k,X,Y,s)=>{const d=Math.abs(vn(X/9,Y/9,s+50)-.5);if(d<.02)return mx(k,[252,234,168],.7);if(d<.045)return mx(k,[246,222,150],.3);return hh(X,Y,s+51)>.975?mx(k,[255,240,190],.55):k};
+const veinOf=(M,k,X,Y,s)=>M.vein==='gold'?goldVein(k,X,Y,s):M.vein?marbling(k,X,Y,s):k;
 const marbling=(k,X,Y,s)=>{const v=vn(X/9,Y/9,s+50)-.5,d=Math.abs(v);if(d<.02)return mx(k,[255,255,252],.8);if(d<.045)return mx(k,[252,251,247],.3);if(d<.055&&v>0)return sc(k,.93);return hh(X,Y,s+51)>.978?mx(k,[255,255,252],.6):k};
 const speck=(k,X,Y,s)=>{const v=hh(X,Y,s+70);return v>.965?sc(k,.8):v>.92?mx(k,[190,164,160],.22):v<.025?mx(k,[236,228,222],.22):k};
 const softStone=(X,Y,c,s,m)=>m?mx(stoneT(X,Y,c,11+s),sc(c,1.04),.45):mx(stoneT(X,Y,c,s),sc(c,.93+fbm(X/14,Y/14,s+60)*.14),.4);
@@ -367,7 +372,7 @@ function genTex(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obje
   if(mat==='dirt')return wall?(X,Y)=>{let k=soilT(X,Y);k=sc(k,.86);return Y%5===0&&hh(X>>2,Y,13)>.5?sc(k,.85):k}:(X,Y)=>{const k=soilT(X,Y);if(!worn)return k;const f=fbm(X/11,Y/11,65);if(f>.55){const t=mx(k,sc(SOIL,.76),Math.min(1,(f-.55)*6)*.8);return hh(X,Y,66)>.985?sc(t,1.25):t}return hh(X>>1,Y>>1,67)>.97?mx(k,[150,140,120],.5):k};
   if(mat==='wheat')return wall?(X,Y)=>sc(cropT(Y,X),.82):(X,Y)=>{const k=cropT(X,Y);return worn&&fbm(X/8,Y/8,66)>.58?mx(k,soilT(X,Y),.6):k};
   return wall?(X,Y)=>{const b=bushT(X,Y);return worn&&fbm(X/6,Y/6,67)>.62?sc(b,.8):b}:(X,Y)=>{const b=mx(bushT(X,Y),grassT(X,Y),.45);return worn&&fbm(X/7,Y/7,68)>.6?mx(b,soilT(X,Y),.5):b}}
- if(el==='Stone'){const m=M.cls==='marble';return(X,Y)=>{let k=softStone(X,Y,c,s,m);if(M.speck)k=speck(k,X,Y,s);if(M.vein)k=marbling(k,X,Y,s);const[x,y,e]=cellE(X,Y);
+ if(el==='Stone'){const m=M.cls==='marble';return(X,Y)=>{let k=softStone(X,Y,c,s,m);if(M.speck)k=speck(k,X,Y,s);k=veinOf(M,k,X,Y,s);const[x,y,e]=cellE(X,Y);
   if(v==='flags'){const fx=(X>>1)&15,fy=(Y>>1)&15,cx=X>>5,cy=Y>>5,ex=!(X&1),ey=!(Y&1);for(let b=0;b<3;b++){const[a,z,cu]=FLB2[b];if(fy<a||fy>=z)continue;let n=0;for(const q of cu)if(fx>=q)n++;const j=fy===a&&ey||cu.includes(fx)&&ex;k=sc(k,j?.84:1+(hh(cx*7+n,cy*3+b,s)-.5)*.09);if(!j&&(fy===a&&!ey||cu.includes(fx)&&!ex))k=sc(k,1.04)}}
   else if(v==='slabs'){k=sc(k,(x===0||y===0?.9:x===1||y===1?1.03:x===15||y===15?.97:1)*(1+(hh(X>>4,Y>>4,s+1)-.5)*.1))}
   else if(v==='quarter'){const qx=X&7,qy=Y&7,t=1+(hh(X>>3,Y>>3,s+4)-.5)*.1;k=sc(k,(qx===0||qy===0?.82:qx===1||qy===1?1.08:qx===7||qy===7?.9:1)*t)}
@@ -635,7 +640,7 @@ $('snd').onclick=()=>{mute=!mute;$('snd').style.opacity=mute?.35:1;if(!mute)sfx(
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&AC&&AC.state!=='running')AC.resume()});;
 
 // map
-let map=[],UND=[];// UND: the floor laid under furniture and walls, shown when they are destroyed
+let map=[],UND=[];LINK=(x,y)=>map[y]&&map[y][x];// UND: the floor laid under furniture and walls, shown when they are destroyed
 const undAt=(cx,cy)=>UND[cy]&&UND[cy][cx]||null;
 function tilePix(key,cx,cy){if(TEX[key]){const d=new Uint8ClampedArray(T*T*4);for(let y=0;y<T;y++)for(let x=0;x<T;x++){WEARF=0;const c=TEX[key](cx*T+x,cy*T+y,cx,cy)||SOIL,i=(y*T+x)*4;d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255-WEARF}return d}const c=document.createElement('canvas');c.width=c.height=T;const g=c.getContext('2d');
  g.drawImage(tile(key,KIND[key]==='wall'?'11111111':'00000000',cx,cy),0,0);
@@ -659,7 +664,7 @@ function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;map[cy][cx]=k
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='bank';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){UND=[];(NBM[curMap]||(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();blendGround();objects();boards();borders();regions();keyBands();polish();cracks()}
+function build(){UND=[];(NBM[curMap]||(curMap==='docks'?buildDocks:curMap==='tavern'?buildTavern:curMap==='sewer'?buildSewer:curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();relink();blendGround();objects();boards();borders();regions();keyBands();polish();cracks()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(rug&&OM[y]&&OM[y][x]);
@@ -2485,6 +2490,8 @@ function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&WEAR[c[
   let bx=0,by=0,bs=16;const walk=(x,y,ang,len,fork)=>{ang=Math.round(ang/.785)*.785;let run=0;for(let t=0;t<len;t++){if(++run>2+R()*4){run=0;ang+=(R()<.5?-1:1)*.785*(R()<.7?.5:1)}x+=Math.cos(ang);y+=Math.sin(ang);const X=Math.round(x),Y=Math.round(y),ci=(Y>>4)*CW+(X>>4);if(X<1||Y<1||X>=W-1||Y>=H-1||!comp.has(ci)||Math.floor(X/bs)!==bx||Math.floor(Y/bs)!==by)return;
     if(R()<.18)continue;const j=Y*W+X;if(hit.has(j))continue;hit.add(j);const lj=j+(Math.abs(Math.cos(ang))>.5?W:1),lit=t%3===1&&!hit.has(lj);if(wall){if(!sol[j])return;scol[j]=mix(scol[j],JC,.85);shp[j]=1;if(lit&&sol[lj])scol[lj]=mix(scol[lj],LC,.4)}else{floor[j]=mix(floor[j],JC,.85);if(lit)floor[lj]=mix(floor[lj],LC,.4)}if(fork&&t===len>>1&&R()<.3)walk(x,y,ang+(R()<.5?-.785:.785),len>>1,false)}};
   for(let m=0;m<n;m++){const i=worn[(R()*worn.length)|0];bs=16;bx=Math.floor((i%CW)*T/bs);by=Math.floor((i/CW|0)*T/bs);const ex=R()<.5,X0=(i%CW)*T+(ex?(R()<.5?1:T-2):2+R()*(T-4)),Y0=(i/CW|0)*T+(ex?2+R()*(T-4):(R()<.5?1:T-2));walk(X0,Y0,R()*6.283,(R()<.75?5+R()*6:L0*(.6+R()*.6))|0,true)}}}
+// lozenge floors frame their own edges, so repaint them once the whole map is known
+function relink(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(k&&k.includes('.lozenge'))paintCell(cx,cy,k)}}
 function polish(){const st=(x,y,k)=>map[y]&&map[y][x]===k;for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!POLT.has(k))continue;const L=!st(cx-1,cy,k),R=!st(cx+1,cy,k),U=!st(cx,cy-1,k),D=!st(cx,cy+1,k);if(!L&&!R&&!U&&!D)continue;
  const mat=CATN[k][1],gl=mat==='mahog'||mat==='ebony'?rgb(210,168,100):rgb(176,126,84),gt=mat==='mahog'||mat==='ebony'?.4:.25;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(L?x:99,R?15-x:99,U?y:99,D?15-y:99);if(d>3)continue;const j=(cy*T+y)*W+cx*T+x,w=!!sol[j];let c=w?scol[j]:floor[j];
