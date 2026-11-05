@@ -21,8 +21,8 @@ function pickFile(f){const i=document.createElement('input');i.type='file';i.acc
 const TNAME={marble:'White marble',dmarble:'Green marble',flag:'Flagstone',planks:'Oak planks',pplanks:'Pine planks',dplanks:'Teak planks',table:'Table',seat:'Chair',carpet:'Red carpet',gcarpet:'Green carpet',pcarpet:'Purple carpet',gfloor:'Gold floor',grass:'Grass',dirt:'Dirt',sky:'Sky',mfloor:'Metal floor',desk:'Desk',edesk:'Ebony desk',sill:'Sill',msill:'Marble sill',omarble:'Key marble',gtile:'Green key tile',bkmarble:'Black marble',bkslab:'Black slab',books:'Shelves',pave:'Paving',shelf:'Vault shelf',chest:'Chest',rack:'Rack',crop:'Wheat',wagon:'Wagon',
  stone:'Stone',gstone:'Gold stone',pillar:'Pillar',berm:'Earth bank',rail:'Fence',wood:'Oak',dwood:'Walnut',ewood:'Ebony',metal:'Metal',mplate:'Riveted plate',iron:'Iron',brass:'Brass',mpanel:'Metal panel',bush:'Hedge'};
 TNAME.slab='Stone slabs';TNAME.hedge='Hedge';TNAME.mchest='Iron chest';SHINE.mchest=60;
-for(const k in CATN){const[el,mat,v,w]=CATN[k];const P=mprop(el,mat);if(w)WMAT[k]=hitCls(P.cls);if(P.shine)SHINE[k]=P.shine;if(!w&&(el==='Earth'||el==='Cloth')||el==='Wood'&&v==='panel')NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
-const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w]=c;return memb(el,mat).n+' · '+(varsOf(el,mat)[v]||v)+(w?' wall':'')};
+for(const k in CATN){const[el,mat,v,w]=CATN[k];const P=mprop(el,mat),cd=CATN[k][4]||5;if(w)WMAT[k]=hitCls(P.cls);if(P.shine)SHINE[k]=Math.round(P.shine*(.4+.6*(cd-1)/4));if(!w&&(el==='Earth'||el==='Cloth')||el==='Wood'&&v==='panel')NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
+const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w,cd]=c;return memb(el,mat).n+' · '+(varsOf(el,mat)[v]||v)+(w?' wall':'')+(cd?' · '+CONDN[cd]:'')};
 const tName=k=>MODS.tex[k]?MODS.tex[k].name:catName(k)||TNAME[k]||k;
 const TS=32,enc=a=>{let s='';for(const v of a)s+=(v<16?'0':'')+v.toString(16);return s},dec=s=>{const a=new Uint8ClampedArray(s.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(s.substr(i*2,2),16);return a};
 const rootOf=k=>MODS.tex[k]?MODS.tex[k].from:k;
