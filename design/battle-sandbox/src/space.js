@@ -53,7 +53,7 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
   musket:()=>{const t=AC.currentTime+.02,m=t+.13,o=OUT,w=RVIN;layer(t,{type:'highpass',f:4200,vol:.35,att:.001,dur:.012});ping(t,2500,.03,.04);layer(t+.015,{type:'bandpass',f:2800,f2:1500,q:.8,vol:.28,att:.01,dur:.13,wet:.2,roll:.5});
    setTimeout(()=>{const b=ABUS,c=AWET;ABUS=o;AWET=w;try{SFX.shot()}finally{ABUS=b;AWET=c}},(m-AC.currentTime)*1000);
    nwave(m,.85);layer(m,{type:'highpass',f:2400,vol:.75,att:.001,dur:.025,wet:.35});layer(m,{type:'bandpass',f:2600,q:.5,vol:.5,att:.001,dur:.03,wet:.3});sub(m+.03,75,40,.006,.25,.75);layer(m+.055,{f:220,vol:.45,att:.01,dur:.25,wet:.4});layer(m+.08,{f:90,vol:.14,att:.15,dur:1.2,wet:.4,roll:.3});if(sp==='out')hallPass(m,.35)},
-  grenade:(fl)=>{const t=AC.currentTime+.02;blast(t,{time:.8,pitch:1.12,low:.7,vol:1});debris(t+.3,0,.35,fl);earRing(t+.12,2.6,.012)},
+  grenade:(fl)=>{const t=AC.currentTime+.02;blast(t,{time:.8,pitch:1.12,low:.7,vol:1});debris(t+.3,0,.35,fl);earRing(t+.12,1.56,.012)},
   bomb:(fl)=>{const t=AC.currentTime+.02;blast(t,{time:1.2,pitch:.88,low:1.15,vol:1.15});debris(t+.45,1,1,fl);earRing(t+.15,6.5,.016)},
   ricos:()=>{const t=AC.currentTime+.02,p=pan(t+.02,.4);layer(t,{type:'bandpass',f:3000,q:.6,vol:.55,att:.001,dur:.09,wet:.25});layer(t+.004,{type:'bandpass',f:4800,f2:2200,q:6,vol:.4,att:.01,dur:.3,dst:p});ping(t+R(.25,.35),R(140,200),.1,.18);layer(t+.3,{type:'bandpass',f:700,q:2,vol:.25,att:.002,dur:.06,wet:.2})},
   nm_ball:(v,side)=>snapBy(AC.currentTime+.01,v,side),
@@ -73,5 +73,16 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
   const x0=b.x-vx,y0=b.y-vy,t=((e.x-x0)*vx+(e.y-y0)*vy)/v2;if(t<0||t>1)continue;const d=Math.hypot(e.x-x0-vx*t,e.y-y0-vy*t);if(d>48)continue;b.nm=1;
   const n=performance.now();nmT=nmT.filter(q=>n-q<120);if(nmT.length>=4)continue;nmT.push(n);const side=(vx*(e.y-y0)-vy*(e.x-x0))>0?1:-1,v=.45+.55*(1-d/48);
   try{const pel=b.kind==='pel',s=spaceAt(Math.round(e.x),Math.round(e.y));setup(s==='out'?(pel?'dry':'hall'):s);PLAY[pel?'nm_pel':'nm_ball'](v,side)}catch(err){}}}
- return{at,near,spaceAt,ricos:()=>{try{setup('room');PLAY.ricos()}catch(e){}}}})();
+ // fire: one dry voice for everything burning, sized by how much is alight. Low roar with a flicker, a faint steady hiss, crackles and the odd snap; a soft whoomp when it catches
+ let FVc=null,fz=0,fT=0,crk=0;
+ function fireVoice(){const a=AC,o=a.createGain();o.gain.value=.55;o.connect(MS);const L=[];for(const[ft,f0,f1,q,v]of[['lowpass',140,300,.6,.9],['bandpass',600,1100,.7,.18],['highpass',4500,6000,.5,.012]]){const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();s.buffer=nb();s.loop=true;f.type=ft;f.Q.value=q;f.frequency.value=f0;g.gain.value=0;s.connect(f).connect(g).connect(o);s.start(0,R(0,3));L.push({s,f,g,f0,f1,v})}return{o,L}}
+ function whoomp(z){const a=AC,t=a.currentTime+.01,s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();s.buffer=nb();f.type='lowpass';f.frequency.setValueAtTime(120,t);f.frequency.linearRampToValueAtTime(420,t+.22);f.frequency.exponentialRampToValueAtTime(160,t+1);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.3*(.3+.7*z),t+.22);g.gain.setTargetAtTime(0,t+.3,.25);s.connect(f).connect(g).connect(FVc.o);s.start(t,R(0,1));s.stop(t+1.6)}
+ function fireTick(){if(!AC||tick%6)return;let w=0;for(let k=0;k<NB;k++){const v=TF[k]>FX.fire[k]?TF[k]:FX.fire[k];if(v>.05)w+=v<1?v:1}const z=mute||!gest?0:Math.min(1,Math.pow(w/120,.7));
+  if(z>.01&&!FVc){FVc=fireVoice();whoomp(z)}else if(FVc&&z>fz+.25)whoomp(z-fz);fz=z;if(!FVc)return;const t=AC.currentTime;
+  for(const l of FVc.L){const fl=l.f0>4000?.9+.2*Math.random():.65+.7*Math.random();l.g.gain.setTargetAtTime(l.v*z*fl,t,.05);l.f.frequency.setTargetAtTime(l.f0+(l.f1-l.f0)*z*(.8+.4*Math.random()),t,.1)}
+  if(z<.01){if(t-fT>2){for(const l of FVc.L){try{l.s.stop(t+.3)}catch(e){}}FVc=null}return}fT=t;
+  // crackles for the next tenth of a second
+  let u=t+.02;const end=t+.1,rate=3+22*z;while(true){u+=-Math.log(1-Math.random())/rate;if(u>=end)break;const big=Math.random()<.08+.08*z,v=(big?.5:.12+.22*Math.random())*(.35+.65*z),f=big?R(1200,2200):R(2500,6500);
+   layer(u,{type:big?'bandpass':'highpass',f,q:big?1.2:.7,vol:v,att:.0005,dur:big?R(.012,.03):R(.002,.008),dst:FVc.o});if(big&&Math.random()<.6)layer(u+R(.01,.04),{type:'highpass',f:R(3000,6000),vol:v*.5,att:.0005,dur:.004,dst:FVc.o})}}
+ return{at,near,fireTick,spaceAt,ricos:()=>{try{setup('room');PLAY.ricos()}catch(e){}}}})();
 SFX.ricos=()=>SND.ricos();
