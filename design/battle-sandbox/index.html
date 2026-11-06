@@ -2149,7 +2149,7 @@ function sightPass(){const sm=v=>{v=Math.min(1,v*1.6);return v*v*(3-2*v)};for(le
 function blurMask(A){for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o=y*BW;let sum=0;for(let k=0;k<=2&&k<BW;k++)sum+=A[o+k];for(let x=0;x<BW;x++){const n=Math.min(BW-1,x+2)-Math.max(0,x-2)+1;VT[o+x]=sum/n;if(x+3<BW)sum+=A[o+x+3];if(x-2>=0)sum-=A[o+x-2]}}
   for(let x=0;x<BW;x++){let sum=0;for(let k=0;k<=2&&k<BH;k++)sum+=VT[k*BW+x];for(let y=0;y<BH;y++){const n=Math.min(BH-1,y+2)-Math.max(0,y-2)+1;A[y*BW+x]=sum/n;if(y+3<BH)sum+=VT[(y+3)*BW+x];if(y-2>=0)sum-=VT[(y-2)*BW+x]}}}}
 // with one of your units selected, what the others see is dimmed slightly
-function fogPass(){const sl=!DSV&&fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===aiMe);const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const age=(tick-SEEN[q])/300,m=age>=1?F:mix(mul(SNAP[j],.6),F,Math.max(0,age));out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
+function fogPass(){const sl=!DSV&&fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===aiMe);const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const age=(tick-SEEN[q])/300,base=SNAP[j]||(sol[j]?scol[j]:floor[j]),d=SNAP[j]?Math.min(1,Math.max(0,age)/4):1,m=mul(mix(base,grey(base),d),.5-.14*d);out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
  for(const z of RINGS){const k=(tick-z.t)/40,rad=2+k*7;for(let i=0;i<28;i++){const X=Math.round(z.x+Math.cos(i*.2244)*rad),Y=Math.round(z.y+Math.sin(i*.2244)*rad);if(X>=0&&Y>=0&&X<W&&Y<H){const j=Y*W+X;out[j]=mix(out[j],rgb(230,226,214),.5*(1-k))}}}RINGS=RINGS.filter(z=>tick-z.t<40)}
 function ringFor(z){if(!fogOn()||z.src&&teamOf(z.src)===aiMe||z.src&&!z.src.fogH)return;const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status==='free');if(me.some(b=>heardBy(b,z))&&!RINGS.some(r=>tick-r.t<12&&Math.hypot(r.x-z.x,r.y-z.y)<10))RINGS.push({x:z.x,y:z.y,t:tick})}
 // a crouched unit hides behind low furniture: a low shot hits any desk; a high shot hits one beside a crouched unit
@@ -2241,8 +2241,7 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k==='r'){for(const b of sel){const h=b.type==='token'&&b.status!=='free'?null:slot(b);if(h&&CAP[h.k]&&h.ammo<CAP[h.k])reload(b)}return}
  if(k>='1'&&k<='6'){for(const b of sel)if(b.type==='token'&&b.status==='free'&&b.inv)selectSlot(b,+k-1);return}
  if(k==='g'){for(const b of sel)if(b.type==='token'&&b.held)dropHeld(b);return}
- if(k==='f'){if(!e.repeat)for(const b of sel)if(b.type==='token'&&b.held&&b.held.k==='sword'&&(b.direct||!aiOn))slash(b);return}
- if(k==='t'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}
+ if(k==='f'||k==='t'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}
  if(k==='delete'||k==='backspace'){for(const b of [...sel])remove(b);e.preventDefault()}});
 window.addEventListener('keyup',e=>{if(e.key.toLowerCase()==='c')for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}if(e.key===' ')panKey=false;keys.delete(e.key.toLowerCase())});
 window.addEventListener('blur',()=>{keys.clear();panKey=false;for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}});
@@ -2572,19 +2571,27 @@ NUM.blast=()=>{snapPR();PRSET=true;const m0=mute;mute=true;
  // keep the scorch and debris; clear smoke, fire, light and shake
  for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,GM,ST,FH])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);tls.length=0;parts=parts.filter(p=>p.em===undefined&&p.life===undefined);shake=0;alarm=false;mute=m0;fxDirty=true};
 // the Pits: an 18x20 dirt floor in a rough stone ring, a gate in the top-left and bottom-right, an L of wall shielding each gate and four pillars
-MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='out';
+MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='in';
 // the Pits, weathered: rubble walls in poor repair, worn dirt, wooden half walls shielding each gate, stone pillars; everything placed in 180-degree symmetry so neither gate has the better ground
 {const h=(x,y)=>((x*73856093^y*19349663)>>>0),WW='wood.oak.planks.w',gate=new Set(['1,0','2,0','17,21','18,21']),
-  low={'4,4':WW,'2,4':WW+'N','3,4':WW+'N','4,2':WW+'H','4,3':WW+'H','15,17':WW,'16,17':WW+'S','17,17':WW+'S','15,18':WW+'H','15,19':WW+'H'},pil=new Set(['6,8','13,8','6,13','13,13']);
+  low={'4,4':WW,'2,4':WW+'N','3,4':WW+'N','4,2':WW+'H','4,3':WW+'H','15,17':WW,'16,17':WW+'S','17,17':WW+'S','15,18':WW+'H','15,19':WW+'H'},pil=new Set(['6,8','13,8','6,13','13,13']),pave=new Set();for(const[x,y]of[[9,10],[8,10],[9,9],[8,9],[10,9],[5,4],[6,4],[6,5],[2,15],[3,15],[2,16],[12,6],[13,6]])pave.add(x+','+y).add((19-x)+','+(21-y));
  NBM.pits=()=>paintAll((cx,cy)=>{const id=cx+','+cy;if(gate.has(id))return'earth.dirt.worn';if(low[id])return low[id];
-  if(cx===0||cy===0||cx===19||cy===21||pil.has(id))return'stone.grey.rubble.w~'+(2+h(cx,cy)%3);return h(cx,cy)%3?'earth.dirt.worn':'earth.dirt.plain'});
+  if(cx===0||cy===0||cx===19||cy===21||pil.has(id))return'stone.grey.rubble.w~'+(1+h(cx,cy)%3);if(pave.has(id))return'stone.grey.paving';return h(cx,cy)%3?'earth.dirt.worn':'earth.dirt.plain'});
  NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])smartDoor('wood',cx,cy);snapDoors();
   // each fighter: a pistol with no spare shot and a wooden shield; spare shot and an iron shield on the floor, mirrored
   FIGHT.pits=[['Havenport','Reapers']];const kit=(b,L)=>{b.inv=L.concat(Array(6-L.length).fill(null));b.si=0;b.held=b.inv[0];b.hc=null};
   const me=token('Edda','Havenport','rifle',2*T+8,2*T+8,false,null),foe=token('Brannoc','Reapers','rifle',17*T+8,19*T+8,false,null);me.ang=Math.PI/2;foe.ang=-Math.PI/2;
   kit(me,[{k:'pistol',ammo:18,res:0},null,null,null,{k:'wshield'}]);kit(foe,[{k:'pistol',ammo:18,res:0},null,null,null,{k:'wshield'}]);
   for(const[cx,cy]of[[2,11],[9,6]])for(const[x,y]of[[cx,cy],[19-cx,21-cy]])weapon('pbox',x*T+8,y*T+8);weapon('shield',W/2,H/2);
-  aiMe='Havenport';sel.clear();sel.add(me);me.direct=true}}
+  aiMe='Havenport';sel.clear();sel.add(me);me.direct=true;pitsWorn()}
+ // years of fights: chipped walls and pillars, broken paving down to the soil, splintered half walls; the wand still restores the clean pit
+ function pitsWorn(){snapPR();PRSET=true;const m0=mute;mute=true;const R=Math.random;
+  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=CATN[map[cy][cx]];if(c&&c[3])wearWall(cx,cy,.5+R()*.8)}
+  for(let i=0;i<70;i++){const sd=i%4,t=16+R()*(sd<2?W-32:H-32),x=sd===0?t:sd===1?t:sd===2?16:W-16,y=sd===0?16:sd===1?H-16:t;carve(x+(sd===2?-1:sd===3?1:0)*R()*3,y+(sd===0?-1:sd===1?1:0)*R()*3,1+R()*2.2,2+R()*3,0,0)}
+  for(const id of pil){const[cx,cy]=id.split(',').map(Number);for(let i=0;i<5;i++){const a=R()*6.28;carve(cx*T+8+Math.cos(a)*8,cy*T+8+Math.sin(a)*8,1.2+R()*2,3,0,0)}}
+  for(const id in low){const[cx,cy]=id.split(',').map(Number);if(R()<.7)carve(cx*T+4+R()*8,cy*T+4+R()*8,1+R()*1.5,2,0,0)}
+  for(const id of pave){const[cx,cy]=id.split(',').map(Number);for(let i=0;i<5;i++)crater(cx*T+2+R()*12,cy*T+2+R()*12,.6+R()*.45)}
+  for(let i=0;i<80;i++)stepParts();parts=parts.filter(p=>p.em===undefined&&p.life===undefined);for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,GM,ST,FH])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);shake=0;mute=m0;fxDirty=true}}
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
 function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>{UND=d.und?d.und.map(r=>r.map(modK)):[];paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k})};NUM[id]=()=>spawnMap(d)}
@@ -3052,9 +3059,7 @@ function crowdTick(){if(!CRW)return;CRW.n++;const fs=bodies.filter(b=>b.type==='
   const want=((Math.atan2(ty-s.y,tx-s.x)/(Math.PI*2)*CANG)%CANG+CANG)%CANG;let d=want-s.a;d=((d+CANG/2)%CANG+CANG)%CANG-CANG/2;s.a=(s.a+Math.max(-1.2,Math.min(1.2,d))+CANG)%CANG}
  if(CRW.n%2===0)crowdDraw()}
 function crowdDraw(){const w=ccv.width,h=ccv.height,g=ccv.getContext('2d'),im=g.createImageData(w,h),o=new Uint32Array(im.data.buffer);
- // stepped benches, darker each row back
- for(let r=0;r<CROWS;r++){const off=14+r*16,c=mul(rgb(46,40,34),.9-r*.17);for(let y=-off-6;y<=H+off+6;y++)for(let x=-off-6;x<=W+off+6;x++){if(x>-off+6&&x<W+off-6&&y>-off+6&&y<H+off-6)continue;const X=x+CM,Y=y+CM;if(X>=0&&Y>=0&&X<w&&Y<h&&!o[Y*w+X])o[Y*w+X]=((x+y)&7)?c:mul(c,.8)}}
- for(const s of CRW.seats){const f=Math.max(.12,.74-s.r*.15)*(s.jump?1.25:1),fr=CRW.looks[s.lk][Math.round(s.a)%CANG],bx=Math.round(s.x)+CM,by=Math.round(s.y)+CM-(s.jump>2?2:0);
+ for(const s of CRW.seats){const f=.6*Math.pow(1-s.r/CROWS,1.8)*(s.jump?1.3:1),fr=CRW.looks[s.lk][Math.round(s.a)%CANG],bx=Math.round(s.x)+CM,by=Math.round(s.y)+CM-(s.jump>2?2:0);
   for(const p of fr){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<w&&Y<h)o[Y*w+X]=mul(p[2],f)}}
  // keep the arena itself clear
  for(let Y=CM;Y<CM+H;Y++)o.fill(0,Y*w+CM,Y*w+CM+W);

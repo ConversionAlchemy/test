@@ -96,19 +96,27 @@ NUM.blast=()=>{snapPR();PRSET=true;const m0=mute;mute=true;
  // keep the scorch and debris; clear smoke, fire, light and shake
  for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,GM,ST,FH])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);tls.length=0;parts=parts.filter(p=>p.em===undefined&&p.life===undefined);shake=0;alarm=false;mute=m0;fxDirty=true};
 // the Pits: an 18x20 dirt floor in a rough stone ring, a gate in the top-left and bottom-right, an L of wall shielding each gate and four pillars
-MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='out';
+MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='in';
 // the Pits, weathered: rubble walls in poor repair, worn dirt, wooden half walls shielding each gate, stone pillars; everything placed in 180-degree symmetry so neither gate has the better ground
 {const h=(x,y)=>((x*73856093^y*19349663)>>>0),WW='wood.oak.planks.w',gate=new Set(['1,0','2,0','17,21','18,21']),
-  low={'4,4':WW,'2,4':WW+'N','3,4':WW+'N','4,2':WW+'H','4,3':WW+'H','15,17':WW,'16,17':WW+'S','17,17':WW+'S','15,18':WW+'H','15,19':WW+'H'},pil=new Set(['6,8','13,8','6,13','13,13']);
+  low={'4,4':WW,'2,4':WW+'N','3,4':WW+'N','4,2':WW+'H','4,3':WW+'H','15,17':WW,'16,17':WW+'S','17,17':WW+'S','15,18':WW+'H','15,19':WW+'H'},pil=new Set(['6,8','13,8','6,13','13,13']),pave=new Set();for(const[x,y]of[[9,10],[8,10],[9,9],[8,9],[10,9],[5,4],[6,4],[6,5],[2,15],[3,15],[2,16],[12,6],[13,6]])pave.add(x+','+y).add((19-x)+','+(21-y));
  NBM.pits=()=>paintAll((cx,cy)=>{const id=cx+','+cy;if(gate.has(id))return'earth.dirt.worn';if(low[id])return low[id];
-  if(cx===0||cy===0||cx===19||cy===21||pil.has(id))return'stone.grey.rubble.w~'+(2+h(cx,cy)%3);return h(cx,cy)%3?'earth.dirt.worn':'earth.dirt.plain'});
+  if(cx===0||cy===0||cx===19||cy===21||pil.has(id))return'stone.grey.rubble.w~'+(1+h(cx,cy)%3);if(pave.has(id))return'stone.grey.paving';return h(cx,cy)%3?'earth.dirt.worn':'earth.dirt.plain'});
  NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])smartDoor('wood',cx,cy);snapDoors();
   // each fighter: a pistol with no spare shot and a wooden shield; spare shot and an iron shield on the floor, mirrored
   FIGHT.pits=[['Havenport','Reapers']];const kit=(b,L)=>{b.inv=L.concat(Array(6-L.length).fill(null));b.si=0;b.held=b.inv[0];b.hc=null};
   const me=token('Edda','Havenport','rifle',2*T+8,2*T+8,false,null),foe=token('Brannoc','Reapers','rifle',17*T+8,19*T+8,false,null);me.ang=Math.PI/2;foe.ang=-Math.PI/2;
   kit(me,[{k:'pistol',ammo:18,res:0},null,null,null,{k:'wshield'}]);kit(foe,[{k:'pistol',ammo:18,res:0},null,null,null,{k:'wshield'}]);
   for(const[cx,cy]of[[2,11],[9,6]])for(const[x,y]of[[cx,cy],[19-cx,21-cy]])weapon('pbox',x*T+8,y*T+8);weapon('shield',W/2,H/2);
-  aiMe='Havenport';sel.clear();sel.add(me);me.direct=true}}
+  aiMe='Havenport';sel.clear();sel.add(me);me.direct=true;pitsWorn()}
+ // years of fights: chipped walls and pillars, broken paving down to the soil, splintered half walls; the wand still restores the clean pit
+ function pitsWorn(){snapPR();PRSET=true;const m0=mute;mute=true;const R=Math.random;
+  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=CATN[map[cy][cx]];if(c&&c[3])wearWall(cx,cy,.5+R()*.8)}
+  for(let i=0;i<70;i++){const sd=i%4,t=16+R()*(sd<2?W-32:H-32),x=sd===0?t:sd===1?t:sd===2?16:W-16,y=sd===0?16:sd===1?H-16:t;carve(x+(sd===2?-1:sd===3?1:0)*R()*3,y+(sd===0?-1:sd===1?1:0)*R()*3,1+R()*2.2,2+R()*3,0,0)}
+  for(const id of pil){const[cx,cy]=id.split(',').map(Number);for(let i=0;i<5;i++){const a=R()*6.28;carve(cx*T+8+Math.cos(a)*8,cy*T+8+Math.sin(a)*8,1.2+R()*2,3,0,0)}}
+  for(const id in low){const[cx,cy]=id.split(',').map(Number);if(R()<.7)carve(cx*T+4+R()*8,cy*T+4+R()*8,1+R()*1.5,2,0,0)}
+  for(const id of pave){const[cx,cy]=id.split(',').map(Number);for(let i=0;i<5;i++)crater(cx*T+2+R()*12,cy*T+2+R()*12,.6+R()*.45)}
+  for(let i=0;i<80;i++)stepParts();parts=parts.filter(p=>p.em===undefined&&p.life===undefined);for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,GM,ST,FH])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);shake=0;mute=m0;fxDirty=true}}
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
 function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>{UND=d.und?d.und.map(r=>r.map(modK)):[];paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k})};NUM[id]=()=>spawnMap(d)}

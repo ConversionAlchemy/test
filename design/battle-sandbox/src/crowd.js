@@ -24,9 +24,7 @@ function crowdTick(){if(!CRW)return;CRW.n++;const fs=bodies.filter(b=>b.type==='
   const want=((Math.atan2(ty-s.y,tx-s.x)/(Math.PI*2)*CANG)%CANG+CANG)%CANG;let d=want-s.a;d=((d+CANG/2)%CANG+CANG)%CANG-CANG/2;s.a=(s.a+Math.max(-1.2,Math.min(1.2,d))+CANG)%CANG}
  if(CRW.n%2===0)crowdDraw()}
 function crowdDraw(){const w=ccv.width,h=ccv.height,g=ccv.getContext('2d'),im=g.createImageData(w,h),o=new Uint32Array(im.data.buffer);
- // stepped benches, darker each row back
- for(let r=0;r<CROWS;r++){const off=14+r*16,c=mul(rgb(46,40,34),.9-r*.17);for(let y=-off-6;y<=H+off+6;y++)for(let x=-off-6;x<=W+off+6;x++){if(x>-off+6&&x<W+off-6&&y>-off+6&&y<H+off-6)continue;const X=x+CM,Y=y+CM;if(X>=0&&Y>=0&&X<w&&Y<h&&!o[Y*w+X])o[Y*w+X]=((x+y)&7)?c:mul(c,.8)}}
- for(const s of CRW.seats){const f=Math.max(.12,.74-s.r*.15)*(s.jump?1.25:1),fr=CRW.looks[s.lk][Math.round(s.a)%CANG],bx=Math.round(s.x)+CM,by=Math.round(s.y)+CM-(s.jump>2?2:0);
+ for(const s of CRW.seats){const f=.6*Math.pow(1-s.r/CROWS,1.8)*(s.jump?1.3:1),fr=CRW.looks[s.lk][Math.round(s.a)%CANG],bx=Math.round(s.x)+CM,by=Math.round(s.y)+CM-(s.jump>2?2:0);
   for(const p of fr){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<w&&Y<h)o[Y*w+X]=mul(p[2],f)}}
  // keep the arena itself clear
  for(let Y=CM;Y<CM+H;Y++)o.fill(0,Y*w+CM,Y*w+CM+W);
