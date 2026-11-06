@@ -1,5 +1,6 @@
 // Melee test for the Pits: spear jab (click) and throw (hold), sword jab (click, held keeps jabbing) and slash (F), shields worn on the off side and raised with X
-WP.sword={n:'Sword',sharp:1,melee:1,fr:.98,max:24,m:1,tip:10};
+WP.sword={n:'Sword',sharp:1,melee:1,fr:.98,max:24,m:1,tip:10,hide:1};// swords paused
+WP.pbox={n:'Shot',hide:1,fr:.8,max:10,m:1};
 WP.shield.n='Iron shield';delete WP.shield.hide;
 WP.wshield={n:'Wooden shield',fr:.9,max:16,m:1.4,tip:1};HOFF.wshield=9;
 var MREACH={spear:26,sword:20};
@@ -30,3 +31,12 @@ function meleeTick(){for(const b of bodies){if(b.type!=='token')continue;
 {const u0=update;update=function(){u0();meleeTick()}}
 window.addEventListener('keydown',e=>{if(e.repeat||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.key.toLowerCase()!=='x')return;for(const b of sel)if(b.type==='token'&&b.status==='free'&&offShield(b)){b.shUp=true;rustle(b,.8)}});
 window.addEventListener('keyup',e=>{if(e.key.toLowerCase()==='x')for(const b of bodies)if(b.type==='token'&&(b.direct||sel.has(b)))b.shUp=false});
+// walking over shot refills your pistol; walking over a shield takes it if it beats yours (iron over wood, then the less damaged), dropping the old one
+function pitPick(){const val=it=>(it.k==='shield'?100:50)-Object.values(it.dmg||{}).reduce((s,v)=>s+v,0);
+ for(const t of bodies){if(t.type!=='token'||t.status!=='free'||!t.inv)continue;
+  for(const w of [...bodies]){if(w.type!=='weapon'||w.att||w.stuck||(w.noPick&&w.noPick>tick)||Math.hypot(w.vx,w.vy)>.3||Math.hypot(w.x-t.x,w.y-t.y)>13)continue;
+   if(w.kind==='pbox'){if(addRes(t,'pistol',RCAP('pistol'))){remove(w);sfx('reload')}continue}
+   if(!SHK.has(w.kind))continue;const nw={k:w.kind,dmg:w.dmg},i=t.inv.findIndex(z=>z&&SHK.has(z.k));
+   if(i<0){const j=t.inv.findIndex((z,j)=>!z&&j>=2&&slotOK(t,j));if(j>=0){t.inv[j]=nw;remove(w);sfx('flick')}continue}
+   if(val(nw)>val(t.inv[i])){const old=t.inv[i];t.inv[i]=nw;remove(w);const d=weapon(old.k,t.x,t.y,t.ang);d.dmg=old.dmg;d.noPick=tick+90;sfx('flick')}}}}
+{const a0=autoPick;autoPick=function(){a0();pitPick()}}

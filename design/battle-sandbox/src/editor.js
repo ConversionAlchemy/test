@@ -97,14 +97,17 @@ NUM.blast=()=>{snapPR();PRSET=true;const m0=mute;mute=true;
  for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,GM,ST,FH])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);tls.length=0;parts=parts.filter(p=>p.em===undefined&&p.life===undefined);shake=0;alarm=false;mute=m0;fxDirty=true};
 // the Pits: an 18x20 dirt floor in a rough stone ring, a gate in the top-left and bottom-right, an L of wall shielding each gate and four pillars
 MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='out';
-{const W0='stone.grey.rubble.w',inner=new Set(['4,2','4,3','4,4','2,4','3,4','6,8','13,8','6,13','13,13','15,17','16,17','17,17','15,18','15,19']),gate=new Set(['1,0','2,0','17,21','18,21']);
- NBM.pits=()=>paintAll((cx,cy)=>gate.has(cx+','+cy)?'earth.dirt.worn':cx===0||cy===0||cx===19||cy===21||inner.has(cx+','+cy)?W0:((cx*73856093^cy*19349663)>>>0)%5?'earth.dirt.plain':'earth.dirt.worn');
+// the Pits, weathered: rubble walls in poor repair, worn dirt, wooden half walls shielding each gate, stone pillars; everything placed in 180-degree symmetry so neither gate has the better ground
+{const h=(x,y)=>((x*73856093^y*19349663)>>>0),WW='wood.oak.planks.w',gate=new Set(['1,0','2,0','17,21','18,21']),
+  low={'4,4':WW,'2,4':WW+'N','3,4':WW+'N','4,2':WW+'H','4,3':WW+'H','15,17':WW,'16,17':WW+'S','17,17':WW+'S','15,18':WW+'H','15,19':WW+'H'},pil=new Set(['6,8','13,8','6,13','13,13']);
+ NBM.pits=()=>paintAll((cx,cy)=>{const id=cx+','+cy;if(gate.has(id))return'earth.dirt.worn';if(low[id])return low[id];
+  if(cx===0||cy===0||cx===19||cy===21||pil.has(id))return'stone.grey.rubble.w~'+(2+h(cx,cy)%3);return h(cx,cy)%3?'earth.dirt.worn':'earth.dirt.plain'});
  NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])smartDoor('wood',cx,cy);snapDoors();
-  // melee test: you (sword, pistol, iron shield) by the top gate, a spearman with a wooden shield by the bottom one, spare arms by your gate
+  // each fighter: a pistol with no spare shot and a wooden shield; spare shot and an iron shield on the floor, mirrored
   FIGHT.pits=[['Havenport','Reapers']];const kit=(b,L)=>{b.inv=L.concat(Array(6-L.length).fill(null));b.si=0;b.held=b.inv[0];b.hc=null};
   const me=token('Edda','Havenport','rifle',2*T+8,2*T+8,false,null),foe=token('Brannoc','Reapers','rifle',17*T+8,19*T+8,false,null);me.ang=Math.PI/2;foe.ang=-Math.PI/2;
-  kit(me,[{k:'sword'},{k:'pistol',ammo:18,res:18},null,null,{k:'shield'}]);kit(foe,[{k:'spear'},null,null,null,{k:'wshield'}]);
-  weapon('spear',5*T+8,2*T);weapon('wshield',6*T+8,2*T+8);weapon('sword',5*T+8,3*T+4);
+  kit(me,[{k:'pistol',ammo:18,res:0},null,null,null,{k:'wshield'}]);kit(foe,[{k:'pistol',ammo:18,res:0},null,null,null,{k:'wshield'}]);
+  for(const[cx,cy]of[[2,11],[9,6]])for(const[x,y]of[[cx,cy],[19-cx,21-cy]])weapon('pbox',x*T+8,y*T+8);weapon('shield',W/2,H/2);
   aiMe='Havenport';sel.clear();sel.add(me);me.direct=true}}
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
