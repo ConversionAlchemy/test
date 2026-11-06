@@ -813,7 +813,7 @@ function wearWall(cx,cy,amt){if(cx<0||cy<0||cx>=CW||cy>=CH)return;const k=map[cy
 function temperF(a){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0,f0]=TEMPER[i-1],[p1,f1]=TEMPER[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0)));return f0.map((v,k)=>v+(f1[k]-v)*u)}
 function heatMark(x,y,r,k){for(let Y=Math.floor(y-r);Y<=y+r;Y++)for(let X=Math.floor(x-r);X<=x+r;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j]!==3)continue;const d=Math.hypot(X-x,Y-y);if(d>r)continue;
   const a=Math.min(.85,k*(1-d/r)*(.85+.3*hh(X,Y,71))),o=HTM.get(j)||0;if(a<=o)continue;const f1=temperF(a),f0=temperF(o),c=scol[j];scol[j]=rgb(cl((c&255)*f1[0]/f0[0]),cl((c>>8&255)*f1[1]/f0[1]),cl((c>>16&255)*f1[2]/f0[2]));HTM.set(j,a)}solDirty=true}
-// a blast breaks a built floor by its material: stone and marble through to soil with a chipped edge and hairline cracks, wood split open over a dark gap, cloth burnt through, metal dented with a bright lip; how far follows toughness
+// a blast breaks a built floor by its material: stone and marble through to soil with a chipped edge and hairline cracks, wood broken through to soil inside a rim of splintered board ends, cloth burnt through, metal dented with a bright lip; how far follows toughness
 // what lies under a carpet: the cell's underlay, else plain boards
 const UPX=new Map();function under(X,Y){const cx=X>>4,cy=Y>>4,id=cy*CW+cx;let d=UPX.get(id);if(!d||d.m!==curMap){d=tilePix(undAt(cx,cy)||'wood.oak.planks',cx,cy);d.m=curMap;UPX.set(id,d)}const i=((Y&15)*T+(X&15))*4;return rgb(d[i],d[i+1],d[i+2])}
 function crater(x,y,s){const r=6.5*s,rr=s>1.5?.85:.7;for(let Y=Math.floor(y-r*2);Y<=y+r*2;Y++)for(let X=Math.floor(x-r*2);X<=x+r*2;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j])continue;
@@ -822,7 +822,7 @@ function crater(x,y,s){const r=6.5*s,rr=s>1.5?.85:.7;for(let Y=Math.floor(y-r*2)
    if(fam==='Metal'){// metal dents: a darkened dish with a bright torn lip; a heavy blast tears soft metal through
     const qd=q/(rr*1.3*so);if(qd<1){floor[j]=s>1.5&&P.hp<=5&&qd<.4?rgb(...sc(soilT(X,Y),.5).map(cl)):mul(floor[j],old?.94:.5+.4*qd)}else if(qd<1.2&&hh(X,Y,99)>.35)floor[j]=mul(floor[j],1.22)}
    else{const wd=fam==='Wood',cl0=fam==='Cloth',qw=q,rw=cl0?rr*2.6:rr*so;
-    if(qw<rw){if(old)floor[j]=mul(floor[j],.94);else if(wd)floor[j]=hh(X>>2,Y,98)>.78?mul(floor[j],.55):rgb(cl(30+18*qw/rw),cl(22+12*qw/rw),cl(16+8*qw/rw));
+    if(qw<rw){if(old)floor[j]=mul(floor[j],.94);else if(wd){const e2=qw/rw;if(e2<.78){const f=sc(soilT(X,Y),.6+.35*e2);floor[j]=rgb(cl(f[0]),cl(f[1]),cl(f[2]))}else floor[j]=hh(X>>2,Y,98)>.6?mul(floor[j],.5):rgb(cl(30+18*e2),cl(22+12*e2),cl(16+8*e2))}
      else if(cl0){const ed=qw/rw;if(ed<.62){const u=under(X,Y);floor[j]=ed>.5&&hh(X,Y,98)>.5?rgb(36,28,24):mul(u,ed>.45?.6:.82)}else floor[j]=hh(X,Y,98)>.55?mul(floor[j],.4):rgb(cl(36+20*ed),cl(28+10*ed),24)}
      else{const f=sc(soilT(X,Y),.62+.3*qw/rw),g=hh(X>>1,Y>>1,98);floor[j]=g>.86&&qw>rw*.4?mul(floor[j],.62):rgb(cl(f[0]),cl(f[1]),cl(f[2]))}GT[j]=3;SHN[j]=0}
     else if(qw<rw*(cl0?1.6:1.25)&&!old&&hh(X,Y,99)>(cl0?.3:.45)){floor[j]=mul(floor[j],cl0?.6+.25*hh(X,Y,97):.5);SHN[j]=0}
