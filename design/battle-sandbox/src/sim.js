@@ -56,7 +56,7 @@ let HALFF='dirt';
 function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;key=modK(key);map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(undAt(cx,cy)||HALFF,cx,cy):null,m=WMAT[bk]||0,hpK=CATN[bk]?mprop(CATN[bk][0],CATN[bk][1]).hp:(MAT[m]||{}).hp,gk=CATN[bk]&&CATN[bk][0]==='Stone'&&CATN[bk][1]==='gold'?1:0,ud=m&&undAt(cx,cy)?tilePix(undAt(cx,cy),cx,cy):null;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&(hv==='H'?x>=T/2:hv==='N'?y>=T/2:y<T/2),c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=NODK.has(bk)?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
-let curMap='bank';
+let curMap='vault';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
 function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
@@ -302,7 +302,8 @@ function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;retu
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
  container(8,2,[{k:'gold',n:1500}]);container(13,2,[{k:'gold',n:1600}]);container(19,2,[{k:'gold',n:1500}]);container(5,25,[{k:'gold',n:200}]);container(20,25,[{k:'gold',n:200}]);
  container(22,10,[{k:'gold',n:400},{k:'grenade',n:3}]);container(5,10,[]);container(5,33,[]);container(22,33,[{k:'gold',n:120}]);for(const o of bodies){if(o.type==='slab')goldify(o);if(o.kind==='crate')o.metal=true}
- for(const[n,u,x,w]of[['Skiff','home',120,'rod'],['Gull','home',150,'blunder'],['Brine','home',180,'blunder'],['Bones','civ',210,'pistol'],['Teague','shock',270,'sspear'],['Rask','rifle',300,undefined],['Mott','rifle',330,undefined],['Hook','home',360,'pistol']])face(token(n,'Reapers',u,x,640,false,w),up);{const rk=bodies.find(t=>t.name==='Rask'),i=rk.inv.indexOf(null);if(i>=0)rk.inv[i]={k:'bomb',n:1}}for(const t of bodies){if(t.type!=='token'||t.nat!=='Reapers')continue;const g=t.inv.find(q=>q&&q.k==='grenade');if(g)g.n+=1;else{const i=t.inv.indexOf(null);if(i>=0)t.inv[i]={k:'grenade',n:2}}if(!t.inv.some(q=>q&&q.k==='bomb')){const i=t.inv.indexOf(null);if(i>=0)t.inv[i]={k:'bomb',n:1}}}
+ // the crew: a commando with a blunderbuss, grenades and heavy grenades, backed by two riflemen with a couple of grenades each
+ for(const[n,u,x,w,k]of[['Rask','cmd',240,'blunder',[{k:'grenade',n:4},{k:'bomb',n:3}]],['Mott','rifle',205,'musket',[{k:'grenade',n:2}]],['Hook','rifle',275,'musket',[{k:'grenade',n:2}]]]){const t=face(token(n,'Reapers',u,x,640,false,w),up);t.inv=[t.inv[0],null,...k,null,null].slice(0,6)}
  face(token('Pell','Goldbank','rifle',200,560),dn);face(token('Bryn','Goldbank','rifle',280,560),dn);
  face(token('Master Corwin','Goldbank','civ',90,560,false,'pistol'),0);face(token('Ines','Goldbank','civ',380,580,false,null),Math.PI);
  face(token('Ansel','Goldbank','civ',120,388,false,null),dn);face(token('Hesta','Goldbank','civ',360,388,false,null),dn);
