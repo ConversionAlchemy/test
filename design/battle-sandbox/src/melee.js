@@ -26,11 +26,11 @@ function meleeTick(){for(const b of bodies){if(b.type!=='token')continue;
   if(b.slashT){b.slashT++;const p=(b.slashT-1)/5;b.swA=b.slashDir*(1.3-2.6*p);if(b.slashT>=6){b.slashT=0;b.swA=0}}
   if(jabHold&&sel.has(b)&&b.held&&b.held.k==='sword'&&!EM)jab(b);
   if(b.ai&&aiOn&&!b.direct&&!sel.has(b)&&b.status==='free'&&offShield(b)){const tg=b.ai.tg&&b.ai.tg.status==='free'?b.ai.tg:null,td=tg?Math.hypot(tg.x-b.x,tg.y-b.y):1e9,gun=tg&&tg.held&&WP[tg.held.k].gun,mr=b.held&&MREACH[b.held.k]||0;
-   b.shUp=!!tg&&!b.jab&&!b.slashT&&(gun?td>mr+6:td<44&&(b.atkT||0)<tick+4)}
+   const up=!!tg&&!b.jab&&!b.slashT&&(gun?td>mr+6:td<44&&(b.atkT||0)<tick+4)&&(!b.held||!WP[b.held.k].gun||b.ai.cd>20||!(b.held.ammo>0));if(b.shUp&&!up)b.shDown=tick;b.shUp=up}
   else if(b.status!=='free')b.shUp=false}}
 {const u0=update;update=function(){u0();meleeTick()}}
 window.addEventListener('keydown',e=>{if(e.repeat||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.key.toLowerCase()!=='x')return;for(const b of sel)if(b.type==='token'&&b.status==='free'&&offShield(b)){b.shUp=true;rustle(b,.8)}});
-window.addEventListener('keyup',e=>{if(e.key.toLowerCase()==='x')for(const b of bodies)if(b.type==='token'&&(b.direct||sel.has(b)))b.shUp=false});
+window.addEventListener('keyup',e=>{if(e.key.toLowerCase()==='x')for(const b of bodies)if(b.type==='token'&&(b.direct||sel.has(b))&&b.shUp){b.shUp=false;b.shDown=tick}});
 // walking over shot refills your pistol; walking over a shield takes it if it beats yours (iron over wood, then the less damaged), dropping the old one
 function pitPick(){const val=it=>(it.k==='shield'?100:50)-Object.values(it.dmg||{}).reduce((s,v)=>s+v,0);
  for(const t of bodies){if(t.type!=='token'||t.status!=='free'||!t.inv)continue;

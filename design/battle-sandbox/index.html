@@ -1724,7 +1724,9 @@ function srcInfo(b){if(!b||!bodies.includes(b))return null;const gnd=b.type==='w
   if(k==='grenade'||k==='bomb'||k==='sbomb')return{kind:k,sp,throw:1,hold:400,spread:.05,range:k==='bomb'?60:140};if(w.melee)return{kind:k,sp,throw:1,hold:k==='sword'||k==='sspear'?1e9:650,heat:k==='sspear',spread:b.unit==='cmd'?.025:.04,range:(k==='sword'?110:240)*(b.unit==='cmd'?1.4:1)}}
  return null}
 const gauss=()=>{const u=Math.random()||1e-9,v=Math.random();return Math.max(-2.2,Math.min(2.2,Math.sqrt(-2*Math.log(u))*Math.cos(6.283*v)))};
-function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.neutral)b.neutral=false;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}cmdFollow(b,x,y);boltShot=null;raiseAlarm();const H=slot(b);if(!inf.throw){const h=H;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');if(b.type==='token')say(b,'Empty!',true)}return}h.ammo--}const tok=b.type==='token',a0=tok?aimA(b,x,y):Math.atan2(y-b.y,x-b.x);
+// sight reaches across a whole arena; elsewhere 230 px
+const visR=()=>curMap==='pits'?640:VR;
+function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.type==='token'&&inf.kind&&WP[inf.kind]&&WP[inf.kind].gun){if(b.shUp){if(b.ai&&!b.direct){b.shUp=false;b.shDown=tick}return}if(tick-(b.shDown||-99)<15)return}if(b.neutral)b.neutral=false;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}cmdFollow(b,x,y);boltShot=null;raiseAlarm();const H=slot(b);if(!inf.throw){const h=H;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');if(b.type==='token')say(b,'Empty!',true)}return}h.ammo--}const tok=b.type==='token',a0=tok?aimA(b,x,y):Math.atan2(y-b.y,x-b.x);
  if(tok)turnTo(b,a0,true);else reshape(b,a0);
  const c=Math.cos(a0),s=Math.sin(a0),sd=tok?sideOf(b):0;
  if(inf.throw&&b.type==='weapon'){const k=b.kind,a=a0+gauss()*inf.spread,sp=k==='grenade'||k==='sbomb'?15:k==='bomb'?8:k==='sspear'?27:30;let v=sp;
@@ -1984,7 +1986,7 @@ const roomReach=(b,r)=>!!(ROOMS&&ROOMS.rc[r]&&ROOMS.rc[r].has(compAt(b.x,b.y)));
 // senses: a cone of sight that walls, doors and (when anyone is low) furniture block; noises carry through walls
 const VR=230;
 function losClear(ax,ay,bx,by,aLow,bLow){const dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy),n=Math.ceil(L/2);for(let i=2;i<n-1;i++){const X=Math.round(ax+dx*i/n),Y=Math.round(ay+dy*i/n);if(X<0||Y<0||X>=W||Y>=H)return false;const j=Y*W+X;if(sol[j]||slabG[j])return false;if(OBJ[j]&&(aLow||bLow&&L*(1-i/n)<26))return false}return true}
-function canSee(a,b){const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>VR*(b.crouch?.6:1))return false;if(d>22&&Math.abs(Math.atan2(Math.sin(Math.atan2(dy,dx)-a.ang),Math.cos(Math.atan2(dy,dx)-a.ang)))>.96)return false;return losClear(a.x,a.y,b.x,b.y,!!a.crouch,!!b.crouch)}
+function canSee(a,b){const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>visR()*(b.crouch?.6:1))return false;if(d>22&&Math.abs(Math.atan2(Math.sin(Math.atan2(dy,dx)-a.ang),Math.cos(Math.atan2(dy,dx)-a.ang)))>.96)return false;return losClear(a.x,a.y,b.x,b.y,!!a.crouch,!!b.crouch)}
 let NZ=[],RINGS=[];
 function hear(x,y,L,src,tag){if(!aiOn)return;const z={x,y,L,src,tag,t:tick};NZ.push(z);ringFor(z)}
 function heardBy(b,z){const d=Math.hypot(z.x-b.x,z.y-b.y);if(d>z.L)return false;let w=0;if(roomAt(b.x,b.y)!==roomAt(z.x,z.y)){const n=Math.ceil(d/2);for(let i=1;i<n;i++){const j=Math.round(b.y+(z.y-b.y)*i/n)*W+Math.round(b.x+(z.x-b.x)*i/n);if(sol[j]||slabG[j])w+=2}}return z.L-d-w*4>0}
@@ -2141,7 +2143,7 @@ function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Ar
 // a unit under direct control shows what it can see: the cone, cut by walls and, when crouched, by furniture
 // what a unit sees: a cone plus a small circle; rays look a little way into walls but never out the other side
 function sight(b,nr,f){const low=!!b.crouch,cast=(a,R)=>{const c=Math.cos(a),s=Math.sin(a);let wd=0;for(let r=0;r<R;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X,wl=sol[j]||slabG[j];if(wd&&!wl)return;f((Y>>1)*BW+(X>>1));if(wl&&(wd+=2)>8)return;if(low&&OBJ[j]&&r>5)return}};
- for(let i=0;i<=nr;i++)cast(b.ang-.96+1.92*i/nr,VR);for(let i=0;i<24;i++)cast(i/24*6.283,22)}
+ for(let i=0;i<=nr;i++)cast(b.ang-.96+1.92*i/nr,visR());for(let i=0;i<24;i++)cast(i/24*6.283,22)}
 // a unit under direct control shows what it sees; what its allies see stays lighter than the rest
 let DSV=null,DSA=null;function sightTick(){const me=EM?[]:bodies.filter(b=>b.direct&&b.type==='token'&&b.status==='free');if(!me.length){DSV=null;return}if(!DSV||DSV.length!==NB){DSV=new Float32Array(NB);DSA=new Float32Array(NB)}if(VT.length!==NB)VT=new Float32Array(NB);DSV.fill(0);DSA.fill(0);
  for(const b of me)sight(b,160,q=>DSV[q]=1);const t=teamOf(me[0]);for(const o of bodies)if(o.type==='token'&&o.status==='free'&&!o.direct&&/self|ally/.test(relOf(t,teamOf(o))))sight(o,60,q=>DSA[q]=1);blurMask(DSV);blurMask(DSA)}
@@ -2359,11 +2361,11 @@ function meleeTick(){for(const b of bodies){if(b.type!=='token')continue;
   if(b.slashT){b.slashT++;const p=(b.slashT-1)/5;b.swA=b.slashDir*(1.3-2.6*p);if(b.slashT>=6){b.slashT=0;b.swA=0}}
   if(jabHold&&sel.has(b)&&b.held&&b.held.k==='sword'&&!EM)jab(b);
   if(b.ai&&aiOn&&!b.direct&&!sel.has(b)&&b.status==='free'&&offShield(b)){const tg=b.ai.tg&&b.ai.tg.status==='free'?b.ai.tg:null,td=tg?Math.hypot(tg.x-b.x,tg.y-b.y):1e9,gun=tg&&tg.held&&WP[tg.held.k].gun,mr=b.held&&MREACH[b.held.k]||0;
-   b.shUp=!!tg&&!b.jab&&!b.slashT&&(gun?td>mr+6:td<44&&(b.atkT||0)<tick+4)}
+   const up=!!tg&&!b.jab&&!b.slashT&&(gun?td>mr+6:td<44&&(b.atkT||0)<tick+4)&&(!b.held||!WP[b.held.k].gun||b.ai.cd>20||!(b.held.ammo>0));if(b.shUp&&!up)b.shDown=tick;b.shUp=up}
   else if(b.status!=='free')b.shUp=false}}
 {const u0=update;update=function(){u0();meleeTick()}}
 window.addEventListener('keydown',e=>{if(e.repeat||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.key.toLowerCase()!=='x')return;for(const b of sel)if(b.type==='token'&&b.status==='free'&&offShield(b)){b.shUp=true;rustle(b,.8)}});
-window.addEventListener('keyup',e=>{if(e.key.toLowerCase()==='x')for(const b of bodies)if(b.type==='token'&&(b.direct||sel.has(b)))b.shUp=false});
+window.addEventListener('keyup',e=>{if(e.key.toLowerCase()==='x')for(const b of bodies)if(b.type==='token'&&(b.direct||sel.has(b))&&b.shUp){b.shUp=false;b.shDown=tick}});
 // walking over shot refills your pistol; walking over a shield takes it if it beats yours (iron over wood, then the less damaged), dropping the old one
 function pitPick(){const val=it=>(it.k==='shield'?100:50)-Object.values(it.dmg||{}).reduce((s,v)=>s+v,0);
  for(const t of bodies){if(t.type!=='token'||t.status!=='free'||!t.inv)continue;
@@ -3066,6 +3068,18 @@ function crowdDraw(){const w=ccv.width,h=ccv.height,g=ccv.getContext('2d'),im=g.
 {const r0=reset;reset=function(){r0();setTimeout(crowdBuild,0)}}
 {const a0=applyCam;applyCam=function(){a0();if(CRW)crowdPlace()}}
 {const u0=update;update=function(){u0();crowdTick()}}
+// Rotating pillars: each listed pillar carries one arm of wall that swings a quarter turn clockwise on a shared 18 s cycle while the clock runs; 2 s of grinding dust warn first
+const MECH={pits:[[6,8,0],[13,13,2],[13,8,1],[6,13,3]]},MDIR=[[1,0],[0,1],[-1,0],[0,-1]],MCYC=1080,MWARN=120,MFLOOR='earth.dirt.worn';
+let MECHS=null,MT=0;
+const mechCell=(m,d)=>[m.x+MDIR[d][0],m.y+MDIR[d][1]];
+function mechSet(m,d,on){const[cx,cy]=mechCell(m,d),s=srcNow(),k=on?m.k:MFLOOR;s[cy][cx]=k;paintCell(cx,cy,k);
+ if(on)for(const b of bodies){if(b.type!=='token'&&b.type!=='weapon'||(b.x/T|0)!==cx||(b.y/T|0)!==cy)continue;b.x+=MDIR[d][0]*18;b.y+=MDIR[d][1]*18;b.vx+=MDIR[d][0];b.vy+=MDIR[d][1]}}
+function mechBuild(){MECHS=null;MT=0;const L=MECH[curMap];if(!L)return;MECHS=L.map(([x,y,d])=>({x,y,d,k:map[y][x]}));for(const m of MECHS)mechSet(m,m.d,true);solDirty=true;NAVD=true}
+function mechTick(){if(!MECHS||!aiOn||EM)return;MT++;const ph=MT%MCYC;
+ if(ph>=MCYC-MWARN&&ph%20===0){for(const m of MECHS){const[cx,cy]=mechCell(m,(m.d+1)%4);puff(cx,cy,m.k)}sfx('creak')}
+ if(ph===0){for(const m of MECHS){mechSet(m,m.d,false);m.d=(m.d+1)%4;mechSet(m,m.d,true)}solDirty=true;NAVD=true;fxDirty=true;sfx('thunk');shake=Math.max(shake,2)}}
+{const r0=reset;reset=function(){r0();setTimeout(mechBuild,0)}}
+{const u0=update;update=function(){u0();mechTick()}}
 // screen: map with a brass clock corner, tool panel on the right, popups for occasional work
 const UI={tool:LS.get('bs.tool','hand'),st:LS.get('bs.st','units'),tt:'tiles',drop:null,pop:null};let PAUSED=true;const MNAME={};
 const UKEY={hand:'Esc',spawn:'B',tile:'N',paint:'P',sign:'L',teth:'K',wand:'M',vac:'U',sponge:'O'};

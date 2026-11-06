@@ -1092,7 +1092,9 @@ function srcInfo(b){if(!b||!bodies.includes(b))return null;const gnd=b.type==='w
   if(k==='grenade'||k==='bomb'||k==='sbomb')return{kind:k,sp,throw:1,hold:400,spread:.05,range:k==='bomb'?60:140};if(w.melee)return{kind:k,sp,throw:1,hold:k==='sword'||k==='sspear'?1e9:650,heat:k==='sspear',spread:b.unit==='cmd'?.025:.04,range:(k==='sword'?110:240)*(b.unit==='cmd'?1.4:1)}}
  return null}
 const gauss=()=>{const u=Math.random()||1e-9,v=Math.random();return Math.max(-2.2,Math.min(2.2,Math.sqrt(-2*Math.log(u))*Math.cos(6.283*v)))};
-function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.neutral)b.neutral=false;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}cmdFollow(b,x,y);boltShot=null;raiseAlarm();const H=slot(b);if(!inf.throw){const h=H;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');if(b.type==='token')say(b,'Empty!',true)}return}h.ammo--}const tok=b.type==='token',a0=tok?aimA(b,x,y):Math.atan2(y-b.y,x-b.x);
+// sight reaches across a whole arena; elsewhere 230 px
+const visR=()=>curMap==='pits'?640:VR;
+function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.type==='token'&&inf.kind&&WP[inf.kind]&&WP[inf.kind].gun){if(b.shUp){if(b.ai&&!b.direct){b.shUp=false;b.shDown=tick}return}if(tick-(b.shDown||-99)<15)return}if(b.neutral)b.neutral=false;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}cmdFollow(b,x,y);boltShot=null;raiseAlarm();const H=slot(b);if(!inf.throw){const h=H;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');if(b.type==='token')say(b,'Empty!',true)}return}h.ammo--}const tok=b.type==='token',a0=tok?aimA(b,x,y):Math.atan2(y-b.y,x-b.x);
  if(tok)turnTo(b,a0,true);else reshape(b,a0);
  const c=Math.cos(a0),s=Math.sin(a0),sd=tok?sideOf(b):0;
  if(inf.throw&&b.type==='weapon'){const k=b.kind,a=a0+gauss()*inf.spread,sp=k==='grenade'||k==='sbomb'?15:k==='bomb'?8:k==='sspear'?27:30;let v=sp;
@@ -1352,7 +1354,7 @@ const roomReach=(b,r)=>!!(ROOMS&&ROOMS.rc[r]&&ROOMS.rc[r].has(compAt(b.x,b.y)));
 // senses: a cone of sight that walls, doors and (when anyone is low) furniture block; noises carry through walls
 const VR=230;
 function losClear(ax,ay,bx,by,aLow,bLow){const dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy),n=Math.ceil(L/2);for(let i=2;i<n-1;i++){const X=Math.round(ax+dx*i/n),Y=Math.round(ay+dy*i/n);if(X<0||Y<0||X>=W||Y>=H)return false;const j=Y*W+X;if(sol[j]||slabG[j])return false;if(OBJ[j]&&(aLow||bLow&&L*(1-i/n)<26))return false}return true}
-function canSee(a,b){const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>VR*(b.crouch?.6:1))return false;if(d>22&&Math.abs(Math.atan2(Math.sin(Math.atan2(dy,dx)-a.ang),Math.cos(Math.atan2(dy,dx)-a.ang)))>.96)return false;return losClear(a.x,a.y,b.x,b.y,!!a.crouch,!!b.crouch)}
+function canSee(a,b){const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>visR()*(b.crouch?.6:1))return false;if(d>22&&Math.abs(Math.atan2(Math.sin(Math.atan2(dy,dx)-a.ang),Math.cos(Math.atan2(dy,dx)-a.ang)))>.96)return false;return losClear(a.x,a.y,b.x,b.y,!!a.crouch,!!b.crouch)}
 let NZ=[],RINGS=[];
 function hear(x,y,L,src,tag){if(!aiOn)return;const z={x,y,L,src,tag,t:tick};NZ.push(z);ringFor(z)}
 function heardBy(b,z){const d=Math.hypot(z.x-b.x,z.y-b.y);if(d>z.L)return false;let w=0;if(roomAt(b.x,b.y)!==roomAt(z.x,z.y)){const n=Math.ceil(d/2);for(let i=1;i<n;i++){const j=Math.round(b.y+(z.y-b.y)*i/n)*W+Math.round(b.x+(z.x-b.x)*i/n);if(sol[j]||slabG[j])w+=2}}return z.L-d-w*4>0}
@@ -1509,7 +1511,7 @@ function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Ar
 // a unit under direct control shows what it can see: the cone, cut by walls and, when crouched, by furniture
 // what a unit sees: a cone plus a small circle; rays look a little way into walls but never out the other side
 function sight(b,nr,f){const low=!!b.crouch,cast=(a,R)=>{const c=Math.cos(a),s=Math.sin(a);let wd=0;for(let r=0;r<R;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X,wl=sol[j]||slabG[j];if(wd&&!wl)return;f((Y>>1)*BW+(X>>1));if(wl&&(wd+=2)>8)return;if(low&&OBJ[j]&&r>5)return}};
- for(let i=0;i<=nr;i++)cast(b.ang-.96+1.92*i/nr,VR);for(let i=0;i<24;i++)cast(i/24*6.283,22)}
+ for(let i=0;i<=nr;i++)cast(b.ang-.96+1.92*i/nr,visR());for(let i=0;i<24;i++)cast(i/24*6.283,22)}
 // a unit under direct control shows what it sees; what its allies see stays lighter than the rest
 let DSV=null,DSA=null;function sightTick(){const me=EM?[]:bodies.filter(b=>b.direct&&b.type==='token'&&b.status==='free');if(!me.length){DSV=null;return}if(!DSV||DSV.length!==NB){DSV=new Float32Array(NB);DSA=new Float32Array(NB)}if(VT.length!==NB)VT=new Float32Array(NB);DSV.fill(0);DSA.fill(0);
  for(const b of me)sight(b,160,q=>DSV[q]=1);const t=teamOf(me[0]);for(const o of bodies)if(o.type==='token'&&o.status==='free'&&!o.direct&&/self|ally/.test(relOf(t,teamOf(o))))sight(o,60,q=>DSA[q]=1);blurMask(DSV);blurMask(DSA)}
