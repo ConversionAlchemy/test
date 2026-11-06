@@ -1,6 +1,6 @@
 // Arena crowd: two raised rows of civilians just outside the map wall, fading into the dark, drawn on their own canvas (no physics, AI or selection).
 // Heads turn toward the nearest fighter, or between two close ones, rippling through the rows; a death makes nearby rows jump.
-const CROWDSET={pits:'sparse'},CM=72,CROWS=2,CANG=32,CROFF=[15,31];
+const CROWDSET={pits:'sparse',ball:'sparse'},CM=72,CROWS=2,CANG=32,CROFF=[15,31];
 let CRW=null;
 const ccv=document.createElement('canvas');ccv.style.cssText='position:absolute;image-rendering:pixelated;pointer-events:none';
 {const st=$('stage'),v=st.parentElement;v.style.position='relative';v.insertBefore(ccv,st)}

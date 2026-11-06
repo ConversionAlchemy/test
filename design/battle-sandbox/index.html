@@ -688,7 +688,7 @@ let HALFF='dirt';
 function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;key=modK(key);map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(undAt(cx,cy)||HALFF,cx,cy):null,m=WMAT[bk]||0,hpK=CATN[bk]?mprop(CATN[bk][0],CATN[bk][1]).hp:(MAT[m]||{}).hp,gk=CATN[bk]&&CATN[bk][0]==='Stone'&&CATN[bk][1]==='gold'?1:0,ud=m&&undAt(cx,cy)?tilePix(undAt(cx,cy),cx,cy):null;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&(hv==='H'?x>=T/2:hv==='N'?y>=T/2:y<T/2),c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=NODK.has(bk)?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
-let curMap='pits';
+let curMap='ball';
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
 function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
@@ -1678,8 +1678,8 @@ function render(){
  for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}
  for(const b of bodies)if((b.stuck&&!b.att)||b.fallen)drawBody(b);
- {const tp=TOPS||OUTD;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,NOD[j]?.72:.5);else if(k===2)c=mul(c,NOD[j]?1.05:1.1);if(!tp){const d=DS[j],d0=DS0?DS0[j]:d;let f=DF[Math.min(9,curMap==='pits'?d0>>1:d0)];if(d<d0)f=Math.max(f,d===1?.6:d===2?.22:0);c=mul(c,f)}else if(OUTD&&!TOPS)c=mul(c,1-(1-DF[Math.min(9,DS0?DS0[j]:DS[j])])*.35);if(SHN[j]&&(DS[j]<4||tp))c=shine(c,X,Y,SHN[j]);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));if(EDGEF){const ed=Math.min(X,Y,W-1-X,H-1-Y);if(ed<16)c=mul(c,Math.pow(ed/16,1.3))}out[j]=c}}
- if(VIB.length)vibCells();
+ {const tp=TOPS||OUTD;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,NOD[j]?.72:.5);else if(k===2)c=mul(c,NOD[j]?1.05:1.1);if(!tp){const d=DS[j],d0=DS0?DS0[j]:d;let f=DF[Math.min(9,arena()?d0>>1:d0)];if(d<d0)f=Math.max(f,d===1?.6:d===2?.22:0);c=mul(c,f)}else if(OUTD&&!TOPS)c=mul(c,1-(1-DF[Math.min(9,DS0?DS0[j]:DS[j])])*.35);if(SHN[j]&&(DS[j]<4||tp))c=shine(c,X,Y,SHN[j]);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));if(EDGEF){const ed=Math.min(X,Y,W-1-X,H-1-Y);if(ed<16)c=mul(c,Math.pow(ed/16,1.3))}out[j]=c}}
+ if(VIB.length)vibCells();if(curMap==='ball')ballDraw();
  for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!inDrag(b))drawBody(b);
  const hot=p=>p.life!==undefined||(p.em!==undefined&&p.em/p.em0>.2),rest=p=>!hot(p)&&Math.hypot(p.vx||0,p.vy||0)<.3;
  for(const p of parts){if(!rest(p))continue;const X=Math.round(p.x),Y=Math.round(p.y);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=p.c}
@@ -1788,7 +1788,7 @@ function doors(){for(const d of bodies)if(d.type==='slab'&&!d.fallen&&d.ang!==d.
 function slabTurn(){const d=(keys.has('e')?1:0)-(keys.has('q')?1:0);if(!d)return;for(const b of sel)if(b.type==='slab'&&b.free&&!b.fallen&&!inDrag(b))spinTo(b,b.rot*Math.PI/2+(b.spin||0)+d*.025)}
 // dash: Shift, along WASD or facing; lighter units go further (tiles). One dash (two for commandos) per 10 s
 const DASH={civ:2.2,home:2.2,rifle:1.9,guard:1.4,shock:1.1,cmd:2.5},DCD=600,DCDME=72;
-function dashUnit(b,x,y){if(b.type!=='token'||b.status!=='free'||b.pinned||inDrag(b)||b.dash||b.crouch)return false;if(b.dashT&&tick>=b.dashT){b.dashN=0;b.dashT=0}if((b.dashN||0)>=(b.unit==='cmd'?2:1))return false;
+function dashUnit(b,x,y){if(b.type!=='token'||b.stunT>tick||b.status!=='free'||b.pinned||inDrag(b)||b.dash||b.crouch)return false;if(b.dashT&&tick>=b.dashT){b.dashN=0;b.dashT=0}if((b.dashN||0)>=(b.unit==='cmd'?2:1))return false;
  const l=Math.hypot(x,y)||1;b.dash={x:x/l,y:y/l,left:(DASH[b.unit]||1.5)*16};b.dashN=(b.dashN||0)+1;if(!b.dashT){b.dcd=!aiOn||teamOf(b)===aiMe?DCDME:DCD;b.dashT=tick+b.dcd}b.glide=null;return true}
 function dbar(b,S){let e=b.lab.querySelector('.db');const on=b.dashT>tick&&b.status!=='dead';if(!on){if(e)e.remove();return}if(!e){e=document.createElement('div');e.className='db';e.append(document.createElement('i'));b.lab.append(e)}e.style.width=7*S+'px';e.style.height=Math.max(1,S|0)+'px';e.firstChild.style.width=(100*(1-(b.dashT-tick)/(b.dcd||DCD)))+'%'}
 function dash(){const dx=(keys.has('d')?1:0)-(keys.has('a')?1:0),dy=(keys.has('s')?1:0)-(keys.has('w')?1:0);let any=false;
@@ -1803,7 +1803,7 @@ function aiDodge(){for(const w of bodies){if(w.type!=='weapon'||!w.thrown||w.stu
   const mx=px-w.vx*t,my=py-w.vy*t;if(Math.hypot(mx,my)>9)continue;(w.seen||(w.seen=new Set()));if(w.seen.has(b.id))continue;w.seen.add(b.id);if(Math.random()>(DODGE[b.unit]||.3))continue;
   let sx=-w.vy,sy=w.vx;if(sx*mx+sy*my<0){sx=-sx;sy=-sy}if(dashUnit(b,sx,sy))sfx('dash')}}}
 function wasd(){slabTurn();let dx=(keys.has('d')?1:0)-(keys.has('a')?1:0),dy=(keys.has('s')?1:0)-(keys.has('w')?1:0);if(!dx&&!dy)return;const l=Math.hypot(dx,dy);dx/=l;dy/=l;let moved=0,arm=0,gx=0,gy=0;
- for(const b of sel){if(b.type!=='token'||b.status==='dead'||inDrag(b)||b.pinned||cmdMode(b))continue;const u=UNITS[b.unit],hv=b.held&&(b.held.k==='rod'||b.held.k==='prod'),el=b.unit==='guard'||b.unit==='shock'||b.unit==='cmd',sp=.85*(1-u.arm*.07)*(!hv?1:b.unit==='civ'?(charge?.3:.55):el?(charge?.6:.92):(charge?.42:.8))*(b.pushT>=tick-2?(u.arm<=1?[.75,.45,.3]:[.85,.7,.55])[(b.pushM||1)-1]:1);b.glide=null;const cr=(b.crouch?.4:1)*(b.shUp?.48:1),md=moveToward(b,b.x+dx*sp*cr,b.y+dy*sp*cr);if(md>.1){moved=Math.max(moved,md);b.mv=6;arm=Math.max(arm,u.arm);gx=b.x;gy=b.y}}
+ for(const b of sel){if(b.type!=='token'||b.status==='dead'||inDrag(b)||b.pinned||cmdMode(b)||b.stunT>tick)continue;const u=UNITS[b.unit],hv=b.held&&(b.held.k==='rod'||b.held.k==='prod'),el=b.unit==='guard'||b.unit==='shock'||b.unit==='cmd',sp=.85*(1-u.arm*.07)*(!hv?1:b.unit==='civ'?(charge?.3:.55):el?(charge?.6:.92):(charge?.42:.8))*(b.pushT>=tick-2?(u.arm<=1?[.75,.45,.3]:[.85,.7,.55])[(b.pushM||1)-1]:1);b.glide=null;const cr=(b.crouch?.4:1)*(b.shUp?.48:1),md=moveToward(b,b.x+dx*sp*cr,b.y+dy*sp*cr);if(md>.1){moved=Math.max(moved,md);b.mv=6;arm=Math.max(arm,u.arm);gx=b.x;gy=b.y}}
  for(const b of sel)if(b.type==='weapon'&&srcInfo(b)&&!inDrag(b)&&Math.hypot(b.vx,b.vy)<1){moveToward(b,b.x+dx*.85,b.y+dy*.85);b.stuck=false}
  if(moved){stepAcc+=moved;if(stepAcc>=28+Math.random()*3){stepAcc=0;sfx('st_'+groundEl(gx,gy));if(arm)sfx('jingle')}}}
 const STEP={marble:'marble',stone:'stone',wood:'wood',metal:'metal',cloth:'carpet',soil:'dirt',grass:'grass'};
@@ -1987,7 +1987,7 @@ const roomReach=(b,r)=>!!(ROOMS&&ROOMS.rc[r]&&ROOMS.rc[r].has(compAt(b.x,b.y)));
 // senses: a cone of sight that walls, doors and (when anyone is low) furniture block; noises carry through walls
 const VR=230;
 function losClear(ax,ay,bx,by,aLow,bLow){const dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy),n=Math.ceil(L/2);for(let i=2;i<n-1;i++){const X=Math.round(ax+dx*i/n),Y=Math.round(ay+dy*i/n);if(X<0||Y<0||X>=W||Y>=H)return false;const j=Y*W+X;if(sol[j]||slabG[j])return false;if(OBJ[j]&&(aLow||bLow&&L*(1-i/n)<26))return false}return true}
-const arena=()=>curMap==='pits';
+const arena=()=>curMap==='pits'||curMap==='ball';
 function canSee(a,b){if(arena())return losClear(a.x,a.y,b.x,b.y,!!a.crouch,!!b.crouch);const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>visR()*(b.crouch?.6:1))return false;if(d>22&&Math.abs(Math.atan2(Math.sin(Math.atan2(dy,dx)-a.ang),Math.cos(Math.atan2(dy,dx)-a.ang)))>.96)return false;return losClear(a.x,a.y,b.x,b.y,!!a.crouch,!!b.crouch)}
 let NZ=[],RINGS=[];
 function hear(x,y,L,src,tag){if(!aiOn)return;const z={x,y,L,src,tag,t:tick};NZ.push(z);ringFor(z)}
@@ -2068,7 +2068,7 @@ function aiShoot(b,tg,a=b.ai){const td=Math.hypot(tg.x-b.x,tg.y-b.y);turnTo(b,Ma
 function aiWander(b,r){const c=ROOMS.cen[r];if(!c)return null;const cp=compAt(b.x,b.y),ok=(x,y)=>{const m=nodeAt(x,y);return m>=0&&NV[m]&&NCOMP[m]===cp&&roomAt(x,y)===r};
  for(let k=0;k<20;k++){const x=c[0]+(Math.random()-.5)*Math.sqrt(c[2])*T,y=c[1]+(Math.random()-.5)*Math.sqrt(c[2])*T;if(ok(x,y)&&(k>12||!bodies.some(o=>o!==b&&o.type==='token'&&o.status!=='dead'&&Math.hypot((o.ai&&o.ai.spot?o.ai.spot[0]:o.x)-x,(o.ai&&o.ai.spot?o.ai.spot[1]:o.y)-y)<16)))return[x,y]}
  const tl=(ROOMS.tiles[r]||[]).slice().sort(()=>Math.random()-.5);for(const t of tl){const x=(t%CW)*T+8,y=(t/CW|0)*T+8;if(ok(x,y))return[x,y];for(let k=0;k<6;k++){const X=x+(Math.random()-.5)*14,Y=y+(Math.random()-.5)*14;if(ok(X,Y))return[X,Y]}}return null}
-function aiTick(){if(!aiOn)return;if(!ROOMS||ROOMS.R.length!==CW*CH||(NAVD||ROOMS.nv!==NAVV)&&tick-ROOMS.t>=15||tick-ROOMS.t>300)aiRooms();
+function aiTick(){if(!aiOn||curMap==='ball')return;if(!ROOMS||ROOMS.R.length!==CW*CH||(NAVD||ROOMS.nv!==NAVV)&&tick-ROOMS.t>=15||tick-ROOMS.t>300)aiRooms();
  for(const b of bodies){if(aiUnit(b)&&!b.ai&&b.status!=='dead')aiInit(b);if(b.ai&&!aiUnit(b))b.ai=null}
  const us=bodies.filter(b=>b.ai&&b.status==='free'&&!inDrag(b));if(tick%30===0)shareTick();for(const b of bodies)if(b.type==='token'&&!b.ai&&teamOf(b)===aiMe&&b.status==='free'&&!inDrag(b)){if(bombFlee(b,bodies.filter(o=>o.type==='token'&&o.status==='free'&&foe(b,o)&&!o.fogH)))continue;ordTick(b);if(!b.direct)autoFire(b)}if(tick%6===0)for(const b of us)aiSense(b);
  if(tick%30===0){const byT={};for(const b of us)(byT[teamOf(b)]||(byT[teamOf(b)]=[])).push(b);for(const g of Object.values(byT))aiShare(g.filter(b=>GS[teamOf(b)]&&GS[teamOf(b)].mode!=='calm'));aiTeams()}
@@ -2284,7 +2284,7 @@ const btn=(t,f)=>{const b=document.createElement('button');b.textContent=t;b.onc
 
 
 const TITLE={bank:'Goldbank · Back room',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard',council:'Sanctis · Council chamber',road:'Portsbridge · Old road',alley:'Great Keys · Guild alley',stock:"Emperor's Dock · Stockyard"};
-btn('Reset',()=>reset());{const sb=btn('Slow-mo (Z)',()=>{slowMo=!slowMo;sb.classList.toggle('on',slowMo)});window.toggleSlow=()=>sb.onclick();setTimeout(()=>bar.appendChild(sb),0)}{const ab=btn('AI',()=>{aiOn=!aiOn;aiMe=null;ab.classList.toggle('on',aiOn);if(!aiOn)for(const b of bodies){b.fogH=false;b.ai=null}aiSetup()})}{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"],['blast','Fluoria blast yard'],['pits','The Pits']]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
+btn('Reset',()=>reset());{const sb=btn('Slow-mo (Z)',()=>{slowMo=!slowMo;sb.classList.toggle('on',slowMo)});window.toggleSlow=()=>sb.onclick();setTimeout(()=>bar.appendChild(sb),0)}{const ab=btn('AI',()=>{aiOn=!aiOn;aiMe=null;ab.classList.toggle('on',aiOn);if(!aiOn)for(const b of bodies){b.fogH=false;b.ai=null}aiSetup()})}{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"],['blast','Fluoria blast yard'],['pits','The Pits'],['ball','Pit Ball']]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
 
 function icon(px,scale){const c=document.createElement('canvas');c.width=28;c.height=20;const g=c.getContext('2d'),id=g.createImageData(28,20),u=new Uint32Array(id.data.buffer);
  let mx=0,my=0;for(const p of px){mx+=p[0];my+=p[1]}mx/=px.length;my/=px.length;
@@ -3045,7 +3045,7 @@ async function gamesPop(){const L=mk('div','glist'),nm=tbox((TITLE[curMap]||'Gam
  openPop('games','Games',[r,L]);fill()}
 // Arena crowd: two raised rows of civilians just outside the map wall, fading into the dark, drawn on their own canvas (no physics, AI or selection).
 // Heads turn toward the nearest fighter, or between two close ones, rippling through the rows; a death makes nearby rows jump.
-const CROWDSET={pits:'sparse'},CM=72,CROWS=2,CANG=32,CROFF=[15,31];
+const CROWDSET={pits:'sparse',ball:'sparse'},CM=72,CROWS=2,CANG=32,CROFF=[15,31];
 let CRW=null;
 const ccv=document.createElement('canvas');ccv.style.cssText='position:absolute;image-rendering:pixelated;pointer-events:none';
 {const st=$('stage'),v=st.parentElement;v.style.position='relative';v.insertBefore(ccv,st)}
@@ -3091,6 +3091,67 @@ function mechTick(){if(!MECHS||!aiOn||EM){VIB=[];return}MT++;const ph=MT%MCYC;
 function vibCells(){const dx=(tick>>1)&1?1:-1;for(const[cx,cy]of VIB){for(let y=0;y<T;y++){const r=(cy*T+y)*W+cx*T,row=out.slice(r,r+T);for(let x=0;x<T;x++){const sx=x-dx;if(sx>=0&&sx<T)out[r+x]=row[sx]}}}}
 {const r0=reset;reset=function(){r0();setTimeout(mechBuild,0)}}
 {const u0=update;update=function(){u0();mechTick()}}
+// Pit Ball: brutal three-a-side futsal. Pitch runs top to bottom with a goal pocket cut 3 px into each end wall;
+// a ball that rolls into a pocket scores. Kick with a charged click near the ball, dash to tackle or to blast it, no weapons.
+MAPSZ.ball=[20,26];TITLE.ball='Pit Ball';ENVSET.ball='in';
+const BG0=8,BG1=12,BR=2.5,BKMAX=700,BTEAM=['Havenport','Reapers'],BCOL=[rgb(214,58,48),rgb(60,120,226)],BNAME=['Red','Blue'];
+var BALL=null,BSC=[0,0],BWAIT=0,BKICK=null;// var: the board draws before this file runs
+NBM.ball=()=>{const h=(x,y)=>((x*73856093^y*19349663)>>>0);paintAll((cx,cy)=>cx===0||cy===0||cx===19||cy===25?'stone.grey.rubble.w~'+(1+h(cx,cy)%3):h(cx,cy)%3?'earth.dirt.worn':'earth.dirt.plain')};
+NUM.ball=()=>{FIGHT.ball=[BTEAM];BSC=[0,0];
+ // goal pockets: the last 3 px of the end walls across the mouth are hollowed out and netted
+ for(const[cy,y0]of[[0,T-3],[25,0]])for(let X=BG0*T;X<BG1*T;X++)for(let Y=cy*T+y0;Y<cy*T+y0+3;Y++){const j=Y*W+X;sol[j]=0;shp[j]=0;floor[j]=(X+Y)%3?rgb(26,24,22):rgb(64,60,54)}
+ solDirty=true;NAVD=true;
+ const NA=[['Edda','Tam','Corin'],['Brannoc','Mott','Sully']];for(let t=0;t<2;t++)for(let i=0;i<3;i++){const b=token(NA[t][i],BTEAM[t],'civ',0,0,false,null);b.inv=[null,null,null,null,null,null];b.held=null;b.si=-1;b.auto=false;b.pit=t;b.fb={}}
+ ballKickoff(0);aiMe=BTEAM[0];const me=bodies.find(o=>o.name==='Edda');sel.clear();sel.add(me);me.direct=true};
+// kickoff: red up top, blue below, ball on the centre spot
+function ballKickoff(){const sp=[[5,8],[14,8],[9.5,11]];BALL={x:W/2,y:H/2,vx:0,vy:0};BWAIT=0;
+ for(const b of bodies)if(b.type==='token'&&b.pit!=null){const i=bodies.filter(o=>o.pit===b.pit).indexOf(b),[cx,cy]=sp[i];b.x=cx*T+8;b.y=(b.pit?CH-1-cy:cy)*T+8;b.ang=b.pit?-Math.PI/2:Math.PI/2;b.stunT=0;b.crouch=false;b.dash=null;b.px0=null}}
+const ballGoalY=t=>t?T*1.5:H-T*1.5;// where team t attacks
+function ballKick(b,dx,dy,p){const l=Math.hypot(dx,dy)||1,v=2.5+7.5*p;BALL.vx=dx/l*v;BALL.vy=dy/l*v;b.kickT=tick+14;sfx(p>.6?'thunk':'pthud')}
+function ballStep(){const B=BALL;if(!B)return;
+ for(let k=0;k<3;k++){const nx=B.x+B.vx/3,ny=B.y+B.vy/3,hit=(x,y)=>{const X=Math.round(x),Y=Math.round(y);return X<0||Y<0||X>=W||Y>=H||sol[Y*W+X]};
+  if(hit(nx+Math.sign(B.vx)*BR,B.y)){B.vx*=-.72;if(Math.abs(B.vx)>1)sfx('pthud')}else B.x=nx;
+  if(hit(B.x,ny+Math.sign(B.vy)*BR)){B.vy*=-.72;if(Math.abs(B.vy)>1)sfx('pthud')}else B.y=ny}
+ B.vx*=.982;B.vy*=.982;if(Math.hypot(B.vx,B.vy)<.03)B.vx=B.vy=0;
+ for(const b of bodies){if(b.type!=='token'||b.pit==null||b.status==='dead')continue;const pv=b.px0||[b.x,b.y],tvx=b.x-pv[0],tvy=b.y-pv[1];b.px0=[b.x,b.y];
+  const dx=B.x-b.x,dy=B.y-b.y,d=Math.hypot(dx,dy);if(d>=11||d===0)continue;const nx=dx/d,ny=dy/d;B.x=b.x+nx*11;B.y=b.y+ny*11;
+  if(b.dash&&!(b.kickT>tick)){ballKick(b,b.dash.x+nx*.3,b.dash.y+ny*.3,1);continue}
+  // walking into it dribbles it ahead
+  const vn=B.vx*nx+B.vy*ny,tn=tvx*nx+tvy*ny;if(vn<tn*1.3+.5){B.vx+=nx*(tn*1.3+.5-vn);B.vy+=ny*(tn*1.3+.5-vn)}}
+ // tackles: a dashing player who runs into an opponent knocks him down
+ for(const b of bodies){if(!b.dash||b.pit==null)continue;for(const o of bodies){if(o.pit==null||o.pit===b.pit||o.stunT>tick||Math.hypot(o.x-b.x,o.y-b.y)>16)continue;o.stunT=tick+50;o.crouch=true;moveToward(o,o.x+b.dash.x*6,o.y+b.dash.y*6);sfx('thunk');say(o,'Oof',true)}}
+ for(const b of bodies)if(b.pit!=null&&b.crouch&&!(b.stunT>tick))b.crouch=false;
+ if(BWAIT){if(--BWAIT===0)ballKickoff();return}
+ if(B.x>BG0*T&&B.x<BG1*T&&(B.y<T||B.y>H-T)){const t=B.y<T?1:0;BSC[t]++;BWAIT=100;sfx('ok');if(CRW)for(const s of CRW.seats)s.jump=12;const sc=bodies.filter(o=>o.pit===t).sort((a,b)=>Math.hypot(a.x-B.x,a.y-B.y)-Math.hypot(b.x-B.x,b.y-B.y))[0];if(sc)say(sc,'Goal!',true)}}
+// AI: whoever on a side is nearest the ball goes for it; of the rest, the one nearer his own goal keeps or sweeps, the other marks or supports
+function ballAI(){if(!aiOn||BWAIT)return;const B=BALL;
+ for(let t=0;t<2;t++){const us=bodies.filter(o=>o.pit===t&&o.status==='free'),own=t?H-T*1.5:T*1.5,opp=ballGoalY(t),inOwn=Math.abs(B.y-own)<H/2;
+  const ch=us.slice().sort((a,b)=>Math.hypot(a.x-B.x,a.y-B.y)-Math.hypot(b.x-B.x,b.y-B.y))[0],rest=us.filter(o=>o!==ch).sort((a,b)=>Math.abs(a.y-own)-Math.abs(b.y-own));
+  for(const b of us){if(b.direct||b.stunT>tick)continue;let tx,ty;
+   if(b===ch){const gx=W/2-B.x,gy=opp-B.y,gl=Math.hypot(gx,gy)||1;tx=B.x-gx/gl*8;ty=B.y-gy/gl*8;const d=Math.hypot(B.x-b.x,B.y-b.y);
+    if(d<16&&!(b.kickT>tick)){const aim=W/2+(Math.random()-.5)*48;ballKick(b,aim-B.x,opp-B.y,Math.min(1,.45+gl/320))}
+    else if(d>40&&d<90&&Math.hypot(B.vx,B.vy)>1.5&&Math.random()<.04)dashUnit(b,B.x-b.x,B.y-b.y);
+    const foe=bodies.find(o=>o.pit===1-t&&o.status==='free'&&Math.hypot(o.x-B.x,o.y-B.y)<13);if(foe&&Math.hypot(foe.x-b.x,foe.y-b.y)<34&&Math.random()<.06)dashUnit(b,foe.x-b.x,foe.y-b.y)}
+   else if(b===rest[0]){if(inOwn){tx=Math.max(BG0*T+6,Math.min(BG1*T-6,B.x));ty=own+(t?-10:10)}else{tx=W/2+(B.x-W/2)*.4;ty=own+(t?-1:1)*H*.28}}
+   else{const mk=bodies.filter(o=>o.pit===1-t&&o.status==='free'&&o!==ch).sort((a,c)=>Math.hypot(a.x-b.x,a.y-b.y)-Math.hypot(c.x-b.x,c.y-b.y))[0];
+    if(inOwn&&mk){tx=mk.x+(W/2-mk.x)*.2;ty=mk.y+(own-mk.y)*.25}else{tx=W-B.x;ty=B.y+(opp-B.y)*.45}}
+   tx=Math.max(T+6,Math.min(W-T-6,tx));ty=Math.max(T+6,Math.min(H-T-6,ty));if(Math.hypot(tx-b.x,ty-b.y)>3)aiStep(b,tx,ty,b.fb);turnTo(b,Math.atan2(B.y-b.y,B.x-b.x))}}}
+function ballDraw(){const B=BALL;if(!B)return;const put=(X,Y,c)=>{if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=c};
+ // team rings under the players
+ for(const b of bodies){if(b.pit==null||b.status==='dead')continue;const c=BCOL[b.pit];for(let i=0;i<90;i++){const a=i/90*6.283;for(const r of[10.5,11.5])put(Math.round(b.x+Math.cos(a)*r),Math.round(b.y+Math.sin(a)*r),b.stunT>tick?mul(c,.5):c)}}
+ const bx=Math.round(B.x),by=Math.round(B.y);for(let y=-3;y<=3;y++)for(let x=-3;x<=3;x++){const d=Math.hypot(x,y);if(d<=2.6)put(bx+x+1,by+y+1,mul(out[(by+y+1)*W+bx+x+1]||0,.6))}
+ for(let y=-3;y<=3;y++)for(let x=-3;x<=3;x++){const d=Math.hypot(x,y);if(d>2.6)continue;put(bx+x,by+y,x+y<-1?rgb(196,140,86):d>1.8?rgb(104,62,30):(x+y)&1?rgb(150,96,52):rgb(138,86,46))}
+ if(BKICK){const me=[...sel][0];if(me){const p=Math.min(1,(performance.now()-BKICK)/BKMAX);for(let i=0;i<9;i++)put(Math.round(me.x)-4+i,Math.round(me.y)+15,i<p*9?rgb(240,210,120):rgb(40,36,30))}}}
+// you kick by holding left-click near the ball (charge) and letting go; aim is the mouse
+const ballMe=()=>[...sel].find(o=>o.direct&&o.pit!=null&&o.status==='free'&&!(o.stunT>tick));
+window.addEventListener('pointerdown',e=>{if(curMap!=='ball'||EM||e.button!==0||!ballMe())return;BKICK=performance.now();e.stopImmediatePropagation()},true);
+window.addEventListener('pointerup',e=>{if(curMap!=='ball'||!BKICK||e.button!==0)return;const p=Math.min(1,(performance.now()-BKICK)/BKMAX);BKICK=null;e.stopImmediatePropagation();const me=ballMe();if(!me||!BALL)return;
+ if(Math.hypot(BALL.x-me.x,BALL.y-me.y)<17&&!(me.kickT>tick))ballKick(me,mouse.x-BALL.x,mouse.y-BALL.y,p);else sfx('swish')},true);
+const SCB=document.createElement('div');SCB.style.cssText="position:absolute;top:10px;left:50%;transform:translateX(-50%);font:44px VT323,monospace;letter-spacing:3px;color:#e9e4d8;text-shadow:0 2px 0 #000;pointer-events:none;z-index:5;display:none";
+{const st=$('stage');st.parentElement.appendChild(SCB)}
+function ballHud(){const on=curMap==='ball';SCB.style.display=on?'':'none';if(on)SCB.innerHTML=`<span style="color:#e2564a">${BNAME[0]} ${BSC[0]}</span> &ndash; <span style="color:#5d8ff0">${BSC[1]} ${BNAME[1]}</span>`}
+{const u0=update;update=function(){u0();if(curMap!=='ball')return;if(aiOn)ballStep();ballAI();if(tick%6===0)ballHud()}}
+{const r0=reset;reset=function(){r0();ballHud()}}
 // screen: map with a brass clock corner, tool panel on the right, popups for occasional work
 const UI={tool:LS.get('bs.tool','hand'),st:LS.get('bs.st','units'),tt:'tiles',drop:null,pop:null};let PAUSED=true;const MNAME={};
 const UKEY={hand:'Esc',spawn:'B',tile:'N',paint:'P',sign:'L',teth:'K',wand:'M',vac:'U',sponge:'O'};
@@ -3481,7 +3542,7 @@ window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTARE
  window.addEventListener('blur',()=>{if(SP&&SP.slow&&slowMo)window.toggleSlow();SP=null})}
 sigil();sgP();pickTool(UT.some(t=>t[0]===UI.tool)?UI.tool:'hand');syncCorner();
 objMat();
-// open straight into the Pits test fight
-if(curMap==='pits'){CW=-1;reset()}
+// open straight into the arena test
+if(curMap==='pits'||curMap==='ball'){CW=-1;reset()}
 })();
 </script></body></html>
