@@ -106,12 +106,14 @@ MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='in';
   // each fighter: a pistol with no spare shot and a wooden shield; spare shot and an iron shield on the floor, mirrored
   // a fresh slave bout each reset: 1v1, 2v2 or 4v4, both sides with the same crude kit so neither is favoured; you drive the first of yours
   FIGHT.pits=[['Havenport','Reapers']];const R=Math.random,pick=a=>a[R()*a.length|0],n=pick([1,2,4]),
-   KITS=[['pistol','wshield'],['spear','wshield'],['spear','pistol'],['pistol','pistol'],['spear'],['pistol'],['spear','grenade']],
-   item=k=>k==='pistol'?{k,ammo:18,res:0}:k==='grenade'?{k,n:1}:{k},
+   KITS=[['pistol','wshield'],['spear','wshield'],['pistol'],['spear']],
+   item=k=>CAP[k]?{k,ammo:CAP[k],res:fullRes({unit:'rifle'},k)}:{k,n:fullN({unit:'rifle'},k)},
    kit=(b,L)=>{b.inv=[null,null,null,null,null,null];for(const k of L){const i=k==='wshield'?4:k==='grenade'?2:b.inv[0]?1:0;b.inv[i]=item(k)}b.si=0;b.held=b.inv[0];b.hc=null},
    P=[[2,2],[3,1],[1,3],[3,3]].slice(0,n),NA=['Edda','Tam','Corin','Wil','Hobb','Rafe','Jory','Ness'],NB=['Brannoc','Mott','Sully','Grist','Fenn','Dace','Orrin','Cobb'],me0=[];
   P.forEach(([x,y],i)=>{const L=pick(KITS),a=token(NA[i],'Havenport','rifle',x*T+8,y*T+8,false,null),b=token(NB[i],'Reapers','rifle',(19-x)*T+8,(21-y)*T+8,false,null);a.ang=Math.PI/2;b.ang=-Math.PI/2;kit(a,L);kit(b,L);me0.push(a)});
   const me=me0[0];
+  // one weapon each; spare arms, shot and shields lie mirrored round the pit
+  for(const[k,cx,cy]of[['pbox',2,11],['pbox',9,6],['pistol',5,11],['spear',11,4],['wshield',2,8]])for(const[x,y]of[[cx,cy],[19-cx,21-cy]])weapon(k,x*T+8,y*T+8);weapon('shield',W/2,H/2);
   aiMe='Havenport';sel.clear();sel.add(me);me.direct=true;pitsWorn();setTimeout(()=>say(me,n+' v '+n,true),300)}
  // years of fights: chipped walls and pillars, broken paving down to the soil, splintered half walls; the wand still restores the clean pit
  function pitsWorn(){snapPR();PRSET=true;const m0=mute;mute=true;const R=Math.random;

@@ -1,6 +1,6 @@
 (()=>{
 const $=id=>document.getElementById(id);
-let S=2,EM=null,TOPS=false,OUTD=false,EDGEF=false,VIB=[],STRK=[];let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/2,N=W*H,NB=BW*BH;
+let S=2,EM=null,TOPS=false,OUTD=false,EDGEF=false,VIB=[];let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/2,N=W*H,NB=BW*BH;
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
 let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),SCH=new Uint8Array(N),OBJC=new Uint32Array(N),DMG=new Uint8Array(N);// DMG: chips and holes blasts leave in the floor, which only the wand repairs
 const FX={blood:new Float32Array(NB),fire:new Float32Array(NB),smoke:new Float32Array(NB)};
@@ -1355,7 +1355,8 @@ const roomReach=(b,r)=>!!(ROOMS&&ROOMS.rc[r]&&ROOMS.rc[r].has(compAt(b.x,b.y)));
 // senses: a cone of sight that walls, doors and (when anyone is low) furniture block; noises carry through walls
 const VR=230;
 function losClear(ax,ay,bx,by,aLow,bLow){const dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy),n=Math.ceil(L/2);for(let i=2;i<n-1;i++){const X=Math.round(ax+dx*i/n),Y=Math.round(ay+dy*i/n);if(X<0||Y<0||X>=W||Y>=H)return false;const j=Y*W+X;if(sol[j]||slabG[j])return false;if(OBJ[j]&&(aLow||bLow&&L*(1-i/n)<26))return false}return true}
-function canSee(a,b){const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>visR()*(b.crouch?.6:1))return false;if(d>22&&Math.abs(Math.atan2(Math.sin(Math.atan2(dy,dx)-a.ang),Math.cos(Math.atan2(dy,dx)-a.ang)))>.96)return false;return losClear(a.x,a.y,b.x,b.y,!!a.crouch,!!b.crouch)}
+const arena=()=>curMap==='pits';
+function canSee(a,b){if(arena())return losClear(a.x,a.y,b.x,b.y,!!a.crouch,!!b.crouch);const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>visR()*(b.crouch?.6:1))return false;if(d>22&&Math.abs(Math.atan2(Math.sin(Math.atan2(dy,dx)-a.ang),Math.cos(Math.atan2(dy,dx)-a.ang)))>.96)return false;return losClear(a.x,a.y,b.x,b.y,!!a.crouch,!!b.crouch)}
 let NZ=[],RINGS=[];
 function hear(x,y,L,src,tag){if(!aiOn)return;const z={x,y,L,src,tag,t:tick};NZ.push(z);ringFor(z)}
 function heardBy(b,z){const d=Math.hypot(z.x-b.x,z.y-b.y);if(d>z.L)return false;let w=0;if(roomAt(b.x,b.y)!==roomAt(z.x,z.y)){const n=Math.ceil(d/2);for(let i=1;i<n;i++){const j=Math.round(b.y+(z.y-b.y)*i/n)*W+Math.round(b.x+(z.x-b.x)*i/n);if(sol[j]||slabG[j])w+=2}}return z.L-d-w*4>0}
@@ -1381,6 +1382,7 @@ function aiTeams(){const T0={};for(const b of bodies)if(b.ai&&b.status==='free')
   if(m==='fall'&&(prev!=='fall'||g.home<0)){let best=-1,bs=-1e9;const th=[...K.values()];for(let i=0;i<ROOMS.n;i++){const c=ROOMS.cen[i];if(c[2]<4||us.filter(b=>roomReach(b,i)).length<us.length*.5)continue;const w=ways(i),dd=th.reduce((s,q)=>s+Math.hypot(q.x-c[0],q.y-c[1]),0)/Math.max(1,th.length);const sc=dd/40-w.length*3-w.filter(e=>e.d.lockBroken).length*4;if(sc>bs){bs=sc;best=i}}g.home=best}
   if(m==='fall'&&g.home>=0&&us.filter(b=>roomAt(b.x,b.y)===g.home).length>=us.length*.6)m='defend';
   if((m==='fall'||m==='defend')&&g.home>=0&&ROOMS.cen[g.home]){const cap=Math.max(2,ROOMS.cen[g.home][2]/3|0),c=ROOMS.cen[g.home];g.inside=new Set(us.slice().sort((p,q)=>Math.hypot(p.x-c[0],p.y-c[1])-Math.hypot(q.x-c[0],q.y-c[1])).slice(0,cap))}else g.inside=null;
+  if(arena()&&K.size)m='hunt';// arena bouts: everyone always goes for the enemy
   if(m==='defend'&&prev==='fall')g.home=g.home;if(m!==prev&&SAYL[m]&&!(prev==='fall'&&m==='defend')){const sp=ld&&ld.status==='free'&&us.includes(ld)?ld:us.slice().sort((p,q)=>(RANK[q.unit]||0)-(RANK[p.unit]||0))[0];say(sp,m==='defend'&&us.some(o=>o.vip)?'Guard him':SAYL[m],2)}g.mode=m;
   for(const b of us)if(b.lab)b.lab.title=m+(b.vip?' · protected':'')}}
 
@@ -1398,7 +1400,7 @@ const T0={};for(const b of bodies)if(b.type==='token'&&b.nat&&teamOf(b)!=='Neutr
 function aiInit(b){b.ai={mem:new Map(),nz:null,cd:30+Math.random()*60|0,path:null,pt:0,wp:null,idle:b.unit==='home'||b.unit==='rifle'?'patrol':'hold',spot:null,look:0,peek:0}}
 // unarmed foes aren't shot: soldiers close in and take them prisoner
 const armedOf=o=>!!(o.held&&WV[o.held.k]||(o.inv||[]).some(q=>q&&WV[q.k]));
-function aiSense(b){const a=b.ai;let tg=null,td=1e9;
+function aiSense(b){const a=b.ai;let tg=null,td=1e9;if(arena())for(const o of bodies)if(o.type==='token'&&o!==b&&foe(b,o)&&o.status==='free'){const m=a.mem.get(o.id)||{};Object.assign(m,{x:o.x,y:o.y,t:tick,u:o.unit,id:o.id,dead:false});a.mem.set(o.id,m)}
  const nb=teamOf(b)==='Neutral';for(const o of bodies){if(o.type!=='token'||o===b||!foe(b,o)||o.status==='captured')continue;if(!canSee(b,o))continue;const m=a.mem.get(o.id)||{};
   if(o.status==='dead'){if(a.mem.has(o.id))m.dead=true;continue}
   if(!m.t||tick-m.t>600)say(b,'There!');Object.assign(m,{x:o.x,y:o.y,t:tick,u:o.unit,id:o.id,dead:false});if(o.held&&WV[o.held.k]){m.k=o.held.k;m.e=empty(o.held)}a.mem.set(o.id,m);
@@ -1498,7 +1500,7 @@ function surrender(b){say(b,'I yield',true);if(b.held)dropHeld(b);b.status='capt
 function canSeeUp(b,o){const c=b.crouch;b.crouch=false;const r=canSee(b,o);b.crouch=c;return r}
 // your side's view when AI is on: live where your units look, a fading picture elsewhere (5 s to black)
 let VS=new Uint8Array(1),VSF=new Float32Array(1),fSel=false,VIS=new Uint8Array(1),SEEN=new Float32Array(1),SNAP=new Uint32Array(1),VF=new Float32Array(1),VT=new Float32Array(1);
-const fogOn=()=>aiOn&&!!aiMe&&dirOn(); // fog only while you're driving a unit yourself (E); commanding from above sees everything
+const fogOn=()=>aiOn&&!!aiMe&&dirOn()&&!arena(); // fog only while you're driving a unit yourself (E); commanding from above sees everything
 let DIRT=-1,DIRV=false;const dirOn=()=>{if(DIRT!==tick){DIRT=tick;DIRV=bodies.some(b=>b.direct&&b.type==='token'&&b.status!=='dead')}return DIRV};
 function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Array(NB).fill(-1e9)}if(SNAP.length!==W*H)SNAP=new Uint32Array(W*H);VIS.fill(0);
  const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status!=='dead');
@@ -1508,7 +1510,7 @@ function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Ar
  for(let q=0;q<NB;q++)if(VIS[q])SEEN[q]=tick;
  // soft edge: blur the view mask a few cells
  if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VIS[q]?1:0;blurMask(VF);if(fSel){for(let q=0;q<NB;q++)VSF[q]=VS[q]?1:0;blurMask(VSF)}
- for(const o of bodies)if(o.type==='token'){const was=o.fogH;o.fogH=relOf(aiMe,teamOf(o))!=='self'&&relOf(aiMe,teamOf(o))!=='ally'&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>canSee(b,o)));if(o.fogH&&was===false)lostSight(o)}}
+ for(const o of bodies)if(o.type==='token'){o.fogH=relOf(aiMe,teamOf(o))!=='self'&&relOf(aiMe,teamOf(o))!=='ally'&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>canSee(b,o)))}}
 // a unit under direct control shows what it can see: the cone, cut by walls and, when crouched, by furniture
 // what a unit sees: a cone plus a small circle; rays look a little way into walls but never out the other side
 function sight(b,nr,f){const low=!!b.crouch,cast=(a,R)=>{const c=Math.cos(a),s=Math.sin(a);let wd=0;for(let r=0;r<R;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X,wl=sol[j]||slabG[j];if(wd&&!wl)return;f((Y>>1)*BW+(X>>1));if(wl&&(wd+=2)>8)return;if(low&&OBJ[j]&&r>5)return}};
@@ -1521,7 +1523,6 @@ function blurMask(A){for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o
   for(let x=0;x<BW;x++){let sum=0;for(let k=0;k<=2&&k<BH;k++)sum+=VT[k*BW+x];for(let y=0;y<BH;y++){const n=Math.min(BH-1,y+2)-Math.max(0,y-2)+1;A[y*BW+x]=sum/n;if(y+3<BH)sum+=VT[(y+3)*BW+x];if(y-2>=0)sum-=VT[(y-2)*BW+x]}}}}
 // with one of your units selected, what the others see is dimmed slightly
 function fogPass(){const sl=!DSV&&fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===aiMe);const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const base=SNAP[j]||(sol[j]?scol[j]:floor[j]),d=SNAP[j]?Math.min(1,Math.max(0,(tick-SEEN[q])/600)):1,m=mul(mix(base,grey(base),d*.85),.76-.18*d);out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
- if(STRK.length)drawStreaks();
  for(const z of RINGS){const k=(tick-z.t)/40,rad=2+k*7;for(let i=0;i<28;i++){const X=Math.round(z.x+Math.cos(i*.2244)*rad),Y=Math.round(z.y+Math.sin(i*.2244)*rad);if(X>=0&&Y>=0&&X<W&&Y<H){const j=Y*W+X;out[j]=mix(out[j],rgb(230,226,214),.5*(1-k))}}}RINGS=RINGS.filter(z=>tick-z.t<40)}
 function ringFor(z){if(!fogOn()||z.src&&teamOf(z.src)===aiMe||z.src&&!z.src.fogH)return;const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status==='free');if(me.some(b=>heardBy(b,z))&&!RINGS.some(r=>tick-r.t<12&&Math.hypot(r.x-z.x,r.y-z.y)<10))RINGS.push({x:z.x,y:z.y,t:tick})}
 // a crouched unit hides behind low furniture: a low shot hits any desk; a high shot hits one beside a crouched unit

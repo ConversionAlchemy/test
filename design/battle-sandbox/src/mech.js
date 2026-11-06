@@ -13,10 +13,3 @@ function mechTick(){if(!MECHS||!aiOn||EM){VIB=[];return}MT++;const ph=MT%MCYC;
 function vibCells(){const dx=(tick>>1)&1?1:-1;for(const[cx,cy]of VIB){for(let y=0;y<T;y++){const r=(cy*T+y)*W+cx*T,row=out.slice(r,r+T);for(let x=0;x<T;x++){const sx=x-dx;if(sx>=0&&sx<T)out[r+x]=row[sx]}}}}
 {const r0=reset;reset=function(){r0();setTimeout(mechBuild,0)}}
 {const u0=update;update=function(){u0();mechTick()}}
-// when an enemy slips out of sight, a soft streak at the spot points the way they were heading, longer the faster they moved, fading over ~2.5 s
-function trackTick(){if(tick%6)return;for(const b of bodies)if(b.type==='token'){b.trk=b.trk||[];b.trk.push([b.x,b.y]);if(b.trk.length>3)b.trk.shift()}}
-function lostSight(o){const h=o.trk&&o.trk[0];if(!h)return;const dx=o.x-h[0],dy=o.y-h[1],v=Math.hypot(dx,dy);if(v<2)return;STRK.push({x:o.x,y:o.y,ux:dx/v,uy:dy/v,L:Math.min(26,6+v*1.2),t:tick})}
-function drawStreaks(){STRK=STRK.filter(z=>tick-z.t<150);for(const z of STRK){const a=1-(tick-z.t)/150;for(let s=0;s<z.L;s+=.5){const f=s/z.L,w=Math.round(2*(1-f)),X0=z.x+z.ux*s,Y0=z.y+z.uy*s;
-  for(let k=-w;k<=w;k++){const X=Math.round(X0-z.uy*k),Y=Math.round(Y0+z.ux*k);if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;out[j]=mix(out[j],rgb(176,112,100),.55*a*(1-f*.7)*(1-Math.abs(k)/(w+1)))}}}}
-{const u0=update;update=function(){u0();trackTick()}}
-{const r0=reset;reset=function(){r0();STRK=[]}}
