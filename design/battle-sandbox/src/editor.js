@@ -104,11 +104,15 @@ MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='in';
   if(cx===0||cy===0||cx===19||cy===21||pil.has(id))return'stone.grey.rubble.w~'+(1+h(cx,cy)%3);if(pave.has(id))return'stone.grey.paving';return h(cx,cy)%3?'earth.dirt.worn':'earth.dirt.plain'});
  NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])smartDoor('wood',cx,cy);snapDoors();
   // each fighter: a pistol with no spare shot and a wooden shield; spare shot and an iron shield on the floor, mirrored
-  FIGHT.pits=[['Havenport','Reapers']];const kit=(b,L)=>{b.inv=L.concat(Array(6-L.length).fill(null));b.si=0;b.held=b.inv[0];b.hc=null};
-  const me=token('Edda','Havenport','rifle',2*T+8,2*T+8,false,null),foe=token('Brannoc','Reapers','rifle',17*T+8,19*T+8,false,null);me.ang=Math.PI/2;foe.ang=-Math.PI/2;
-  kit(me,[{k:'pistol',ammo:18,res:0},null,null,null,{k:'wshield'}]);kit(foe,[{k:'pistol',ammo:18,res:0},null,null,null,{k:'wshield'}]);
-  for(const[cx,cy]of[[2,11],[9,6]])for(const[x,y]of[[cx,cy],[19-cx,21-cy]])weapon('pbox',x*T+8,y*T+8);weapon('shield',W/2,H/2);
-  aiMe='Havenport';sel.clear();sel.add(me);me.direct=true;pitsWorn()}
+  // a fresh slave bout each reset: 1v1, 2v2 or 4v4, both sides with the same crude kit so neither is favoured; you drive the first of yours
+  FIGHT.pits=[['Havenport','Reapers']];const R=Math.random,pick=a=>a[R()*a.length|0],n=pick([1,2,4]),
+   KITS=[['pistol','wshield'],['spear','wshield'],['spear','pistol'],['pistol','pistol'],['spear'],['pistol'],['spear','grenade']],
+   item=k=>k==='pistol'?{k,ammo:18,res:0}:k==='grenade'?{k,n:1}:{k},
+   kit=(b,L)=>{b.inv=[null,null,null,null,null,null];for(const k of L){const i=k==='wshield'?4:k==='grenade'?2:b.inv[0]?1:0;b.inv[i]=item(k)}b.si=0;b.held=b.inv[0];b.hc=null},
+   P=[[2,2],[3,1],[1,3],[3,3]].slice(0,n),NA=['Edda','Tam','Corin','Wil','Hobb','Rafe','Jory','Ness'],NB=['Brannoc','Mott','Sully','Grist','Fenn','Dace','Orrin','Cobb'],me0=[];
+  P.forEach(([x,y],i)=>{const L=pick(KITS),a=token(NA[i],'Havenport','rifle',x*T+8,y*T+8,false,null),b=token(NB[i],'Reapers','rifle',(19-x)*T+8,(21-y)*T+8,false,null);a.ang=Math.PI/2;b.ang=-Math.PI/2;kit(a,L);kit(b,L);me0.push(a)});
+  const me=me0[0];
+  aiMe='Havenport';sel.clear();sel.add(me);me.direct=true;pitsWorn();setTimeout(()=>say(me,n+' v '+n,true),300)}
  // years of fights: chipped walls and pillars, broken paving down to the soil, splintered half walls; the wand still restores the clean pit
  function pitsWorn(){snapPR();PRSET=true;const m0=mute;mute=true;const R=Math.random;
   for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=CATN[map[cy][cx]];if(c&&c[3])wearWall(cx,cy,.5+R()*.8)}
