@@ -1,4 +1,4 @@
-// Melee test for the Pits: spear jab (click) and throw (hold), sword jab (click, held keeps jabbing) and slash (F), shields worn on the off side and raised with X
+// Melee test for the Pits: spear jab (click) and throw (hold), sword jab (click, held keeps jabbing) and slash (F), shields worn on the off side and raised by holding right-click
 WP.sword={n:'Sword',sharp:1,melee:1,fr:.98,max:24,m:1,tip:10,hide:1};// swords paused
 WP.pbox={n:'Shot',hide:1,fr:.8,max:10,m:1};
 WP.shield.n='Iron shield';delete WP.shield.hide;
@@ -29,8 +29,7 @@ function meleeTick(){for(const b of bodies){if(b.type!=='token')continue;
    const up=!!tg&&!b.jab&&!b.slashT&&(gun?td>mr+6:td<44&&(b.atkT||0)<tick+4)&&(!b.held||!WP[b.held.k].gun||b.ai.cd>20||!(b.held.ammo>0));if(b.shUp&&!up)b.shDown=tick;b.shUp=up}
   else if(b.status!=='free')b.shUp=false}}
 {const u0=update;update=function(){u0();meleeTick()}}
-window.addEventListener('keydown',e=>{if(e.repeat||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.key.toLowerCase()!=='x')return;for(const b of sel)if(b.type==='token'&&b.status==='free'&&offShield(b)){b.shUp=true;rustle(b,.8)}});
-window.addEventListener('keyup',e=>{if(e.key.toLowerCase()==='x')for(const b of bodies)if(b.type==='token'&&(b.direct||sel.has(b))&&b.shUp){b.shUp=false;b.shDown=tick}});
+// raising the shield is a held right-click on the fighter you're driving (in sim's pointer handlers)
 // walking over shot refills your pistol; walking over a shield takes it if it beats yours (iron over wood, then the less damaged), dropping the old one
 function pitPick(){const val=it=>(it.k==='shield'?100:50)-Object.values(it.dmg||{}).reduce((s,v)=>s+v,0);
  for(const t of bodies){if(t.type!=='token'||t.status!=='free'||!t.inv)continue;

@@ -1631,7 +1631,7 @@ function buildFx(){fxLow.fill(0);fxTop.fill(0);fxA.fill(0);const ph=(tick/7|0)%4
 // render
 const isS=(X,Y)=>X<0||Y<0||X>=W||Y>=H||sol[Y*W+X]>0;
 const HAZE=rgb(198,203,212),VEIL=rgb(190,196,206);
-let jabHold=false,sel=new Set(),hover=null,charge=null,box=null,moveSel=null,pend=null,drag=null,stepAcc=0;const keys=new Set();
+let jabHold=false,shHold=false,sel=new Set(),hover=null,charge=null,box=null,moveSel=null,pend=null,drag=null,stepAcc=0;const keys=new Set();
 function inDrag(b){return !!drag&&drag.group.includes(b)}
 let SHX=new Float32Array(0),SHC=new Float32Array(0),shY=[0,0];
 function sheenFrame(){if(SHX.length!==W){SHX=new Float32Array(W);SHC=new Float32Array(W)}const ax=.55*S*.0042,lp=0;for(let X=0;X<W;X++){SHX[X]=Math.sin(ax*X);SHC[X]=Math.cos(ax*X)}shY=[.83*S*.0042,(cam.x*.55+cam.y*.83)*.0042+lp]}
@@ -2190,7 +2190,7 @@ function clickBody(b,add){if(b.status==='dead')return;if(b.hidden){openCrate=ope
 let lastW=null;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 const boardDown=e=>{au();closeMenu();if(panKey||e.button===1){pan={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};cv.setPointerCapture(e.pointerId);e.preventDefault();return}const[x,y]=toBoard(e),X=x|0,Y=y|0;
- if(e.button===2){const dj=[...sel].filter(o=>o.direct&&o.type==='token'&&o.held&&MREACH[o.held.k]);if(dj.length){dj.forEach(jab);return}const b=bodyAt(X,Y,1)||bodyAt(X,Y,1,null,o=>o.type==='token'&&o.status==='dead');if(!b&&[...sel].some(canOrder)){ordGive([...sel].filter(canOrder),x,y);return}if(b)openMenu(b,e);else if(![...sel].some(o=>o.direct)){sel.clear();moveSel=null;charge=null}return}
+ if(e.button===2){const sh=[...sel].filter(o=>o.direct&&o.type==='token'&&o.status==='free'&&offShield(o));if(sh.length){for(const o of sh){o.shUp=true;rustle(o,.8)}shHold=true;return}const dj=[...sel].filter(o=>o.direct&&o.type==='token'&&o.held&&MREACH[o.held.k]);if(dj.length){dj.forEach(jab);return}const b=bodyAt(X,Y,1)||bodyAt(X,Y,1,null,o=>o.type==='token'&&o.status==='dead');if(!b&&[...sel].some(canOrder)){ordGive([...sel].filter(canOrder),x,y);return}if(b)openMenu(b,e);else if(![...sel].some(o=>o.direct)){sel.clear();moveSel=null;charge=null}return}
  cv.setPointerCapture(e.pointerId);
  {
   if(moveSel){const k=(y/T|0)*CW+(x/T|0);if(!e.shiftKey&&moveSel.cells.has(k)){const b=moveSel.b;b.glide=[(x/T|0)*T+8,(y/T|0)*T+8];b.ghost=true;b.stuck=false;b.vx=b.vy=0;moveSel=null;sfx('flick');return}moveSel=null}
@@ -2213,7 +2213,7 @@ window.addEventListener('pointermove',e=>{if(pan){cam.x=pan.cx+e.clientX-pan.x;c
  if(drag){drag.tx=x;drag.ty=y;const t=performance.now();drag.smp.push([t,x,y]);while(drag.smp.length>2&&t-drag.smp[0][0]>90)drag.smp.shift();
   const b=drag.b;if(b.type==='weapon'&&!WP[b.kind].gun){const s0=drag.smp[0],dx=x-s0[1],dy=y-s0[2];if(Math.hypot(dx,dy)>3){const a=Math.atan2(dy,dx);let d=a-b.ang;d=Math.atan2(Math.sin(d),Math.cos(d));if(Math.abs(d)>.2)reshape(b,b.ang+d*.6)}}return}
 });
-window.addEventListener('pointerup',e=>{holdFire=false;jabHold=false;if(pan){pan=null;return}if(spinning){spinning=false;return}const add=e.ctrlKey||e.metaKey;
+window.addEventListener('pointerup',e=>{holdFire=false;jabHold=false;if(e.button===2&&shHold){shHold=false;for(const o of bodies)if(o.type==='token'&&o.shUp&&(o.direct||sel.has(o))){o.shUp=false;o.shDown=tick}return}if(pan){pan=null;return}if(spinning){spinning=false;return}const add=e.ctrlKey||e.metaKey;
  if(cellDrag){const cd=cellDrag;cellDrag=null;const k=(mouse.y/T|0)*CW+(mouse.x/T|0);if(moveSel&&moveSel.b===cd.b&&moveSel.cells.has(k)){const b=cd.b;b.glide=[(mouse.x/T|0)*T+8,(mouse.y/T|0)*T+8];b.ghost=true;b.stuck=false;b.vx=b.vy=0;moveSel=null;sfx('flick')}return}
  if(charge&&armed().some(o=>{const i=srcInfo(o);return i&&i.heat})&&(performance.now()-charge.t>120||armed().some(o=>o.held&&o.held.k==='sspear'))){fireGroup(mouse.x,mouse.y);charge=null;return}
  if(charge&&performance.now()-charge.t<charge.need){const mj=armed().filter(o=>o.type==='token'&&o.held&&o.held.k==='spear');if(mj.length){mj.forEach(jab);charge=null;return}}
@@ -2334,7 +2334,7 @@ function reset(){ds0Need=true;EDG.clear();{const sz=MAPSZ[curMap]||[18,14];if(sz
 const NAMED={count:{'Lord Vane':'Bank Lord','Archivist Lell':'Head Clerk','Master Orsk':'Banker',Corvo:'Reaper'},vault:{'Master Corwin':'Banker','Manager Vance':'Bank Lord',Dorran:'Merchant',Lyse:'Noble',Sora:'Noble',Merrit:'Merchant'},bank:{}};
 {const r0=reset;reset=function(){r0();setTimeout(aiSetup,0);for(const t of bodies)if(t.type==='token'&&NAMED[curMap]&&NAMED[curMap][t.name])t.look=NAMED[curMap][t.name];snapDoors();sills();arrivals();exitLabels();alarm=curMap==='range'||curMap==='pits';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
 reset();loop();
-// Melee test for the Pits: spear jab (click) and throw (hold), sword jab (click, held keeps jabbing) and slash (F), shields worn on the off side and raised with X
+// Melee test for the Pits: spear jab (click) and throw (hold), sword jab (click, held keeps jabbing) and slash (F), shields worn on the off side and raised by holding right-click
 WP.sword={n:'Sword',sharp:1,melee:1,fr:.98,max:24,m:1,tip:10,hide:1};// swords paused
 WP.pbox={n:'Shot',hide:1,fr:.8,max:10,m:1};
 WP.shield.n='Iron shield';delete WP.shield.hide;
@@ -2365,8 +2365,7 @@ function meleeTick(){for(const b of bodies){if(b.type!=='token')continue;
    const up=!!tg&&!b.jab&&!b.slashT&&(gun?td>mr+6:td<44&&(b.atkT||0)<tick+4)&&(!b.held||!WP[b.held.k].gun||b.ai.cd>20||!(b.held.ammo>0));if(b.shUp&&!up)b.shDown=tick;b.shUp=up}
   else if(b.status!=='free')b.shUp=false}}
 {const u0=update;update=function(){u0();meleeTick()}}
-window.addEventListener('keydown',e=>{if(e.repeat||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.key.toLowerCase()!=='x')return;for(const b of sel)if(b.type==='token'&&b.status==='free'&&offShield(b)){b.shUp=true;rustle(b,.8)}});
-window.addEventListener('keyup',e=>{if(e.key.toLowerCase()==='x')for(const b of bodies)if(b.type==='token'&&(b.direct||sel.has(b))&&b.shUp){b.shUp=false;b.shDown=tick}});
+// raising the shield is a held right-click on the fighter you're driving (in sim's pointer handlers)
 // walking over shot refills your pistol; walking over a shield takes it if it beats yours (iron over wood, then the less damaged), dropping the old one
 function pitPick(){const val=it=>(it.k==='shield'?100:50)-Object.values(it.dmg||{}).reduce((s,v)=>s+v,0);
  for(const t of bodies){if(t.type!=='token'||t.status!=='free'||!t.inv)continue;
