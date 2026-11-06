@@ -27,10 +27,10 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
  function pan(t,dur,side){const p=AC.createStereoPanner(),d=side||(Math.random()<.5?1:-1);p.pan.setValueAtTime(-.85*d,t);p.pan.linearRampToValueAtTime(.85*d,t+dur);p.connect(OUT);return p}
  function whizz(t,dur,vol,fm,side){const a=AC,p=pan(t,dur,side),s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),am=a.createGain(),lfo=a.createOscillator(),lg=a.createGain();s.buffer=nb();f.type='bandpass';f.Q.value=7;f.frequency.setValueAtTime(1900*fm,t);f.frequency.setValueAtTime(1900*fm,t+dur*.45);f.frequency.exponentialRampToValueAtTime(820*fm,t+dur);
   g.gain.setValueAtTime(0,t);g.gain.exponentialRampToValueAtTime(vol*2.6,t+dur*.48);g.gain.exponentialRampToValueAtTime(.001,t+dur);lfo.frequency.value=R(45,80);lg.gain.value=.35;am.gain.value=.65;lfo.connect(lg).connect(am.gain);s.connect(f).connect(am).connect(g).connect(p);lfo.start(t);lfo.stop(t+dur+.05);s.start(t,R(0,1));s.stop(t+dur+.05)}
- // debris: one piece lands (a clang, a wood knock or a stony thud, louder from a bomb), with smaller bits and grit under it on wood and stone
+ // debris: one piece lands (a clang with the blast itself, a wood knock or a stony thud, louder from a bomb), with smaller bits and grit under it on wood and stone
  function knock(t,v,d){layer(t,{type:'bandpass',f:R(500,900),q:1.2,vol:v*.8,att:.001,dur:R(.008,.02),dst:d});for(let k=0;k<4;k++)layer(t+R(0,.03),{type:'bandpass',f:R(2500,6500),q:1.6,vol:v*R(.15,.4),att:.0005,dur:R(.003,.01),dst:d})}
  function debris(t,big,fl){const d=AC.createGain();d.gain.value=.55*(fl==='metal'?.45:fl==='wood'?.5:1.7);d.connect(OUT);
-  const u=t+R(.15,.4),k=big?1.8:1;if(fl==='metal'){clip(u,'mb',.45*k,R(.85,1.15),d,R(4000,7000));return}
+  const u=t+R(.15,.4),k=big?1.8:1;if(fl==='metal'){clip(t-(big?.45:.3),'mb',.45*k,R(.85,1.15),d,R(4000,7000));return}
   if(fl==='wood')clip(u,'w',.5*k,R(.85,1.1),d);else{layer(u,{type:'lowpass',f:R(220,320),vol:.5*k,att:.002,dur:.06,dst:d});knock(u,.35*k,d)}
   const piece=(at,v,r)=>fl==='wood'?clip(at,'w',v,r,d):knock(at,v,d);
   for(let i=0;i<14;i++){const p=Math.random(),u=t+Math.pow(p,1.6)*.55,v=(.55-.35*p)*R(.6,1),r=R(.8,1.4);piece(u,v,r);let b=u,vv=v,gap=R(.07,.13);for(let n=0;n<2;n++){if(Math.random()<.5)break;b+=gap;gap*=.6;vv*=.45;piece(b,vv,r*1.04)}}
