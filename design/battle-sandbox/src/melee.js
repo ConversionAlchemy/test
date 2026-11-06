@@ -1,4 +1,4 @@
-// Melee test for the Pits: spear jab (click) and throw (hold), sword slash (click) and jab (right-click), shields worn on the off side and raised with X
+// Melee test for the Pits: spear jab (click) and throw (hold), sword jab (click, held keeps jabbing) and slash (F), shields worn on the off side and raised with X
 WP.sword={n:'Sword',sharp:1,melee:1,fr:.98,max:24,m:1,tip:10};
 WP.shield.n='Iron shield';delete WP.shield.hide;
 WP.wshield={n:'Wooden shield',fr:.9,max:16,m:1.4,tip:1};HOFF.wshield=9;
@@ -15,14 +15,15 @@ function shieldPix(b){const it=offShield(b);if(!it)return[];const c=Math.cos(b.a
   r.push([bx+Math.round(c*f-s*l),by+Math.round(s*f+c*l),col,i])}
  return r}
 function jab(b){if(b.jab||b.slashT||!b.held||!MREACH[b.held.k]&&b.held.k!=='sspear'||(b.atkT||0)>tick||b.status!=='free')return;b.jab=1;b.atkT=tick+14;sfx('whoosh')}
-function slash(b){if(b.jab||b.slashT||!b.held||b.held.k!=='sword'||(b.atkT||0)>tick||b.status!=='free')return;b.slashT=1;b.slashDir=-(b.slashDir||1);b.atkT=tick+16;sfx('slash')}
+function slash(b){if(b.jab||b.slashT||!b.held||b.held.k!=='sword'||(b.atkT||0)>tick||b.status!=='free')return;b.slashT=1;b.slashDir=-(b.slashDir||1);b.atkT=tick+10;sfx('swish')}
 // AI with a blade: strike in reach, otherwise the move-in happens in the AI loop; spearmen sometimes throw from range
 function aiMelee(b,tg,a,td){const k=b.held.k,R=MREACH[k];
  if(td<=R+4){if(k==='sword'&&(UNITS[tg.unit].arm>=2||Math.random()<.3))jab(b);else if(k==='sword')slash(b);else jab(b);a.cd=24+(Math.random()*20|0);return}
  if(k==='spear'&&td>80&&td<130&&Math.random()<.05){fire(b,tg.x,tg.y);a.cd=60;return}a.cd=6}
 function meleeTick(){for(const b of bodies){if(b.type!=='token')continue;
   if(b.jab){b.jab++;b.lunge=12*Math.sin(Math.PI*(b.jab-1)/6);if(b.jab>=7){b.jab=0;b.lunge=0}}
-  if(b.slashT){b.slashT++;const p=(b.slashT-1)/10;b.swA=b.slashDir*(1.3-2.6*p);if(b.slashT>=11){b.slashT=0;b.swA=0}}
+  if(b.slashT){b.slashT++;const p=(b.slashT-1)/5;b.swA=b.slashDir*(1.3-2.6*p);if(b.slashT>=6){b.slashT=0;b.swA=0}}
+  if(jabHold&&sel.has(b)&&b.held&&b.held.k==='sword'&&!EM)jab(b);
   if(b.ai&&aiOn&&!b.direct&&!sel.has(b)&&b.status==='free'&&offShield(b)){const tg=b.ai.tg&&b.ai.tg.status==='free'?b.ai.tg:null,td=tg?Math.hypot(tg.x-b.x,tg.y-b.y):1e9,gun=tg&&tg.held&&WP[tg.held.k].gun,mr=b.held&&MREACH[b.held.k]||0;
    b.shUp=!!tg&&!b.jab&&!b.slashT&&(gun?td>mr+6:td<44&&(b.atkT||0)<tick+4)}
   else if(b.status!=='free')b.shUp=false}}

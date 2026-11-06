@@ -99,7 +99,7 @@ NUM.blast=()=>{snapPR();PRSET=true;const m0=mute;mute=true;
 MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='out';
 {const W0='stone.grey.rubble.w',inner=new Set(['4,2','4,3','4,4','2,4','3,4','6,8','13,8','6,13','13,13','15,17','16,17','17,17','15,18','15,19']),gate=new Set(['1,0','2,0','17,21','18,21']);
  NBM.pits=()=>paintAll((cx,cy)=>gate.has(cx+','+cy)?'earth.dirt.worn':cx===0||cy===0||cx===19||cy===21||inner.has(cx+','+cy)?W0:((cx*73856093^cy*19349663)>>>0)%5?'earth.dirt.plain':'earth.dirt.worn');
- NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])mkDoor('wood',cx*T,cy*T+T/2+4,0);
+ NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])smartDoor('wood',cx,cy);snapDoors();
   // melee test: you (sword, pistol, iron shield) by the top gate, a spearman with a wooden shield by the bottom one, spare arms by your gate
   FIGHT.pits=[['Havenport','Reapers']];const kit=(b,L)=>{b.inv=L.concat(Array(6-L.length).fill(null));b.si=0;b.held=b.inv[0];b.hc=null};
   const me=token('Edda','Havenport','rifle',2*T+8,2*T+8,false,null),foe=token('Brannoc','Reapers','rifle',17*T+8,19*T+8,false,null);me.ang=Math.PI/2;foe.ang=-Math.PI/2;
@@ -205,11 +205,15 @@ for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[
 const umbraC=c=>toneC('umbra',c);
 // a door is its material's slab plus a hinge and a lock
 const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9];if(x===2&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=mul(q[2],.62);else if(x===L-4&&(y===-5||y===-4))q[2]=toneC('brass',rgb(220,220,220))};
+// a door leaf hangs from whichever side has wall: two leaves in a double opening open from opposite jambs
+function smartDoor(k,cx,cy){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]),L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
+ const fl=hz?R&&!L:D&&!U,d=hz?mkDoor(k,cx*T,cy*T+T/2+4,0):mkDoor(k,cx*T+T/2-5,cy*T,1);if(!fl)return d;
+ const box=()=>{let x0=1e9,y0=1e9;for(const p of d.px){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1])}return[x0,y0]},b0=box();d.rot+=2;orient(d);const b1=box();d.x+=b0[0]-b1[0];d.y+=b0[1]-b1[1];orient(d);return d}
 function mkDoor(k0,x,y,rot){const k=baseK(k0),d=slab(DOORK[k][1],x,y,rot);if(k==='umbra'){for(const q of d.src)q[2]=umbraC(q[2]);d.umbra=true;d.mass*=.6}else if(k==='gold'||k==='iron'||k==='brass'){for(const q of d.src)q[2]=toneC(k,q[2]);if(k==='gold')d.gold=true}else if(ELEM.Wood.mats[k])mahogany(d,memb('Wood',k).c,k==='mahog'||k==='ebony');for(const q of d.src)doorMarks(q);d.used=null;d.px=[];orient(d);wearSrc(d,ELEM.Metal.mats[k]?'Metal':'Wood',k==='wood'?'oak':k,condK(k0));return d}
 function doorIcon(k){const s=slabPix(DOORK[k][1]);for(const q of s){const c=q[2];if(k==='umbra')q[2]=umbraC(c);else if(k==='gold'||k==='iron'||k==='brass')q[2]=toneC(k,c);else if(ELEM.Wood.mats[k]){const x=q[8],y=q[9],e=Math.min(x,15-x,y+8,-1-y),w=woodT(x+93,y,memb('Wood',k).c,13);q[2]=e===2&&(k==='mahog'||k==='ebony')?rgb(cl(w[0]*.6+84),cl(w[1]*.6+67),cl(w[2]*.6+40)):rgb(cl(w[0]),cl(w[1]),cl(w[2]))}doorMarks(q)}return s.map(q=>[q[8],q[9],q[2]])}
 function clearDoor(cx,cy){for(const d of bodies.filter(o=>o.type==='slab'&&!o.free&&slabCell(o)===cy*CW+cx)){if(d.pair)d.pair.pair=null;remove(d)}}
 function placeDoor(k,cx,cy){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]);clearDoor(cx,cy);const L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
- if(isWallK(s[cy][cx])){s[cy][cx]=floorNear(cx,cy);refinish()}if(hz)mkDoor(k,cx*T,cy*T+T/2+4,0);else mkDoor(k,cx*T+T/2-5,cy*T,1);snapDoors();sills();solDirty=true;puff(cx,cy,k==='iron'||k==='gold'?'iron':'wood');sndT=0;edSnd(k==='iron'||k==='gold'?'metal':'furn',.85)}
+ if(isWallK(s[cy][cx])){s[cy][cx]=floorNear(cx,cy);refinish()}smartDoor(k,cx,cy);snapDoors();sills();solDirty=true;puff(cx,cy,k==='iron'||k==='gold'?'iron':'wood');sndT=0;edSnd(k==='iron'||k==='gold'?'metal':'furn',.85)}
 function edResize(nw,nh){nw=Math.max(6,Math.min(64,nw|0));nh=Math.max(6,Math.min(64,nh|0));if(nw===CW&&nh===CH)return;edPush();const s=srcNow(),f=edFloor(),ns=Array.from({length:nh},(_,y)=>Array.from({length:nw},(_,x)=>s[y]&&s[y][x]||f));
  alloc(nw,nh);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);MAPSZ[curMap]=[nw,nh];edSrc=ns;for(const b of [...bodies])if(b.x<0||b.y<0||b.x>=W||b.y>=H)remove(b);refinish();camInit=true;fit()}
 function edGive(w){if(w.type!=='weapon'||w.hidden)return false;if(w.fuse){const X=Math.round(w.x),Y=Math.round(w.y);if(boxAt(X,Y)||bodyAt(X,Y,3,w,o=>o.kind==='crate'&&!o.hidden))NOPE();return false}const X=Math.round(w.x),Y=Math.round(w.y),tk=bodyAt(X,Y,4,w,o=>o.type==='token'&&o.status!=='dead');
