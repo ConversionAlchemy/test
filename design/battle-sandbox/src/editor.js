@@ -95,6 +95,11 @@ NUM.blast=()=>{snapPR();PRSET=true;const m0=mute;mute=true;
   if(j===0){weapon('grenade',X-14,Y);weapon('bomb',X+14,Y)}else if(j===1)explode(X,Y,1.3);else{explode(X,Y,1.95);if(j===4)explode(X+5,Y-4,1.95);}}});for(let i=0;i<80;i++)stepParts();BLR.forEach((_,i)=>{repairCell(25,4+i*7);repairCell(26,4+i*7)});
  // keep the scorch and debris; clear smoke, fire, light and shake
  for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,GM,ST,FH])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);tls.length=0;parts=parts.filter(p=>p.em===undefined&&p.life===undefined);shake=0;alarm=false;mute=m0;fxDirty=true};
+// the Pits: an 18x20 dirt floor in a rough stone ring, a gate in the top-left and bottom-right, an L of wall shielding each gate and four pillars
+MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='out';
+{const W0='stone.grey.rubble.w',inner=new Set(['4,2','4,3','4,4','2,4','3,4','6,8','13,8','6,13','13,13','15,17','16,17','17,17','15,18','15,19']),gate=new Set(['1,0','2,0','17,21','18,21']);
+ NBM.pits=()=>paintAll((cx,cy)=>gate.has(cx+','+cy)?'earth.dirt.worn':cx===0||cy===0||cx===19||cy===21||inner.has(cx+','+cy)?W0:((cx*73856093^cy*19349663)>>>0)%5?'earth.dirt.plain':'earth.dirt.worn');
+ NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])mkDoor('wood',cx*T,cy*T+T/2+4,0)}}
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
 function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>{UND=d.und?d.und.map(r=>r.map(modK)):[];paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k})};NUM[id]=()=>spawnMap(d)}
