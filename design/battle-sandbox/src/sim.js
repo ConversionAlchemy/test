@@ -61,7 +61,7 @@ const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock
 function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
-function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,o=(x,y)=>!L[y]||L[y][x]!==k&&!(rug&&OM[y]&&OM[y][x]);
+function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,bk=baseK(k),o=(x,y)=>!L[y]||baseK(L[y][x])!==bk&&!(rug&&OM[y]&&OM[y][x]);
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99),j=(cy*T+y)*W+cx*T+x;let c=floor[j];
   if(rug&&!ok){const t=ageT(condK(k));if(t>.3&&d<=1&&hh(cx*T+x,cy*T+y,95)>.97-.1*t)c=mul(c,.62);else if(d===0)c=mul(c,.6);else if(d<=3)c=mix(mul(c,.9),/gcarpet|verdant/.test(k)?rgb(176,140,70):/pcarpet|purple/.test(k)?rgb(188,184,204):rgb(150,104,60),(x+y)%3?.5:.62);else if(d===4)c=mul(c,.72)}
   if(ok){const F=WPIECE[baseK(k)]&&woodFin(WPIECE[baseK(k)][0]);c=OBJC[j];if(d===0)c=mul(c,F?F.rim:.5);else if(d===1)c=mul(c,x===0||y===0||o(cx-1,cy)&&x===1||o(cx,cy-1)&&y===1?1.12:.82);else if(d===3&&F&&/^(table|desk)$/.test(wshape(k)))c=mix(c,rgb(...F.gl),F.gt);OBJC[j]=c}else floor[j]=c}}
@@ -78,7 +78,7 @@ const NOB=new Set(['grass','dirt','sky','bush','sill','msill']);
 for(const k in CATN){const[el,mat,v,w]=CATN[k];const P=mprop(el,mat),cd=CATN[k][4]||5;if(w)WMAT[k]=hitCls(P.cls);if(P.shine)SHINE[k]=Math.round(P.shine*(.4+.6*(cd-1)/4));if(!w&&(el==='Earth'||el==='Cloth')||el==='Wood'&&v==='panel')NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
 for(const k in MCHEST){SHINE[k]=mprop('Metal',MCHEST[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}SHINE.mchest=60;
 // tile borders follow inner corners too, so a rim turns square instead of breaking
-function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const o=(x,y)=>map[y]&&map[y][x]!==undefined&&map[y][x]!==k;
+function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const bk=baseK(k),o=(x,y)=>map[y]&&map[y][x]!==undefined&&baseK(map[y][x])!==bk;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){let d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);for(const[a,b]of[[-1,-1],[1,-1],[-1,1],[1,1]])if(!o(cx+a,cy)&&!o(cx,cy+b)&&o(cx+a,cy+b))d=Math.min(d,Math.max(a<0?x:T-1-x,b<0?y:T-1-y));if(d>(WMAT[k]===3?2:1))continue;const j=(cy*T+y)*W+cx*T+x,mt=WMAT[k]===3,f=mt?[.7,1.3,.88][d]:d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
 const fmat=k=>hitCls(matK(k));
 function objMat(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k)continue;const m=fmat(k);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;if(OBJ[j])OBJ[j]=m}}}

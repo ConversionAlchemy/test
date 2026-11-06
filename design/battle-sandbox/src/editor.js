@@ -257,7 +257,7 @@ function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&AGE[c[0
   for(let m=0;m<n;m++){const i=worn[(R()*worn.length)|0];bs=16;bx=Math.floor((i%CW)*T/bs);by=Math.floor((i/CW|0)*T/bs);const ex=R()<.5,X0=(i%CW)*T+(ex?(R()<.5?1:T-2):2+R()*(T-4)),Y0=(i/CW|0)*T+(ex?2+R()*(T-4):(R()<.5?1:T-2));walk(X0,Y0,R()*6.283,(R()<.75?5+R()*6:L0*(.6+R()*.6))|0,true)}}}
 // lozenge floors frame their own edges, so repaint them once the whole map is known
 function relink(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];const c=k&&CATN[k];if(c&&(CONNV.has(c[2])||c[3]&&memb(c[0],c[1]).cut||c[0]==='Metal'))paintCell(cx,cy,k)}}
-function polish(){const st=(x,y,k)=>map[y]&&map[y][x]===k;for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!POLT.has(k))continue;const L=!st(cx-1,cy,k),R=!st(cx+1,cy,k),U=!st(cx,cy-1,k),D=!st(cx,cy+1,k);if(!L&&!R&&!U&&!D)continue;
+function polish(){const st=(x,y,k)=>map[y]&&baseK(map[y][x])===baseK(k);for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!POLT.has(k))continue;const L=!st(cx-1,cy,k),R=!st(cx+1,cy,k),U=!st(cx,cy-1,k),D=!st(cx,cy+1,k);if(!L&&!R&&!U&&!D)continue;
  const mat=CATN[k][1],F=woodFin(mat),gl=rgb(...F.gl),gt=F.gt;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(L?x:99,R?15-x:99,U?y:99,D?15-y:99);if(d>3)continue;const j=(cy*T+y)*W+cx*T+x,w=!!sol[j];let c=w?scol[j]:floor[j];
   if(d===0)c=mul(c,F.rim);else if(d===1)c=mul(c,L&&x===1||U&&y===1?1.12:.82);else if(d===3)c=mix(c,gl,gt);else continue;if(w)scol[j]=c;else floor[j]=c}}}
