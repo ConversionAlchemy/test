@@ -2350,11 +2350,14 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
  function pan(t,dur,side){const p=AC.createStereoPanner(),d=side||(Math.random()<.5?1:-1);p.pan.setValueAtTime(-.85*d,t);p.pan.linearRampToValueAtTime(.85*d,t+dur);p.connect(OUT);return p}
  function whizz(t,dur,vol,fm,side){const a=AC,p=pan(t,dur,side),s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),am=a.createGain(),lfo=a.createOscillator(),lg=a.createGain();s.buffer=nb();f.type='bandpass';f.Q.value=7;f.frequency.setValueAtTime(1900*fm,t);f.frequency.setValueAtTime(1900*fm,t+dur*.45);f.frequency.exponentialRampToValueAtTime(820*fm,t+dur);
   g.gain.setValueAtTime(0,t);g.gain.exponentialRampToValueAtTime(vol*2.6,t+dur*.48);g.gain.exponentialRampToValueAtTime(.001,t+dur);lfo.frequency.value=R(45,80);lg.gain.value=.35;am.gain.value=.65;lfo.connect(lg).connect(am.gain);s.connect(f).connect(am).connect(g).connect(p);lfo.start(t);lfo.stop(t+dur+.05);s.start(t,R(0,1));s.stop(t+dur+.05)}
- // debris on the floor it lands on: grit on stone, the armour thunk on wood, the armour clink on metal
- function debris(t,big,soft,fl){const k=(big?1:.55)*soft,L=big?1.8:1.1;
-  if(fl==='wood'){for(let i=0;i<(big?14:7);i++){const p=Math.random(),u=t+Math.pow(p,1.5)*L,v=k*(.5-.3*p)*R(.5,1);layer(u,{f:520*R(.85,1.5),q:1,vol:.6*v,att:.002,dur:.14*R(.6,1),wet:.15})}}
-  else if(fl==='metal'){for(let i=0;i<(big?14:7);i++){const p=Math.random(),u=t+Math.pow(p,1.4)*L,v=k*(.5-.3*p)*R(.5,1),m=R(.8,1.25);layer(u,{type:'bandpass',f:2800*m,q:2.5,vol:.4*v,att:.001,dur:.06,wet:.2});layer(u,{type:'highpass',f:6000,vol:.16*v,att:.001,dur:.02})}}
-  else{for(let i=0;i<(big?55:26);i++){const u=t+Math.pow(Math.random(),1.7)*L;layer(u,{type:'bandpass',f:R(2200,6500),q:1.6,vol:R(.05,.2)*k,att:.001,dur:R(.008,.025),wet:.25})}for(let i=0;i<(big?10:5);i++)layer(t+Math.pow(Math.random(),1.5)*L*.7,{type:'bandpass',f:R(500,900),q:1.2,vol:R(.12,.25)*k,att:.002,dur:R(.03,.06),wet:.3})}}
+ // debris: one piece lands (a clang, a wood knock or a stony thud, louder from a bomb), with smaller bits and grit under it on wood and stone
+ function knock(t,v,d){layer(t,{type:'bandpass',f:R(500,900),q:1.2,vol:v*.8,att:.001,dur:R(.008,.02),dst:d});for(let k=0;k<4;k++)layer(t+R(0,.03),{type:'bandpass',f:R(2500,6500),q:1.6,vol:v*R(.15,.4),att:.0005,dur:R(.003,.01),dst:d})}
+ function debris(t,big,fl){const d=AC.createGain();d.gain.value=.55*(fl==='metal'?.45:fl==='wood'?.5:1.7);d.connect(OUT);
+  const u=t+R(.15,.4),k=big?1.8:1;if(fl==='metal'){clip(u,'mb',.45*k,R(.85,1.15),d,R(4000,7000));return}
+  if(fl==='wood')clip(u,'w',.5*k,R(.85,1.1),d);else{layer(u,{type:'lowpass',f:R(220,320),vol:.5*k,att:.002,dur:.06,dst:d});knock(u,.35*k,d)}
+  const piece=(at,v,r)=>fl==='wood'?clip(at,'w',v,r,d):knock(at,v,d);
+  for(let i=0;i<14;i++){const p=Math.random(),u=t+Math.pow(p,1.6)*.55,v=(.55-.35*p)*R(.6,1),r=R(.8,1.4);piece(u,v,r);let b=u,vv=v,gap=R(.07,.13);for(let n=0;n<2;n++){if(Math.random()<.5)break;b+=gap;gap*=.6;vv*=.45;piece(b,vv,r*1.04)}}
+  const G=fl==='wood'?1.2:1.9;for(let i=0;i<30;i++)layer(t+Math.pow(Math.random(),1.7)*G,{type:'bandpass',f:R(2500,6500),q:1.6,vol:R(.03,.1),att:.0005,dur:R(.005,.015),dst:d})}
  const earRing=(t,dur,vol)=>{if(sp==='out'||sp==='next')return;for(const f of[3900,3960])ping(t,f,dur,vol,MS)};
  // rebuilt from an outdoor explosion recording: an overdriven, pitchless pressure burst, the air pulling back, then each band of noise following that band's loudness over time
  function blast(t,{time,pitch,low,vol}){const a=AC,E=BE.edges,st=.005,o=sp==='out',sh=a.createWaveShaper(),cu=new Float32Array(1024);for(let i=0;i<1024;i++){const x=i/511.5-1;cu[i]=Math.tanh(x*3)/Math.tanh(3)}sh.curve=cu;const pre=a.createGain(),post=a.createGain();post.gain.value=.8;pre.connect(sh).connect(post).connect(OUT);const wet=a.createGain();wet.gain.value=o?.08:.5;post.connect(wet).connect(RVIN);
@@ -2376,8 +2379,8 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
   musket:()=>{const t=AC.currentTime+.02,m=t+.13,o=OUT,w=RVIN;layer(t,{type:'highpass',f:4200,vol:.35,att:.001,dur:.012});ping(t,2500,.03,.04);layer(t+.015,{type:'bandpass',f:2800,f2:1500,q:.8,vol:.28,att:.01,dur:.13,wet:.2,roll:.5});
    setTimeout(()=>{const b=ABUS,c=AWET;ABUS=o;AWET=w;try{SFX.shot()}finally{ABUS=b;AWET=c}},(m-AC.currentTime)*1000);
    nwave(m,.85);layer(m,{type:'highpass',f:2400,vol:.75,att:.001,dur:.025,wet:.35});layer(m,{type:'bandpass',f:2600,q:.5,vol:.5,att:.001,dur:.03,wet:.3});sub(m+.03,75,40,.006,.25,.75);layer(m+.055,{f:220,vol:.45,att:.01,dur:.25,wet:.4});layer(m+.08,{f:90,vol:.14,att:.15,dur:1.2,wet:.4,roll:.3});if(sp==='out')hallPass(m,.35)},
-  grenade:(fl)=>{const t=AC.currentTime+.02;blast(t,{time:.8,pitch:1.12,low:.7,vol:1});debris(t+.3,0,.35,fl);earRing(t+.12,1.56,.012)},
-  bomb:(fl)=>{const t=AC.currentTime+.02;blast(t,{time:1.2,pitch:.88,low:1.15,vol:1.15});debris(t+.45,1,1,fl);earRing(t+.15,6.5,.016)},
+  grenade:(fl)=>{const t=AC.currentTime+.02;blast(t,{time:.8,pitch:1.12,low:.7,vol:1});debris(t+.3,0,fl);earRing(t+.12,1.56,.012)},
+  bomb:(fl)=>{const t=AC.currentTime+.02;blast(t,{time:1.2,pitch:.88,low:1.15,vol:1.15});debris(t+.45,1,fl);earRing(t+.15,6.5,.016)},
   ricos:()=>{const t=AC.currentTime+.02,p=pan(t+.02,.4);layer(t,{type:'bandpass',f:3000,q:.6,vol:.55,att:.001,dur:.09,wet:.25});layer(t+.004,{type:'bandpass',f:4800,f2:2200,q:6,vol:.4,att:.01,dur:.3,dst:p});ping(t+R(.25,.35),R(140,200),.1,.18);layer(t+.3,{type:'bandpass',f:700,q:2,vol:.25,att:.002,dur:.06,wet:.2})},
   nm_ball:(v,side)=>snapBy(AC.currentTime+.01,v,side),
   nm_pel:(v,side)=>{const t=AC.currentTime+.01,d=R(.18,.3),p=pan(t,d,side),g=AC.createGain();g.gain.value=v;g.connect(p);nwave(t+d*.45,R(.35,.55),g);layer(t+d*.45,{type:'highpass',f:3200,vol:.25,att:.0005,dur:.012,dst:g});whizz(t,d,R(.4,.75)*v,R(1.15,1.6),side)}};
@@ -2390,9 +2393,9 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
  function regAt(x,y){const X=x>>1,Y=y>>1;for(let r=0;r<6;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const a=X+dx,b=Y+dy;if(a<0||b<0||a>=BW||b>=BH)continue;const g=RG[b*BW+a];if(g>=0)return g}return -1}
  function spaceAt(x,y){if(OUTD)return'out';regions();const g=regAt(x,y),e=ear(),h=regAt(e.x,e.y);if(g>=0&&h>=0&&g!==h)return'next';const tiles=g>=0?RGS[g]/64:0;return tiles<90?'room':tiles<260?'large':'hall'}
  const floorAt=(x,y)=>{const k=map[y>>4]&&map[y>>4][x>>4],c=CATN[k];return!c?'stone':c[0]==='Wood'?'wood':c[0]==='Metal'?'metal':'stone'};
- function at(k,x,y){if(mute||!gest)return;const n=performance.now();if(last[k]&&n-last[k]<45)return;last[k]=n;try{const s=x===undefined?'room':spaceAt(Math.round(x),Math.round(y));setup(s,k!=='pistol',k==='pistol'||k==='musket'||k==='blunder',GAIN[k]||1);PLAY[k](x===undefined?'stone':floorAt(Math.round(x),Math.round(y)))}catch(e){}}
+ function at(k,x,y){if(mute||!gest)return;spr();const n=performance.now();if(last[k]&&n-last[k]<45)return;last[k]=n;try{const s=x===undefined?'room':spaceAt(Math.round(x),Math.round(y));setup(s,k!=='pistol',k==='pistol'||k==='musket'||k==='blunder',GAIN[k]||1);PLAY[k](x===undefined?'stone':floorAt(Math.round(x),Math.round(y)))}catch(e){}}
  // balls passing close to the listener snap past; pellets whizz
- let nmT=[];function near(){if(mute||!gest)return;const e=ear();for(const b of bodies){if(b.type!=='weapon'||b.nm||b.from===e.id||!(b.kind==='ball'||b.kind==='pball'||b.kind==='pel'))continue;const vx=b.vx,vy=b.vy,v2=vx*vx+vy*vy;if(v2<64)continue;
+ let nmT=[];function near(){if(mute||!gest)return;if(AC&&!SBP)spr();const e=ear();for(const b of bodies){if(b.type!=='weapon'||b.nm||b.from===e.id||!(b.kind==='ball'||b.kind==='pball'||b.kind==='pel'))continue;const vx=b.vx,vy=b.vy,v2=vx*vx+vy*vy;if(v2<64)continue;
   const x0=b.x-vx,y0=b.y-vy,t=((e.x-x0)*vx+(e.y-y0)*vy)/v2;if(t<0||t>1)continue;const d=Math.hypot(e.x-x0-vx*t,e.y-y0-vy*t);if(d>48)continue;b.nm=1;
   const n=performance.now();nmT=nmT.filter(q=>n-q<120);if(nmT.length>=4)continue;nmT.push(n);const side=(vx*(e.y-y0)-vy*(e.x-x0))>0?1:-1,v=.45+.55*(1-d/48);
   try{const pel=b.kind==='pel',s=spaceAt(Math.round(e.x),Math.round(e.y));setup(s==='out'?(pel?'dry':'hall'):s);PLAY[pel?'nm_pel':'nm_ball'](v,side)}catch(err){}}}
