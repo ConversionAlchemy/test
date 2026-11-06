@@ -95,34 +95,6 @@ NUM.blast=()=>{snapPR();PRSET=true;const m0=mute;mute=true;
   if(j===0){weapon('grenade',X-14,Y);weapon('bomb',X+14,Y)}else if(j===1)explode(X,Y,1.3);else{explode(X,Y,1.95);if(j===4)explode(X+5,Y-4,1.95);}}});for(let i=0;i<80;i++)stepParts();BLR.forEach((_,i)=>{repairCell(25,4+i*7);repairCell(26,4+i*7)});
  // keep the scorch and debris; clear smoke, fire, light and shake
  for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,GM,ST,FH])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);tls.length=0;parts=parts.filter(p=>p.em===undefined&&p.life===undefined);shake=0;alarm=false;mute=m0;fxDirty=true};
-// the Pits: an 18x20 dirt floor in a rough stone ring, a gate in the top-left and bottom-right, an L of wall shielding each gate and four pillars
-MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='in';
-// the Pits, weathered: rubble walls in poor repair, worn dirt, wooden half walls shielding each gate, stone pillars; everything placed in 180-degree symmetry so neither gate has the better ground
-{const h=(x,y)=>((x*73856093^y*19349663)>>>0),WW='wood.oak.planks.w',gate=new Set(['1,0','2,0','17,21','18,21']),
-  low={'4,4':WW,'2,4':WW+'N','3,4':WW+'N','4,2':WW+'H','4,3':WW+'H','15,17':WW,'16,17':WW+'S','17,17':WW+'S','15,18':WW+'H','15,19':WW+'H'},pil=new Set(['6,8','13,8','6,13','13,13']),pave=new Set();for(const[x,y]of[[9,10],[8,10],[9,9],[8,9],[10,9],[5,4],[6,4],[6,5],[2,15],[3,15],[2,16],[12,6],[13,6]])pave.add(x+','+y).add((19-x)+','+(21-y));
- NBM.pits=()=>paintAll((cx,cy)=>{const id=cx+','+cy;if(gate.has(id))return'earth.dirt.worn';if(low[id])return low[id];
-  if(cx===0||cy===0||cx===19||cy===21||pil.has(id))return'stone.grey.rubble.w~'+(1+h(cx,cy)%3);if(pave.has(id))return'stone.grey.paving';return h(cx,cy)%3?'earth.dirt.worn':'earth.dirt.plain'});
- NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])smartDoor('wood',cx,cy);snapDoors();
-  // each fighter: a pistol with no spare shot and a wooden shield; spare shot and an iron shield on the floor, mirrored
-  // a fresh slave bout each reset: 1v1, 2v2 or 4v4, both sides with the same crude kit so neither is favoured; you drive the first of yours
-  FIGHT.pits=[['Havenport','Reapers']];const R=Math.random,pick=a=>a[R()*a.length|0],n=pick([1,2,4]),
-   KITS=[['pistol','wshield'],['spear','wshield'],['pistol'],['spear']],
-   item=k=>CAP[k]?{k,ammo:CAP[k],res:fullRes({unit:'rifle'},k)}:{k,n:fullN({unit:'rifle'},k)},
-   kit=(b,L)=>{b.inv=[null,null,null,null,null,null];for(const k of L){const i=k==='wshield'?4:k==='grenade'?2:b.inv[0]?1:0;b.inv[i]=item(k)}b.si=0;b.held=b.inv[0];b.hc=null},
-   P=[[2,2],[3,1],[1,3],[3,3]].slice(0,n),NA=['Edda','Tam','Corin','Wil','Hobb','Rafe','Jory','Ness'],NB=['Brannoc','Mott','Sully','Grist','Fenn','Dace','Orrin','Cobb'],me0=[];
-  P.forEach(([x,y],i)=>{const L=pick(KITS),a=token(NA[i],'Havenport','rifle',x*T+8,y*T+8,false,null),b=token(NB[i],'Reapers','rifle',(19-x)*T+8,(21-y)*T+8,false,null);a.ang=Math.PI/2;b.ang=-Math.PI/2;kit(a,L);kit(b,L);me0.push(a)});
-  const me=me0[0];
-  // one weapon each; spare arms, shot and shields lie mirrored round the pit
-  for(const[k,cx,cy]of[['pbox',2,11],['pbox',9,6],['pistol',5,11],['spear',11,4],['wshield',2,8]])for(const[x,y]of[[cx,cy],[19-cx,21-cy]])weapon(k,x*T+8,y*T+8);weapon('shield',W/2,H/2);
-  aiMe='Havenport';sel.clear();sel.add(me);me.direct=true;pitsWorn();setTimeout(()=>say(me,n+' v '+n,true),300)}
- // years of fights: chipped walls and pillars, broken paving down to the soil, splintered half walls; the wand still restores the clean pit
- function pitsWorn(){snapPR();PRSET=true;const m0=mute;mute=true;const R=Math.random;
-  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=CATN[map[cy][cx]];if(c&&c[3])wearWall(cx,cy,.5+R()*.8)}
-  for(let i=0;i<70;i++){const sd=i%4,t=16+R()*(sd<2?W-32:H-32),x=sd===0?t:sd===1?t:sd===2?16:W-16,y=sd===0?16:sd===1?H-16:t;carve(x+(sd===2?-1:sd===3?1:0)*R()*3,y+(sd===0?-1:sd===1?1:0)*R()*3,1+R()*2.2,2+R()*3,0,0)}
-  for(const id of pil){const[cx,cy]=id.split(',').map(Number);for(let i=0;i<5;i++){const a=R()*6.28;carve(cx*T+8+Math.cos(a)*8,cy*T+8+Math.sin(a)*8,1.2+R()*2,3,0,0)}}
-  for(const id in low){const[cx,cy]=id.split(',').map(Number);if(R()<.7)carve(cx*T+4+R()*8,cy*T+4+R()*8,1+R()*1.5,2,0,0)}
-  for(const id of pave){const[cx,cy]=id.split(',').map(Number);for(let i=0;i<5;i++)crater(cx*T+2+R()*12,cy*T+2+R()*12,.6+R()*.45)}
-  for(let i=0;i<80;i++)stepParts();parts=parts.filter(p=>p.em===undefined&&p.life===undefined);for(const k of['smoke','fire'])if(FX[k])FX[k].fill(0);for(const a of[TF,SF,SS,GM,ST,FH])a.fill(0);for(const a of[LR,LG,LB,LT,WH])a.fill(0);shake=0;mute=m0;fxDirty=true}}
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
 function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>{UND=d.und?d.und.map(r=>r.map(modK)):[];paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k})};NUM[id]=()=>spawnMap(d)}
@@ -226,6 +198,7 @@ const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9];if(x===2&&(y===-th+1||y===-t
 function smartDoor(k,cx,cy){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]),L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
  const fl=hz?R&&!L:D&&!U,d=hz?mkDoor(k,cx*T,cy*T+T/2+4,0):mkDoor(k,cx*T+T/2-5,cy*T,1);if(!fl)return d;
  const box=()=>{let x0=1e9,y0=1e9;for(const p of d.px){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1])}return[x0,y0]},b0=box();d.rot+=2;orient(d);const b1=box();d.x+=b0[0]-b1[0];d.y+=b0[1]-b1[1];orient(d);return d}
+function mkDoor(k0,x,y,rot){const k=baseK(k0),d=slab(DOORK[k][1],x,y,rot);if(k==='umbra'){for(const q of d.src)q[2]=umbraC(q[2]);d.umbra=true;d.mass*=.6}else if(k==='gold'||k==='iron'||k==='brass'){for(const q of d.src)q[2]=toneC(k,q[2]);if(k==='gold')d.gold=true}else if(ELEM.Wood.mats[k])mahogany(d,memb('Wood',k).c,k==='mahog'||k==='ebony');for(const q of d.src)doorMarks(q);d.used=null;d.px=[];orient(d);wearSrc(d,ELEM.Metal.mats[k]?'Metal':'Wood',k==='wood'?'oak':k,condK(k0));return d}
 function mkDoor(k0,x,y,rot){const k=baseK(k0),d=slab(DOORK[k][1],x,y,rot);if(k==='umbra'){for(const q of d.src)q[2]=umbraC(q[2]);d.umbra=true;d.mass*=.6}else if(k==='gold'||k==='iron'||k==='brass'){for(const q of d.src)q[2]=toneC(k,q[2]);if(k==='gold')d.gold=true}else if(ELEM.Wood.mats[k])mahogany(d,memb('Wood',k).c,k==='mahog'||k==='ebony');for(const q of d.src)doorMarks(q);d.used=null;d.px=[];orient(d);wearSrc(d,ELEM.Metal.mats[k]?'Metal':'Wood',k==='wood'?'oak':k,condK(k0));return d}
 function doorIcon(k){const s=slabPix(DOORK[k][1]);for(const q of s){const c=q[2];if(k==='umbra')q[2]=umbraC(c);else if(k==='gold'||k==='iron'||k==='brass')q[2]=toneC(k,c);else if(ELEM.Wood.mats[k]){const x=q[8],y=q[9],e=Math.min(x,15-x,y+8,-1-y),w=woodT(x+93,y,memb('Wood',k).c,13);q[2]=e===2&&(k==='mahog'||k==='ebony')?rgb(cl(w[0]*.6+84),cl(w[1]*.6+67),cl(w[2]*.6+40)):rgb(cl(w[0]),cl(w[1]),cl(w[2]))}doorMarks(q)}return s.map(q=>[q[8],q[9],q[2]])}
 function clearDoor(cx,cy){for(const d of bodies.filter(o=>o.type==='slab'&&!o.free&&slabCell(o)===cy*CW+cx)){if(d.pair)d.pair.pair=null;remove(d)}}

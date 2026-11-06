@@ -388,6 +388,4 @@ window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTARE
  window.addEventListener('blur',()=>{if(SP&&SP.slow&&slowMo)window.toggleSlow();SP=null})}
 sigil();sgP();pickTool(UT.some(t=>t[0]===UI.tool)?UI.tool:'hand');syncCorner();
 objMat();
-// open straight into the arena test
-if(curMap==='pits'||curMap==='ball'){CW=-1;reset()}
 })();
