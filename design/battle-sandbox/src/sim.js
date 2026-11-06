@@ -4,12 +4,12 @@ let S=2,EM=null,TOPS=false,OUTD=false;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
 let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),SCH=new Uint8Array(N),OBJC=new Uint32Array(N),DMG=new Uint8Array(N);// DMG: chips and holes blasts leave in the floor, which only the wand repairs
 const FX={blood:new Float32Array(NB),fire:new Float32Array(NB),smoke:new Float32Array(NB)};
-let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),FH=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
+let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),GM=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),FH=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
 let WH=new Float32Array(N);let whOn=false;
 let fxLow=new Uint32Array(N),fxTop=new Uint32Array(N),fxA=new Uint8Array(N),HZ=new Float32Array(NB),OPEN=new Uint8Array(NB);let hzOn=false;let fxDirty=true;
 function alloc(cw,ch){CW=cw;CH=ch;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
  SH=new Uint8Array(N);solDirty=true;GOLD=new Uint8Array(N);floor=new Uint32Array(N);sol=new Uint8Array(N);shp=new Uint8Array(N);scol=new Uint32Array(N);crk=new Uint8Array(N);slabG=new Int32Array(N);GT=new Uint8Array(N);SHN=new Uint8Array(N);DS=new Uint8Array(N);NOD=new Uint8Array(N);OBJ=new Uint8Array(N);SCH=new Uint8Array(N);OBJC=new Uint32Array(N);DMG=new Uint8Array(N);
- for(const k in FX)FX[k]=new Float32Array(NB);TF=new Float32Array(NB);SF=new Float32Array(NB);SS=new Float32Array(NB);ST=new Float32Array(NB);BURN=new Float32Array(NB);FH=new Float32Array(NB);FV=new Float32Array(NB);SV=new Float32Array(NB);DV=new Float32Array(NB);TMP=new Float32Array(NB);
+ for(const k in FX)FX[k]=new Float32Array(NB);TF=new Float32Array(NB);SF=new Float32Array(NB);SS=new Float32Array(NB);GM=new Float32Array(NB);ST=new Float32Array(NB);BURN=new Float32Array(NB);FH=new Float32Array(NB);FV=new Float32Array(NB);SV=new Float32Array(NB);DV=new Float32Array(NB);TMP=new Float32Array(NB);
  WH=new Float32Array(N);fxLow=new Uint32Array(N);fxTop=new Uint32Array(N);fxA=new Uint8Array(N);HZ=new Float32Array(NB);OPEN=new Uint8Array(NB)}
 const rgb=(r,g,b)=>((255<<24)|(b<<16)|(g<<8)|r)>>>0;
 // plasma is Umbrastone's energy: its light runs through the stone's iridescent palette
@@ -149,10 +149,14 @@ function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k o
   const v=ind[j]+(fbm(X/7,Y/7,90)-.5)*.5+(hh(X,Y,91)-.5)*.1,g=v>.5;let c=g?grassT(X,Y):soilT(X,Y);if(g&&v<.62&&hh(X,Y,92)>(v-.5)/.12)c=mx(GDRY,soilT(X,Y),.5);
   floor[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));GT[j]=g?1:2}}
 // blasts on open ground tear up grass, dig a soft crater and throw soil round it
-// a mended tile sits a little proud of the damaged floor beside it: on each side that touches damage its top or left edge catches the light, its bottom or right edge is shaded and casts a faint shadow onto the damage. Drawn at render only
+// a mended tile, furniture cell or wall cell sits a little proud of damage of its own kind beside it: on each side that touches damage its top or left edge catches the light, its bottom or right edge is shaded and casts a faint shadow onto the damage. Drawn at render only
 let EDGM=new Uint8Array(0);const EDF=[1,1.1,.86,.9],REP=new Set();
-function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);if(!REP.size)return;const hurt=(x,y)=>{if(x<0||y<0||x>=CW||y>=CH)return false;const k=map[y][x],c=CATN[k];if(!c||c[3]||OM[y]&&OM[y][x])return false;if((c[4]||5)<5)return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++)if(DMG[(y*T+v)*W+x*T+u])return true;return false},set=(j,v)=>{if(!EDGM[j]||v===2)EDGM[j]=v};
- for(const id of REP){const cx=id%CW,cy=id/CW|0;for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){if(!hurt(cx+dx,cy+dy))continue;const near=dx<0||dy<0;
+function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);if(!REP.size)return;let P0=null;try{P0=PR&&PR.sol&&PR.sol.length===N?PR:null}catch(e){}const kind=(x,y)=>{const c=CATN[map[y][x]];return c&&c[3]?2:OM[y]&&OM[y][x]||OB0.has(y*CW+x)?1:0},
+  hurt=(x,y,t)=>{if(x<0||y<0||x>=CW||y>=CH||kind(x,y)!==t)return false;const id=y*CW+x;
+   if(t===2){if(WB0.has(id))return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++){const j=(y*T+v)*W+x*T+u;if(P0&&P0.sol[j]&&(!sol[j]||shp[j]<P0.shp[j]))return true}return false}
+   if(t===1){if(OB0.has(id)||OWT.has(id))return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++){const j=(y*T+v)*W+x*T+u;if(P0&&P0.OBJ[j]&&!OBJ[j])return true}return false}
+   const c=CATN[map[y][x]];if((c[4]||5)<5)return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++)if(DMG[(y*T+v)*W+x*T+u])return true;return false},set=(j,v)=>{if(!EDGM[j]||v===2)EDGM[j]=v};
+ for(const id of REP){const cx=id%CW,cy=id/CW|0,t=kind(cx,cy);for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){if(!hurt(cx+dx,cy+dy,t))continue;const near=dx<0||dy<0;
   for(let i=0;i<T;i++){const x=dx<0?0:dx>0?T-1:i,y=dy<0?0:dy>0?T-1:i;set((cy*T+y)*W+cx*T+x,near?1:2);if(!near){const ox=cx*T+x+dx,oy=cy*T+y+dy;if(ox>=0&&oy>=0&&ox<W&&oy<H)set(oy*W+ox,3)}}}}}
 // blasts wear the floor in a ragged circle, strongest at the blast: how far and how hard follow the floor's toughness from the material table (soft wood further, umbra hardly at all). Each pixel takes the wear of the condition it reaches; each cell's condition is what its centre reached. The worn look becomes the cell's clean state, so cleaning keeps it and the wand undoes it
 const softOf=(el,mat)=>Math.max(.3,Math.min(1.6,3/(mprop(el,mat).hp||3)));
@@ -225,7 +229,7 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
   if((x===27||x===37)&&y>=14&&y<=24||(y===14||y===24)&&x>=27&&x<=37)return 'metal.iron.rivet.w';
   return 'stone.gold.block.w'};
  HALFF='stone.night.block';for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));HALFF='dirt';
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 const EXITS={vault:[{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392}],count:[{dir:'e',cell:[43,12],to:'vault',arrive:[664,200],label:'The Aurum',lx:640,ly:182},{dir:'w',cell:[0,17],label:'Back alley',lx:2,ly:262}]};
 const STATE={},PEND={};
 function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of document.querySelectorAll('#sm .xlab'))e.remove();
@@ -272,7 +276,7 @@ function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('grass'));
    if(cx===11&&t!=='door')k=t==='stone2'?'stone.grey.block.w':t;if(cx===12&&t==='stone2')k='stone.grey.block.w'}
   const yi=Math.floor((cx-17)/3),yo=(cx-17)%3<2&&cx>=17;if(yo&&cy>=1&&cy<=2&&Y0[yi])k=Y0[yi];if(yo&&cy>=4&&cy<=5&&W0[yi])k=W0[yi];if(yo&&cy>=7&&cy<=8&&W1[yi])k=W1[yi];
   if(cx>=24&&cx<=38&&cy>=13&&cy<=CH-2&&soil(cx,cy))k='dirt';if(cx===5&&(cy===8||cy===18||cy===21||cy===24))k=cy===18?'chest':'chest';paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
  for(const[n,u,y]of[['Vey','home',40],['Oren','home',72],['Pip','civ',104],['Lask','guard',136],['Hale','rifle',176],['Isk','rifle',256]])token(n,'Imperium',u,56,y,false,n==='Lask'?'rod':null);
  {const w=weapon('rod',92,70,0);w.ammo=3;w.res=15}container(5,8,[{k:'rbox',n:6}]);container(5,18,[{k:'musket',n:4,ammo:12,res:24}]);container(5,21,[{k:'grenade',n:8}]);container(5,24,[{k:'bomb',n:4}]);
@@ -292,7 +296,7 @@ function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
   return 'stone.gold.block.w'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,cx<=14?F(cx,cy):F(29-cx,cy));for(const cx of [0,1,2])paintCell(cx,25,'stone.aur.block');
  for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='metal.gold.panel')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='metal.gold.panel';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};slab(3,36,400,1);
  dbl(3,208,124,271,115,0,2,true,32,8);dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,true,32,8);
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
@@ -315,7 +319,7 @@ function buildAir(){map=Array.from({length:CH},()=>Array(CW).fill('sky'));
   if(plank(cx,cy))k='wood.oak.planks';if(cx===2&&(cy===6||cy===9)||cy===7&&(cx===16||cx===17)||cx===20&&cy===12)k='chest';
   if(cx===18&&(cy===6||cy===13)||cx>=23&&cx<=24&&cy>=9&&cy<=10)k='rail';
   paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsAir(){const face=(t,a)=>{t.ang=a;return t},E=0,Wd=Math.PI;
  const C=[['Kade','pistol',2],['Vos','pistol',2],['Ash','blunder'],['Rook','blunder'],['Sere','pgun'],['Holt','rod']];
  C.forEach(([n,w,dual],i)=>{const t=face(token(n,'Imperium','cmd',56+(i%2)*28,104+(i>>1)*36,false,w),E);if(dual)addItem(t,{k:'pistol',n:1,ammo:18,res:18})});
@@ -391,7 +395,7 @@ function drawStores(){drawHoled(storesShown());const hit=!SDR&&!drag&&mouse.in&&
   for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q||SDR&&SDR.c===c&&SDR.i===i)continue;const[w,h]=cRect(q),ip=itemPix(q.k,q.r),bx=g.ox+q.gx*g.cs,by=g.oy+q.gy*g.cs;for(const[a,b]of ip){const gx=q.gx+a+1,gy=q.gy+b+1;if(gx<g.gw&&gy<g.gh&&g.ok(gx,gy))out[(g.oy+gy)*W+g.ox+gx]=mul(out[(g.oy+gy)*W+g.ox+gx],.5)}const hv=hit&&hit.c===c&&hit.i===i;for(const[a,b,col]of ip){const X=bx+a,Y=by+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=hv?mix(col,rgb(255,255,255),.22):col}if(GLOWK.has(q.k))for(const[a,b,col]of ip){if((col>>16&255)<200||(col&255)<150)continue;for(let v=-2;v<=2;v++)for(let u=-2;u<=2;u++){const d=Math.hypot(u,v);if(!d||d>2.5)continue;const X=bx+a+u,Y=by+b+v;if(X>=0&&Y>=0&&X<W&&Y<H&&!ip.some(p=>p[0]===a+u&&p[1]===b+v))out[Y*W+X]=mix(out[Y*W+X],rgb(214,140,255),.32*(1-d/3))}}}}
  if(SDR){const q=SDR.c.inv[SDR.i];if(q){const db=dropBox(),sn=db&&!bodyAt(Math.round(mouse.x),Math.round(mouse.y),4,null,o=>o.type==='token'&&o.status!=='dead')&&cAt(db,q.k,mouse.x,mouse.y,q),sg=sn&&cGeo(db),r=sn?sn.r:q.r,[w,h]=sn?(r?[...foot(q.k)].reverse():foot(q.k)):cRect(q);for(const[a,b,col]of itemPix(q.k,r)){const X=(sn?sg.ox+sn.gx:Math.round(mouse.x-w/2))+a,Y=(sn?sg.oy+sn.gy:Math.round(mouse.y-h/2))+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}}
 // mini maps for each side: one room or stretch, opening onto the void or a corridor
-const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true};
+const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true};
 // doorways draw from both neighbours, so they are redrawn once the whole map is laid
 function resill(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(k==='sill'||k==='msill')paintCell(cx,cy,k)}}
 function paintAll(f){map=Array.from({length:CH},()=>Array(CW).fill('stone'));for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,f(cx,cy));fxClear()}
@@ -458,7 +462,7 @@ function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone.grey.b
   if(cx>=15&&cx<=16&&cy===2)k='table';
   if(cy===10&&cx>11&&cx<CW-1)k=(cx===14||cx===15)?'sill':'stone.grey.block.w';
   paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,ST,BURN,FH])a.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);fxDirty=true}
 
 // units and nations
 const NAT={Neutral:null,Pirates:'#8a5a2b',Goldbank:'#c9a227',Havenport:'#2f5fa8',Imperium:'#b03a2a',Sanctis:'#8e5cc0',Portsbridge:'#c98a4a','Great Keys':'#3fa39a',Thaselore:'#7d4fa0',Holverland:'#3e8e5a',Reapers:'#5b6b3a'};
@@ -685,9 +689,11 @@ function explode(x,y,s=1){raiseAlarm();hear(x,y,520*s,null,'boom');SND&&SND.at(s
   if(!bodies.includes(o)||o.type==='slab'||o.hidden)continue;const f=(F-Math.min(d,F))*.45/(o.mass||1);o.vx+=dx/(d||1)*f;o.vy+=dy/(d||1)*f;o.stuck=false;o.ghost=!!solidHits(o,0,0)}
  for(let i=0;i<70*s;i++)spark(x,y,Math.random()<.5?rgb(40,36,34):rgb(90,80,70),0,0,4*s);
  for(let i=0;i<5*s;i++){const a=Math.random()*6.283,rr=4+Math.random()*12*s;dab(TF,x+Math.cos(a)*rr,y+Math.sin(a)*rr,1.4+Math.random()*.9,2+(Math.random()*2|0))}
- dab(SF,x,y,3,11);dab(SF,x+6,y-5,1.6,8);scorch(x,y,16*s*blastSoft(x,y));
+ if(s>1.5){dab(SF,x,y,3,11);dab(SF,x+6,y-5,1.6,8)}else dab(SF,x,y,1.6,7);scorch(x,y,16*s*blastSoft(x,y));
  if(s>1){embers(x,y,70);for(let i=0;i<60;i++){const a=Math.random()*6.283,rr=Math.random()*12,X=Math.round(x+Math.cos(a)*rr),Y=Math.round(y+Math.sin(a)*rr);if(X>=0&&Y>=0&&X<W&&Y<H)spark(x,y,mul(sol[Y*W+X]?scol[Y*W+X]:floor[Y*W+X],.8),0,0,6)}
-  for(let i=0;i<7;i++){const a=Math.random()*6.283,rr=6+Math.random()*16;dab(SF,x+Math.cos(a)*rr,y+Math.sin(a)*rr,2,7)}dab(SS,x,y,2.6,14);room(x,y,.12)}}
+  if(s>1.5){for(let i=0;i<7;i++){const a=Math.random()*6.283,rr=6+Math.random()*16;dab(SF,x+Math.cos(a)*rr,y+Math.sin(a)*rr,2,7)}dab(SS,x,y,2.6,14);room(x,y,.12)}
+  // grenade: a thin ring of powder mist that clears in about 7 s
+  else for(let i=0;i<12;i++){const a=i/12*6.283+Math.random()*.4,rr=10+Math.random()*8;dab(GM,x+Math.cos(a)*rr,y+Math.sin(a)*rr,1.1+Math.random()*.5,4+(Math.random()*2|0))}}}
 function scorch(x,y,R){const r=R/2,cx=x/2,cy=y/2,sd=Math.random()*99;for(let j=-Math.ceil(r);j<=r;j++)for(let i=-Math.ceil(r);i<=r;i++){const X=Math.floor(cx+i),Y=Math.floor(cy+j);if(X<0||Y<0||X>=BW||Y>=BH)continue;
   const d=Math.hypot(i,j),k=Math.floor((Math.atan2(j,i)+Math.PI)/6.2832*44),len=r*(.6+.4*hh(k,0,sd)),core=r*.3,t=Math.min(1,d/Math.max(1,len)),v=.36*Math.pow(1-t*t*(3-2*t),1.2)+.56*Math.exp(-((d/core)**2));if(v<=.02)continue;const q=Y*BW+X;BURN[q]=Math.min(.92,Math.max(BURN[q],v*(.85+.15*hh(X,Y,sd+1))));const h=Math.min(1,R/16)*Math.exp(-((d/(core*1.4))**2));if(h>.05)FH[q]=Math.max(FH[q],h)}fxDirty=true}
 function embers(x,y,n,blue){for(let i=0;i<n&&parts.length<1500;i++){const a=Math.random()*6.283,s=1+Math.random()*5,c=blue&&Math.random()<.4?rgb(170,220,255):Math.random()<.5?rgb(255,214,120):rgb(255,140,50),e=120+(Math.random()*200|0);parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,c,c0:c,em:e,em0:e})}}
@@ -962,15 +968,15 @@ function openMap(){for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const j=Y*2*W+X*2;
 function room(px,py,amt){openMap();const s=(Math.floor(py)>>1)*BW+(Math.floor(px)>>1);if(s<0||s>=NB||!OPEN[s])return;const R=30,dist=new Int16Array(NB).fill(-1),q=[s];dist[s]=0;let h=0;
  while(h<q.length){const i=q[h++],d=dist[i];HZ[i]=Math.min(.5,HZ[i]+amt*1.6*(1-d/R));if(d>=R)continue;const X=i%BW;for(const n of [X>0?i-1:-1,X<BW-1?i+1:-1,i-BW,i+BW])if(n>=0&&n<NB&&dist[n]<0&&OPEN[n]){dist[n]=d+1;q.push(n)}}hzOn=true}
 function plume(x,y,a,sc){const c=Math.cos(a),s=Math.sin(a),n=sc>.6?10:6;for(let i=0;i<n;i++){const d=i*3.6*(sc>.6?1:.75),j=(Math.random()-.5)*i*1.1;dab(SS,x+c*d-s*j,y+s*d+c*j,(1.9-i*.12)*sc,Math.max(2,Math.round((3+i*.5)*(sc>.6?1:.7))))}dab(SF,x,y,.8,3)}
-function fxTick(){let act=false;
- for(let i=0;i<NB;i++){if(TF[i]>0){act=true;if(TF[i]>.3)BURN[i]=Math.min(.75,BURN[i]+.0016);TF[i]=Math.max(0,TF[i]-.0015)}if(SF[i]>0){act=true;SF[i]=Math.max(0,SF[i]-.012)}if(SS[i]>0){act=true;SS[i]=Math.max(0,SS[i]-.00035)}if(ST[i]>0){act=true;ST[i]=Math.max(0,ST[i]*.996-.0015)}if(FH[i]>0){act=true;FH[i]=FH[i]>.01?FH[i]*.997-.0001:0}}
+function fxTick(){let act=false;if(GM.length!==NB)GM=new Float32Array(NB);
+ for(let i=0;i<NB;i++){if(TF[i]>0){act=true;if(TF[i]>.3)BURN[i]=Math.min(.75,BURN[i]+.0016);TF[i]=Math.max(0,TF[i]-.0015)}if(SF[i]>0){act=true;SF[i]=Math.max(0,SF[i]-.012)}if(SS[i]>0){act=true;SS[i]=Math.max(0,SS[i]-.00035)}if(GM[i]>0){act=true;GM[i]=Math.max(0,GM[i]-.0018)}if(ST[i]>0){act=true;ST[i]=Math.max(0,ST[i]*.996-.0015)}if(FH[i]>0){act=true;FH[i]=FH[i]>.01?FH[i]*.997-.0001:0}}
  if(act&&tick%6===0)diffuse(ST,.7);
- if(act&&tick%4===0)diffuse(SF,.6);if(act&&tick%12===0)diffuse(SS,.8);fxActive=act;
+ if(act&&tick%4===0)diffuse(SF,.6);if(act&&tick%12===0)diffuse(SS,.8);if(act&&tick%8===0)diffuse(GM,.7);fxActive=act;
  if(hzOn){let mx=0;for(let i=0;i<NB;i++){HZ[i]*=.99991;if(HZ[i]>mx)mx=HZ[i]}
   if(tick%30===0){openMap();for(let i=0;i<NB;i++){if(!OPEN[i]){TMP[i]=0;continue}const X=i%BW;let sm=0;for(const n of [X>0?i-1:-1,X<BW-1?i+1:-1,i-BW,i+BW])sm+=(n>=0&&n<NB&&OPEN[n])?HZ[n]:HZ[i];TMP[i]=HZ[i]*.6+sm*.1}HZ.set(TMP)}
   hzOn=mx>.003}}
 function buildFx(){fxLow.fill(0);fxTop.fill(0);fxA.fill(0);const ph=(tick/7|0)%4;
- for(let i=0;i<NB;i++){FV[i]=Math.max(FX.fire[i],TF[i]);SV[i]=FX.smoke[i]+SF[i]+SS[i]+ST[i];DV[i]=FX.smoke[i]+SF[i]+SS[i]*.12}
+ for(let i=0;i<NB;i++){FV[i]=Math.max(FX.fire[i],TF[i]);SV[i]=FX.smoke[i]+SF[i]+SS[i]+GM[i]+ST[i];DV[i]=FX.smoke[i]+SF[i]+SS[i]*.12}
  const blk=(buf,X,Y,c,al=255)=>{const j=Y*2*W+X*2;buf[j]=buf[j+1]=buf[j+W]=buf[j+W+1]=c;if(buf===fxTop)fxA[j]=fxA[j+1]=fxA[j+W]=fxA[j+W+1]=al};
  const thr=(k,X,Y)=>.3+hh(X,Y,k)*.3;const on=(a,k,X,Y)=>X>=0&&Y>=0&&X<BW&&Y<BH&&a[Y*BW+X]>thr(k,X,Y);
  let a=FX.blood;for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const v=a[Y*BW+X];if(!on(a,1,X,Y))continue;if(v<.8&&hh(X,Y,3)<.28)continue;const e=!on(a,1,X+1,Y)||!on(a,1,X-1,Y)||!on(a,1,X,Y+1)||!on(a,1,X,Y-1);blk(fxLow,X,Y,e?FXC.b0:v>2.2?(hh(X,Y,8)>.94?FXC.b3:FXC.b2):FXC.b1)}
@@ -978,7 +984,7 @@ function buildFx(){fxLow.fill(0);fxTop.fill(0);fxA.fill(0);const ph=(tick/7|0)%4
   blk(fxLow,X,Y,e?FXC.f[1]:v<1?FXC.f[2]:v<1.6?FXC.f[3]:v<2.3?FXC.f[4]:v<3?FXC.f[5]:FXC.f[6])}
  a=SV;for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const i=Y*BW+X,v=a[i];if(v<.05)continue;const j=Y*2*W+X*2;if(fxTop[j])continue;
   if(ST[i]/v>.5){const al=Math.min(.62,ST[i]*.55)*(.7+.6*hh(X,Y,33));if(al<.04)continue;blk(fxTop,X,Y,rgb(232,236,240),al*255|0);continue}
-  if(SS[i]/v>.55){const al=Math.min(.68,v*.3)*(.72+.56*hh(X,Y,31));if(al<.05)continue;blk(fxTop,X,Y,mix(rgb(206,211,220),rgb(150,156,170),Math.min(1,v/5)),al*255|0);continue}
+  if((SS[i]+GM[i])/v>.55){const al=Math.min(.68,v*.3)*(.72+.56*hh(X,Y,31));if(al<.05)continue;blk(fxTop,X,Y,mix(rgb(206,211,220),rgb(150,156,170),Math.min(1,v/5)),al*255|0);continue}
   if(!on(a,3,X,Y))continue;let s=0;for(let jj=-4;jj<=4;jj+=2)for(let ii=-4;ii<=4;ii+=2){const xx=X+ii,yy=Y+jj;if(xx>=0&&yy>=0&&xx<BW&&yy<BH)s+=DV[yy*BW+xx]}s=Math.min(1,s/70);
   const t=Math.min(1,s*s*1.6+(DV[i]>3.2?.12:0)),q=hh(X,Y,11)>.8?8:0;blk(fxTop,X,Y,rgb(cl(214+(28-214)*t+q),cl(212+(26-212)*t+q),cl(208+(26-208)*t+q)),Math.min(235,(.42+.38*Math.min(1,v/3))*(.78+.44*hh(X,Y,37))*255)|0)}
  fxDirty=false}
@@ -1028,12 +1034,12 @@ function scorchC(c,a,X,Y){a=Math.min(1,a);const t=scorchT(X,Y);if(t===SCT.Wood)a
 function glowC(c,h,X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4],e=CATN[k]?CATN[k][0]:'Stone',g=e==='Metal'?1:e==='Wood'?.8*(.8+.4*hh(X>>1,Y>>1,tick>>3)):e==='Cloth'?.75:.5;return heatCol(h*g,c)}
 function render(){
  if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick}
- sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>2*W&&OBJ[j-2*W-1])c=mul(c,.6);if(EDGM[j]&&!OBJ[j])c=mul(c,EDF[EDGM[j]]);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);const fh=FH[bro+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y);const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
+ sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>2*W&&OBJ[j-2*W-1])c=mul(c,.6);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);const fh=FH[bro+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y);const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
  if(fxDirty||(fxActive&&tick%3===0)||(tick%7===0&&FX.fire.some(v=>v>.3)))buildFx();
  for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}
  for(const b of bodies)if((b.stuck&&!b.att)||b.fallen)drawBody(b);
- {const tp=TOPS||OUTD;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,NOD[j]?.72:.5);else if(k===2)c=mul(c,NOD[j]?1.05:1.1);if(!tp){const d=DS[j],d0=DS0?DS0[j]:d;let f=DF[Math.min(9,d0)];if(d<d0)f=Math.max(f,d===1?.6:d===2?.22:0);c=mul(c,f)}if(SHN[j]&&(DS[j]<4||tp))c=shine(c,X,Y,SHN[j]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}}
+ {const tp=TOPS||OUTD;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,NOD[j]?.72:.5);else if(k===2)c=mul(c,NOD[j]?1.05:1.1);if(!tp){const d=DS[j],d0=DS0?DS0[j]:d;let f=DF[Math.min(9,d0)];if(d<d0)f=Math.max(f,d===1?.6:d===2?.22:0);c=mul(c,f)}if(SHN[j]&&(DS[j]<4||tp))c=shine(c,X,Y,SHN[j]);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}}
  for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!inDrag(b))drawBody(b);
  const hot=p=>p.life!==undefined||(p.em!==undefined&&p.em/p.em0>.2),rest=p=>!hot(p)&&Math.hypot(p.vx||0,p.vy||0)<.3;
  for(const p of parts){if(!rest(p))continue;const X=Math.round(p.x),Y=Math.round(p.y);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=p.c}
