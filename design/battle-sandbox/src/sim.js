@@ -623,7 +623,7 @@ function damagePixel(X,Y,pow,dx=0,dy=0){if(X<1||Y<1||X>=W-1||Y>=H-1)return 1;con
  const s=slabG[j]&&byId(slabG[j]);if(s){doorPart(s,X,Y);const r=hitPix(s,X,Y,pow);if(r===2){slabG[j]=0;if(Math.random()<.5)spark(X,Y,s.mat===2?C.wood:C.iron,dx,dy);settle(s)}return s.mat}return 0}
 function carve(cx,cy,r,pow,dx,dy){const R=Math.ceil(r*1.7)+1;for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const X=Math.round(cx+i),Y=Math.round(cy+j),m=matAt(X,Y);if(!m)continue;const rm=r*(m===2?1.7:m===3?.8:1);if(Math.hypot(i,j)+hh(X,Y,4)*1.2>rm)continue;damagePixel(X,Y,pow,dx,dy)}}
 let BLU=false;const swb=c=>{const r=c&255,g=c>>8&255,b=c>>16&255;return b>=r&&b>g+30?rgb(g,r,b):c};
-function spark(x,y,c,dx=0,dy=0,sp=2.2,life){if(BLU)c=swb(c);if(parts.length>1200)return;const a=Math.random()*6.283,s=Math.random()*sp;parts.push({x,y,vx:Math.cos(a)*s-dx*.35,vy:Math.sin(a)*s-dy*.35,c,life})}
+function spark(x,y,c,dx=0,dy=0,sp=2.2,life,mn=0){if(BLU)c=swb(c);if(parts.length>1200)return;const a=Math.random()*6.283,s=sp*(mn+(1-mn)*Math.random());parts.push({x,y,vx:Math.cos(a)*s-dx*.35,vy:Math.sin(a)*s-dy*.35,c,life})}
 function dab(a,px,py,amt=1,R=8){for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const X=Math.floor(px/2+i),Y=Math.floor(py/2+j);if(X<0||Y<0||X>=BW||Y>=BH)continue;const d=Math.hypot(i,j)/R;if(d>1)continue;a[Y*BW+X]=Math.min(4,a[Y*BW+X]+amt*(1-d)*(0.55+0.45*hh(X,Y,R)))}fxDirty=true}
 
 // colours
@@ -687,17 +687,18 @@ function explode(x,y,s=1){raiseAlarm();hear(x,y,520*s,null,'boom');SND&&SND.at(s
   if(o.kind==='grenade'||o.kind==='bomb'){if(!o.fuse)o.fuse=4+(Math.random()*8|0);continue}if(o.type==='slab'&&!o.fallen){blastSlab(o,x,y,s);continue}
   if(o.type==='token'||o.type==='part'){if(d<28*s){const k=1-d/(28*s);for(let i=0;i<Math.round(13*s*k)+3;i++){const tx=o.x+(Math.random()-.5)*12,ty=o.y+(Math.random()-.5)*12,dd=Math.hypot(tx-x,ty-y)||1,ux=(tx-x)/dd,uy=(ty-y)/dd,b0=Math.max(0,dd-12);pierce(o,x+ux*b0,y+uy*b0,ux,uy,8+20*k,.7)}if(d<10*s)cut(o,Math.round(o.x),Math.round(o.y),3+4*k,true,4);dab(FX.blood,o.x,o.y,.3+.6*k,3);settle(o)}}
   if(!bodies.includes(o)||o.type==='slab'||o.hidden)continue;const f=(F-Math.min(d,F))*.45/(o.mass||1);o.vx+=dx/(d||1)*f;o.vy+=dy/(d||1)*f;o.stuck=false;o.ghost=!!solidHits(o,0,0)}
- for(let i=0;i<70*s;i++)spark(x,y,Math.random()<.5?rgb(40,36,34):rgb(90,80,70),0,0,4*s);
+ for(let i=0;i<70*s;i++)spark(x,y,Math.random()<.5?rgb(40,36,34):rgb(90,80,70),0,0,4*s,undefined,s>1.5?.35:.15);
  // bombs always leave fire; a grenade does 40% of the time, in a tighter patch
  if(s>1.5)for(let i=0;i<5*s;i++){const a=Math.random()*6.283,rr=4+Math.random()*12*s;dab(TF,x+Math.cos(a)*rr,y+Math.sin(a)*rr,1.4+Math.random()*.9,2+(Math.random()*2|0))}
  else if(Math.random()<.4)for(let i=0;i<4;i++){const a=Math.random()*6.283,rr=3+Math.random()*7;dab(TF,x+Math.cos(a)*rr,y+Math.sin(a)*rr,1.2+Math.random()*.7,2)}
- if(s>1.5){dab(SF,x,y,3,11);dab(SF,x+6,y-5,1.6,8)}else dab(SF,x,y,1.6,7);scorch(x,y,16*s*blastSoft(x,y));
- if(s>1){embers(x,y,70);for(let i=0;i<60;i++){const a=Math.random()*6.283,rr=Math.random()*12,X=Math.round(x+Math.cos(a)*rr),Y=Math.round(y+Math.sin(a)*rr);if(X>=0&&Y>=0&&X<W&&Y<H)spark(x,y,mul(sol[Y*W+X]?scol[Y*W+X]:floor[Y*W+X],.8),0,0,6)}
+ if(s>1.5){dab(SF,x,y,3,11);dab(SF,x+6,y-5,1.6,8)}else dab(SF,x,y,1.6,7);scorch(x,y,16*s*blastSoft(x,y),s>1.5?.3:.13);
+ if(s>1){embers(x,y,70);for(let i=0;i<60;i++){const a=Math.random()*6.283,rr=Math.random()*12,X=Math.round(x+Math.cos(a)*rr),Y=Math.round(y+Math.sin(a)*rr);if(X>=0&&Y>=0&&X<W&&Y<H)spark(x,y,mul(sol[Y*W+X]?scol[Y*W+X]:floor[Y*W+X],.8),0,0,6,undefined,s>1.5?.35:.15)}
   if(s>1.5){for(let i=0;i<7;i++){const a=Math.random()*6.283,rr=6+Math.random()*16;dab(SF,x+Math.cos(a)*rr,y+Math.sin(a)*rr,2,7)}dab(SS,x,y,2.6,14);room(x,y,.12)}
   // grenade: a thin ring of powder mist that clears in about 7 s
   else for(let i=0;i<12;i++){const a=i/12*6.283+Math.random()*.4,rr=10+Math.random()*8;dab(GM,x+Math.cos(a)*rr,y+Math.sin(a)*rr,1.1+Math.random()*.5,4+(Math.random()*2|0))}}}
-function scorch(x,y,R){const r=R/2,cx=x/2,cy=y/2,sd=Math.random()*99;for(let j=-Math.ceil(r);j<=r;j++)for(let i=-Math.ceil(r);i<=r;i++){const X=Math.floor(cx+i),Y=Math.floor(cy+j);if(X<0||Y<0||X>=BW||Y>=BH)continue;
-  const d=Math.hypot(i,j),k=Math.floor((Math.atan2(j,i)+Math.PI)/6.2832*44),len=r*(.6+.4*hh(k,0,sd)),core=r*.3,t=Math.min(1,d/Math.max(1,len)),v=.36*Math.pow(1-t*t*(3-2*t),1.2)+.56*Math.exp(-((d/core)**2));if(v<=.02)continue;const q=Y*BW+X;BURN[q]=Math.min(.92,Math.max(BURN[q],v*(.85+.15*hh(X,Y,sd+1))));const h=Math.min(1,R/16)*Math.exp(-((d/(core*1.4))**2));if(h>.05)FH[q]=Math.max(FH[q],h)}fxDirty=true}
+// hollow: the blast scours the middle, leaving the char darkest in a ring (size as a share of the radius)
+function scorch(x,y,R,hollow=0){const r=R/2,cx=x/2,cy=y/2,sd=Math.random()*99;for(let j=-Math.ceil(r);j<=r;j++)for(let i=-Math.ceil(r);i<=r;i++){const X=Math.floor(cx+i),Y=Math.floor(cy+j);if(X<0||Y<0||X>=BW||Y>=BH)continue;
+  const d=Math.hypot(i,j),k=Math.floor((Math.atan2(j,i)+Math.PI)/6.2832*44),len=r*(.6+.4*hh(k,0,sd)),core=r*.3,t=Math.min(1,d/Math.max(1,len)),v=(.36*Math.pow(1-t*t*(3-2*t),1.2)+.56*Math.exp(-((d/core)**2)))*(hollow?1-.7*Math.exp(-((d/(r*hollow))**2)):1);if(v<=.02)continue;const q=Y*BW+X;BURN[q]=Math.min(.92,Math.max(BURN[q],v*(.85+.15*hh(X,Y,sd+1))));const h=Math.min(1,R/16)*Math.exp(-((d/(core*1.4))**2));if(h>.05)FH[q]=Math.max(FH[q],h)}fxDirty=true}
 function embers(x,y,n,blue){for(let i=0;i<n&&parts.length<1500;i++){const a=Math.random()*6.283,s=1+Math.random()*5,c=blue&&Math.random()<.4?rgb(170,220,255):Math.random()<.5?rgb(255,214,120):rgb(255,140,50),e=120+(Math.random()*200|0);parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,c,c0:c,em:e,em0:e})}}
 function shatter(b){sfx('crash');for(let i=0;i<4;i++)dab(TF,b.x+(Math.random()-.5)*14,b.y+(Math.random()-.5)*14,2,4);dab(TF,b.x,b.y,2.6,6);dab(SF,b.x,b.y-4,1.6,9);
  for(let i=0;i<24;i++)spark(b.x,b.y,Math.random()<.5?C.clay:C.clayD,0,0,3);remove(b)}
