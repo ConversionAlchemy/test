@@ -124,7 +124,8 @@ function setMode(m){if(m===EM)return;const was=EM;if(was==='asset')aeStash();EM=
  if(!was&&m){aiWas=aiOn;if(aiOn)aiBtn().click()}if(was&&!m&&aiWas&&!aiOn)aiBtn().click();
  sel.clear();drag=null;charge=null;box=null;moveSel=null;openCrate=null;closeMenu();edBrush=null;edStroke=null;lastHud='';
  TOPS=m==='map'&&edTops;$('hint').textContent='';if(m==='map'){edSrc=null;fillMapTools()}if(m==='asset')aeOpen();setTimeout(fit,0)}
-{const u0=update;update=function(){if(!EM)return u0();tick++;if(drag)dragStep();if(tick%6===0)hud();doors();dustTick();plopTick();edPan();cleanTick();wandTick()}}
+// editing tools keep the world running with AI off; only the asset editor freezes it
+{const u0=update;update=function(){if(!EM)return u0();if(EM!=='asset'){u0();dustTick();plopTick();edPan();cleanTick();wandTick();return}tick++;if(drag)dragStep();if(tick%6===0)hud();doors();dustTick();plopTick();edPan();cleanTick();wandTick()}}
 // placing tiles: a soft puff from the tile's own colours and a quiet sound for its material
 const DUST=[];
 function matOf(k){const m=matK(k);return m==='marble'?'tile':m==='grass'||m==='soil'?'soft':m==='wood'&&furnK(k)?'furn':m}

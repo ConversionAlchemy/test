@@ -77,7 +77,7 @@ function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===
 
 // corner: clock, reset, slow-mo, map sigil
 const CORN=mk('div','corner');{
- const ck=mk('div','ub clkb oct');ck.innerHTML=clockSvg();ck.onclick=()=>{US.clock();setPlay(PAUSED)};
+ const ck=mk('div','ub clkb oct');ck.innerHTML=clockSvg();ck.onclick=()=>{US.clock();if(EM){aiWas=true;pickTool('hand');return}setPlay(PAUSED)};
  const rs=mk('div','ub sq red');rs.append(uicon('reset'));rs.onclick=()=>reset();
  const sl=mk('div','ub sq slow');sl.append(pix(...UIC.glass));sl.onclick=()=>window.toggleSlow();
  const sg=mk('div','ub sq sig');sg.onclick=()=>togglePop('map');
@@ -97,7 +97,7 @@ function pickTool(k){if(k!=='spawn')UI.del=false;UI.erase=false;if(k!=='hand'){f
  for(const b of ZT.querySelectorAll('.tb'))b.classList.toggle('on',b.dataset.k===k);
  if(k==='vac'||k==='sponge'||k==='wand')edBrush={t:'clean',k};else if(k==='tile')edBrush=UI.tile?{...UI.tile}:null;else if(m)edBrush=null;
  head(k);if(k==='tile')tilerCtx();if(k==='spawn')spawnCtx();if(k==='paint')paintCtx();if(k==='sign')signCtx();if(k==='teth'){TQ.a=null;tetherCtx()}cv.style.cursor=k==='vac'||k==='sponge'||k==='wand'?TOOLCUR[k]||'crosshair':m?'crosshair':CUR.arrow}
-{const s0=setMode;setMode=function(m){s0(m);SM.dataset.tool=UI.tool}}
+{const s0=setMode;setMode=function(m){s0(m);SM.dataset.tool=UI.tool;PAUSED=!aiOn;syncCorner()}}
 
 // tiler: element tabs, a swatch per material and variation, name and floor or wall
 const TCX=mk('div','tcx');ZC.append(TCX);

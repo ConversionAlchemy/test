@@ -2550,7 +2550,8 @@ function setMode(m){if(m===EM)return;const was=EM;if(was==='asset')aeStash();EM=
  if(!was&&m){aiWas=aiOn;if(aiOn)aiBtn().click()}if(was&&!m&&aiWas&&!aiOn)aiBtn().click();
  sel.clear();drag=null;charge=null;box=null;moveSel=null;openCrate=null;closeMenu();edBrush=null;edStroke=null;lastHud='';
  TOPS=m==='map'&&edTops;$('hint').textContent='';if(m==='map'){edSrc=null;fillMapTools()}if(m==='asset')aeOpen();setTimeout(fit,0)}
-{const u0=update;update=function(){if(!EM)return u0();tick++;if(drag)dragStep();if(tick%6===0)hud();doors();dustTick();plopTick();edPan();cleanTick();wandTick()}}
+// editing tools keep the world running with AI off; only the asset editor freezes it
+{const u0=update;update=function(){if(!EM)return u0();if(EM!=='asset'){u0();dustTick();plopTick();edPan();cleanTick();wandTick();return}tick++;if(drag)dragStep();if(tick%6===0)hud();doors();dustTick();plopTick();edPan();cleanTick();wandTick()}}
 // placing tiles: a soft puff from the tile's own colours and a quiet sound for its material
 const DUST=[];
 function matOf(k){const m=matK(k);return m==='marble'?'tile':m==='grass'||m==='soil'?'soft':m==='wood'&&furnK(k)?'furn':m}
@@ -3029,7 +3030,7 @@ function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===
 
 // corner: clock, reset, slow-mo, map sigil
 const CORN=mk('div','corner');{
- const ck=mk('div','ub clkb oct');ck.innerHTML=clockSvg();ck.onclick=()=>{US.clock();setPlay(PAUSED)};
+ const ck=mk('div','ub clkb oct');ck.innerHTML=clockSvg();ck.onclick=()=>{US.clock();if(EM){aiWas=true;pickTool('hand');return}setPlay(PAUSED)};
  const rs=mk('div','ub sq red');rs.append(uicon('reset'));rs.onclick=()=>reset();
  const sl=mk('div','ub sq slow');sl.append(pix(...UIC.glass));sl.onclick=()=>window.toggleSlow();
  const sg=mk('div','ub sq sig');sg.onclick=()=>togglePop('map');
@@ -3049,7 +3050,7 @@ function pickTool(k){if(k!=='spawn')UI.del=false;UI.erase=false;if(k!=='hand'){f
  for(const b of ZT.querySelectorAll('.tb'))b.classList.toggle('on',b.dataset.k===k);
  if(k==='vac'||k==='sponge'||k==='wand')edBrush={t:'clean',k};else if(k==='tile')edBrush=UI.tile?{...UI.tile}:null;else if(m)edBrush=null;
  head(k);if(k==='tile')tilerCtx();if(k==='spawn')spawnCtx();if(k==='paint')paintCtx();if(k==='sign')signCtx();if(k==='teth'){TQ.a=null;tetherCtx()}cv.style.cursor=k==='vac'||k==='sponge'||k==='wand'?TOOLCUR[k]||'crosshair':m?'crosshair':CUR.arrow}
-{const s0=setMode;setMode=function(m){s0(m);SM.dataset.tool=UI.tool}}
+{const s0=setMode;setMode=function(m){s0(m);SM.dataset.tool=UI.tool;PAUSED=!aiOn;syncCorner()}}
 
 // tiler: element tabs, a swatch per material and variation, name and floor or wall
 const TCX=mk('div','tcx');ZC.append(TCX);
