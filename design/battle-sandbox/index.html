@@ -3033,9 +3033,9 @@ async function gamesPop(){const L=mk('div','glist'),nm=tbox((TITLE[curMap]||'Gam
    dl=gub('','sq red',x=>{if(x.dataset.arm){gDel(o).then(fill);return}x.dataset.arm=1;x.classList.add('on');setTimeout(()=>{delete x.dataset.arm;x.classList.remove('on')},2500)});dl.append(uicon('bin'));
   row.append(t,ld,ow,dl);L.append(row)}}
  openPop('games','Games',[r,L]);fill()}
-// Arena crowd: two raised rows of civilians outside the map wall, closed in by a back wall, drawn on their own canvas (no physics, AI or selection).
+// Arena crowd: two raised rows of civilians just outside the map wall, fading into the dark, drawn on their own canvas (no physics, AI or selection).
 // Heads turn toward the nearest fighter, or between two close ones, rippling through the rows; a death makes nearby rows jump.
-const CROWDSET={pits:'sparse'},CM=72,CROWS=2,CANG=32,CROFF=[24,41],CWALL=[52,62];
+const CROWDSET={pits:'sparse'},CM=72,CROWS=2,CANG=32,CROFF=[15,31];
 let CRW=null;
 const ccv=document.createElement('canvas');ccv.style.cssText='position:absolute;image-rendering:pixelated;pointer-events:none';
 {const st=$('stage'),v=st.parentElement;v.style.position='relative';v.insertBefore(ccv,st)}
@@ -3058,10 +3058,7 @@ function crowdTick(){if(!CRW)return;CRW.n++;const fs=bodies.filter(b=>b.type==='
   if(s.t!=null){let d=s.t-s.a;d=((d+CANG/2)%CANG+CANG)%CANG-CANG/2;s.a=(s.a+Math.max(-.35,Math.min(.35,d*.18))+CANG)%CANG}}
  if(CRW.n%2===0)crowdDraw()}
 function crowdDraw(){const w=ccv.width,h=ccv.height,g=ccv.getContext('2d'),im=g.createImageData(w,h),o=new Uint32Array(im.data.buffer);
- const dist=(X,Y)=>{const x=X-CM,y=Y-CM;return Math.max(-x,x-W+1,-y,y-H+1)};
- for(let Y=0;Y<h;Y++)for(let X=0;X<w;X++){const d=dist(X,Y);if(d<=0)continue;const hs=((X*73856093^Y*19349663)>>>0)%7;
-  if(d>=CWALL[0]&&d<CWALL[1]){const e=d-CWALL[0],c=e<2?rgb(70,66,60):rgb(52,49,45);o[Y*w+X]=mul(c,(hs>4?.82:1)*(e<2?.95:.6))}}
- for(const s of CRW.seats){const f=(s.r?.24:.4)*(s.jump?1.35:1),fr=CRW.looks[s.lk][Math.round(s.a)%CANG],bx=Math.round(s.x)+CM,by=Math.round(s.y)+CM-(s.jump>2?2:0);
+ for(const s of CRW.seats){const f=(s.r?.16:.3)*(s.jump?1.35:1),fr=CRW.looks[s.lk][Math.round(s.a)%CANG],bx=Math.round(s.x)+CM,by=Math.round(s.y)+CM-(s.jump>2?2:0);
   for(const p of fr){const X=bx+p[0]+3,Y=by+p[1]+4;if(X>=0&&Y>=0&&X<w&&Y<h)o[Y*w+X]=mul(o[Y*w+X]||rgb(8,8,8),.35)}
   for(const p of fr){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<w&&Y<h)o[Y*w+X]=mul(p[2],f)}}
  for(let Y=CM;Y<CM+H;Y++)o.fill(0,Y*w+CM,Y*w+CM+W);
