@@ -99,7 +99,13 @@ NUM.blast=()=>{snapPR();PRSET=true;const m0=mute;mute=true;
 MAPSZ.pits=[20,22];TITLE.pits='The Pits';ENVSET.pits='out';
 {const W0='stone.grey.rubble.w',inner=new Set(['4,2','4,3','4,4','2,4','3,4','6,8','13,8','6,13','13,13','15,17','16,17','17,17','15,18','15,19']),gate=new Set(['1,0','2,0','17,21','18,21']);
  NBM.pits=()=>paintAll((cx,cy)=>gate.has(cx+','+cy)?'earth.dirt.worn':cx===0||cy===0||cx===19||cy===21||inner.has(cx+','+cy)?W0:((cx*73856093^cy*19349663)>>>0)%5?'earth.dirt.plain':'earth.dirt.worn');
- NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])mkDoor('wood',cx*T,cy*T+T/2+4,0)}}
+ NUM.pits=()=>{for(const[cx,cy]of[[1,0],[2,0],[17,21],[18,21]])mkDoor('wood',cx*T,cy*T+T/2+4,0);
+  // melee test: you (sword, pistol, iron shield) by the top gate, a spearman with a wooden shield by the bottom one, spare arms by your gate
+  FIGHT.pits=[['Havenport','Reapers']];const kit=(b,L)=>{b.inv=L.concat(Array(6-L.length).fill(null));b.si=0;b.held=b.inv[0];b.hc=null};
+  const me=token('Edda','Havenport','rifle',2*T+8,2*T+8,false,null),foe=token('Brannoc','Reapers','rifle',17*T+8,19*T+8,false,null);me.ang=Math.PI/2;foe.ang=-Math.PI/2;
+  kit(me,[{k:'sword'},{k:'pistol',ammo:18,res:18},null,null,{k:'shield'}]);kit(foe,[{k:'spear'},null,null,null,{k:'wshield'}]);
+  weapon('spear',5*T+8,2*T);weapon('wshield',6*T+8,2*T+8);weapon('sword',5*T+8,3*T+4);
+  aiMe='Havenport';sel.clear();sel.add(me);me.direct=true}}
 {const o=mk('option',null,'Fluoria atelier');o.value='atelier';$('msel').appendChild(o)}
 const MAPBASE=[...$('msel').options].map(o=>[o.value,o.textContent]);
 function regMap(id){const d=MODS.maps[id];ENVSET[id]=d.env||'auto';MAPSZ[id]=[d.CW,d.CH];TITLE[id]=d.name;NBM[id]=()=>{UND=d.und?d.und.map(r=>r.map(modK)):[];paintAll((cx,cy)=>{let k=d.map[cy]&&d.map[cy][cx];if(!validK(k))k=validK(d.tex&&d.tex[k])?d.tex[k]:'flag';return k})};NUM[id]=()=>spawnMap(d)}
