@@ -1558,7 +1558,8 @@ function hitBodies(b,s){const bx=Math.round(b.x),by=Math.round(b.y);
     if(w.bullet)b.E=r.E/fo;b.vx*=.8;b.vy*=.8;settle(o);continue}
    if(b.kind==='cannon'){let n=0;for(const[X,Y]of ov)if(hitPix(o,X,Y,3)===2)n++;if(n){dab(FX.blood,ov[0][0],ov[0][1],.5+n*.03,3);sfx('squish');settle(o)}if(bodies.includes(o)){o.vx+=b.vx*.2;o.vy+=b.vy*.2}continue}
    if(b.kind==='pot'){shatter(b);return true}if(b.kind==='sbomb'){shockBurst(b);return true}
-   if(b.kind==='grenade'||b.kind==='bomb'){b.att={id:o.id,dx:b.x-o.x,dy:b.y-o.y};b.vx=b.vy=0;b.stuck=true;sfx('thunk');return true}
+   // grenades bounce off people rather than sticking to them
+   if(b.kind==='grenade'||b.kind==='bomb'){const s=Math.hypot(b.vx,b.vy)||1,nx=(b.x-o.x)/(Math.hypot(b.x-o.x,b.y-o.y)||1),ny=(b.y-o.y)/(Math.hypot(b.x-o.x,b.y-o.y)||1);b.vx=nx*s*.35;b.vy=ny*s*.35;b.x+=nx*2;b.y+=ny*2;sfx('thunk');return true}
    b.vx*=-.3;b.vy*=-.3;sfx('mhit');return true}
   const m1=b.mass||1,m2=o.mass||1,f=m1/(m1+m2);o.vx+=b.vx*f*1.3;o.vy+=b.vy*f*1.3;o.stuck=false;b.vx*=.3;b.vy*=.3;sfx('thunk');
   if(s>6){const[X,Y]=ov[0];cut(o,X,Y,1.5,true);if(bodies.includes(b))cut(b,X,Y,1.2,true)}return true}
