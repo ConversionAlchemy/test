@@ -2387,7 +2387,7 @@ window.addEventListener('pointerup',e=>{holdFire=false;if(pan){pan=null;return}i
  if(sp>1.4){if(sp>max){vx*=max/sp;vy*=max/sp}sfx('whoosh');b.vx=vx;b.vy=vy;b.thrown=true;if(b.type==='weapon')reshape(b,Math.atan2(vy,vx))}});
 window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase();if(k===' '){if(![...sel].some(o=>o.direct))panKey=true;e.preventDefault();return}
  if(k==='z'){if(!e.repeat)toggleSlow();return}
- if(k==='v'){if(!e.repeat)lookGive([...sel].filter(canOrder),mouse.x,mouse.y,e.shiftKey);return}
+ if(k==='v'){if(!e.repeat&&vKeyV())return;if(!e.repeat)lookGive([...sel].filter(canOrder),mouse.x,mouse.y,e.shiftKey);return}
  if(k==='shift'){if(!e.repeat)dash();return}
  if(k==='c'){if(!e.repeat)for(const b of sel)if(b.type==='token'&&b.status==='free'){b.crouch=true;b.pc=true}return}
  if((k==='q'||k==='e')&&[...sel].some(o=>o.type==='slab'&&o.free)){keys.add(k);e.preventDefault();return}
@@ -3104,6 +3104,7 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
   if(f<=-6){if(as===7&&f===-7)continue;t=f===-7||as===7?.55:1.9}else if(as>=6){if(f===5)continue;t=as===7||f===4?.55:1.6}
   else if(as===5||f===5)t=.55;else if(as===2)t=1;else if(f===4)t=1.2;else t=as>=3?1.25:sd===0||f<0?1.5:1.75;
   const i=(((Y&7)+4)*16+(X&7)+4)*4;B(X,Y,mul(rgb(CL[i],CL[i+1],CL[i+2]),t*1.45))}};
+ for(let y=CY-16;y<CY+16;y++)for(let x=L-RW;x<L;x++){const fx=x-X0,fy=y-R0,d=FL[(fy>>4)*99+(fx>>4)]||(FL[(fy>>4)*99+(fx>>4)]=tilePix(fk,fx>>4,fy>>4)),i=((fy&15)*16+(fx&15))*4;B(x,y,mul(rgb(d[i],d[i+1],d[i+2]),.28))}
  for(const[x,y,a]of VSEATS)seat(x,y,Math.round(Math.cos(a+Math.PI)),Math.round(Math.sin(a)));
  // tracks
  for(const yy of[0,H-TR])for(let y=0;y<TR;y++)for(let x=3;x<L-2;x++)S(x,yy+y,0,14,yy?'B':'T');
@@ -3127,11 +3128,12 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
  for(let y=R0;y<R0+IH;y++)for(let x=X0;x<X0+IL;x++){const e=x===X0||y===R0,e2=x===X0+IL-1||y===R0+IH-1;let c=e?vmet(mat,x,y,.7):e2?vmet(mat,x,y,.82):vmet(mat,x,y,1);for(const pl of[XP+3,VC.XS+2*VC.SEAT+1]){if(x===pl)c=vmet(mat,x,y,.8);if(x===pl+1)c=vmet(mat,x,y,1.08)}Rf(x,y,c)}
  for(const[a,b2]of[[X0,XP+3],[XP+5,VC.XS+2*VC.SEAT],[VC.XS+2*VC.SEAT+3,X0+IL-1]])for(const[x,y]of[[a+2,R0+2],[b2-2,R0+2],[a+2,R0+IH-3],[b2-2,R0+IH-3]]){Rf(x,y,vmet(mat,x,y,1.5));Rf(x+1,y+1,vmet(mat,x,y,.6))}
  for(const hy of[RC[0],RC[2]])for(let y=-3;y<=3;y++)for(let x=-3;x<=3;x++){const d=Math.hypot(x,y);if(d>3.4)continue;Rf(X0+8+x,hy+y,d>2.4?vmet(mat,0,hy,.55):d<1.2?vmet(mat,0,hy,1.25):vmet(mat,0,hy,.95))}
- for(let x=XST+3;x<=XST+13;x+=2)for(let y=RC[2]-6;y<=RC[2]+6;y++)Rf(x,y,vmet(mat,x,y,.45));
+ {const vt=tilePix('metal.steel.louvre.w',0,0);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const i=(y*16+x)*4;Rf(XST+x,R0+IH-16+y,vtone(mat,rgb(vt[i],vt[i+1],vt[i+2])))}}
  v.base=base;v.roofL=roof;v.src=src;v.smap=smap}
 
 function carrier(mat,x,y,ang,nat){const v={id:uid++,veh:true,type:'veh',mat:mat||'steel',nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,acc:0,alp:0,hov:new Set(),offT:0,puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);return v}
 // its doors are the game's own doors, riding on the hull: rear double doors part to the sides, the cockpit door slides into the bulkhead
+const VIGN=21;
 const VDOORS=[[VC.L-9,VC.CY-16,Math.PI/2],[VC.L,VC.CY+15,-Math.PI/2],[VC.XP-1,VC.CY-8,Math.PI/2]];
 function vMkDoors(v){v.doors=VDOORS.map(([ax,ay,a])=>{const d=mkDoor(v.mat,0,0,0,8);d.vdoor={v,ax,ay,a};if(v.nat)d.keys=v.nat;return d});v.doors[0].pair=v.doors[1];v.doors[1].pair=v.doors[0];v.dids=new Set(v.doors.map(d=>d.id));vDoorPose(v)}
 function vDoorPose(v){for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d))continue;const{ax,ay,a}=d.vdoor,[x,y]=vL2W(v,ax,ay);d.x=x;d.y=y;d.rot=0;d.spin=v.ang+a;orient(d)}}
@@ -3173,14 +3175,17 @@ function vFloorPx(v,lx,ly){const q=v.smap.get(K(lx,ly));let c=0;
 function vRoofPx(v,lx,ly,roof){const r=roof&&v.roofL[ly*VC.LW+lx];if(r)return r&0xffffff;const q=v.smap.get(K(lx,ly));return q&&!q.dead&&(q[7]==='w'||q[7]==='g')?vFloorPx(v,lx,ly):0}
 const vChar=(c,x,y)=>mix(c,rgb(26,22,20),.62+.3*hh(x,y,41));
 function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==='T'?0:1]),e=t===0||t===VC.TR-1,lk=((x-ph)%4+4)%4===0;return e?rgb(30,30,32):lk?rgb(78,78,80):t===2?rgb(56,56,58):rgb(46,46,48)}
-// the roof hides the crew unless a selected unit is aboard
-function vRoof(v){if(v.dead)return false;for(const t of sel)if(t.type==='token'&&vHas(v,t))return false;return true}
+// the roof hides the crew unless a selected unit is aboard (V switches back to the roof)
+function vRoof(v){if(v.dead)return false;for(const t of sel)if(t.type==='token'&&vHas(v,t))return!!v.ext;return true}
+// V from a seat: switch between seeing the interior and the roof
+function vKeyV(){const t=[...sel].find(b=>b.type==='token'&&b.vseat);if(!t)return false;t.vseat.ext=!t.vseat.ext;sfx('flick');return true}
 function vHas(v,t){if(v.seats.includes(t))return true;const[lx,ly]=vW2L(v,t.x,t.y);return vInside(v,lx,ly)}
 
 // mist from the roof grille: musket-like puffs, thicker while driving, fading after the engine stops
 function vPuffs(v){for(const p of v.puffs){const R=Math.ceil(p.r);for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const d=Math.hypot(i,j)/p.r;if(d>1)continue;const X=Math.round(p.x+i),Y=Math.round(p.y+j);if(X<0||Y<0||X>=W||Y>=H)continue;const a=p.a*(1-d*d)*(.65+.35*hh(X+p.sd,Y,7));if(a>.01)out[Y*W+X]=mix(out[Y*W+X],p.c,Math.min(.8,a))}}}
-function vMist(v){const run=Math.abs(v.sp)>.05||Math.abs(v.w)>.001,pw=v.on?1:Math.max(0,1-v.offT/180);
- if(pw>0&&!v.dead&&tick%(run?2:6)===0){const[gx,gy]=vL2W(v,VC.XST+8+(Math.random()-.5)*8,VC.RC[2]+(Math.random()-.5)*10),k=.55+Math.random()*.45;v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.12,vy:(Math.random()-.5)*.12-.03,r:2.5,gr:run?.16:.1,a:(run?.52:.42)*pw,c:rgb(52*k+20|0,50*k+20|0,54*k+22|0),sd:Math.random()*99|0,R:run?18:12})}
+function vMist(v){const run=Math.abs(v.sp)>.05||Math.abs(v.w)>.001,lit=v.on&&tick-v.onT>=VIGN,pw=lit?1:v.on?0:Math.max(0,1-v.offT/180);
+ if(!v.dead&&(v.on&&tick-v.onT>=VIGN&&tick-v.onT<VIGN+50||!v.on&&v.offT<150)&&tick%3===0){const[gx,gy]=vL2W(v,VC.XST+5.5+Math.random()*5,VC.R0+VC.IH-16+(Math.random()<.5?6.5:9.5));v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:2,gr:.2,a:v.on?.5:.36*(1-v.offT/150),c:rgb(150,152,158),sd:Math.random()*99|0,R:v.on?16:20})}
+ if(pw>0&&!v.dead&&tick%(run?2:6)===0){const[gx,gy]=vL2W(v,VC.XST+5.5+Math.random()*5,VC.R0+VC.IH-16+(Math.random()<.5?6.5:9.5)),k=.55+Math.random()*.45;v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.12,vy:(Math.random()-.5)*.12-.03,r:2.5,gr:run?.16:.1,a:(run?.52:.42)*pw,c:rgb(52*k+20|0,50*k+20|0,54*k+22|0),sd:Math.random()*99|0,R:run?18:12})}
  if(v.fuse&&tick%2===0){const[gx,gy]=vL2W(v,VC.XST+8,VC.RC[2]);v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:2,gr:.18,a:.55,c:rgb(34,32,34),sd:Math.random()*99|0,R:14})}
  for(const p of v.puffs){p.x+=p.vx;p.y+=p.vy;p.r+=p.gr;p.a*=.992;if(p.r>p.R*.7)p.a*=.95}v.puffs=v.puffs.filter(p=>p.r<p.R&&p.a>.02)}
 // track marks: the tread pattern pressed into the ground at half a scorch's darkness, only while moving
@@ -3189,8 +3194,8 @@ function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);f
 // driving: slow to start, slow to stop, slow to turn; the tracks run with the ground and counter-run to pivot
 function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%3===0)vAI();for(const v of VEH){const dv=vDriver(v);if(v.seats[0]&&!dv)v.seats[0]=null;
   for(let i=0;i<v.seats.length;i++){const t=v.seats[i];if(t&&(!bodies.includes(t)||t.status==='dead')){if(t.status==='dead'&&bodies.includes(t)){t.vseat=null}v.seats[i]=null}}
-  const on=!!dv&&!v.dead;if(on!==!!v.on){v.on=on;if(!on)v.offT=0}if(!v.on)v.offT++;
-  let thr=0,turn=0;if(v.on){if(dv.direct&&sel.has(dv)){thr=(keys.has('w')?1:0)-(keys.has('s')?1:0);turn=(keys.has('d')?1:0)-(keys.has('a')?1:0)}else if(v.ai){thr=v.ai.thr;turn=v.ai.turn}}
+  const on=!!dv&&!v.dead;if(on!==!!v.on){v.on=on;if(on)v.onT=tick;else v.offT=0}if(!v.on)v.offT++;
+  let thr=0,turn=0;if(v.on&&tick-v.onT>=VIGN+30){if(dv.direct&&sel.has(dv)){thr=(keys.has('w')?1:0)-(keys.has('s')?1:0);turn=(keys.has('d')?1:0)-(keys.has('a')?1:0)}else if(v.ai){thr=v.ai.thr;turn=v.ai.turn}}
   // speed and turn ease in: the push itself builds up before it reaches full strength
   const ts=thr>0?.378:thr<0?-.198:0,am=.004*(thr?1:1.6),aT=Math.max(-am,Math.min(am,(ts-v.sp)*.08));v.acc+=Math.max(-.00015,Math.min(.00015,aT-v.acc));v.sp+=v.acc;if(Math.abs(v.sp)<.0015&&!thr&&Math.abs(v.acc)<.0003){v.sp=0;v.acc=0}
   const tw=turn*.0028,wm=.000175*(turn?1:1.6),wT=Math.max(-wm,Math.min(wm,(tw-v.w)*.06));v.alp+=Math.max(-.000006,Math.min(.000006,wT-v.alp));v.w+=v.alp;if(Math.abs(v.w)<.00015&&!turn&&Math.abs(v.alp)<.00002){v.w=0;v.alp=0}
@@ -3296,12 +3301,24 @@ function vEngine(ac,out){const T=()=>ac.currentTime,o=(t,f)=>{const x=ac.createO
   if(st.tv>.08&&st.up>.5){const iv=.095/(.6+.6*st.tv);if(nextT<t)nextT=t+.02;while(nextT<t+.12){tick(nextT);nextT+=iv*(.85+Math.random()*.3)}}}
  return{st,frame,stop(){for(const n of[bus,drG,rat,cltG])n.gain.setTargetAtTime(0,T(),.05);for(const x of[sh,lope,fire,mv,chug,dr,sd])x.stop(T()+.4);for(const x of[nz,rum,grit,clt])x.stop(T()+.4)}}}
 
+// the key: a bright click and a detent; then an air-release hiss as the engine catches, and a longer falling hiss when it's shut down
+function vClick(ac,dst,t,f,v){const n=ac.createBuffer(1,ac.sampleRate*.006|0,ac.sampleRate),d=n.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);const b=ac.createBufferSource();b.buffer=n;const g=ac.createGain();g.gain.value=v;g.connect(dst);
+ for(const[m,q,a,dk]of[[1,6,1,.05],[1.73,9,.6,.09],[2.6,14,.4,.12]]){const r=ac.createBiquadFilter();r.type='bandpass';r.frequency.value=f*m;r.Q.value=q;const e=ac.createGain();e.gain.setValueAtTime(a*3,t);e.gain.exponentialRampToValueAtTime(.001,t+dk);b.connect(r).connect(e).connect(g)}b.start(t)}
+function vThump(ac,dst,t,v){const o=ac.createOscillator(),g=ac.createGain();o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+.16);o.connect(g).connect(dst);o.start(t);o.stop(t+.2)}
+function vHiss(ac,dst,t,dur,f0,f1,v,att){const n=ac.createBuffer(1,ac.sampleRate*(dur+.2)|0,ac.sampleRate),d=n.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const b=ac.createBufferSource();b.buffer=n;
+ const hp=ac.createBiquadFilter();hp.type='highpass';hp.frequency.value=1600;const bp=ac.createBiquadFilter();bp.type='bandpass';bp.Q.value=.6;bp.frequency.setValueAtTime(f0,t);bp.frequency.exponentialRampToValueAtTime(f1,t+dur);
+ const g=ac.createGain(),fl=ac.createGain(),lf=ac.createOscillator(),lg=ac.createGain();lf.frequency.value=7+Math.random()*4;lg.gain.value=.12;fl.gain.value=.88;lf.connect(lg).connect(fl.gain);lf.start(t);lf.stop(t+dur+.2);
+ g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+att);g.gain.setValueAtTime(v,t+att+dur*.25);g.gain.exponentialRampToValueAtTime(.001,t+dur);b.connect(hp).connect(bp).connect(fl).connect(g).connect(dst);b.start(t);b.stop(t+dur+.1)}
+function vIgnite(ac,dst){const t=ac.currentTime+.02;vClick(ac,dst,t,3100,.5);vClick(ac,dst,t+.13,2300,.35);vThump(ac,dst,t+.24,.5);vHiss(ac,dst,t+.34,1.15,7000,4200,.42,.05)}
+function vShutdown(ac,dst){const t=ac.currentTime+.02;vClick(ac,dst,t,2700,.4);vHiss(ac,dst,t+.18,2.9,6500,2600,.36,.18)}
+
 // each running carrier has its own engine voice, placed by distance and side from the listener, muffled through walls and from inside
 const VSND=new Map();
-function vSound(){const ok=AC&&!mute&&gest;for(const[id,s]of VSND){const v=VEH.find(q=>q.id===id);if(!ok||!v||v.dead||!v.on&&s.e.st.up<.01){s.e.stop();setTimeout(()=>{try{s.g.disconnect()}catch(e){}},600);VSND.delete(id)}}if(!ok)return;
+function vSound(){const ok=AC&&!mute&&gest;for(const[id,s]of VSND){const v=VEH.find(q=>q.id===id);if(!ok||!v||v.dead||!v.on&&s.e.st.up<.01&&tick-s.offT>200){s.e.stop();setTimeout(()=>{try{s.g.disconnect()}catch(e){}},600);VSND.delete(id)}}if(!ok)return;
  const me=[...sel].find(b=>b.type==='token'),vw=$('stage').parentElement,lx=me?me.x:(vw.clientWidth/2-cam.x)/S,ly=me?me.y:(vw.clientHeight/2-cam.y)/S;
- for(const v of VEH){if(v.dead)continue;let s=VSND.get(v.id);if(!s){if(!v.on)continue;const g=AC.createGain(),p=AC.createStereoPanner(),f=AC.createBiquadFilter();f.type='lowpass';g.gain.value=0;g.connect(p).connect(f).connect(MS);s={g,p,f,e:vEngine(AC,g)};VSND.set(v.id,s)}
-  const d=Math.hypot(v.x-lx,v.y-ly),inn=me&&vHas(v,me),los=inn||losClear(lx,ly,v.x,v.y),t=AC.currentTime;s.e.st.on=v.on?1:0;s.e.st.load=Math.min(1,Math.abs(v.sp)/.378);s.e.st.turn=Math.min(1,Math.abs(v.w)/.0028);s.e.st.near=Math.max(0,1-d/160);
+ for(const v of VEH){if(v.dead)continue;let s=VSND.get(v.id);if(!s){if(!v.on)continue;const g=AC.createGain(),p=AC.createStereoPanner(),f=AC.createBiquadFilter();f.type='lowpass';g.gain.value=0;g.connect(p).connect(f).connect(MS);s={g,p,f,e:vEngine(AC,g),on:1};VSND.set(v.id,s);if(tick-v.onT<VIGN)vIgnite(AC,g)}
+  if(s.on&&!v.on){s.on=0;s.offT=tick;vShutdown(AC,s.g)}else if(!s.on&&v.on){s.on=1;vIgnite(AC,s.g)}
+  const d=Math.hypot(v.x-lx,v.y-ly),inn=me&&vHas(v,me),los=inn||losClear(lx,ly,v.x,v.y),t=AC.currentTime;s.e.st.on=v.on&&tick-v.onT>=VIGN?1:0;s.e.st.load=Math.min(1,Math.abs(v.sp)/.378);s.e.st.turn=Math.min(1,Math.abs(v.w)/.0028);s.e.st.near=Math.max(0,1-d/160);
   s.g.gain.setTargetAtTime(.75*Math.min(1,70/(d+40)),t,.1);s.p.pan.setTargetAtTime(inn?0:Math.max(-.7,Math.min(.7,(v.x-lx)/220)),t,.1);s.f.frequency.setTargetAtTime(inn?1400:los?7000:900,t,.15);s.e.frame(2/60)}}
 
 function vPick(X,Y){const v=vAt(X,Y);return v&&!v.dead&&vDriver(v)||null}
