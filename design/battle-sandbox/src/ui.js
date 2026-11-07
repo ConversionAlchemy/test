@@ -122,7 +122,7 @@ function tilerCtx(){TCX.innerHTML='';if((!edBrush||edBrush.t==='clean')&&UI.tile
  const pic=k=>{if(!isDoor(k))return swatch(bake(k),30,30);const f=k.endsWith('!'),dk=k.slice(5).replace('!',''),th=f?16:8,c=mk('canvas');c.width=16;c.height=th;const x=c.getContext('2d'),im=x.createImageData(16,th),u=new Uint32Array(im.data.buffer);
   for(const[px,py,col]of doorIcon(dk,f))if(px>=0&&px<16&&py+th>=0&&py+th<th)u[(py+th)*16+px]=col;x.putImageData(im,0,0);c.style.cssText='width:52px;height:'+(f?52:26)+'px';return c};
  const g=mk('div','swg'+(UI.tt==='door'?' big':''));g.style.gridTemplateColumns='repeat(4,1fr)';for(const r of rows)for(let i=0;i<4;i++){const k=r[i];if(!k){g.append(mk('span'));continue}const s=mk('span','sw'+(k===cur?' on':''));s.append(pic(k));s.onclick=()=>pick(k);g.append(s)}
- const nm=!cur?'':isDoor(cur)?(d=>DOORK[d]?DOORK[d][0]+(cur.endsWith('!')?', full tile':''):'')(cur.slice(5).replace('!','')):tName(cur);
+ const nm=!cur?'':isDoor(cur)?(d=>DOORK[d]?(cur.endsWith('!')?DOORK[d][0].replace(' door',' large door'):DOORK[d][0]):'')(cur.slice(5).replace('!','')):tName(cur);
  TCX.append(g,mk('div','tname',nm));if(UI.pop==='ae'&&cur&&!isDoor(cur)&&cur!==AE.key)aeLoad(cur)}
 function setTile(k){if(!validK(k))return;pkFrom(k);UI.erase=false;cv.style.cursor='crosshair';UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';if(UI.tt==='furn')UI.ft=WPIECE[k]?(WPIECE[k][1]==='desk'?'table':WPIECE[k][1]):MCHEST[k]?'chest':MTABLE[baseK(k)]?'table':k==='hedge'?'plant':'mods';tilerCtx()}
 {const p0=fillMapTools;fillMapTools=function(){p0();if(edBrush&&edBrush.t!=='clean')UI.tile={...edBrush}}}
@@ -338,7 +338,7 @@ const HIC={musket:[['...................','..........bbbbbbbbb','wwwwwwwwwwbbbbb
  gold:[['..kkkk..','.kyyyyk.','kyyddyyk','kydyydyk','kydyydyk','kyyddyyk','.kyyyyk.','..kkkk..'],{k:'#5a4410',y:'#e2c46a',d:'#b8942e'},3],
  box:[['kkkkkkkk','kwwwwwwk','kwyyyywk','kwwwwwwk','kkkkkkkk'],{k:'#3a2a18',w:'#8a6038',y:'#d8c08a'},3],
  cell:[['.kkkk.','kbbbbk','kbccbk','kbccbk','kbbbbk','.kkkk.'],{k:'#1a2a3a',b:'#3a6a9a',c:'#9ad8ff'},3]};
-HIC.note=[['kkkkkkk','kwwwwwk','kwsswwk','kwwwwwk','kwssswk','kwwwwwk','kwsswwk','kkkkkkk'],{k:'#3a2a18',w:'#e6d6ae',s:'#8a6a3e'},3];
+HIC.note=[['kkkkkkkkk','kwwwwwwwk','kwsssswwk','kwwwwwwwk','kwssssswk','kwwwwwwwk','kwssswwwk','kwwwwwwwk','kkkkkkkkk'],{k:'#3a2a18',w:'#e6d6ae',s:'#8a6a3e'},3];
 const hic=k=>k==='note'?pix(...HIC.note):sicon(k);// every icon is the item's top-down sprite
 function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?q.t||'Note':q.k}
  else if(sil){const c=hic(sil);c.className='sil';d.append(c)}return d}

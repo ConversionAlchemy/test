@@ -1193,11 +1193,19 @@ const PHEAT=[[0,null],[.2,rgb(64,52,92)],[.4,rgb(100,62,168)],[.6,rgb(146,84,236
 function heatCol(h,cold,R=HEAT){if(h<=0)return cold;h=Math.min(1.05,h);for(let i=1;i<R.length;i++)if(h<=R[i][0]||i===R.length-1){const a=R[i-1],b=R[i],t=Math.min(1,(h-a[0])/(b[0]-a[0])),e=t*t*(3-2*t);return mix(a[1]||cold,b[1],e)}return cold}
 const sh3=(c,u)=>u<-.2?mul(c,1.16):u>.2?mul(c,.72):c;
 const SPRT=new Set(['pgun','musket','blunder','pistol','rod','sspear','spear','grenade','bomb','shield','sword']);
+// Solari seen from above: 1-9 loose coins, then a bar per 10, a full slot of 50 is four bars with one laid across
+function solPx(n){const o=new Map(),P=(x,y,c)=>o.set(x+','+y,c),G=rgb(240,202,88),H=rgb(255,234,140),L=rgb(222,174,60),D=rgb(160,112,24),E=rgb(112,76,12);n=Math.max(1,Math.min(50,n|0));
+ const coin=(x,y)=>{for(let j=0;j<4;j++)for(let i=0;i<4;i++){if((i===0||i===3)&&(j===0||j===3))continue;P(x+i,y+j,i+j<=2?H:i+j>=4&&(i===3||j===3)?D:G)}};
+ const bar=(x,y,w,h)=>{for(let j=0;j<h;j++)for(let i=0;i<w;i++){const r=i===w-1||j===h-1,l=i===0||j===0;P(x+i,y+j,r?D:l?L:i+j<=3?H:G)}};
+ const B=Math.floor(n/10),c=n%10,ORD=[4,0,8,2,6,1,7,3,5];
+ for(let i=0;i<Math.min(B,4);i++)bar(i*4,0,4,10);if(B===5){for(let i=0;i<16;i++)P(i,6,E);bar(0,2,16,4)}
+ const cx=B?Math.min(B,4)*4+1:0;for(let i=0;i<c;i++){const g=B?i:ORD[i];coin(cx+g%3*4,(g/3|0)*4)}
+ const r=[];let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const k of o.keys()){const[x,y]=k.split(',').map(Number);x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}const ox=(x0+x1)>>1,oy=(y0+y1)>>1;for(const[k,v]of o){const[x,y]=k.split(',').map(Number);r.push([x-ox,y-oy,v])}return r}
 function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(a);
  const st=(t0,t1,w,f)=>{for(let t=t0;t<=t1;t+=.5)for(let u=-w;u<=w+.01;u+=.5)m.set(K(Math.round(c*t-s*u),Math.round(s*t+c*u)),f(t,u))};
  const disc=(r,f)=>{for(let y=-6;y<=6;y++)for(let x=-6;x<=6;x++){const d=Math.hypot(x,y);if(d<=r)m.set(K(x,y),f(x,y,d))}};
- if(isKey(kind)){const big=kind[0]==='b',mt=kind.split('_')[1],L=rgb(222,226,232),M=rgb(168,174,182),D=rgb(104,108,116),put=(x,y,v)=>{const X=x-4,Y=y-4;m.set(K(Math.round(c*X-s*Y),Math.round(s*X+c*Y)),mt==='steel'?v:toneC(mt,v))};
-  // top-down key laid on the diagonal so it fills a square: a ring bow top-left, the blade down to the bottom-right, one bit (two on a vault key)
+ if(isKey(kind)){const big=kind[0]==='b',mt=kind.split('_')[1],L=rgb(222,226,232),M=rgb(168,174,182),D=rgb(104,108,116),put=(x,y,v)=>{const X=x-4,Y=y-4;m.set(K(Math.round(c*X-s*Y),Math.round(s*X+c*Y)),mt==='steel'?v:mt==='umbra'?mix(toneC('umbra',v),rgb(168,156,214),.4):toneC(mt,v))};
+  // top-down key laid on the diagonal so it fills a square: a ring bow top-left, the blade down to the bottom-right, one bit (two on a large key)
   const R=big?1.9:1.4,o=big?2:1.5;for(let y=-1;y<=5;y++)for(let x=-1;x<=5;x++){const d=Math.hypot(x-o,y-o);if(d>R-.6&&d<R+.6)put(x,y,x+y<2*o?L:M)}
   for(let t=Math.ceil(o+R);t<=8;t++)put(t,t,M);put(7,7,M);if(big){put(8,6,D);put(6,4,D);put(7,5,D)}else{put(6,7,D);put(6,8,D)}}
  if(kind==='spear')st(-12.8,12.4,0,t=>t>11?C.ironH:(t*2|0)%7===0?C.ironD:C.iron);
@@ -1216,7 +1224,7 @@ function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(
  if(kind==='pball'||kind==='pel')m.set(K(0,0),C.lead);
  if(kind==='crossbow'){st(-8,6,.5,()=>C.lw);for(let u=-5;u<=5;u+=.5)m.set(K(Math.round(c*3.5-s*u),Math.round(s*3.5+c*u)),C.lwD)}
  if(kind==='ball')m.set(K(0,0),C.lead);
- if(kind==='gold'){for(const[ox,oy]of[[-2,1],[2,1],[0,-2]])for(let y=-2;y<=2;y++)for(let x=-2;x<=2;x++){const d=Math.hypot(x,y);if(d>2.4)continue;m.set(K(ox+x,oy+y),d>1.7?rgb(176,132,36):x+y<-1?rgb(255,236,140):rgb(236,196,72))}}
+ if(kind==='gold')for(const p of solPx(fill>1?fill:10))m.set(K(p[0],p[1]),p[2]);
  if(kind==='crate'||kind==='lcrate'){const hw=kind==='lcrate'?15:5;for(let y=-5;y<=5;y++)for(let x=-hw;x<=hw;x++){const e=Math.abs(x)===hw||Math.abs(y)===5;m.set(K(x,y),e?C.woodD:(x===y||x===-y)?mul(C.wood,.82):(y+5)%3===0?mul(C.wood,.9):C.woodH)}}
  if(kind==='mbox'||kind==='pbox'||kind==='sbox'){const t=kind==='mbox'?rgb(176,140,90):kind==='pbox'?rgb(150,120,80):rgb(120,110,96);for(let y=-5;y<=4;y++)for(let x=-5;x<=4;x++){const e=x===-5||y===-5||x===4||y===4;m.set(K(x,y),e?mul(t,.62):(x===-4||y===-4)?mul(t,1.12):(x===-1||x===0)&&y>-4&&y<3?mul(t,.78):t)}}
  if(kind==='rbox'){for(let y=-5;y<=4;y++)for(let x=-5;x<=4;x++){const e=x===-5||y===-5||x===4||y===4;m.set(K(x,y),e?rgb(40,42,48):(x&1)?rgb(140,144,152):rgb(184,188,196))}}
@@ -1887,7 +1895,7 @@ const PICK=new Set(['musket','blunder','pistol','spear','sspear','grenade','bomb
 const ONE=new Set(['musket','pistol','blunder']);
 // keys: one per metal, small for ordinary doors, big for full-tile doors; a key opens only its own kind
 const KEYM=['steel','iron','brass','gold','umbra'],KEYN={steel:'Steel',iron:'Iron',brass:'Brass',gold:'Aurum',umbra:'Umbra'},isKey=k=>/^b?key_/.test(k||'');
-for(const mt of KEYM){WP['key_'+mt]={n:KEYN[mt]+' key',hide:1,fr:.8,max:10,m:.3};WP['bkey_'+mt]={n:KEYN[mt]+' vault key',hide:1,fr:.8,max:10,m:.4};PICK.add('key_'+mt);PICK.add('bkey_'+mt)}
+for(const mt of KEYM){WP['key_'+mt]={n:KEYN[mt]+' small key',hide:1,fr:.8,max:10,m:.3};WP['bkey_'+mt]={n:KEYN[mt]+' large key',hide:1,fr:.8,max:10,m:.4};PICK.add('key_'+mt);PICK.add('bkey_'+mt)}
 const doorMetal=o=>{const k=baseK((o.dk||'').replace('!',''));return KEYM.includes(k)?k:o.umbra?'umbra':o.gold?'gold':o.mat===2?null:'steel'};
 const doorKey=o=>{const m=doorMetal(o);return m?((o.th||8)>=16?'bkey_':'key_')+m:null};
 function slotFor(t,k,draw){const free=i=>slotOK(t,i)&&!t.inv[i];if(k==='note'||isKey(k)){for(let i=4;i<t.inv.length;i++)if(!t.inv[i])return i;return -1}
@@ -3148,7 +3156,7 @@ function tilerCtx(){TCX.innerHTML='';if((!edBrush||edBrush.t==='clean')&&UI.tile
  const pic=k=>{if(!isDoor(k))return swatch(bake(k),30,30);const f=k.endsWith('!'),dk=k.slice(5).replace('!',''),th=f?16:8,c=mk('canvas');c.width=16;c.height=th;const x=c.getContext('2d'),im=x.createImageData(16,th),u=new Uint32Array(im.data.buffer);
   for(const[px,py,col]of doorIcon(dk,f))if(px>=0&&px<16&&py+th>=0&&py+th<th)u[(py+th)*16+px]=col;x.putImageData(im,0,0);c.style.cssText='width:52px;height:'+(f?52:26)+'px';return c};
  const g=mk('div','swg'+(UI.tt==='door'?' big':''));g.style.gridTemplateColumns='repeat(4,1fr)';for(const r of rows)for(let i=0;i<4;i++){const k=r[i];if(!k){g.append(mk('span'));continue}const s=mk('span','sw'+(k===cur?' on':''));s.append(pic(k));s.onclick=()=>pick(k);g.append(s)}
- const nm=!cur?'':isDoor(cur)?(d=>DOORK[d]?DOORK[d][0]+(cur.endsWith('!')?', full tile':''):'')(cur.slice(5).replace('!','')):tName(cur);
+ const nm=!cur?'':isDoor(cur)?(d=>DOORK[d]?(cur.endsWith('!')?DOORK[d][0].replace(' door',' large door'):DOORK[d][0]):'')(cur.slice(5).replace('!','')):tName(cur);
  TCX.append(g,mk('div','tname',nm));if(UI.pop==='ae'&&cur&&!isDoor(cur)&&cur!==AE.key)aeLoad(cur)}
 function setTile(k){if(!validK(k))return;pkFrom(k);UI.erase=false;cv.style.cursor='crosshair';UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';if(UI.tt==='furn')UI.ft=WPIECE[k]?(WPIECE[k][1]==='desk'?'table':WPIECE[k][1]):MCHEST[k]?'chest':MTABLE[baseK(k)]?'table':k==='hedge'?'plant':'mods';tilerCtx()}
 {const p0=fillMapTools;fillMapTools=function(){p0();if(edBrush&&edBrush.t!=='clean')UI.tile={...edBrush}}}
@@ -3364,7 +3372,7 @@ const HIC={musket:[['...................','..........bbbbbbbbb','wwwwwwwwwwbbbbb
  gold:[['..kkkk..','.kyyyyk.','kyyddyyk','kydyydyk','kydyydyk','kyyddyyk','.kyyyyk.','..kkkk..'],{k:'#5a4410',y:'#e2c46a',d:'#b8942e'},3],
  box:[['kkkkkkkk','kwwwwwwk','kwyyyywk','kwwwwwwk','kkkkkkkk'],{k:'#3a2a18',w:'#8a6038',y:'#d8c08a'},3],
  cell:[['.kkkk.','kbbbbk','kbccbk','kbccbk','kbbbbk','.kkkk.'],{k:'#1a2a3a',b:'#3a6a9a',c:'#9ad8ff'},3]};
-HIC.note=[['kkkkkkk','kwwwwwk','kwsswwk','kwwwwwk','kwssswk','kwwwwwk','kwsswwk','kkkkkkk'],{k:'#3a2a18',w:'#e6d6ae',s:'#8a6a3e'},3];
+HIC.note=[['kkkkkkkkk','kwwwwwwwk','kwsssswwk','kwwwwwwwk','kwssssswk','kwwwwwwwk','kwssswwwk','kwwwwwwwk','kkkkkkkkk'],{k:'#3a2a18',w:'#e6d6ae',s:'#8a6a3e'},3];
 const hic=k=>k==='note'?pix(...HIC.note):sicon(k);// every icon is the item's top-down sprite
 function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?q.t||'Note':q.k}
  else if(sil){const c=hic(sil);c.className='sil';d.append(c)}return d}
