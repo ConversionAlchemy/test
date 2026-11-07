@@ -104,6 +104,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm select{-webkit-appearance:none;appearance:none;padding-right:24px;background-image:linear-gradient(45deg,transparent 50%,#f2efe6 50%),linear-gradient(135deg,#f2efe6 50%,transparent 50%);background-position:calc(100% - 13px) 12px,calc(100% - 9px) 12px;background-size:4px 4px;background-repeat:no-repeat}
 #sm select option{background:#232323}#sm .wide{width:100%}
 #sm input[type=text],#sm input[type=number],#sm textarea.tbox,#sm .tbox{background:#141414;border:2px solid;border-color:#0a0a0a #4a4a4a #4a4a4a #0a0a0a;height:30px;padding:0 8px;font-size:18px;color:#f2efe6;width:100%;display:flex;align-items:center;white-space:nowrap;overflow:hidden}
+#sm .tname{padding:6px 2px 0;font-size:18px;color:#d8d3c8;min-height:26px;white-space:nowrap;overflow:hidden}#sm .swg.big{gap:6px}#sm .swg.big .sw{width:58px;height:58px;display:flex;align-items:center;justify-content:center;background:#181818}#sm .swg.big .sw canvas{image-rendering:pixelated}
 #sm textarea.tbox{height:76px;padding:6px 8px;font:18px/1.1 "VT323",monospace;resize:none;display:block;white-space:normal}
 #sm .ck{width:30px;height:30px;background:#141414;border:2px solid;border-color:#0a0a0a #4a4a4a #4a4a4a #0a0a0a;padding:0;display:inline-block;position:relative}
 #sm .ck.on::after{content:'';position:absolute;left:8px;top:3px;width:7px;height:13px;border:solid #5ec45e;border-width:0 4px 4px 0;transform:rotate(40deg)}#sm .ck.on{background:#141414;border-color:#0a0a0a #4a4a4a #4a4a4a #0a0a0a}
@@ -697,7 +698,7 @@ function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99),j=(cy*T+y)*W+cx*T+x;let c=floor[j];
   if(rug&&!ok){const t=ageT(condK(k));if(t>.3&&d<=1&&hh(cx*T+x,cy*T+y,95)>.97-.1*t)c=mul(c,.62);else if(d===0)c=mul(c,.6);else if(d<=3)c=mix(mul(c,.9),/gcarpet|verdant/.test(k)?rgb(176,140,70):/pcarpet|purple/.test(k)?rgb(188,184,204):rgb(150,104,60),(x+y)%3?.5:.62);else if(d===4)c=mul(c,.72)}
   if(ok){const F=WPIECE[baseK(k)]&&woodFin(WPIECE[baseK(k)][0]);c=OBJC[j];if(d===0)c=mul(c,F?F.rim:.5);else if(d===1)c=mul(c,x===0||y===0||o(cx-1,cy)&&x===1||o(cx,cy-1)&&y===1?1.12:.82);else if(d===3&&F&&/^(table|desk)$/.test(wshape(k)))c=mix(c,rgb(...F.gl),F.gt);OBJC[j]=c}else floor[j]=c}}
- if(curMap==='vault')inlays()}
+}
 // plank joints are laid from each floor's own edges, boards split evenly across its width
 const PLK=new Set();
 function boards(){const seen=new Set();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!PLK.has(k))continue;
@@ -734,9 +735,6 @@ function furnish(){const done=new Set(),C=a=>rgb(cl(a[0]),cl(a[1]),cl(a[2]));
     if(d===0)c=mul(c,.5);else if(d<=2){c=C(m.map(q=>q*(d===1?hi:1)));}
     if(A&&d>0){const r=A([c&255,c>>8&255,c>>16&255],X*2,Y*2,()=>d-1);c=C(r)}}
    OBJC[j]=c}}}
-function inlays(){const ring=(X0,Y0,R)=>{for(let Y=Y0-R-2;Y<=Y0+R+2;Y++)for(let X=X0-R-2;X<=X0+R+2;X++){const j=Y*W+X;if(sol[j]||OBJ[j])continue;const dx=X-X0+.5,dy=Y-Y0+.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3),gm=(c,t)=>mix(c,rgb(214,176,96),t),dm=()=>{const c=TEX['stone.aur.chequer'](X,Y);return rgb(cl(c[0]),cl(c[1]),cl(c[2]))};
-  let c=null;if(r<4)c=gm(floor[j],.85);else if(Math.abs(r-st)<.8)c=gm(floor[j],.7);else if(r<st)c=r<st*.55?floor[j]:dm();else if(Math.abs(r-R*.82)<.7||Math.abs(r-R)<.7)c=gm(floor[j],.7);else if(r>R*.82&&r<R)c=dm();if(c!==null){floor[j]=c;SHN[j]=c===floor[j]?SHN[j]:40}}};
- ring(240,408,40)}
 function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;if(wshape(k)==='table'){for(const it of items||[]){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.k==='gold')w.amt=it.n;else if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}return null}const pc=PCS.get(cy*CW+cx),cells=pc?pc.cells.slice():[],seen=new Set([cy*CW+cx]),q=pc?[]:[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}
  const xs=cells.map(c=>c[0]),ys=cells.map(c=>c[1]),box=[Math.min(...xs)*T,Math.min(...ys)*T,(Math.max(...xs)+1)*T-1,(Math.max(...ys)+1)*T-1],c=weapon('crate',(box[0]+box[2])/2,(box[1]+box[3])/2,0);
  c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.cells=cells;c.box=box;c.chest=wshape(k)==='chest'||!!MCHEST[baseK(k)];c.desk=wshape(k)==='desk';
@@ -3069,7 +3067,7 @@ const TH=mk('div','ch');ZC.append(TH,...SIDE0.children);SIDE0.append(ZT,ZC,ZS);
 VIEW.append(mk('div','frame'));
 // tool header with optional dropper
 function head(k){TH.innerHTML='';if(k==='hand')return;const n=UT.find(t=>t[0]===k)[1],G=mk('div','hb');TH.append(uicon(k),mk('span',null,n),G);
- if(k==='paint'){const z=ubtn(PNT.size+'×'+PNT.size,'sq sz',()=>{PNT.size=PNT.size%3+1;z.textContent=PNT.size+'×'+PNT.size});G.append(z)}
+ if(k==='paint'){const z=ubtn(PNT.size>1?'2×2':'1×1','sq sz',()=>{PNT.size=PNT.size>1?1:2;z.textContent=PNT.size>1?'2×2':'1×1'});const un=ubtn('','sq',()=>{if(!puUndo())NOPE()});un.title='Undo';un.append(uicon('undo'));G.append(z,un)}
  if(k==='vac'||k==='sponge'){const z=ubtn(CLSZ[k]>1?'2×2':'1×1','sq sz',()=>{CLSZ[k]=CLSZ[k]>1?1:2;z.textContent=CLSZ[k]>1?'2×2':'1×1'});G.append(z)}
  if(k==='tile'){const z=ubtn(edSize>1?'2×2':'1×1','sq sz',()=>{edSize=edSize>1?1:2;z.textContent=edSize>1?'2×2':'1×1'});const gr=ubtn('','sq'+(GRID?' on':''),()=>{GRID=!GRID;LS.set('bs.grid',GRID);gr.classList.toggle('on',GRID)});gr.append(uicon('grid'));const er=ubtn('','sq red'+(UI.erase?' on':''),()=>setErase(!UI.erase));er.append(uicon('bin'));const un=ubtn('','sq',()=>{if(!edStep(false))NOPE()});un.title='Undo';un.append(uicon('undo'));G.append(z,un,gr,er)}
  if(k==='tile'||k==='spawn'){const d=ubtn('','sq',()=>{UI.del=false;armDrop(k)});d.append(uicon('drop'));d.classList.toggle('on',UI.drop===k);G.append(d)}
@@ -3095,7 +3093,7 @@ setInterval(syncCorner,200);
 
 // map owner: the sigil, and who holds the keys to doors with no keys of their own
 const OWN={};function MAPOWN(){if(OWN[curMap])return OWN[curMap];const m=MODS.maps[curMap];if(m&&m.owner)return m.owner;const t=(TITLE[curMap]||'').split(' · ')[0];return NAT[t]!==undefined?t:/Emperor/.test(t)?'Imperium':'Neutral'}
-{const s0=serMap;serMap=function(){const d=s0();d.owner=MAPOWN();d.signs=(SIGNS[curMap]||[]).map(s=>({...s}));return d}}
+{const s0=serMap;serMap=function(){const d=s0();{const a=CHM[curMap];if(a&&a.length===N){const L=[];for(let j=0;j<N;j++)if(a[j])L.push(j);if(L.length)d.ch=L}}d.owner=MAPOWN();d.signs=(SIGNS[curMap]||[]).map(s=>({...s}));return d}}
 
 // tools
 function pickTool(k){if(k!=='spawn')UI.del=false;UI.erase=false;if(k!=='hand'){for(const b of bodies)b.direct=false;sel.clear();openCrate=null;keys.clear()}if(UI.pop==='ae'||UI.pop==='sign')closePop();UI.tool=k;LS.set('bs.tool',k);UI.drop=null;const m=UT.find(t=>t[0]===k)[2];setMode(m);SM.dataset.tool=k;
@@ -3106,30 +3104,29 @@ function pickTool(k){if(k!=='spawn')UI.del=false;UI.erase=false;if(k!=='hand'){f
 
 // tiler: element tabs, a swatch per material and variation, name and floor or wall
 const TCX=mk('div','tcx');ZC.append(TCX);
-function tilerCtx(){TCX.innerHTML='';if(!edBrush||edBrush.t==='clean'){if(!UI.tile){for(const mat of Object.keys(ELEM[PK.el||'Stone'].mats)){const k=(PK.el||'Stone').toLowerCase()+'.'+mat+'.'+Object.keys(varsOf(PK.el||'Stone',mat))[0];if(validK(k)){UI.tile={t:'tile',k};break}}}if(UI.tile&&EM==='map')edBrush={...UI.tile}}if(!['floor','wall','furn','door'].includes(UI.tt))UI.tt=PK.w?'wall':'floor';PK.w=UI.tt==='wall'?1:0;
- if((UI.tt==='floor'||UI.tt==='wall')&&PK.el!=='Mods'&&edBrush&&edBrush.t==='tile'){if(PK.w&&!Object.keys(ELEM[PK.el].mats).some(m=>!mprop(PK.el,m).nowall))PK.el='Stone';const c=CATN[edBrush.k];if(!c||c[0]!==PK.el||!!c[3]!==!!PK.w){const e=PK.el.toLowerCase(),sf=PK.w?'.w':'';let k=e+'.'+PK.mat+'.'+PK.v+sf;if(!validK(k))for(const m of Object.keys(ELEM[PK.el].mats)){const q=e+'.'+m+'.'+Object.keys(varsOf(PK.el,m))[0]+sf;if(validK(q)){k=q;break}}if(validK(k)){pkFrom(k);edBrush.k=k;UI.tile={t:'tile',k}}}}const tabs=mk('div','tabs');for(const[t,n]of[['floor','Floor'],['wall','Wall'],['furn','Furniture'],['door','Doors']])tabs.append(ubtn(n,UI.tt===t?'on':'',()=>{UI.tt=t;tilerCtx()}));TCX.append(tabs);SM.dataset.tt=UI.tt;
- const cur=UI.erase?null:edBrush&&edBrush.t!=='clean'?edBrush.k:UI.tile&&UI.tile.k,g=mk('div','swg'),cell=(k,c,f)=>{const s=mk('span','sw'+(k===cur?' on':''));if(c){s.append(c);s.onclick=()=>{if(UI.erase)setErase(false);f()}}else s.classList.add('no');return s};let nm='';
- if(UI.tt==='floor'||UI.tt==='wall'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)&&(KIND[k]==='wall')===!!PK.w),els=[...EORDER.filter(e=>!PK.w||Object.keys(ELEM[e].mats).some(m=>!mprop(e,m).nowall)),...(mods.length?['Mods']:[])],et=mk('div','tabs');if(!els.includes(PK.el))PK.el='Stone';
-  for(const e of els)et.append(ubtn(e,PK.el===e?'on':'',()=>{PK.el=e;if(e!=='Mods'){PK.mat=Object.keys(ELEM[e].mats)[0];PK.v=Object.keys(varsOf(e,PK.mat))[0]}else PK.mat=mods[0];tilerCtx()}));TCX.append(et);
-  const tc=k=>cell(k,k&&validK(k)?swatch(bake(k),30,30):null,()=>setTile(k));
-  if(PK.el==='Mods')for(const k of mods)g.append(tc(k));else{// one row per material
-   const ms=Object.keys(ELEM[PK.el].mats).filter(m=>!PK.w||!mprop(PK.el,m).nowall),n=Math.max(...ms.map(m=>Object.keys(varsOf(PK.el,m)).length));g.style.gridTemplateColumns=`repeat(${n},1fr)`;
-   for(const mat of ms){const vs=Object.keys(varsOf(PK.el,mat));for(const v of vs)g.append(tc(PK.el.toLowerCase()+'.'+mat+'.'+v+(PK.w?'.w':'')));for(let i=vs.length;i<n;i++)g.append(mk('span'))}}
-  nm=cur&&!String(cur).startsWith('door:')&&!furnK(cur)?tName(cur):''}
- else if(UI.tt==='furn'){// one tab per kind of piece: wood first in table order, then metal
-  const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',[...wk('chest'),...Object.keys(MCHEST)]],table:['Tables',wk('table')],desk:['Desks',wk('desk')],seat:['Chairs',wk('seat')],plant:['Plants',['hedge']],...(mods.length?{mods:['Mods',mods]}:{})};
-  if(!FT[UI.ft]){const c=cur&&(WPIECE[cur]?WPIECE[cur][1]:MCHEST[cur]?'chest':cur==='hedge'?'plant':null);UI.ft=FT[c]?c:'chest'}const ft=mk('div','tabs');for(const t in FT)ft.append(ubtn(FT[t][0],UI.ft===t?'on':'',()=>{UI.ft=t;tilerCtx()}));TCX.append(ft);
-  // four columns: wood down the first, metal down the second
-  g.style.gridTemplateColumns='repeat(4,1fr)';const fc=k=>k?cell(k,swatch(bake(k),30,30),()=>{UI.tile={t:'tile',k};edBrush={t:'tile',k};tilerCtx()}):mk('span'),L=FT[UI.ft][1];
-  if(UI.ft==='mods')for(const k of L)g.append(fc(k));else{const wl=L.filter(k=>!MCHEST[k]),ml=L.filter(k=>MCHEST[k]);for(let i=0;i<Math.max(wl.length,ml.length);i++)g.append(fc(wl[i]),fc(ml[i]),mk('span'),mk('span'))}nm=cur&&furnK(cur)?tName(cur):''}
- else{// rows of: wood door, metal door, then the same two as full-tile doors
-  const wd=Object.keys(DOORK).filter(k=>DOORK[k][1]===2),md=Object.keys(DOORK).filter(k=>DOORK[k][1]!==2),dc=(k,f)=>{if(!k)return mk('span');
-   // the door's own top-down sprite, one tile across
-   const th=f?16:8,c=mk('canvas');c.width=16;c.height=th;const x=c.getContext('2d'),im=x.createImageData(16,th),u=new Uint32Array(im.data.buffer);for(const[px,py,col]of doorIcon(k,f))if(px>=0&&px<16&&py+th>=0&&py+th<th)u[(py+th)*16+px]=col;x.putImageData(im,0,0);
-   c.style.cssText='width:56px;height:'+(f?56:28)+'px;image-rendering:pixelated;display:block';const id='door:'+k+(f?'!':''),s=cell(id,c,()=>{UI.tile={t:'door',k:id};edBrush={...UI.tile};tilerCtx()});s.style.cssText='width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:#181818';return s};
-  g.style.gridTemplateColumns='repeat(4,1fr)';g.style.gap='6px';for(let i=0;i<Math.max(wd.length,md.length);i++)g.append(dc(wd[i]),dc(md[i]),dc(wd[i],1),dc(md[i],1));
-  if(String(cur).startsWith('door:')){const k=cur.slice(5).replace('!','');nm=DOORK[k]?DOORK[k][0]+(cur.includes('!')?', full tile':''):''}}
- TCX.append(g,mk('div','tbox',nm));if(UI.pop==='ae'&&cur&&!String(cur).startsWith('door:')&&cur!==AE.key)aeLoad(cur)}
+function tilerCtx(){TCX.innerHTML='';if((!edBrush||edBrush.t==='clean')&&UI.tile&&EM==='map')edBrush={...UI.tile};if(!['floor','wall','furn','door'].includes(UI.tt))UI.tt=PK.w?'wall':'floor';PK.w=UI.tt==='wall'?1:0;
+ const tabs=mk('div','tabs');for(const[t,n]of[['floor','Floor'],['wall','Wall'],['furn','Furniture'],['door','Doors']])tabs.append(ubtn(n,UI.tt===t?'on':'',()=>{UI.tt=t;tilerCtx()}));TCX.append(tabs);SM.dataset.tt=UI.tt;
+ // every tab gives sub-tabs and rows of keys (null leaves a gap); one grid draws them all
+ const sub=(list,on,f)=>{const et=mk('div','tabs');for(const[v,n]of list)et.append(ubtn(n,on===v?'on':'',()=>{f(v);tilerCtx()}));TCX.append(et)},rows=[],four=L=>{for(let i=0;i<L.length;i+=4)rows.push(L.slice(i,i+4))};let pref=null;
+ if(UI.tt==='floor'||UI.tt==='wall'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)&&(KIND[k]==='wall')===!!PK.w),els=[...EORDER.filter(e=>!PK.w||Object.keys(ELEM[e].mats).some(m=>!mprop(e,m).nowall)),...(mods.length?['Mods']:[])];if(!els.includes(PK.el))PK.el='Stone';
+  sub(els.map(e=>[e,e]),PK.el,e=>{PK.el=e;if(e!=='Mods'){PK.mat=Object.keys(ELEM[e].mats)[0];PK.v=Object.keys(varsOf(e,PK.mat))[0]}else PK.mat=mods[0]});
+  if(PK.el==='Mods'){four(mods);pref=PK.mat}else{const e=PK.el.toLowerCase(),sf=PK.w?'.w':'';for(const m of Object.keys(ELEM[PK.el].mats).filter(m=>!PK.w||!mprop(PK.el,m).nowall))four(Object.keys(varsOf(PK.el,m)).map(v=>e+'.'+m+'.'+v+sf).filter(validK));pref=e+'.'+PK.mat+'.'+PK.v+sf}}
+ else if(UI.tt==='furn'){const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',wk('chest'),Object.keys(MCHEST)],table:['Tables',wk('table'),[]],desk:['Desks',wk('desk'),[]],seat:['Chairs',wk('seat'),[]],plant:['Plants',['hedge'],[]],...(mods.length?{mods:['Mods',mods,[]]}:{})};
+  if(!FT[UI.ft])UI.ft='chest';sub(Object.entries(FT).map(([t,v])=>[t,v[0]]),UI.ft,t=>UI.ft=t);const[,wl,ml]=FT[UI.ft];
+  // wood down the first column, metal down the second
+  if(UI.ft==='mods')four(wl);else for(let i=0;i<Math.max(wl.length,ml.length);i++)rows.push([wl[i]||null,ml[i]||null,null,null])}
+ else{const wd=Object.keys(DOORK).filter(k=>DOORK[k][1]===2),md=Object.keys(DOORK).filter(k=>DOORK[k][1]!==2),id=(k,f)=>k?'door:'+k+(f?'!':''):null;
+  // wood, metal, then the same two as full-tile doors
+  for(let i=0;i<Math.max(wd.length,md.length);i++)rows.push([id(wd[i]),id(md[i]),id(wd[i],1),id(md[i],1)])}
+ const all=rows.flat().filter(Boolean),isDoor=k=>String(k).startsWith('door:');let cur=UI.erase?null:edBrush&&edBrush.t!=='clean'?edBrush.k:UI.tile&&UI.tile.k;
+ // a tab always has something chosen: the remembered pick if it is here, else the first
+ if(!UI.erase&&!all.includes(cur)&&all.length){const k=all.includes(pref)?pref:all[0];UI.tile={t:isDoor(k)?'door':'tile',k};if(EM==='map')edBrush={...UI.tile};if(!isDoor(k))pkFrom(k);cur=k}
+ const pick=k=>{if(UI.erase)setErase(false);if(isDoor(k)){UI.tile={t:'door',k};edBrush={...UI.tile};tilerCtx()}else setTile(k)};
+ const pic=k=>{if(!isDoor(k))return swatch(bake(k),30,30);const f=k.endsWith('!'),dk=k.slice(5).replace('!',''),th=f?16:8,c=mk('canvas');c.width=16;c.height=th;const x=c.getContext('2d'),im=x.createImageData(16,th),u=new Uint32Array(im.data.buffer);
+  for(const[px,py,col]of doorIcon(dk,f))if(px>=0&&px<16&&py+th>=0&&py+th<th)u[(py+th)*16+px]=col;x.putImageData(im,0,0);c.style.cssText='width:52px;height:'+(f?52:26)+'px';return c};
+ const g=mk('div','swg'+(UI.tt==='door'?' big':''));g.style.gridTemplateColumns='repeat(4,1fr)';for(const r of rows)for(let i=0;i<4;i++){const k=r[i];if(!k){g.append(mk('span'));continue}const s=mk('span','sw'+(k===cur?' on':''));s.append(pic(k));s.onclick=()=>pick(k);g.append(s)}
+ const nm=!cur?'':isDoor(cur)?(d=>DOORK[d]?DOORK[d][0]+(cur.endsWith('!')?', full tile':''):'')(cur.slice(5).replace('!','')):tName(cur);
+ TCX.append(g,mk('div','tname',nm));if(UI.pop==='ae'&&cur&&!isDoor(cur)&&cur!==AE.key)aeLoad(cur)}
 function setTile(k){if(!validK(k))return;pkFrom(k);UI.erase=false;cv.style.cursor='crosshair';UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';if(UI.tt==='furn')UI.ft=WPIECE[k]?WPIECE[k][1]:MCHEST[k]?'chest':k==='hedge'?'plant':'mods';tilerCtx()}
 {const p0=fillMapTools;fillMapTools=function(){p0();if(edBrush&&edBrush.t!=='clean')UI.tile={...edBrush}}}
 
@@ -3167,19 +3164,45 @@ VIEW.addEventListener('pointerdown',e=>{if(panKey||!UI.drop||e.button||!inBoard(
 window.addEventListener('pointermove',e=>{if(GHO.style.display==='block'){GHO.style.left=e.clientX-17*S/2+'px';GHO.style.top=e.clientY-17*S/2+'px';GHO.style.width=GHO.style.height=17*S+'px'}});
 
 // painter: decals on the floor
-const PNT={k:LS.get('bs.dec','blood'),size:2},DEC=[['blood','Blood','#7a0a10'],['scorch','Scorch','#2a2018'],['soot','Soot','#4a4a4a'],['dirt','Dirt','#6a5a3a'],['water','Water','#3a5a7a'],['paint','Paint','#b5a27c']];
+// painter: blood and scorch (the same layers fighting leaves), condition wear, and the floor chisel
+const PNT={k:LS.get('bs.dec','blood'),size:1,mir:false,mx:true,my:true,box:null,t:0,last:null},DEC=[['blood','Blood','#7a0a10'],['scorch','Scorch','#2a2018'],['cond','Condition','#8a7a62'],['chisel','Floor chisel','#3a3836']];if(!DEC.some(d=>d[0]===PNT.k))PNT.k='blood';
 const PCX=mk('div','pcx');ZC.append(PCX);
 function paintCtx(){PCX.innerHTML='';const L=mk('div','ulist');for(const[k,n,c]of DEC){const r=mk('div','urow'+(PNT.k===k?' on':''));const s=mk('span','swd');s.style.background=c;r.append(s,mk('span','n',n));r.onclick=()=>{PNT.k=k;LS.set('bs.dec',k);paintCtx()};L.append(r)}
- PCX.append(L)}
+ PCX.append(L);if(PNT.k==='chisel'){const r=mk('div','tabs');r.append(ubtn('Mirror',PNT.mir?'on':'',()=>{PNT.mir=!PNT.mir;PNT.box=null;paintCtx()}));if(PNT.mir)r.append(ubtn('X',PNT.mx?'on':'',()=>{PNT.mx=!PNT.mx;paintCtx()}),ubtn('Y',PNT.my?'on':'',()=>{PNT.my=!PNT.my;paintCtx()}));PCX.append(r)}}
 let PDN=false;
-function daub(x,y){const R=3+PNT.size*4,a=PNT.size*.12,c={dirt:rgb(84,66,44),paint:rgb(181,162,124),soot:rgb(30,28,26)}[PNT.k];
- if(PNT.k==='water'){wetAt(x,y,R);return}
+// undo: each stroke saves what it can change
+const PU=[];function puPush(){const k=PNT.k,e=k==='cond'?{ed:snapEd()}:k==='chisel'?{ch:chis().slice(),fl:floor.slice(),pr:prOK()?[PR.floor.slice(),PR.floor0.slice()]:null}:{fx:[FX.blood.slice(),BURN.slice()]};e.map=curMap;PU.push(e);if(PU.length>30)PU.shift()}
+function puUndo(){const e=PU.pop();if(!e||e.map!==curMap)return false;if(e.ed){edSrc=e.ed;if(e.ed.und)UND=e.ed.und.map(r=>r&&r.slice());refinish()}else if(e.ch){CHM[curMap]=e.ch;floor.set(e.fl);if(e.pr&&prOK()){PR.floor.set(e.pr[0]);PR.floor0.set(e.pr[1])}}else{FX.blood.set(e.fx[0]);BURN.set(e.fx[1])}ds0Need=true;fxDirty=true;solDirty=true;return true}
+function daub(x,y){const R=3+PNT.size*4,a=PNT.size*.12;
  for(let Y=Math.floor((y-R)/2);Y<=(y+R)/2;Y++)for(let X=Math.floor((x-R)/2);X<=(x+R)/2;X++){if(X<0||Y<0||X>=BW||Y>=BH)continue;const d=Math.hypot(X*2+1-x,Y*2+1-y)/R;if(d>1)continue;const q=Y*BW+X,f=a*(1-d*d)*(.6+Math.random()*.8);
-  if(PNT.k==='blood')FX.blood[q]=Math.min(1,FX.blood[q]+f);else if(PNT.k==='scorch')BURN[q]=Math.min(1,BURN[q]+f);
-  else for(let j=0;j<4;j++){const p=(Y*2+(j>>1))*W+X*2+(j&1);if(sol[p])continue;if(OBJ[p])OBJC[p]=mix(OBJC[p],c,f*.6);else floor[p]=mix(floor[p],c,f*.6)}}
- ds0Need=true;fxDirty=true;solDirty=true}
-VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='paint'||UI.drop||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();PDN=true;const[x,y]=toBoard(e);daub(x,y)},true);
-window.addEventListener('pointermove',e=>{if(PDN&&UI.tool==='paint'){const[x,y]=toBoard(e);daub(x,y)}});window.addEventListener('pointerup',()=>PDN=false);
+  if(PNT.k==='blood')FX.blood[q]=Math.min(1,FX.blood[q]+f);else BURN[q]=Math.min(1,BURN[q]+f)}
+ ds0Need=true;fxDirty=true}
+// condition: holding on a tile wears it a step at a time, the same steps the Tiler and battle damage use
+function wearAt(x,y){const s=srcNow(),o=PNT.size>1?0:0,cx0=(x/T|0)-(PNT.size>1&&x%T<8?1:0),cy0=(y/T|0)-(PNT.size>1&&y%T<8?1:0);let ch=false;
+ for(let cy=cy0;cy<cy0+PNT.size;cy++)for(let cx=cx0;cx<cx0+PNT.size;cx++){const k=s[cy]&&s[cy][cx];if(!k)continue;const c=condK(k);if(c<=1)continue;const n=baseK(k)+'~'+(c-1);if(!validK(n))continue;s[cy][cx]=n;ch=true}
+ if(ch){refinish();sfx('thunk')}}
+// floor chisel: darkens floor pixels for good (wand and sponge leave it); a mirror box repeats each cut across it
+const CHM={};function chis(){let a=CHM[curMap];if(!a||a.length!==N)a=CHM[curMap]=new Uint8Array(N);return a}
+function chiselPt(X,Y){const a=chis(),pts=[[X,Y]],b=PNT.mir&&PNT.box;if(b&&X>=b[0]&&X<b[2]&&Y>=b[1]&&Y<b[3]){const mx=b[0]+b[2]-1-X,my=b[1]+b[3]-1-Y;if(PNT.mx)pts.push([mx,Y]);if(PNT.my)pts.push([X,my]);if(PNT.mx&&PNT.my)pts.push([mx,my])}
+ for(const[px,py]of pts)for(let v=0;v<PNT.size;v++)for(let u=0;u<PNT.size;u++){const x=px+u,y=py+v;if(x<0||y<0||x>=W||y>=H)continue;const j=y*W+x;if(a[j]||sol[j]||OBJ[j])continue;a[j]=1;floor[j]=mul(floor[j],.45);if(prOK()){PR.floor[j]=floor[j];PR.floor0[j]=floor[j]}}}
+function chiselLine(x,y){const p=PNT.last||[x,y],n=Math.max(1,Math.ceil(Math.hypot(x-p[0],y-p[1])*2));for(let i=0;i<=n;i++)chiselPt(Math.floor(p[0]+(x-p[0])*i/n),Math.floor(p[1]+(y-p[1])*i/n));PNT.last=[x,y];ds0Need=true;solDirty=true}
+function chApply(){const a=CHM[curMap];if(!a||a.length!==N)return;for(let j=0;j<N;j++)if(a[j]&&!sol[j]&&!OBJ[j])floor[j]=mul(floor[j],.45)}
+{const b0=build;build=function(){b0();if(curMap==='vault'&&!CHM.vault)vaultRose();else chApply()}}
+// the Aurum hall's floor star, cut with the chisel: one quarter drawn inside a 6 by 5 tile mirror box
+function vaultRose(){const keep={...PNT};Object.assign(PNT,{mir:true,mx:true,my:true,size:1,box:[192,368,288,448]});const R=40;
+ for(let Y=368;Y<408;Y++)for(let X=192;X<240;X++){const dx=X-239.5,dy=Y-407.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3);if(r<3||r>=st*.55&&r<st-.8||r>R*.82+.7&&r<R-.7)chiselPt(X,Y)}
+ Object.assign(PNT,{mir:keep.mir,mx:keep.mx,my:keep.my,size:keep.size,box:keep.box})}
+// the map on screen was built before this file ran
+if(curMap==='vault'&&!CHM.vault){vaultRose();snapPR();ds0Need=true;solDirty=true}{const r0=refinish;refinish=function(){r0();chApply();snapPR()}}
+{const r0=reset;reset=function(){delete CHM[curMap];PU.length=0;r0()}}
+function paintDown(x,y){if(PNT.k==='chisel'&&PNT.mir&&(!PNT.box||x<PNT.box[0]||y<PNT.box[1]||x>=PNT.box[2]||y>=PNT.box[3])){const cx=x/T|0,cy=y/T|0;PNT.drag=[cx,cy];PNT.box=[cx*T,cy*T,cx*T+T,cy*T+T];return}
+ puPush();PDN=true;PNT.last=null;PNT.t=0;if(PNT.k==='chisel')chiselLine(x,y);else if(PNT.k!=='cond')daub(x,y)}
+VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='paint'||UI.drop||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e);paintDown(x|0,y|0)},true);
+window.addEventListener('pointermove',e=>{if(UI.tool!=='paint')return;const[x,y]=toBoard(e);
+ // the mirror box: up to 6 by 6 tiles, snapped to tiles
+ if(PNT.drag){const[a,b]=PNT.drag,cx=Math.max(0,Math.min(CW-1,x/T|0)),cy=Math.max(0,Math.min(CH-1,y/T|0)),x0=Math.max(Math.min(a,cx),a-5),x1=Math.min(Math.max(a,cx),a+5),y0=Math.max(Math.min(b,cy),b-5),y1=Math.min(Math.max(b,cy),b+5);PNT.box=[x0*T,y0*T,x1*T+T,y1*T+T];return}
+ if(!PDN)return;if(PNT.k==='chisel')chiselLine(x|0,y|0);else if(PNT.k!=='cond')daub(x,y)});
+window.addEventListener('pointerup',()=>{PDN=false;PNT.drag=null;PNT.last=null});
 
 // signs: a marker with a note; hover shows it, double-click edits
 const SMAT={wood:['Wood','#b08a5a','#4a3018'],stone:['Stone','#a6a096','#4e4a44'],marble:['Marble','#e6e4dc','#7a776e'],iron:['Iron','#8c969a','#2e3438'],brass:['Brass','#c9a660','#4a3a18']};UI.smat=LS.get('bs.smat','wood');
@@ -3190,7 +3213,7 @@ function drawSigns(){SL.innerHTML='';for(const s of SIGNS[curMap]||[]){const m=m
 // ui overlays drawn after each frame
 const OVL=[];{const r0=render;render=function(){r0();for(const f of OVL)f()}}
 OVL.push(()=>{if(sgS!==S||sgM!==curMap)drawSigns()});
-{const s0=spawnMap;spawnMap=function(d){s0(d);if(d.signs)SIGNS[curMap]=d.signs.map(s=>({...s}));if(d.owner)OWN[curMap]=d.owner;sgM=''}}
+{const s0=spawnMap;spawnMap=function(d){s0(d);if(d.ch&&d.CW===CW){const a=chis();for(const j of d.ch)if(!a[j]&&!sol[j]&&!OBJ[j]){a[j]=1;floor[j]=mul(floor[j],.45)}}if(d.signs)SIGNS[curMap]=d.signs.map(s=>({...s}));if(d.owner)OWN[curMap]=d.owner;sgM=''}}
 function signCtx(){const L=mk('div','ulist');for(const[k,[n,c]]of Object.entries(SMAT)){const r=mk('div','urow'+(UI.smat===k?' on':''));const sw=mk('span','swd');sw.style.background=c;r.append(sw,mk('span','n',n));r.onclick=()=>{UI.smat=k;LS.set('bs.smat',k);signCtx();sgP()};L.append(r)}SNX.innerHTML='';SNX.append(L)}
 const SNX=mk('div','snx');ZC.append(SNX);const SGP=mk('div','sgn sgp');SL.append(SGP);function sgP(){SGP.innerHTML='';SGP.dataset.m='';SGP.append(plate(UI.smat))}
 // signs sit on cell centres; placing one puffs dust like a laid tile
@@ -3375,7 +3398,13 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  const k=Object.keys(UKEY).find(t=>UKEY[t].toLowerCase()===e.key.toLowerCase()&&UKEY[t].length===1);if(k&&!e.repeat){pickTool(k);e.preventDefault()}});
 // painter: brush cursor and its reach on the map
 const PCUR=(()=>{const c=pix(...UIC.paint,1),d=mk('canvas');d.width=24;d.height=20;const g=d.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(c,0,0,24,20);return`url(${d.toDataURL()}) 2 18, crosshair`})();
-OVL.push(()=>{if(UI.tool!=='paint'||!mouse.in)return;const R=3+PNT.size*4;ctx.save();ctx.lineWidth=1;ctx.strokeStyle='#000';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R+.5,0,6.283);ctx.stroke();ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R-.5,0,6.283);ctx.stroke();ctx.restore();if(cv.style.cursor!==PCUR)cv.style.cursor=PCUR});
+OVL.push(()=>{if(UI.tool!=='paint')return;const now=performance.now();if(PDN&&PNT.k==='cond'&&now-PNT.t>260){PNT.t=now;wearAt(mouse.x,mouse.y)}
+ ctx.save();ctx.lineWidth=1;const box=(x,y,w,h,c)=>{ctx.strokeStyle='#000';ctx.strokeRect(x-.5,y-.5,w+1,h+1);ctx.strokeStyle=c;ctx.strokeRect(x+.5,y+.5,w-1,h-1)};
+ if(PNT.k==='chisel'&&PNT.mir&&PNT.box){const b=PNT.box;box(b[0],b[1],b[2]-b[0],b[3]-b[1],'#d8b860');ctx.strokeStyle='rgba(216,184,96,.6)';ctx.beginPath();if(PNT.mx){const m=(b[0]+b[2])/2;ctx.moveTo(m,b[1]);ctx.lineTo(m,b[3])}if(PNT.my){const m=(b[1]+b[3])/2;ctx.moveTo(b[0],m);ctx.lineTo(b[2],m)}ctx.stroke()}
+ if(mouse.in){if(PNT.k==='cond'){const cx=(mouse.x/T|0)-(PNT.size>1&&mouse.x%T<8?1:0),cy=(mouse.y/T|0)-(PNT.size>1&&mouse.y%T<8?1:0);box(cx*T,cy*T,T*PNT.size,T*PNT.size,'#fff')}
+  else if(PNT.k==='chisel')box(mouse.x|0,mouse.y|0,PNT.size,PNT.size,'#fff');
+  else{const R=3+PNT.size*4;ctx.strokeStyle='#000';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R+.5,0,6.283);ctx.stroke();ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(mouse.x,mouse.y,R-.5,0,6.283);ctx.stroke()}}
+ ctx.restore();if(cv.style.cursor!==PCUR)cv.style.cursor=PCUR});
 // storage: glows on hover, click to open it here and drop things out of it, right-click to empty it
 let stK='';function storePanel(){const c=openCrate||(!sel.size&&hoverC);if(UI.tool!=='hand'||!c||!c.inv||!bodies.includes(c)){if(stK){stK='';HCX.innerHTML='';head('hand')}return false}cNorm(c);
  const k=JSON.stringify([c.id,c.inv]);if(k===stK)return true;stK=k;hbK='';HCX.innerHTML='';TH.innerHTML='';TH.append(pieceIcon(c),mk('span',null,c.name||'Storage'));

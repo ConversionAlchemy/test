@@ -65,7 +65,7 @@ function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99),j=(cy*T+y)*W+cx*T+x;let c=floor[j];
   if(rug&&!ok){const t=ageT(condK(k));if(t>.3&&d<=1&&hh(cx*T+x,cy*T+y,95)>.97-.1*t)c=mul(c,.62);else if(d===0)c=mul(c,.6);else if(d<=3)c=mix(mul(c,.9),/gcarpet|verdant/.test(k)?rgb(176,140,70):/pcarpet|purple/.test(k)?rgb(188,184,204):rgb(150,104,60),(x+y)%3?.5:.62);else if(d===4)c=mul(c,.72)}
   if(ok){const F=WPIECE[baseK(k)]&&woodFin(WPIECE[baseK(k)][0]);c=OBJC[j];if(d===0)c=mul(c,F?F.rim:.5);else if(d===1)c=mul(c,x===0||y===0||o(cx-1,cy)&&x===1||o(cx,cy-1)&&y===1?1.12:.82);else if(d===3&&F&&/^(table|desk)$/.test(wshape(k)))c=mix(c,rgb(...F.gl),F.gt);OBJC[j]=c}else floor[j]=c}}
- if(curMap==='vault')inlays()}
+}
 // plank joints are laid from each floor's own edges, boards split evenly across its width
 const PLK=new Set();
 function boards(){const seen=new Set();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!PLK.has(k))continue;
@@ -102,9 +102,6 @@ function furnish(){const done=new Set(),C=a=>rgb(cl(a[0]),cl(a[1]),cl(a[2]));
     if(d===0)c=mul(c,.5);else if(d<=2){c=C(m.map(q=>q*(d===1?hi:1)));}
     if(A&&d>0){const r=A([c&255,c>>8&255,c>>16&255],X*2,Y*2,()=>d-1);c=C(r)}}
    OBJC[j]=c}}}
-function inlays(){const ring=(X0,Y0,R)=>{for(let Y=Y0-R-2;Y<=Y0+R+2;Y++)for(let X=X0-R-2;X<=X0+R+2;X++){const j=Y*W+X;if(sol[j]||OBJ[j])continue;const dx=X-X0+.5,dy=Y-Y0+.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3),gm=(c,t)=>mix(c,rgb(214,176,96),t),dm=()=>{const c=TEX['stone.aur.chequer'](X,Y);return rgb(cl(c[0]),cl(c[1]),cl(c[2]))};
-  let c=null;if(r<4)c=gm(floor[j],.85);else if(Math.abs(r-st)<.8)c=gm(floor[j],.7);else if(r<st)c=r<st*.55?floor[j]:dm();else if(Math.abs(r-R*.82)<.7||Math.abs(r-R)<.7)c=gm(floor[j],.7);else if(r>R*.82&&r<R)c=dm();if(c!==null){floor[j]=c;SHN[j]=c===floor[j]?SHN[j]:40}}};
- ring(240,408,40)}
 function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;if(wshape(k)==='table'){for(const it of items||[]){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.k==='gold')w.amt=it.n;else if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}return null}const pc=PCS.get(cy*CW+cx),cells=pc?pc.cells.slice():[],seen=new Set([cy*CW+cx]),q=pc?[]:[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}
  const xs=cells.map(c=>c[0]),ys=cells.map(c=>c[1]),box=[Math.min(...xs)*T,Math.min(...ys)*T,(Math.max(...xs)+1)*T-1,(Math.max(...ys)+1)*T-1],c=weapon('crate',(box[0]+box[2])/2,(box[1]+box[3])/2,0);
  c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.cells=cells;c.box=box;c.chest=wshape(k)==='chest'||!!MCHEST[baseK(k)];c.desk=wshape(k)==='desk';
