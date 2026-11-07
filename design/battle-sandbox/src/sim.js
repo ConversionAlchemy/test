@@ -267,11 +267,11 @@ function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;retu
  for(const d of [vd(7,4,2),vd(29,4,2),hd(18,2,2),hd(18,7,2),hd(12,10,2),hd(24,10,2),hd(21,14,2),vd(-1,17,2)])eb(d);
  hd(3,14,3);hd(11,14,3);const c1=hd(1,20,3),c2=hd(5,20,3),out=vd(-3,17,3,16),vault=vd(27,19,3,16);c1.locked=c2.locked=out.locked=vault.locked=true;
  const cc=(x,y,items,n)=>{const c=container(x+CO,y,items);if(c&&n)c.name=n;return c};
- cc(14,3,[{k:'gold',n:2400}],'Counting shelf');cc(22,3,[{k:'gold',n:2400}],'Counting shelf');cc(15,4,[{k:'gold',n:300}],'Counting table');
- cc(9,1,[{k:'gold',n:40}],'Bookshelf');cc(20,18,[{k:'gold',n:250},{k:'pistol',n:1,ammo:18,res:18}],'Ledger desk');cc(16,23,[{k:'gold',n:600}],'Ledger chest');
+ cc(14,3,[{k:'gold',n:500}],'Counting shelf');cc(22,3,[{k:'gold',n:500}],'Counting shelf');cc(15,4,[{k:'gold',n:300}],'Counting table');
+ cc(9,1,[{k:'gold',n:40}],'Bookshelf');cc(20,18,[{k:'gold',n:250},{k:'pistol',n:1,ammo:18,res:18}],'Ledger desk');cc(16,23,[{k:'gold',n:500}],'Ledger chest');
  cc(8,16,[{k:'musket',n:6,ammo:12,res:24},{k:'pistol',n:4,ammo:18,res:18}],'Rifle rack');cc(14,16,[{k:'grenade',n:6}],'Grenade chest');cc(14,18,[{k:'bomb',n:2}],'Heavy chest');cc(14,20,[{k:'mbox',n:6},{k:'pbox',n:4}],'Ammo chest');cc(14,22,[{k:'blunder',n:2,ammo:8,res:16}],'Chest');
  cc(0,15,[{k:'musket',n:2,ammo:12,res:12}],'Guard rack');cc(6,15,[{k:'grenade',n:2}],'Guard chest');cc(2,16,[],'Guard table');cc(32,3,[{k:'gold',n:500}],'Red room table');cc(2,3,[],'Green room table');
- cc(29,15,[{k:'gold',n:6000}],'Black shelf');cc(29,23,[{k:'gold',n:6000}],'Black shelf');cc(31,19,[{k:'gold',n:2000},{k:'sspear',n:1,ammo:4,res:4},{k:'rod',n:1,ammo:3,res:9}],'Black deals');
+ cc(29,15,[{k:'gold',n:500}],'Black shelf');cc(29,23,[{k:'gold',n:500}],'Black shelf');cc(31,19,[{k:'gold',n:500},{k:'sspear',n:1,ammo:4,res:4},{k:'rod',n:1,ammo:3,res:9}],'Black deals');
  face(token('Lord Vane','Goldbank','civ',X(31)+8,72,false,'pistol'),0);face(token('Corvo','Reapers','home',X(35)+8,72,false,'blunder'),Math.PI);
  face(token('Archivist Lell','Goldbank','civ',X(10)+8,56,false,null),dn);face(token('Clerk Amsel','Goldbank','civ',X(16)+8,56,false,null),dn);face(token('Clerk Toll','Goldbank','civ',X(20)+8,104,false,null),up);
  face(token('Master Orsk','Goldbank','civ',X(21)+8,19*16+8,false,'pistol'),up);
@@ -316,7 +316,7 @@ function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
 function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};slab(3,36,400,1);
  dbl(3,208,128,271,111,0,2,true,32,16);dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,false,32,8);
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
- container(8,2,[{k:'grenade',n:2}]);container(19,2,[{k:'bomb',n:1}]);for(const[x,y]of[[13,4],[14,4],[15,4],[16,4],[13,5],[16,5]])container(x,y,[{k:'gold',n:800}]);container(5,25,[{k:'gold',n:200}]);container(20,25,[{k:'gold',n:200}]);
+ container(8,2,[{k:'grenade',n:2}]);container(19,2,[{k:'bomb',n:1}]);for(const[x,y]of[[13,4],[14,4],[15,4],[16,4],[13,5],[16,5]])container(x,y,[{k:'gold',n:500}]);container(5,25,[{k:'gold',n:200}]);container(20,25,[{k:'gold',n:200}]);
  container(22,10,[{k:'gold',n:400},{k:'grenade',n:3}]);container(5,10,[]);container(5,33,[]);container(22,33,[{k:'gold',n:120}]);for(const o of bodies){if(o.type==='slab')goldify(o);if(o.kind==='crate')o.metal=true}
  // the crew: a commando with a blunderbuss, grenades and heavy grenades, backed by two riflemen with a couple of grenades each
  for(const[n,u,x,w,k]of[['Rask','cmd',240,'blunder',[{k:'grenade',n:4},{k:'bomb',n:3}]],['Mott','rifle',205,'musket',[{k:'grenade',n:2}]],['Hook','rifle',275,'musket',[{k:'grenade',n:2}]]]){const t=face(token(n,'Reapers',u,x,640,false,w),up);t.inv=[t.inv[0],null,...k,null,null].slice(0,6)}{const r=bodies.find(o=>o.name==='Rask');sel.clear();sel.add(r);r.direct=true}
@@ -379,7 +379,7 @@ function cFit(c,k){const e={k},r=cPack(c,e);return r?r.get(e):null}
 function cAt(c,k,X,Y,skip){if(skip&&c.inv.includes(skip))return{gx:skip.gx,gy:skip.gy,r:skip.r,sl:skip.sl};return cFit(c,k)}
 // chests take weapons, grenades and ammo; desks take gold, notes and keys
 const ITEMK=new Set(['gold','note']),isItem=k=>ITEMK.has(k)||isKey(k),cOK=(c,k)=>c.chest?!isItem(k):true;
-function cAdd(c,it){if(!cOK(c,it.k))return false;c.inv=c.inv||[];if(it.k==='gold'){const m=c.inv.find(q=>q&&q.k==='gold');if(m){m.n+=it.n;return true}}const q={...it,n:it.k==='gold'?it.n:1};delete q.mode;delete q.sl;const r=cPack(c,q);if(!r)return false;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);for(const[z,p]of r)Object.assign(z,p,{v:9});c._sig=cSig(c);return true}
+function cAdd(c,it){if(!cOK(c,it.k))return false;c.inv=c.inv||[];if(it.k==='gold'){for(const m of c.inv)if(m&&m.k==='gold'&&m.n<SOLMAX){const t=Math.min(SOLMAX-m.n,it.n);m.n+=t;it.n-=t;if(it.n<=0)return true}if(it.n>SOLMAX){const rest={...it,n:it.n-SOLMAX};it={...it,n:SOLMAX};if(!cAdd(c,rest))cSpill(c,rest)}}const q={...it,n:it.k==='gold'?it.n:1};delete q.mode;delete q.sl;const r=cPack(c,q);if(!r)return false;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);for(const[z,p]of r)Object.assign(z,p,{v:9});c._sig=cSig(c);return true}
 function cFill(c,items){c.inv=[];for(const it of items||[]){if(!it)continue;const n=it.k==='gold'||it.k==='note'?1:it.n||1;for(let i=0;i<n;i++){const one={...it};if(one.k!=='gold')one.n=1;delete one.gx;delete one.gy;delete one.r;if(!cAdd(c,one))cSpill(c,one)}}}
 const cFitsAll=(c,items)=>{const t={x:c.x,y:c.y,long:c.long,box:c.box,cells:c.cells,inv:[]};for(const it of items)for(let i=0;i<(it.k==='gold'||it.k==='note'?1:it.n||1);i++)if(!cAdd(t,{...it,n:it.k==='gold'?it.n:1}))return false;return true};
 function spillAt(c){const b=c.box||[c.x-6,c.y-6,c.x+6,c.y+6],cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2,free=(x,y)=>{for(let v=-3;v<=3;v++)for(let u=-3;u<=3;u++){const X=Math.round(x+u),Y=Math.round(y+v);if(X<1||Y<1||X>=W-1||Y>=H-1||sol[Y*W+X]||OBJ[Y*W+X])return false}return true};
@@ -442,7 +442,7 @@ function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,E
 function buildRoad(){paintAll((cx,cy)=>{if(cx>=13&&cx<=15&&cy>=8&&cy<=9)return 'chest';if(cy>=8&&cy<=10)return 'dirt';
  if(cy===6&&cx>=1&&cx<=14&&cx!==7||(cx===1||cx===14)&&cy>=1&&cy<=6)return 'rail';if(cx>=2&&cx<=13&&cy>=1&&cy<=5)return 'crop';
  const B=[[6,12],[7,12],[8,12],[7,13],[15,12],[16,12],[17,12],[16,13],[22,13],[23,13],[24,13],[23,14],[25,12],[20,4],[21,4],[22,4],[21,5],[24,3],[25,3],[26,3],[25,2]];return B.some(([a,b])=>a===cx&&b===cy)?'bush':'grass'})}
-function unitsRoad(){container(13,8,[{k:'gold',n:640},{k:'musket',n:3,ammo:12,res:24},{k:'grenade',n:4}],'Company wagon');
+function unitsRoad(){container(13,8,[{k:'gold',n:500},{k:'musket',n:3,ammo:12,res:24},{k:'grenade',n:4}],'Company wagon');
  U('Factor Mercer','Portsbridge','civ',16.6,9,RT,'pistol');U('Ames','Portsbridge','civ',12.4,9.5,RT,null,'Company Clerk');
  U('Holt','Portsbridge','home',13.5,7.4,RT);U('Pike','Portsbridge','home',14.5,10.6,RT);U('Sorrel','Portsbridge','rifle',11.2,8.2,RT);U('Wren','Portsbridge','rifle',18.4,10.2,RT);U('Brannock','Portsbridge','guard',19.6,8.4,RT);
  U('Gull','Reapers','home',7.5,14.4,UP,'pistol');U('Mott','Reapers','home',6.2,13.6,UP,'spear');U('Rask','Reapers','guard',16.5,14.2,UP);U('Teague','Reapers','shock',17.8,13.6,UP,'spear');U('Brine','Reapers','home',23.5,15.4,UP,'blunder');
@@ -555,14 +555,12 @@ const PHEAT=[[0,null],[.2,rgb(64,52,92)],[.4,rgb(100,62,168)],[.6,rgb(146,84,236
 function heatCol(h,cold,R=HEAT){if(h<=0)return cold;h=Math.min(1.05,h);for(let i=1;i<R.length;i++)if(h<=R[i][0]||i===R.length-1){const a=R[i-1],b=R[i],t=Math.min(1,(h-a[0])/(b[0]-a[0])),e=t*t*(3-2*t);return mix(a[1]||cold,b[1],e)}return cold}
 const sh3=(c,u)=>u<-.2?mul(c,1.16):u>.2?mul(c,.72):c;
 const SPRT=new Set(['pgun','musket','blunder','pistol','rod','sspear','spear','grenade','bomb','shield','sword']);
-// Solari seen from above: 1-9 loose coins, then a bar per 10, a full slot of 50 is four bars with one laid across
-function solPx(n){const o=new Map(),P=(x,y,c)=>o.set(x+','+y,c),G=rgb(240,202,88),H=rgb(255,234,140),L=rgb(222,174,60),D=rgb(160,112,24),E=rgb(112,76,12);n=Math.max(1,Math.min(50,n|0));
- const coin=(x,y)=>{for(let j=0;j<4;j++)for(let i=0;i<4;i++){if((i===0||i===3)&&(j===0||j===3))continue;P(x+i,y+j,i+j<=2?H:i+j>=4&&(i===3||j===3)?D:G)}};
- const bar=(x,y,w,h)=>{for(let j=0;j<h;j++)for(let i=0;i<w;i++){const r=i===w-1||j===h-1,l=i===0||j===0;P(x+i,y+j,r?D:l?L:i+j<=3?H:G)}};
- const B=Math.floor(n/10),c=n%10,ORD=[4,0,8,2,6,1,7,3,5];
- for(let i=0;i<Math.min(B,4);i++)bar(i*4,0,4,10);if(B===5){for(let i=0;i<16;i++)P(i,6,E);bar(0,2,16,4)}
- const cx=B?Math.min(B,4)*4+1:0;for(let i=0;i<c;i++){const g=B?i:ORD[i];coin(cx+g%3*4,(g/3|0)*4)}
- const r=[];let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const k of o.keys()){const[x,y]=k.split(',').map(Number);x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}const ox=(x0+x1)>>1,oy=(y0+y1)>>1;for(const[k,v]of o){const[x,y]=k.split(',').map(Number);r.push([x-ox,y-oy,v])}return r}
+// Solari seen from above: 3x3 coin stacks of 20 on a 5x5 grid that fills its tile as a centred block, 500 at most; a part stack is dimmer
+const SOLMAX=500;
+function solPx(v){const m=new Map(),G=rgb(240,202,88),H=rgb(255,234,140),L=rgb(222,174,60),D=rgb(170,120,30),E=rgb(118,80,14),coin=(x,y,part)=>{const P=(i,j,c)=>m.set((x+i)+','+(y+j),c),c=part?[L,D,E]:[H,G,D];P(0,0,c[1]);P(1,0,c[0]);P(2,0,c[1]);P(0,1,c[0]);P(1,1,part?G:H);P(2,1,c[2]);P(0,2,c[1]);P(1,2,c[2]);P(2,2,c[2])};
+ v=Math.max(1,Math.min(SOLMAX,v|0));const k=Math.ceil(v/20),cols=Math.ceil(Math.sqrt(k)),rows=Math.ceil(k/cols),y0=Math.round((15-rows*3)/2);let i=0;
+ for(let r=0;r<rows;r++){const n=Math.min(cols,k-r*cols),x0=Math.round((15-n*3)/2);for(let c=0;c<n;c++,i++)coin(x0+c*3,y0+r*3,i===k-1&&v%20!==0)}
+ return[...m].map(([q,c])=>{const[x,y]=q.split(',').map(Number);return[x-7,y-7,c]})}
 function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(a);
  const st=(t0,t1,w,f)=>{for(let t=t0;t<=t1;t+=.5)for(let u=-w;u<=w+.01;u+=.5)m.set(K(Math.round(c*t-s*u),Math.round(s*t+c*u)),f(t,u))};
  const disc=(r,f)=>{for(let y=-6;y<=6;y++)for(let x=-6;x<=6;x++){const d=Math.hypot(x,y);if(d<=r)m.set(K(x,y),f(x,y,d))}};
@@ -586,7 +584,7 @@ function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(
  if(kind==='pball'||kind==='pel')m.set(K(0,0),C.lead);
  if(kind==='crossbow'){st(-8,6,.5,()=>C.lw);for(let u=-5;u<=5;u+=.5)m.set(K(Math.round(c*3.5-s*u),Math.round(s*3.5+c*u)),C.lwD)}
  if(kind==='ball')m.set(K(0,0),C.lead);
- if(kind==='gold')for(const p of solPx(fill>1?fill:10))m.set(K(p[0],p[1]),p[2]);
+ if(kind==='gold')for(const p of solPx(fill>1?fill:100))m.set(K(p[0],p[1]),p[2]);
  if(kind==='crate'||kind==='lcrate'){const hw=kind==='lcrate'?15:5;for(let y=-5;y<=5;y++)for(let x=-hw;x<=hw;x++){const e=Math.abs(x)===hw||Math.abs(y)===5;m.set(K(x,y),e?C.woodD:(x===y||x===-y)?mul(C.wood,.82):(y+5)%3===0?mul(C.wood,.9):C.woodH)}}
  // ammo comes boxed, a quarter tile each so four fill a chest cell: wood crates for shot, a steel case for rods, the same case with a window for plasma cells
  if(kind==='mbox'||kind==='pbox'||kind==='sbox'||kind==='rbox'||kind==='cell'){const W=kind==='pbox'?[rgb(212,178,122),.88]:kind==='mbox'?[rgb(172,130,82),.72]:kind==='sbox'?[rgb(128,88,54),.7]:null,t=W?W[0]:rgb(150,156,166);
@@ -597,9 +595,14 @@ function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(
  if(kind==='bomb')disc(4.6,(x,y,d)=>d>3.9?C.ironK:Math.abs(d-3.2)<.45?mul(C.ironD,.7):Math.hypot(x+1.5,y+1.5)<1.3?C.ironH:d>1.4?(x+y<-2?C.iron:C.ironD):rgb(214,176,70));
  if(SPRT.has(kind))for(const[k,col]of m){const r=col&255,g=col>>8&255,b=col>>16&255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),X=Math.floor(k/1024)-512,Y=k%1024-512,n=hh(X*c+Y*s|0,Y*c-X*s|0,77);if(mx-mn<24&&mx>20)m.set(k,rgb(cl(r*.95*(.96+n*.08)),cl(g*(.96+n*.08)),cl(b*.97*(.96+n*.08))));else if(r>g&&g>b&&r-b>40)m.set(k,mul(col,.94+n*.12))}
  return [...m].map(([k,col])=>{const X=Math.floor(k/1024)-512,Y=k%1024-512;if(kind==='bomb'){const h=Math.hypot(X,Y)>2.5?9:1;return[X,Y,col,h,3,0,h,h>1?'a':'h',X,Y]}if(kind==='crate'||kind==='lcrate')return[X,Y,col,2,2,0,2,'x',X,Y];return[X,Y,col,1,3,0,1,'x',0,0]})}
-function weapon(kind,x,y,a=0){const b={id:uid++,type:'weapon',kind,x,y,vx:0,vy:0,ang:a,mass:WP[kind].m,px:shape(kind,a)};mkSet(b);bodies.push(b);return b}
+function weapon(kind,x,y,a=0){if(kind==='gold'){a=0;x=snapC16(x);y=snapC16(y)}const b={id:uid++,type:'weapon',kind,x,y,vx:0,vy:0,ang:a,mass:WP[kind].m,px:shape(kind,a)};if(kind==='gold'){let v=100;Object.defineProperty(b,'amt',{get:()=>v,set:n=>{v=Math.min(SOLMAX,n);b.px=shape('gold',0,v||1);mkSet(b)},enumerable:true,configurable:true});b.amt=100}mkSet(b);bodies.push(b);return b}
+// Solari piles snap to the middle of their tile, and piles on the same tile merge up to a full 500
+const snapC16=v=>Math.floor(v/T)*T+T/2;
+function goldSnap(){for(const b of bodies){if(b.type!=='weapon'||b.kind!=='gold'||Math.hypot(b.vx,b.vy)>.05||drag&&drag.b===b)continue;const X=snapC16(b.x),Y=snapC16(b.y);if(b.x!==X||b.y!==Y){b.x=X;b.y=Y;b.vx=b.vy=0}
+ for(const o of bodies)if(o!==b&&o.type==='weapon'&&o.kind==='gold'&&o.x===X&&o.y===Y&&!o.dead&&o.amt<SOLMAX&&b.amt<SOLMAX){const t=Math.min(SOLMAX-o.amt,b.amt);o.amt+=t;b.amt-=t;if(b.amt<=0){remove(b);b.dead=true;break}}
+ if(!b.dead&&bodies.some(o=>o!==b&&o.type==='weapon'&&o.kind==='gold'&&o.x===X&&o.y===Y))for(const[dx,dy]of[[1,0],[0,1],[-1,0],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]){const nx=X+dx*T,ny=Y+dy*T;if(nx<0||ny<0||nx>=W||ny>=H||sol[ny*W+nx]||bodies.some(o=>o.type==='weapon'&&o.kind==='gold'&&o.x===nx&&o.y===ny))continue;b.x=nx;b.y=ny;break}}}
 function wedgeIn(b){if(b.kind!=='spear'&&b.kind!=='sspear'||b.wedged)return;b.wedged=true;b.trim=true;reshape(b,b.ang)}
-function reshape(b,a){b.ang=a;if(b.kind==='bomb'||b.kind==='crate')return;b.px=shape(b.kind,a,rodFill(b));if(b.trim){const c=Math.cos(a),s=Math.sin(a);b.px=b.px.filter(p=>p[0]*c+p[1]*s>=-5.2)}mkSet(b);if(b.spent)spend(b);if(solidHits(b,0,0))b.ghost=true}
+function reshape(b,a){if(b.kind==='gold'){b.ang=0;return}b.ang=a;if(b.kind==='bomb'||b.kind==='crate')return;b.px=shape(b.kind,a,rodFill(b));if(b.trim){const c=Math.cos(a),s=Math.sin(a);b.px=b.px.filter(p=>p[0]*c+p[1]*s>=-5.2)}mkSet(b);if(b.spent)spend(b);if(solidHits(b,0,0))b.ghost=true}
 function slabPix(m,len=16,th=8){const px=[],hp=(m===2?2:7)+(len>16?(m===2?1:4):0);for(let y=-th;y<=-1;y++)for(let x=0;x<len;x++){let c;const e=y===-th||y===-1||x===0||x===len-1;
  const ed=Math.min(x,len-1-x,y+th,-1-y),sd=uid*37;let q;
  if(m===2)q=woodT(x+sd,y+sd,WOOD.oak,1);
@@ -1170,7 +1173,7 @@ function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=
  if(b.ghost&&!solidHits(b,0,0))b.ghost=false;return Math.hypot(b.x-x0,b.y-y0)}
 const TURN={civ:.18,home:.17,rifle:.16,guard:.12,shock:.1,cmd:.26};
 function turnTo(b,a,now){if(now||b.type!=='token'||b.status!=='free')return turnNow(b,a);b.faceT=a}
-function turnTick(){for(const b of bodies){if(b.faceT==null)continue;if(b.type==='weapon'){const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang));if(Math.abs(d)<=.14){if(Math.abs(d)>.01)reshape(b,b.faceT);b.faceT=null}else reshape(b,b.ang+Math.sign(d)*.14);continue}if(b.status!=='free'){b.faceT=null;continue}const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang)),r=(TURN[b.unit]||.14)*(b.crouch?.7:1);if(Math.abs(d)<=r){turnNow(b,b.faceT);b.faceT=null}else turnNow(b,b.ang+Math.sign(d)*r)}}
+function turnTick(){goldSnap();for(const b of bodies){if(b.faceT==null)continue;if(b.type==='weapon'){const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang));if(Math.abs(d)<=.14){if(Math.abs(d)>.01)reshape(b,b.faceT);b.faceT=null}else reshape(b,b.ang+Math.sign(d)*.14);continue}if(b.status!=='free'){b.faceT=null;continue}const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang)),r=(TURN[b.unit]||.14)*(b.crouch?.7:1);if(Math.abs(d)<=r){turnNow(b,b.faceT);b.faceT=null}else turnNow(b,b.ang+Math.sign(d)*r)}}
 const facing=(b,x,y)=>Math.hypot(x-b.x,y-b.y)<28||Math.abs(Math.atan2(Math.sin(Math.atan2(y-b.y,x-b.x)-b.ang),Math.cos(Math.atan2(y-b.y,x-b.x)-b.ang)))<.35;
 function turnNow(b,a){const a0=b.ang,d=Math.atan2(Math.sin(a-a0),Math.cos(a-a0));b.ang=a0+d;if(!heldBlocked(b,0,0))return;if(b.type==='token'&&pullFit(b))return;pushDoor(b,heldPix(b));if(b.type==='token'){raise(b);return}b.ang=a0;if(heldBlocked(b,0,0)){b.ang=a0+d;return}for(let i=1;i<=8;i++){b.ang=a0+d*i/8;if(heldBlocked(b,0,0)){b.ang=a0+d*(i-1)/8;return}}}
 function pushDoor(b,h){if(b.type!=='token')return;for(const[X,Y]of h){if(X<0||Y<0||X>=W||Y>=H)continue;const d=slabG[Y*W+X]&&byId(slabG[Y*W+X]);if(!d||d.free||d.locked||d.tgt!==0)continue;if(d.ang!==0){d.tgt=Math.sign(d.ang)*Math.PI/2;sfx('door');continue}
@@ -1208,7 +1211,7 @@ function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';
 let lastHud='';
 let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
 function moveItem(from,i,to,X,Y){const q=from.inv&&from.inv[i];if(!q||!to.inv)return;const one=q.k==='note'?{...q}:{k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}
- if(to.type==='token'){if(addItem(to,one)){if((q.n-=one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k])q.ammo=CAP[q.k];sfx('flick');return true}NOPE();return false}
+ if(to.type==='token'){if(addItem(to,one)){if((q.n-=one.taken??one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k])q.ammo=CAP[q.k];sfx('flick');return true}NOPE();return false}
  cNorm(to);if(!cAdd(to,one,X,Y)){NOPE();return false}
  if((q.n-=one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k]){q.ammo=CAP[q.k]}
  storeSnd(q.k);return true}
@@ -1265,7 +1268,7 @@ function slotFor(t,k,draw){const free=i=>slotOK(t,i)&&!t.inv[i];if(k==='note'||i
  if(SEC.has(k)){if(free(1)||k==='pistol'&&!t.inv[1]&&t.inv[0]&&t.inv[0].k==='pistol')return 1;if(free(0))return 0;if(draw&&t.unit==='cmd'&&t.inv[1]&&t.inv[1].k==='pistol'&&t.inv[0]&&t.inv[0].k!=='pistol')return 0;return -1}
  if(CAP[k])return free(0)?0:-1;if(WP[k]&&WP[k].melee&&free(0))return 0;if(GREN.has(k)&&free(2))return 2;if(k==='bomb'&&free(3))return 3;
  for(let i=4;i<t.inv.length;i++)if(free(i))return i;return -1}
-function addItem(t,it){if(!t.inv)return false;while(t.type==='token'&&t.inv.length<6)t.inv.push(null);{const g=Object.keys(BOX).find(k=>BOX[k]===it.k);if(g&&addRes(t,g,RCAP(g)*(it.n||1)))return true}if(ONE.has(it.k)&&t.inv.filter(z=>z&&z.k===it.k).length>=(it.k==='pistol'?2:1))return false;const m=!CAP[it.k]&&it.k!=='note'&&t.inv.find(z=>z&&z.k===it.k);const gcap=k=>(k==='grenade'?3:1)*(t.unit==='cmd'?2:1);if((it.k==='grenade'||it.k==='bomb')&&t.type==='token')it={...it,n:Math.min(it.n||1,gcap(it.k))};if(m){if(m.k==='spear'||m.k==='sspear'){if(m.n>=4)return false;m.n=Math.min(4,m.n+it.n);return true}if(t.type==='token'&&(m.k==='grenade'||m.k==='bomb')){if(m.n>=gcap(m.k))return false;m.n=Math.min(gcap(m.k),m.n+it.n);return true}m.n+=it.n;return true}
+function addItem(t,it){if(!t.inv)return false;while(t.type==='token'&&t.inv.length<6)t.inv.push(null);{const g=Object.keys(BOX).find(k=>BOX[k]===it.k);if(g&&addRes(t,g,RCAP(g)*(it.n||1)))return true}if(ONE.has(it.k)&&t.inv.filter(z=>z&&z.k===it.k).length>=(it.k==='pistol'?2:1))return false;const m=!CAP[it.k]&&it.k!=='note'&&t.inv.find(z=>z&&z.k===it.k);if(it.k==='gold'&&t.type==='token'){if(m){if(m.n>=SOLMAX)return false;const tk=Math.min(SOLMAX-m.n,it.n);m.n+=tk;it.taken=tk;return true}if(it.n>SOLMAX){it.taken=SOLMAX;it={...it,n:SOLMAX}}}const gcap=k=>(k==='grenade'?3:1)*(t.unit==='cmd'?2:1);if((it.k==='grenade'||it.k==='bomb')&&t.type==='token')it={...it,n:Math.min(it.n||1,gcap(it.k))};if(m){if(m.k==='spear'||m.k==='sspear'){if(m.n>=4)return false;m.n=Math.min(4,m.n+it.n);return true}if(t.type==='token'&&(m.k==='grenade'||m.k==='bomb')){if(m.n>=gcap(m.k))return false;m.n=Math.min(gcap(m.k),m.n+it.n);return true}m.n+=it.n;return true}
  const j=slotFor(t,it.k,it.draw);if(j<0)return false;if(t.inv[j]){const was=t.si===j,ph=t.held,ps=t.si;t.si=j;t.held=t.inv[j];dropHeld(t);if(!was){t.held=ph;t.si=ps;t.hc=null}}t.inv[j]={...it};delete t.inv[j].draw;if(it.k==='pistol')evenRes(t,'pistol');if(!t.held&&it.k!=='gold'&&!GREN.has(it.k)&&it.k!=='bomb'&&j<4||t.unit==='cmd'&&it.k==='pistol'&&it.draw&&!(t.held&&t.held.k==='pistol')){t.si=j;t.held=t.inv[j];t.hc=null}return true}
 // an item handed to a unit that already carries one tops that one up instead
 const gunsOf=(t,k)=>(t.inv||[]).filter(z=>z&&z.k===k);
@@ -1285,9 +1288,9 @@ function autoPick(){for(const t of bodies){if(t.type!=='token'||!t.inv)continue;
   for(const w of [...bodies]){if(w.type!=='weapon'||!PICK.has(w.kind)||w.stuck||w.att||w.fuse||inDrag(w)||(w.noPick&&w.noPick>tick)||Math.hypot(w.vx,w.vy)>.3||Math.hypot(w.x-t.x,w.y-t.y)>13)continue;
    if(w.byHand&&refill(t,w.kind)){remove(w);sfx('reload');continue}
    if(w.byHand&&w.kind!=='gold'&&addItem(t,{k:w.kind,n:fullN(t,w.kind),ammo:CAP[w.kind]||undefined,res:CAP[w.kind]?fullRes(t,w.kind):undefined})){remove(w);sfx('flick');continue}
-   if((w.byHand||mayTake(t,w.kind))&&addItem(t,{k:w.kind,n:w.kind==='gold'?(w.amt||50):1,ammo:CAP[w.kind]?(w.ammo??CAP[w.kind]):undefined,res:CAP[w.kind]?(w.res||0):undefined,spent:w.spent||undefined,mode:w.spent?'throw':undefined,draw:w.kind==='pistol'||undefined})){remove(w);sfx('flick')}else if(!w.byHand&&strip(t,w.kind,w.ammo??CAP[w.kind],w.res))remove(w)}
+   let gi;if((w.byHand||mayTake(t,w.kind))&&addItem(t,gi={k:w.kind,n:w.kind==='gold'?(w.amt||50):1,ammo:CAP[w.kind]?(w.ammo??CAP[w.kind]):undefined,res:CAP[w.kind]?(w.res||0):undefined,spent:w.spent||undefined,mode:w.spent?'throw':undefined,draw:w.kind==='pistol'||undefined})){if(gi.taken!==undefined&&gi.taken<w.amt)w.amt-=gi.taken;else remove(w);sfx('flick')}else if(!w.byHand&&strip(t,w.kind,w.ammo??CAP[w.kind],w.res))remove(w)}
   // any chest or crate you stand by keeps you stocked: ammo, grenades and heavy grenades; an open one also hands over what else you can carry
-  for(const c of bodies){if(c.kind!=='crate'||Math.hypot(c.x-t.x,c.y-t.y)>20)continue;if(c.open){let tk=false;for(let i=0;i<c.inv.length&&!tk;i++){const q=c.inv[i];if(!q||q.k==='note')continue;const one=q.k==='note'?{...q}:{k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}if(mayTake(t,q.k)&&addItem(t,one)){q.n-=one.n;if(q.n<=0)c.inv[i]=null;sfx('flick');tk=true}}if(tk)continue}
+  for(const c of bodies){if(c.kind!=='crate'||Math.hypot(c.x-t.x,c.y-t.y)>20)continue;if(c.open){let tk=false;for(let i=0;i<c.inv.length&&!tk;i++){const q=c.inv[i];if(!q||q.k==='note')continue;const one=q.k==='note'?{...q}:{k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}if(mayTake(t,q.k)&&addItem(t,one)){q.n-=one.taken??one.n;if(q.n<=0)c.inv[i]=null;sfx('flick');tk=true}}if(tk)continue}
    for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q)continue;const g=Object.keys(BOX).find(k=>BOX[k]===q.k);if(g&&needRes(t,g)&&addRes(t,g,RCAP(g))){sfx('reload');if(--q.n<=0)c.inv[i]=null;break}if((q.k==='grenade'||q.k==='bomb')&&addItem(t,{k:q.k,n:1})){sfx('reload');if(--q.n<=0)c.inv[i]=null;break}if(strip(t,q.k,q.ammo??CAP[q.k],q.res)){if(--q.n<=0)c.inv[i]=null;break}}}}}
 const inZone=(b,p)=>{if(b.fa===undefined||b.fw>=3.1&&b.fd>=8)return true;const r2=p[0]*p[0]+p[1]*p[1],d=8.3-b.fd;if(r2<d*d)return false;if(b.fw>=3.1)return true;const a=Math.atan2(p[1],p[0]);return Math.abs(Math.atan2(Math.sin(a-b.fa),Math.cos(a-b.fa)))<=b.fw};
 function ignite(b,a,w,d){if(!(b.burn>.05)||b.fa===undefined){b.fa=a;b.fw=w;b.fd=d}else{b.fw=Math.min(3.15,b.fw+.008);b.fd=Math.min(8.3,b.fd+.008)}}

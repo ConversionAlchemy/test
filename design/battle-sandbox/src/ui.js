@@ -323,7 +323,7 @@ const STK=/^(grenade|bomb|spear|sspear|gold)$/,cnt=q=>!q?null:CAP[q.k]?(q.ammo??
 function callout(q,dim){HCO.innerHTML='';HCO.classList.remove('lo');const c=dim===undefined||dim===null?cnt(q):null,a=dim===''?'':dim||c||'';HCO.append(a||itemName(q));HCO.classList.toggle('am',!!a);HCO.classList.remove('go');void HCO.offsetWidth;HCO.classList.add('go')}
 window.addEventListener('keydown',e=>{if(e.key.toLowerCase()!=='r'||e.repeat||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;const tk=[...sel].find(o=>o.type==='token'),q=tk&&tk.inv[tk.si];if(q&&CAP[q.k]&&!q.res&&(q.ammo??CAP[q.k])<CAP[q.k])callout(q,'no spare ammo');else if(q&&CAP[q.k]&&(q.ammo??CAP[q.k])>=CAP[q.k])callout(q)});
 const SILK=['musket','pistol','grenade','rod'];
-function sicon(k,w=42,h=30){const px=shape(k,0),c=mk('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),id=g.createImageData(w,h),u=new Uint32Array(id.data.buffer);let mx=0,my=0,x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(const p of px){mx+=p[0];my+=p[1];x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}mx/=px.length;my/=px.length;
+function sicon(k,w=42,h=30,n){const px=shape(k,0,n||1),c=mk('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),id=g.createImageData(w,h),u=new Uint32Array(id.data.buffer);let mx=0,my=0,x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(const p of px){mx+=p[0];my+=p[1];x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}mx/=px.length;my/=px.length;if(k==='gold'){x0=y0=-7;x1=y1=7;mx=my=0}
  const k2=Math.max(1,Math.min(3,Math.floor(Math.min((w-4)/(x1-x0+1),(h-4)/(y1-y0+1)))));for(const p of px)for(let a=0;a<k2;a++)for(let b=0;b<k2;b++){const X=Math.round(w/2+(p[0]-mx)*k2)+a,Y=Math.round(h/2+(p[1]-my)*k2)+b;if(X>=0&&Y>=0&&X<w&&Y<h)u[Y*w+X]=p[2]}g.putImageData(id,0,0);return c}
 // side-view icons for the hotbar
 const HIC={musket:[['...................','..........bbbbbbbbb','wwwwwwwwwwbbbbbbbbb','wwwwww.............','wwww...............'],{w:'#7a4a2a',b:'#9aa0a6'},2],
@@ -339,8 +339,8 @@ const HIC={musket:[['...................','..........bbbbbbbbb','wwwwwwwwwwbbbbb
  box:[['kkkkkkkk','kwwwwwwk','kwyyyywk','kwwwwwwk','kkkkkkkk'],{k:'#3a2a18',w:'#8a6038',y:'#d8c08a'},3],
  cell:[['.kkkk.','kbbbbk','kbccbk','kbccbk','kbbbbk','.kkkk.'],{k:'#1a2a3a',b:'#3a6a9a',c:'#9ad8ff'},3]};
 HIC.note=[['rrrrrrrrrrrrrr','spppppppppppps','spppppppppppps','spppppppppppps','spppppppppppps','sppppippipppps','spppppiippppps','spppppiippppps','sppppippipppps','spppppppppppps','spppppppppppps','spppppppppppps','spppppppppppps','qqqqqqqqqqqqqq'],{i:'#4a3524',p:'#ebdfc2',q:'#c4b28c',r:'#f6eed8',s:'#ddcea9'},2];
-const hic=k=>k==='note'?pix(...HIC.note):sicon(k);// every icon is the item's top-down sprite
-function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?q.t||'Note':q.k}
+const hic=(k,n)=>k==='note'?pix(...HIC.note):sicon(k,42,30,k==='gold'?n:undefined);// every icon is the item's top-down sprite
+function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k,q.n);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?q.t||'Note':q.k}
  else if(sil){const c=hic(sil);c.className='sil';d.append(c)}return d}
 const itemName=q=>q?WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?'Note':q.k.endsWith('box')?'Ammo':q.k:'';
 // selection rings: white under what is chosen, green while a unit is under direct control
