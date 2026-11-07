@@ -111,7 +111,7 @@ function serMap(){const src=map.map((r,y)=>r.map((k,x)=>OM[y]&&OM[y][x]||k)),tex
 function spawnMap(d){const sl=[];for(const o of d.bodies)try{
  if(o.t==='u'){const b=token(o.name,o.nat,o.unit,o.x,o.y,o.guard,null,o.look);Object.assign(b,{ang:o.ang||0,look:o.look,wseed:o.wseed??b.wseed,tone:o.tone,status:o.status||'free',leader:o.leader,auto:o.auto!==false,neutral:o.neutral});b.inv=cp(o.inv)||[];while(b.inv.length<6)b.inv.push(null);b.si=o.si>=0&&b.inv[o.si]?o.si:-1;b.held=b.si>=0?b.inv[b.si]:null;b.hc=null;if(o.teth)tie(b,o.teth)}
  else if(o.t==='s'){const s=slab(o.mat,o.x,o.y,o.rot,o.len,o.th);if(o.free)s.free=true;s.locked=!!o.locked;if(o.keys)s.keys=o.keys;if(o.gold)s.gold=true;if(o.dk)s.dk=o.dk;if(o.kid)s.kid=o.kid;if(o.col&&o.col.length===s.src.length){o.col.forEach((c,i)=>s.src[i][2]=c);s.used=null;s.px=[];orient(s)}sl.push([s,o.pair])}
- else if(o.t==='c'){const c=container(o.cx,o.cy,[],o.name);if(c)cFill(c,cp(o.inv)||[])}
+ else if(o.t==='c'){const c=container(o.cx,o.cy,[],o.name);if(c)cFill(c,cp(o.inv)||[]);else container(o.cx,o.cy,(cp(o.inv)||[]).filter(Boolean))}
  else if(o.t==='w'&&o.kind==='crate')crate(o.x,o.y,cp(o.inv)||[],o.long)
  else if(o.t==='w'&&WP[o.kind]){const w=weapon(o.kind,o.x,o.y,o.ang||0);for(const f of['ammo','res','amt'])if(o[f]!==undefined)w[f]=o[f];if(o.inv)w.inv=cp(o.inv)}}catch(e){console.warn(e)}
  for(const[s,p]of sl)if(p!==undefined&&sl[p])s.pair=sl[p][0]}
@@ -187,7 +187,7 @@ const slabCell=d=>{let x=0,y=0;for(const p of d.px){x+=p[0];y+=p[1]}const n=d.px
 const DOORK={wood:['Wood door',2],pine:['Pine door',2],teak:['Teak door',2],steel:['Steel door',3],iron:['Iron door',3],brass:['Brass door',3],gold:['Aurum door',3],umbra:['Umbra door',3],ebony:['Ebony door',2],mahog:['Mahogany door',2]};
 // what each material makes beyond walls and floors: furniture, doors and cover slabs
 const FURN={Earth:{grass:{furn:['hedge']}},Wood:{oak:{doors:['wood'],slabs:[[2,'Wood slab']]},pine:{doors:['pine'],slabs:[[2,'Pine slab',16,8,'pine']]},teak:{doors:['teak'],slabs:[[2,'Teak slab',16,8,'teak']]},mahog:{doors:['mahog']},ebony:{doors:['ebony']}},
- Metal:{steel:{furn:['schest'],doors:['steel']},iron:{furn:['mchest'],doors:['iron']},brass:{furn:['bchest'],doors:['brass']},gold:{furn:['gchest'],doors:['gold']},umbra:{furn:['uchest'],doors:['umbra']}}},FW={hedge:4,books:2,shelf:2,rack:2,wagon:2};
+ Metal:{steel:{furn:['schest','stable'],doors:['steel']},iron:{furn:['mchest','itable'],doors:['iron']},brass:{furn:['bchest','btable'],doors:['brass']},gold:{furn:['gchest','gtable'],doors:['gold']},umbra:{furn:['uchest','utable'],doors:['umbra']}}},FW={hedge:4,books:2,shelf:2,rack:2,wagon:2,stable:2,itable:2,btable:2,gtable:2,utable:2};
 for(const k in WPIECE){const[m,sh]=WPIECE[k];if(sh==='table'||sh==='desk')FW[k]=2;if(!RETIRED.has(k))(FURN.Wood[m].furn=FURN.Wood[m].furn||[]).push(k)}
 // every metal gives a slab and a heavy slab as cover
 for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[[3,n+' slab',16,8,mat],[3,'Heavy '+n.toLowerCase()+' slab',32,8,mat]]}
