@@ -245,7 +245,7 @@ const ELEM={
   aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,tarn:[196,180,146],moss:0,age:'staining',shine:28,vein:[255,255,252],sp:'chequer'},gold:{n:'Aurumstone',c:[200,170,100],tarn:[128,104,62],moss:0,fade:.25,age:'grime',vein:[252,234,168],sp:'lozenge'},night:{n:'Umbrastone',c:[35,28,46],cls:'marble',hp:5,tarn:[78,68,92],moss:0,fade:.5,age:'dulling',shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'},sp:'vent',cut:1}},
   old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',tarn:[150,150,124],moss:0,hp:4,shine:28,sp:'quatre'}}},
  Wood:{p:{cls:'wood',hp:2,burn:1,tarn:[140,136,126],split:1,scuff:1,age:'weathering'},vars:{planks:'Planks',boards:'Boards',panel:'Polished'},mats:{oak:{n:'Oak',c:WOOD.oak,rim:.575,tarn:[150,148,140],age:'silvering',sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,tarn:[184,166,118],scuff:1.7,age:'yellowing, dents',sp:'rough'},teak:{n:'Teak',c:WOOD.teak,tarn:[176,172,162],split:.4,age:'pale silver',sp:'rough'},mahog:{n:'Mahogany',c:MAHOG,tarn:[176,96,72],split:.8,craze:1,age:'fading, crazing',sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,tarn:[64,58,54],scuff:1.8,age:'light scratches',sp:'marq'}},old:{walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'}}},
- Metal:{p:{cls:'metal',hp:6,shine:60},vars:{rivet:'Riveted plate',inset:'Inset panels',panel:'Panels'},mats:{steel:{n:'Steel',c:[145,148,151],tarn:[112,124,146],hp:7,w:1,shine:70,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],tarn:[146,98,62],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'treadplate'},
+ Metal:{p:{cls:'metal',hp:6,shine:60},vars:{panel:'Panels',inset:'Inset panels'},mats:{steel:{n:'Steel',c:[145,148,151],tarn:[112,124,146],hp:7,w:1,shine:70,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],tarn:[146,98,62],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'treadplate'},
   brass:{n:'Brass',c:[200,146,88],tarn:[96,150,122],hp:5,w:.9,age:'verdigris',shine:80,sp:'fluted'},gold:{n:'Aurum',c:[228,196,104],tarn:[176,124,70],hp:8,w:.8,age:'dents',shine:80,sp:'mosaic'},umbra:{n:'Umbra',c:[56,56,67],tarn:[36,41,41],hp:10,w:.5,age:'dark tinge',dk:.57,shine:25,sp:'runes'}}},
  Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1,age:'fading, fraying'},vars:{plain:'Plain',border:'Bordered',diamond:'Diamond weave'},mats:{crimson:{n:'Crimson',c:[128,34,38]},verdant:{n:'Verdant',c:[34,82,56]},purple:{n:'Imperial purple',c:[58,30,78]}}}};
 const SPN={rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',treadplate:'Tread plate',fluted:'Fluted',coffer:'Coffered',coffer2:'Coffered ceiling',mosaic:'Solari mosaic',vent:'Glow panel',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
@@ -374,7 +374,7 @@ function genTex0(el,mat,v,wall){const E=ELEM[el],M=memb(el,mat),c=M.c,s=([...Obj
   // quartered: 8px plates, each with a dark seam and a bright top-left lip
   // inset panels: one per tile with a square inset centred on its plate; on walls each tile gets the wall's own 3px rim so every plate is the same size
   if(v==='inset'&&wall){const d=Math.min(x,y,15-x,15-y);if(d<3)return sc(k,[.6,1.3,.9][d]);const i=Math.min(x-4,y-4,11-x,11-y);return i===0?sc(k,x===4||y===4?.78:1.18):k}
-  if(v==='inset'){if(x===0||y===0)return sc(k,.76);if(x===1||y===1)return sc(k,1.18);if(x===15||y===15)return sc(k,.92);const i=Math.min(x-4,y-4,12-x,12-y);return i===0?sc(k,x===4||y===4?.78:1.18):k}
+  if(v==='inset'){if(x===0||y===0)return sc(k,.9);if(x===1||y===1)return sc(k,1.08);if(x===15||y===15)return sc(k,.96);const i=Math.min(x-4,y-4,12-x,12-y);return i===0?sc(k,x===4||y===4?.78:1.18):k}
   if(v==='quarter'){const a=X&7,b=Y&7;return a===0||b===0?sc(k,.76):a===1||b===1?sc(k,1.18):a===7||b===7?sc(k,.92):k}
   if(v==='slabs'){const r=Y>>3,a=(X+(r&1?8:0))&15,b=Y&7;return a===0||b===0?sc(k,.84):a===1||b===1?sc(k,1.06):k}
   if(v==='rivet')return(dl===I||dr===I)&&(du===I||dd===I)?sc(k,1.3):k;
@@ -435,7 +435,7 @@ const OLDK={marble:'stone.aur.block',dmarble:'stone.aur.chequer',omarble:'stone.
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.teak.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.panel.w',mpanel:'metal.steel.panel.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',
  books:'chest',rack:'chest',wagon:'chest',shelf:'schest',
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};
-const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];return n&&!n.startsWith('earth.')?n+s:k};
+const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];const r=n&&!n.startsWith('earth.')?n+s:k;return r.replace(/^metal\.(\w+)\.rivet/,'metal.$1.panel')};// riveted plate retired: old maps get panels
 // a door's floor: each half carries on the floor of the cell beside it; a neighbouring doorway counts as wall line, so double doors work (the sill shows only where a side has none)
 for(const k of['sill','msill']){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const at=(x,y)=>LINK(x,y),fl=q=>q&&TEX[q]&&KIND[q]!=='wall'&&!WPIECE[baseK(q)]&&!MCHEST[baseK(q)]&&!MTABLE[baseK(q)]&&q!=='sill'&&q!=='msill'?q:null,wl=q=>KIND[q]==='wall'||q==='sill'||q==='msill',hz=!(wl(at(cx,cy-1))&&wl(at(cx,cy+1))),lo=((hz?Y:X)&15)<8,dx=hz?0:lo?-1:1,dy=hz?lo?-1:1:0,q=fl(at(cx+dx,cy+dy));return q?TEX[q](X+dx*T,Y+dy*T,cx+dx,cy+dy):f(X,Y,cx,cy)}}
 TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
@@ -731,16 +731,18 @@ function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)
  for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
 // finishes: riveted iron band on chests and racks, book spines on a bookshelf's open edges, a riveted steel vault shelf
 // wooden chests get metal corner brackets (iron on the plain woods, steel on mahogany and ebony) that are metal to hit; dark on light wood, bright on dark wood
-function brackets(){for(const p of new Set(PCS.values())){const W0=WPIECE[baseK(p.k)];if(!W0||W0[1]!=='chest')continue;const X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T,c0=OBJC[(Y0+(ph>>1))*W+X0+(pw>>1)],light=((c0&255)+(c0>>8&255)+(c0>>16&255))/3>95,mt=W0[0]==='mahog'||W0[0]==='ebony'?'steel':'iron',hi=toneC(mt,light?rgb(84,88,96):rgb(206,210,216)),lo=toneC(mt,light?rgb(48,50,56):rgb(120,124,130));
+function brackets(){for(const p of new Set(PCS.values())){const W0=WPIECE[baseK(p.k)],MC=MCHEST[baseK(p.k)];if(MC){metalBrackets(p);continue}if(!W0||W0[1]!=='chest')continue;const X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T,c0=OBJC[(Y0+(ph>>1))*W+X0+(pw>>1)],light=((c0&255)+(c0>>8&255)+(c0>>16&255))/3>95,mt=W0[0]==='mahog'||W0[0]==='ebony'?'steel':'iron',hi=toneC(mt,light?rgb(84,88,96):rgb(206,210,216)),lo=toneC(mt,light?rgb(48,50,56):rgb(120,124,130));
  for(const[cx,cy,sx,sy]of[[X0+2,Y0+2,1,1],[X0+pw-3,Y0+2,-1,1],[X0+2,Y0+ph-3,1,-1],[X0+pw-3,Y0+ph-3,-1,-1]])for(let i=0;i<4;i++)for(const[x,y]of[[cx+sx*i,cy],[cx,cy+sy*i]]){const j=y*W+x;OBJC[j]=i<3?hi:lo;OBJ[j]=3;SHN[j]=60}}}
+// metal chests: the same corner brackets, in a lighter cut of the chest's own metal
+function metalBrackets(p){const L=rgb(255,255,255),X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T;for(const[cx,cy,sx,sy]of[[X0+2,Y0+2,1,1],[X0+pw-3,Y0+2,-1,1],[X0+2,Y0+ph-3,1,-1],[X0+pw-3,Y0+ph-3,-1,-1]]){const arm=[];for(let i=0;i<4;i++)arm.push([cx+sx*i,cy,i],[cx,cy+sy*i,i]);const on=new Set(arm.map(([x,y])=>y*W+x));
+ // a raised bracket: lighter metal with a thin shadow on its inner side
+ for(const[x,y]of arm){const q=(y+sy)*W+x+sx;if(!on.has(q))OBJC[q]=mul(OBJC[q],.82)}for(const[x,y,i]of arm){const j=y*W+x;OBJC[j]=mix(OBJC[j],L,i<3?.5:.25)}}}
 function furnish(){const done=new Set(),C=a=>rgb(cl(a[0]),cl(a[1]),cl(a[2]));
  const open=(x,y)=>{const k=map[y]&&map[y][x];return !!k&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky'&&!(OM[y]&&OM[y][x])};
  for(const p of PCS.values()){if(done.has(p)||wshape(p.k)==='desk')continue;done.add(p);const MC=MCHEST[baseK(p.k)],A=MC&&ageOf('Metal',MC[0],condK(p.k)),pw=p.w*T,ph=p.h*T,X0=p.x0*T,Y0=p.y0*T,B=Math.max(3,Math.round(Math.min(pw,ph)*.25));
   for(let v=0;v<ph;v++)for(let u=0;u<pw;u++){const X=X0+u,Y=Y0+v,j=Y*W+X,e=[u,v,pw-1-u,ph-1-v],d=Math.min(...e),s=e.indexOf(d),al=s===0||s===2?v:u;let c=OBJC[j];
    const cx=X/T|0,cy=Y/T|0,fl=open(cx+(s===0?-1:s===2?1:0),cy+(s===1?-1:s===3?1:0)),hi=s<2?1.15:.82;
-   if(MC){const m=sc(metalLit(MC[0]),.62);
-    if(d===0)c=mul(c,.5);else if(d<=2){c=C(m.map(q=>q*(d===1?hi:1)));}
-    if(A&&d>0){const r=A([c&255,c>>8&255,c>>16&255],X*2,Y*2,()=>d-1);c=C(r)}}
+   if(MC&&A){const r=A([c&255,c>>8&255,c>>16&255],X*2,Y*2,()=>d-1);c=C(r)}
    OBJC[j]=c}}}
 // desks are tables: what either holds lies on top
 function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;if(wshape(k)==='table'||wshape(k)==='desk'){for(const it of items||[]){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.k==='gold')w.amt=it.n;else if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}return null}const pc=PCS.get(cy*CW+cx),cells=pc?pc.cells.slice():[],seen=new Set([cy*CW+cx]),q=pc?[]:[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}
@@ -2655,8 +2657,8 @@ const umbraC=c=>toneC('umbra',c);
 // a door is its material's slab plus a hinge and a lock
 // hinges grey and the lock orange, each picked light or dark against the leaf so they always stand out
 const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9],c=q[2],lum=((c&255)+(c>>8&255)+(c>>16&255))/3,my=-(th>>1);
- if(x===1&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=lum>120?rgb(74,76,82):rgb(170,172,178);
- else if(x===L-3&&(y===my-1||y===my))q[2]=lum>150?rgb(176,84,18):rgb(238,148,52)};
+ if((x===1||x===2)&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=lum>120?rgb(74,76,82):rgb(170,172,178);
+ else if((x===L-4||x===L-3)&&(y===my-1||y===my))q[2]=lum>150?rgb(176,84,18):rgb(238,148,52)};
 // a door leaf hangs from whichever side has wall: two leaves in a double opening open from opposite jambs
 function smartDoor(k,cx,cy,full){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]),L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
  const fl=hz?R&&!L:D&&!U,d=hz?mkDoor(k,cx*T,cy*T+T/2+4,0,full?16:8):mkDoor(k,cx*T+T/2-5,cy*T,1,full?16:8);if(full)d.dk+='!';

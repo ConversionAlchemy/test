@@ -94,16 +94,18 @@ function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)
  for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
 // finishes: riveted iron band on chests and racks, book spines on a bookshelf's open edges, a riveted steel vault shelf
 // wooden chests get metal corner brackets (iron on the plain woods, steel on mahogany and ebony) that are metal to hit; dark on light wood, bright on dark wood
-function brackets(){for(const p of new Set(PCS.values())){const W0=WPIECE[baseK(p.k)];if(!W0||W0[1]!=='chest')continue;const X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T,c0=OBJC[(Y0+(ph>>1))*W+X0+(pw>>1)],light=((c0&255)+(c0>>8&255)+(c0>>16&255))/3>95,mt=W0[0]==='mahog'||W0[0]==='ebony'?'steel':'iron',hi=toneC(mt,light?rgb(84,88,96):rgb(206,210,216)),lo=toneC(mt,light?rgb(48,50,56):rgb(120,124,130));
+function brackets(){for(const p of new Set(PCS.values())){const W0=WPIECE[baseK(p.k)],MC=MCHEST[baseK(p.k)];if(MC){metalBrackets(p);continue}if(!W0||W0[1]!=='chest')continue;const X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T,c0=OBJC[(Y0+(ph>>1))*W+X0+(pw>>1)],light=((c0&255)+(c0>>8&255)+(c0>>16&255))/3>95,mt=W0[0]==='mahog'||W0[0]==='ebony'?'steel':'iron',hi=toneC(mt,light?rgb(84,88,96):rgb(206,210,216)),lo=toneC(mt,light?rgb(48,50,56):rgb(120,124,130));
  for(const[cx,cy,sx,sy]of[[X0+2,Y0+2,1,1],[X0+pw-3,Y0+2,-1,1],[X0+2,Y0+ph-3,1,-1],[X0+pw-3,Y0+ph-3,-1,-1]])for(let i=0;i<4;i++)for(const[x,y]of[[cx+sx*i,cy],[cx,cy+sy*i]]){const j=y*W+x;OBJC[j]=i<3?hi:lo;OBJ[j]=3;SHN[j]=60}}}
+// metal chests: the same corner brackets, in a lighter cut of the chest's own metal
+function metalBrackets(p){const L=rgb(255,255,255),X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T;for(const[cx,cy,sx,sy]of[[X0+2,Y0+2,1,1],[X0+pw-3,Y0+2,-1,1],[X0+2,Y0+ph-3,1,-1],[X0+pw-3,Y0+ph-3,-1,-1]]){const arm=[];for(let i=0;i<4;i++)arm.push([cx+sx*i,cy,i],[cx,cy+sy*i,i]);const on=new Set(arm.map(([x,y])=>y*W+x));
+ // a raised bracket: lighter metal with a thin shadow on its inner side
+ for(const[x,y]of arm){const q=(y+sy)*W+x+sx;if(!on.has(q))OBJC[q]=mul(OBJC[q],.82)}for(const[x,y,i]of arm){const j=y*W+x;OBJC[j]=mix(OBJC[j],L,i<3?.5:.25)}}}
 function furnish(){const done=new Set(),C=a=>rgb(cl(a[0]),cl(a[1]),cl(a[2]));
  const open=(x,y)=>{const k=map[y]&&map[y][x];return !!k&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky'&&!(OM[y]&&OM[y][x])};
  for(const p of PCS.values()){if(done.has(p)||wshape(p.k)==='desk')continue;done.add(p);const MC=MCHEST[baseK(p.k)],A=MC&&ageOf('Metal',MC[0],condK(p.k)),pw=p.w*T,ph=p.h*T,X0=p.x0*T,Y0=p.y0*T,B=Math.max(3,Math.round(Math.min(pw,ph)*.25));
   for(let v=0;v<ph;v++)for(let u=0;u<pw;u++){const X=X0+u,Y=Y0+v,j=Y*W+X,e=[u,v,pw-1-u,ph-1-v],d=Math.min(...e),s=e.indexOf(d),al=s===0||s===2?v:u;let c=OBJC[j];
    const cx=X/T|0,cy=Y/T|0,fl=open(cx+(s===0?-1:s===2?1:0),cy+(s===1?-1:s===3?1:0)),hi=s<2?1.15:.82;
-   if(MC){const m=sc(metalLit(MC[0]),.62);
-    if(d===0)c=mul(c,.5);else if(d<=2){c=C(m.map(q=>q*(d===1?hi:1)));}
-    if(A&&d>0){const r=A([c&255,c>>8&255,c>>16&255],X*2,Y*2,()=>d-1);c=C(r)}}
+   if(MC&&A){const r=A([c&255,c>>8&255,c>>16&255],X*2,Y*2,()=>d-1);c=C(r)}
    OBJC[j]=c}}}
 // desks are tables: what either holds lies on top
 function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;if(wshape(k)==='table'||wshape(k)==='desk'){for(const it of items||[]){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.k==='gold')w.amt=it.n;else if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}return null}const pc=PCS.get(cy*CW+cx),cells=pc?pc.cells.slice():[],seen=new Set([cy*CW+cx]),q=pc?[]:[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}

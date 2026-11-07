@@ -195,8 +195,8 @@ const umbraC=c=>toneC('umbra',c);
 // a door is its material's slab plus a hinge and a lock
 // hinges grey and the lock orange, each picked light or dark against the leaf so they always stand out
 const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9],c=q[2],lum=((c&255)+(c>>8&255)+(c>>16&255))/3,my=-(th>>1);
- if(x===1&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=lum>120?rgb(74,76,82):rgb(170,172,178);
- else if(x===L-3&&(y===my-1||y===my))q[2]=lum>150?rgb(176,84,18):rgb(238,148,52)};
+ if((x===1||x===2)&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=lum>120?rgb(74,76,82):rgb(170,172,178);
+ else if((x===L-4||x===L-3)&&(y===my-1||y===my))q[2]=lum>150?rgb(176,84,18):rgb(238,148,52)};
 // a door leaf hangs from whichever side has wall: two leaves in a double opening open from opposite jambs
 function smartDoor(k,cx,cy,full){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]),L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
  const fl=hz?R&&!L:D&&!U,d=hz?mkDoor(k,cx*T,cy*T+T/2+4,0,full?16:8):mkDoor(k,cx*T+T/2-5,cy*T,1,full?16:8);if(full)d.dk+='!';
