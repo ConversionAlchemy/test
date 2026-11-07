@@ -3193,10 +3193,10 @@ function vFloorPx(v,lx,ly){const q=v.smap.get(K(lx,ly));let c=0;
  return c&&v.dead?vChar(c,lx,ly,v):c}
 function vRoofPx(v,lx,ly,roof){const r=roof&&v.roofL[ly*VC.LW+lx];if(r)return r&0xffffff;const q=v.smap.get(K(lx,ly));return q&&!q.dead&&(q[7]==='w'||q[7]==='g')?vFloorPx(v,lx,ly):0}
 function vScarC(v,q){let c=q[2];if(q.wr>.5){const cd=Math.max(1,5-Math.floor(q.wr)),A=ageOf('Metal',v.metal,cd);if(A){const r=A([c&255,c>>8&255,c>>16&255],q[8]*2+v.id*37,q[9]*2,()=>9);c=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}
- if(q.tm>.02){const f=temperF(q.tm),f0=temperF(0);c=rgb(cl((c&255)*f[0]/f0[0]),cl((c>>8&255)*f[1]/f0[1]),cl((c>>16&255)*f[2]/f0[2]))}return c}
+ if(q.lip)c=mul(c,1.3);if(q.tm>.02){const f=temperF(q.tm),f0=temperF(0);c=rgb(cl((c&255)*f[0]/f0[0]),cl((c>>8&255)*f[1]/f0[1]),cl((c>>16&255)*f[2]/f0[2]))}return c}
 function vScar(v,X,Y,amt,heat){const[lx,ly]=vW2L(v,X+.5,Y+.5),R=3;let ch=false;for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const q=v.smap.get(K(Math.floor(lx)+i,Math.floor(ly)+j));if(!q||q[7]==='T'||q[7]==='B')continue;const d=Math.hypot(i,j)/(R+1);if(d>=1)continue;const w=amt*(1-d);q.wr=Math.min(4.5,(q.wr||0)+w);if(heat){const t=Math.min(.85,heat*(1-d));if(t>(q.tm||0)){q.tm=t}}ch=true}if(ch)v.dirty=1}
 function vHeatMark(x,y,r,k){for(const v of VEH){const[lx,ly]=vW2L(v,x,y);if(lx<-r||ly<-r||lx>VC.LW+r||ly>VC.H+r)continue;for(let j=-Math.ceil(r);j<=r;j++)for(let i=-Math.ceil(r);i<=r;i++){const q=v.smap.get(K(Math.floor(lx)+i,Math.floor(ly)+j));if(!q)continue;const d=Math.hypot(i,j);if(d>r)continue;const a=Math.min(.85,k*(1-d/r)*(.85+.3*hh(q[8],q[9],71)));if(a>(q.tm||0)){q.tm=a;v.dirty=1}}}}
-const vChar=(c,x,y,v)=>{const h=v&&v.hole,k=h?Math.max(0,1-Math.hypot(x-h[0],y-h[1])/52):1;return k>0?mix(c,rgb(26,22,20),Math.min(.92,(.62+.3*hh(x,y,41))*k*1.15)):c};
+const vChar=(c,x,y,v)=>{const h=v&&v.hole,k=h?Math.max(0,1-Math.hypot(x-h[0],y-h[1])/30):1;return k>0?mix(c,rgb(30,26,24),Math.min(.6,(.4+.25*hh(x>>1,y>>1,41))*k)):c};
 function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==='T'?0:1]),e=t===0||t===VC.TR-1,lk=((x-ph)%4+4)%4===0;return e?rgb(30,30,32):lk?rgb(78,78,80):t===2?rgb(56,56,58):rgb(46,46,48)}
 // the roof hides the crew unless a selected unit is aboard (V switches back to the roof)
 function vRoof(v){for(const t of sel)if(t.type==='token'&&vHas(v,t))return!!v.ext;return true}
@@ -3285,9 +3285,15 @@ var VGP=null;function vPrompt(){const t=[...sel].find(b=>b.type==='token'&&b.dir
 function vLabels(){for(const v of VEH){if(!vRoof(v))continue;for(const t of bodies)if(t.lab&&t.type==='token'&&vHas(v,t))t.lab.style.display='none'}}
 
 // the engine goes: a short fuse of sparks and smoke, then a heavy blast; the hull is left a burnt shell
+// the core goes: a torn hole with smooth lobes and a bright bent lip; round it the metal is tempered straw to blue and aged, fading out
 function vBlow(v){const ex=VC.XST+8,ey=VC.RC[2]+.5,[gx,gy]=vL2W(v,ex,ey),RH=19;v.dead=true;v.on=0;v.sp=v.w=0;v.burnT=tick;v.hole=[ex,ey];for(const t of v.seats)if(t){t.vseat=null}v.seats.fill(null);
- const sd=Math.random()*999|0,ox=(Math.random()-.5)*6,oy=(Math.random()-.5)*4,lobe=k=>hh(k,0,sd),rag=(x,y)=>{const a=(Math.atan2(y-ey-oy,x-ex-ox)/6.283+.5)*11,i=Math.floor(a),f=a-i,sm=lobe(i%11)*(1-f)+lobe((i+1)%11)*f;return RH*(.55+.7*sm)+hh(x,y,sd)*3.5};for(const q of v.src)if(q[7]==='e'||Math.hypot(q[8]-ex-ox,q[9]-ey-oy)<rag(q[8],q[9]))q.dead=1;
- for(let y=0;y<VC.H;y++)for(let x=0;x<VC.LW;x++){const d=Math.hypot(x-ex-ox,y-ey-oy),i=y*VC.LW+x;if(d<rag(x,y)*1.15)v.roofL[i]=0;if(d<rag(x,y)*.8)v.base[i]=v.base[i]?mul(v.base[i]&0xffffff,.35)|0xff000000:0}
+ const sd=Math.random()*999|0,ox=(Math.random()-.5)*6,oy=(Math.random()-.5)*4,lobe=k=>hh(k,0,sd),N=7,rag=(x,y)=>{const a=(Math.atan2(y-ey-oy,x-ex-ox)/6.283+.5)*N,i=Math.floor(a),f=a-i,u=f*f*(3-2*f),sm=lobe(i%N)*(1-u)+lobe((i+1)%N)*u;return RH*(.6+.6*sm)+hh(x>>1,y>>1,sd)*1.2},
+  edge=(x,y)=>Math.hypot(x-ex-ox,y-ey-oy)-rag(x,y);
+ for(const q of v.src){const e=edge(q[8],q[9]);if(q[7]==='e'||e<0){q.dead=1;continue}if(e<1.5)q.lip=1;q.tm=Math.max(q.tm||0,Math.min(.85,.9*(1-e/16)));q.wr=Math.max(q.wr||0,4.4*Math.max(0,1-e/24))}
+ for(let y=0;y<VC.H;y++)for(let x=0;x<VC.LW;x++){const i=y*VC.LW+x,e=edge(x,y);if(e<0){v.roofL[i]=0;if(v.base[i])v.base[i]=mul(v.base[i]&0xffffff,.45)|0xff000000;continue}const r=v.roofL[i];if(!r||e>26)continue;
+  let c=r&0xffffff;const w=4.4*Math.max(0,1-e/24),cd=Math.max(1,5-Math.floor(w));if(w>.5){const A=ageOf('Metal',v.metal,cd);if(A){const q=A([c&255,c>>8&255,c>>16&255],x*2+v.id*37,y*2,()=>9);c=rgb(cl(q[0]),cl(q[1]),cl(q[2]))}}
+  const tm=Math.min(.85,.9*(1-e/16));if(tm>.02){const f=temperF(tm),f0=temperF(0);c=rgb(cl((c&255)*f[0]/f0[0]),cl((c>>8&255)*f[1]/f0[1]),cl((c>>16&255)*f[2]/f0[2]))}
+  if(e<1.5)c=mul(c,1.3);else if(e<3)c=mul(c,.7);v.roofL[i]=c|0xff000000}
  explode(gx,gy,2.4);BLU=false;arcBlast(gx,gy,3);for(let i=0;i<9;i++){const a=Math.random()*6.283,r=10+Math.random()*24;zaps.push({x0:gx,y0:gy,x1:gx+Math.cos(a)*r,y1:gy+Math.sin(a)*r,l:6+(Math.random()*8|0),b:false})}for(let i=0;i<40;i++)spark(gx,gy,Math.random()<.6?plasC(Math.random()):rgb(240,226,255),0,0,3.4,10+(Math.random()*16|0));vRefresh(v);scorch(gx,gy,34);emberPatch(gx,gy,30,14);shake=Math.max(shake,12)}
 function vBlastCheck(x,y,s){vHeatMark(x,y,9*s,.7);for(const v of VEH){if(v.dead||v.fuse)continue;const[lx,ly]=vW2L(v,x,y),d=Math.hypot(lx-(VC.XST+8),ly-VC.RC[2]);if(d<10+6*s&&vInside(v,lx,ly))vBreach(v)}}
 
