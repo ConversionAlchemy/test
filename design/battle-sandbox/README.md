@@ -42,10 +42,10 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 
 ## Carrier
 
-- `src/vehicle.js`: the tracked carrier and the Carrier yard test map. Its hull, tracks, doors, chest and engine sit in the slab grid, so shots, blasts, sight and units meet it like any slab.
-- Click the carrier to select its driver; E takes control and WASD drives (slow to start and stop, slow to turn, pivots in place). G by the driver's seat sits or stands; G by any free seat sits.
-- Right-click the carrier with units selected to send them aboard; with none selected it offers Unload, Driver out and Commander out. Units file through the rear doors one at a time; doors open for anyone close while it stands still.
-- The roof hides the crew unless a selected unit is aboard. The roof grille breathes dark mist while the engine runs, more while driving, fading after the driver leaves. Moving tracks press tread marks into the ground.
+- `src/vehicle.js`: the tracked carrier and the Carrier yard test map. Its hull, chest and engine sit in the slab grid, so shots, blasts, sight and units meet it like any slab. The tracks sit low like furniture: units bump into them, shots pass over to the hull. Its rear double doors and cockpit door are ordinary doors riding on the hull (lock, keys, hinge and lock weak points, sliding into the armour).
+- Click the carrier to select its driver; E takes control and WASD drives (speed and turning build up gently, pivots in place). It rides over hedges, wearing each one it fully passes over. G by the driver's seat sits or stands; G by any free seat sits.
+- Right-click the carrier with units selected to send them aboard; with none selected it offers Unload, Driver out and Commander out. Units file through the rear doors one at a time, pushing them open like any door.
+- The roof hides the crew unless a selected unit is aboard. The roof grille breathes dark mist while the engine runs, more while driving, fading after the driver leaves. Moving tracks press tread marks into the ground. Each running carrier has its own engine sound: idle, a growl that rises with speed, and a drive drone and ratchet that come in when turning.
 - The engine core is the weak point: a bolter rod through the side, or a blast inside next to the engine, breaks it; after a short fuse of sparks and smoke the carrier explodes and is left a burnt shell that still blocks.
 - With AI on, an AI driver turns toward the nearest foe, drives nose-first, stops short and lets its squad out.
 

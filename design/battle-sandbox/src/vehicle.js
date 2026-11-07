@@ -7,17 +7,17 @@ const VPB=rgb(240,226,255),VPV=rgb(150,90,220),VPD=rgb(58,30,96);
 const vmet=(mat,x,y,t)=>{const c=metalOf(mat,x*3,y*3);return rgb(cl(c[0]*t),cl(c[1]*t),cl(c[2]*t))};
 const vtone=(mat,c)=>mat==='umbra'?umbraC(c):mat==='steel'?c:toneC(mat,c);
 
-// seats: [x, y, facing in local radians, role]; the token sits a pixel forward of the seat centre
+// seats: [x, y, facing in local radians, role]; the token sits back against the wall or bulkhead, leaving the aisle clear
 function vSeats(){const s=[[VC.X0+8,VC.RC[2],Math.PI,'driver'],[VC.X0+8,VC.RC[0],Math.PI,'cmd']];for(let i=0;i<VC.N;i++){const x=VC.XS+i*VC.SEAT+8;s.push([x,VC.RC[0],Math.PI/2,'p'],[x,VC.RC[2],-Math.PI/2,'p'])}return s}
 const VSEATS=vSeats();
-const vSit=i=>{const[x,y,a]=VSEATS[i];return[x+.5+Math.cos(a),y+.5+Math.sin(a)]};
+const vSit=i=>{const[x,y,a]=VSEATS[i];return a===Math.PI?[x+2,y+.5]:a>0?[x+.5,y-.5]:[x+.5,y+1]};
 
 function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.mat,base=new Uint32Array(LW*H),roof=new Uint32Array(LW*H),src=[],smap=new Map();
  const B=(x,y,c)=>{if(x>=0&&y>=0&&x<LW&&y<H)base[y*LW+x]=c|0xff000000},Rf=(x,y,c)=>{if(x>=0&&y>=0&&x<LW&&y<H)roof[y*LW+x]=c|0xff000000};
  const S=(x,y,c,hp,tag)=>{if(x<0||y<0||x>=LW||y>=H)return;const k=K(x,y),o=smap.get(k);if(o){o[2]=c;o[3]=o[6]=hp;o[7]=tag;return}const q=[x,y,c,hp,3,0,hp,tag,x,y];src.push(q);smap.set(k,q)};
  const ch=(x,y)=>{const d=Math.min(y-TR,H-TR-1-y);return x<4-d};
  // floor: the hull metal's floor tile, dimmed for the interior
- const fk=mat==='iron'?'metal.iron.treadplate':'metal.'+mat+'.panel',FL={};
+ const fk=mat==='iron'?'metal.iron.treadplate':'metal.'+mat+'.smooth',FL={};
  for(let y=R0;y<R0+IH;y++)for(let x=X0;x<X0+IL;x++){const fx=x-X0,fy=y-R0,d=FL[(fy>>4)*99+(fx>>4)]||(FL[(fy>>4)*99+(fx>>4)]=tilePix(fk,fx>>4,fy>>4)),i=((fy&15)*16+(fx&15))*4;B(x,y,mul(rgb(d[i],d[i+1],d[i+2]),.45))}
  // seats in black cloth: backrest and armrests frame the token, cushion with two stitched channels
  const CL=tilePix('cloth.black.border',0,0),seat=(x,y,fx,fy)=>{for(let f=-7;f<=5;f++)for(let sd=-7;sd<=7;sd++){const X=x+(fx?f*fx:sd),Y=y+(fy?f*fy:sd),as=Math.abs(sd);let t;
@@ -32,10 +32,7 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
  for(const q of slab(L,SW)){S(q[0],TR+q[1],q[2],11,'w');S(q[0],R0+IH+q[1],q[2],11,'w')}
  for(const q of slab(IH,FW))S(q[1],R0+q[0],q[2],11,'w');
  for(const q of slab(8,RW)){S(L-RW+q[1],R0+q[0],q[2],11,'w');S(L-RW+q[1],R0+IH-8+q[0],q[2],11,'w')}
- // rear double doors and the cockpit door
- v.dl=doorIcon(mat,false);v.dlm=new Map(v.dl.map(z=>[K(z[0],z[1]),z[2]]));for(const q of v.dl){S(L+q[1],CY-16+q[0],q[2],11,'D');S(L+q[1],CY+15-q[0],q[2],11,'D')}
  for(const q of slab(16,8)){S(XP+q[1],R0+q[0],q[2],11,'w');S(XP+q[1],R0+IH-16+q[0],q[2],11,'w')}
- for(const q of v.dl)S(XP+8+q[1],CY-8+q[0],q[2],11,'C');
  // chamfered nose
  for(let y=TR;y<H-TR;y++)for(let x=0;x<6;x++){const o=smap.get(K(x,y));if(!o)continue;if(ch(x,y)){o.cut=1;smap.delete(K(x,y))}else if(ch(x-1,y))o[2]=vmet(mat,x,y,.5)}
  // firing slit: a lit lip on the outer face, dimmer metal through the wall, a darker bevel at its inner edge
@@ -53,16 +50,22 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
  for(let x=XST+3;x<=XST+13;x+=2)for(let y=RC[2]-6;y<=RC[2]+6;y++)Rf(x,y,vmet(mat,x,y,.45));
  v.base=base;v.roofL=roof;v.src=src;v.smap=smap}
 
-function carrier(mat,x,y,ang,nat){const v={id:uid++,veh:true,type:'veh',mat:mat||'steel',nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),door:{r:0,c:0},dT:{r:0,c:0},on:0,offT:0,puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);return v}
+function carrier(mat,x,y,ang,nat){const v={id:uid++,veh:true,type:'veh',mat:mat||'steel',nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,acc:0,alp:0,hov:new Set(),offT:0,puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);return v}
+// its doors are the game's own doors, riding on the hull: rear double doors part to the sides, the cockpit door slides into the bulkhead
+const VDOORS=[[VC.L-9,VC.CY-16,Math.PI/2],[VC.L,VC.CY+15,-Math.PI/2],[VC.XP-1,VC.CY-8,Math.PI/2]];
+function vMkDoors(v){v.doors=VDOORS.map(([ax,ay,a])=>{const d=mkDoor(v.mat,0,0,0,8);d.vdoor={v,ax,ay,a};if(v.nat)d.keys=v.nat;return d});v.doors[0].pair=v.doors[1];v.doors[1].pair=v.doors[0];v.dids=new Set(v.doors.map(d=>d.id));vDoorPose(v)}
+function vDoorPose(v){for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d))continue;const{ax,ay,a}=d.vdoor,[x,y]=vL2W(v,ax,ay);d.x=x;d.y=y;d.rot=0;d.spin=v.ang+a;orient(d)}}
 const vDriver=v=>{const t=v.seats[0];return t&&bodies.includes(t)&&t.status!=='dead'?t:null};
 const vW2L=(v,X,Y)=>{const c=Math.cos(v.ang),s=Math.sin(v.ang),dx=X-v.x,dy=Y-v.y;return[VC.PX+dx*c+dy*s,VC.PY-dx*s+dy*c]};
 const vL2W=(v,x,y)=>{const c=Math.cos(v.ang),s=Math.sin(v.ang),dx=x-VC.PX,dy=y-VC.PY;return[v.x+dx*c-dy*s,v.y+dx*s+dy*c]};
 // solid pixels under the current pose; open doors and broken pixels drop out
-function vSolid(v,q){if(q.dead)return false;if(q[7]==='D')return!v.door.r;if(q[7]==='C')return!v.door.c;return true}
-function vOrient(v,pose){if(!pose)for(const t of v.px)if(t.s&&t[3]<t.s[3])t.s[3]=t[3];const P=pose||v,c=Math.cos(P.ang),s=Math.sin(P.ang),bx=Math.round(P.x),by=Math.round(P.y),R=90,px=[];
- for(let Y=by-R;Y<=by+R;Y++)for(let X=bx-R;X<=bx+R;X++){const dx=X-P.x,dy=Y-P.y,lx=Math.floor(VC.PX+dx*c+dy*s),ly=Math.floor(VC.PY-dx*s+dy*c);if(lx<0||ly<0||lx>=VC.LW||ly>=VC.H)continue;const q=v.smap.get(K(lx,ly));if(!q||!vSolid(v,q))continue;const t=[X-bx,Y-by,q[2],q[3],3,q[5],q[6],q[7]==='e'?'x':q[7],q[8],q[9]];t.e=q[7]==='e';t.s=q;px.push(t)}
- if(pose)return px;v.px=px;mkSet(v);return px}
-function vMark(v){const bx=Math.round(v.x),by=Math.round(v.y);for(const p of v.px){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H)slabG[Y*W+X]=v.id}}
+function vSolid(v,q){return!q.dead}
+// tracks sit low, like furniture: units bump into them but shots pass over to the hull
+function vOrient(v,pose){if(!pose)for(const t of v.px)if(t.s&&t[3]<t.s[3])t.s[3]=t[3];const P=pose||v,c=Math.cos(P.ang),s=Math.sin(P.ang),bx=Math.round(P.x),by=Math.round(P.y),R=90,px=[],tk=[];
+ for(let Y=by-R;Y<=by+R;Y++)for(let X=bx-R;X<=bx+R;X++){const dx=X-P.x,dy=Y-P.y,lx=Math.floor(VC.PX+dx*c+dy*s),ly=Math.floor(VC.PY-dx*s+dy*c);if(lx<0||ly<0||lx>=VC.LW||ly>=VC.H)continue;const q=v.smap.get(K(lx,ly));if(!q||!vSolid(v,q))continue;if(q[7]==='T'||q[7]==='B'){tk.push([X-bx,Y-by]);continue}const t=[X-bx,Y-by,q[2],q[3],3,q[5],q[6],q[7]==='e'?'x':q[7],q[8],q[9]];t.e=q[7]==='e';t.s=q;px.push(t)}
+ if(pose)return{px,tk};v.px=px;v.tpx=tk;mkSet(v);return px}
+function vMark(v){if(!VOB||VOB.length!==W*H)VOB=new Uint8Array(W*H);const bx=Math.round(v.x),by=Math.round(v.y);for(const p of v.px){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H)slabG[Y*W+X]=v.id}for(const p of v.tpx||[]){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H)VOB[Y*W+X]=1}}
+function vUnmark(v){const bx=Math.round(v.x),by=Math.round(v.y);for(const p of v.px){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H&&slabG[Y*W+X]===v.id)slabG[Y*W+X]=0}if(VOB)for(const p of v.tpx||[]){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H)VOB[Y*W+X]=0}}
 // a hit pixel gives its damage back to the hull's own pixel; the core going breaks the engine
 function vSettle(v){for(const t of v.px){if(!t.s)continue;if(t[3]<t.s[3])t.s[3]=t[3];if(!v.set.has(K(t[0],t[1]))){t.s.dead=1;if(t.e)vBreach(v)}}v.px=v.px.filter(p=>!p.s.dead);mkSet(v);v.dirty=1}
 function vBreach(v){if(v.fuse||v.dead)return;v.fuse=150;sfx('sizzle');sfx('crack')}
@@ -81,14 +84,13 @@ function vDraw(top){for(const v of VEH){if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!=
   for(let Y=Math.max(0,Math.floor(y0));Y<=Math.min(H-1,Math.ceil(y1));Y++)for(let X=Math.max(0,Math.floor(x0));X<=Math.min(W-1,Math.ceil(x1));X++){let r=0,g=0,b=0,n=0;
    for(let k=0;k<SUB.length;k+=2){const dx=X+SUB[k]-v.x,dy=Y+SUB[k+1]-v.y,lx=Math.floor(PX+dx*c+dy*s),ly=Math.floor(PY-dx*s+dy*c);if(lx<0||ly<0||lx>=LW||ly>=LH)continue;const col=L[ly*LW+lx];if(!col)continue;r+=col&255;g+=col>>8&255;b+=col>>16&255;n++}
    if(!n)continue;const j=Y*W+X,col=rgb(r/n|0,g/n|0,b/n|0);out[j]=n===ns?col:mix(out[j],col,n/ns)}
+  if(!top)for(const d of v.doors||[])if(!d.fallen&&bodies.includes(d))drawBody(d);
   if(top)vPuffs(v)}}
 function vFloorPx(v,lx,ly){const q=v.smap.get(K(lx,ly));let c=0;
- if(q&&!q.dead&&(q[7]!=='D'||!v.door.r)&&(q[7]!=='C'||!v.door.c)){c=q[7]==='T'||q[7]==='B'?vTrack(v,lx,ly,q[7]):q[7]==='e'&&v.fuse&&(tick>>2)%2?VPB:q[2];if(q[3]<q[6]&&q[7]!=='e')c=mul(c,.7+.3*q[3]/q[6])}
- else if(q&&q[7]==='C'&&v.door.c&&lx>=VC.XP&&ly<VC.CY-6)c=q[2];
- else if(v.door.r&&lx>=VC.L&&lx<VC.L+16){const k=ly<VC.CY?VC.CY-17-ly:ly-VC.CY-16,u=lx-VC.L;if(k>=-8&&k<0)c=v.dlm.get(K(u,k))||0}
+ if(q&&!q.dead){c=q[7]==='T'||q[7]==='B'?vTrack(v,lx,ly,q[7]):q[7]==='e'&&v.fuse&&(tick>>2)%2?VPB:q[2];if(q[3]<q[6]&&q[7]!=='e')c=mul(c,.7+.3*q[3]/q[6])}
  if(!c){const b=v.base[ly*VC.LW+lx];c=b?b&0xffffff:0}
  return c&&v.dead?vChar(c,lx,ly):c}
-function vRoofPx(v,lx,ly,roof){const r=roof&&v.roofL[ly*VC.LW+lx];if(r)return r&0xffffff;const q=v.smap.get(K(lx,ly));return q&&!q.dead&&(q[7]==='w'||q[7]==='g'||q[7]==='D'&&!v.door.r||q[7]==='C'&&!v.door.c)?vFloorPx(v,lx,ly):0}
+function vRoofPx(v,lx,ly,roof){const r=roof&&v.roofL[ly*VC.LW+lx];if(r)return r&0xffffff;const q=v.smap.get(K(lx,ly));return q&&!q.dead&&(q[7]==='w'||q[7]==='g')?vFloorPx(v,lx,ly):0}
 const vChar=(c,x,y)=>mix(c,rgb(26,22,20),.62+.3*hh(x,y,41));
 function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==='T'?0:1]),e=t===0||t===VC.TR-1,lk=((x-ph)%4+4)%4===0;return e?rgb(30,30,32):lk?rgb(78,78,80):t===2?rgb(56,56,58):rgb(46,46,48)}
 // the roof hides the crew unless a selected unit is aboard
@@ -107,17 +109,17 @@ function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);f
 // driving: slow to start, slow to stop, slow to turn; the tracks run with the ground and counter-run to pivot
 function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%3===0)vAI();for(const v of VEH){const dv=vDriver(v);if(v.seats[0]&&!dv)v.seats[0]=null;
   for(let i=0;i<v.seats.length;i++){const t=v.seats[i];if(t&&(!bodies.includes(t)||t.status==='dead')){if(t.status==='dead'&&bodies.includes(t)){t.vseat=null}v.seats[i]=null}}
-  const on=!!dv&&!v.dead;if(on!==!!v.on){v.on=on;if(on)sfx('vent');else v.offT=0}if(!v.on)v.offT++;
+  const on=!!dv&&!v.dead;if(on!==!!v.on){v.on=on;if(!on)v.offT=0}if(!v.on)v.offT++;
   let thr=0,turn=0;if(v.on){if(dv.direct&&sel.has(dv)){thr=(keys.has('w')?1:0)-(keys.has('s')?1:0);turn=(keys.has('d')?1:0)-(keys.has('a')?1:0)}else if(v.ai){thr=v.ai.thr;turn=v.ai.turn}}
-  const ts=thr>0?.42:thr<0?-.22:0;v.sp+=Math.max(-.004,Math.min(.004,ts-v.sp))*(thr?1:1.6);if(Math.abs(v.sp)<.0015&&!thr)v.sp=0;
-  const tw=turn*.004;v.w+=Math.max(-.00025,Math.min(.00025,tw-v.w));if(Math.abs(v.w)<.0002&&!turn)v.w=0;
+  // speed and turn ease in: the push itself builds up before it reaches full strength
+  const ts=thr>0?.378:thr<0?-.198:0,am=.004*(thr?1:1.6),aT=Math.max(-am,Math.min(am,(ts-v.sp)*.08));v.acc+=Math.max(-.00015,Math.min(.00015,aT-v.acc));v.sp+=v.acc;if(Math.abs(v.sp)<.0015&&!thr&&Math.abs(v.acc)<.0003){v.sp=0;v.acc=0}
+  const tw=turn*.0028,wm=.000175*(turn?1:1.6),wT=Math.max(-wm,Math.min(wm,(tw-v.w)*.06));v.alp+=Math.max(-.000006,Math.min(.000006,wT-v.alp));v.w+=v.alp;if(Math.abs(v.w)<.00015&&!turn&&Math.abs(v.alp)<.00002){v.w=0;v.alp=0}
   if(v.sp||v.w)vMove(v);
   v.ph[0]+=v.sp-v.w*VC.PY;v.ph[1]+=v.sp+v.w*VC.PY;
-  vPin(v);vDoors(v);vMist(v);vWalkers(v);if(v.fuse&&--v.fuse===0)vBlow(v);
-  if(v.on&&tick%34===0&&(Math.abs(v.sp)>.05||Math.abs(v.w)>.001))sfx('clank')}
- vPrompt()}
+  vPin(v);vMist(v);vWalkers(v);if(v.fuse&&--v.fuse===0)vBlow(v)}
+ vPrompt();if(tick%2===0)vSound()}
 function vMove(v){const n={x:v.x-Math.cos(v.ang)*v.sp,y:v.y-Math.sin(v.ang)*v.sp,ang:v.ang+v.w};
- const tryPose=P=>{const px=vOrient(v,P),bx=Math.round(P.x),by=Math.round(P.y),cells=new Set();for(const p of px){const X=bx+p[0],Y=by+p[1];if(X<1||Y<1||X>=W-1||Y>=H-1)return null;const j=Y*W+X;if(sol[j]||OBJ[j]||slabG[j]&&slabG[j]!==v.id)return null;cells.add(j)}return{px,cells}};
+ const tryPose=P=>{const o=vOrient(v,P),bx=Math.round(P.x),by=Math.round(P.y),cells=new Set();for(const p of[...o.px,...o.tk]){const X=bx+p[0],Y=by+p[1];if(X<1||Y<1||X>=W-1||Y>=H-1)return null;const j=Y*W+X;if((sol[j]||OBJ[j])&&!vHedge(X,Y)||slabG[j]&&slabG[j]!==v.id&&!v.dids.has(slabG[j]))return null;cells.add(j)}return{px:o.px,tk:o.tk,cells}};
  let P=n,r=tryPose(n);if(!r&&v.w){P={x:n.x,y:n.y,ang:v.ang};r=tryPose(P);if(r)v.w=0}if(!r&&v.sp){P={x:v.x,y:v.y,ang:n.ang};r=tryPose(P);if(r)v.sp=0}
  if(!r){if(Math.abs(v.sp)>.1)sfx('thunk');v.sp=0;v.w=0;return}
  // units outside in the way are shoved; one that can't give stops the carrier
@@ -127,20 +129,23 @@ function vMove(v){const n={x:v.x-Math.cos(v.ang)*v.sp,y:v.y-Math.sin(v.ang)*v.sp
   const tx2=Math.round(t.x),ty2=Math.round(t.y);for(const p of t.px){if(p[0]*p[0]+p[1]*p[1]>45)continue;if(r.cells.has((ty2+p[1])*W+tx2+p[0])){v.sp=0;v.w=0;return}}if(t.status==='free'&&Math.abs(v.sp)>.3&&tick%20===0)sfx('pthud')}
  const old={x:v.x,y:v.y,ang:v.ang},moved=Math.hypot(P.x-v.x,P.y-v.y);
  for(const b of carried){const[lx,ly]=vW2L(old,b.x,b.y),[nx,ny]=vL2W(P,lx,ly);b.x=nx;b.y=ny;if(b.type==='token'&&b.ang!==undefined)b.ang+=P.ang-old.ang}
- const bx=Math.round(v.x),by=Math.round(v.y);for(const p of v.px){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H&&slabG[Y*W+X]===v.id)slabG[Y*W+X]=0}
- v.x=P.x;v.y=P.y;v.ang=P.ang;v.px=r.px;mkSet(v);vMark(v);vMarks(v,moved+Math.abs(P.ang-old.ang)*30);v.still=0;NAVD=true}
+ vUnmark(v);
+ v.x=P.x;v.y=P.y;v.ang=P.ang;v.px=r.px;v.tpx=r.tk;mkSet(v);vMark(v);vDoorPose(v);vHedges(v);vMarks(v,moved+Math.abs(P.ang-old.ang)*30);v.still=0;NAVD=true}
 function vPin(v){v.seats.forEach((t,i)=>{if(!t)return;const[x,y]=vSit(i),[gx,gy]=vL2W(v,x,y);t.x=gx;t.y=gy;t.vx=t.vy=0;t.ang=v.ang+VSEATS[i][2];t.vseat=v;t.crouch=false})}
-// doors open for anyone close by while the carrier stands, and shut once the doorway is clear
-function vDoors(v){const near=(lx,ly,r)=>bodies.some(t=>t.type==='token'&&t.status!=='dead'&&!v.seats.includes(t)&&(()=>{const[a,b]=vW2L(v,t.x,t.y);return Math.hypot(a-lx,b-ly)<r})()),slow=Math.abs(v.sp)<.08&&!v.dead;
- for(const[k,lx,ly,r]of[['r',VC.L-4,VC.CY,18],['c',VC.XP+4,VC.CY,13]]){const want=slow&&(near(lx,ly,r)||v.hold&&v.hold[k]>tick);if(want){if(!v.door[k]){v.door[k]=1;sfx('door');vRefresh(v)}v.dT[k]=tick}else if(v.door[k]&&tick-v.dT[k]>40&&!near(lx,ly,r*.7)){v.door[k]=0;sfx('door');vRefresh(v)}}}
-function vRefresh(v){v.dirty=1;const bx=Math.round(v.x),by=Math.round(v.y);for(const p of v.px){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H&&slabG[Y*W+X]===v.id)slabG[Y*W+X]=0}vOrient(v);vMark(v);NAVD=true}
+function vRefresh(v){v.dirty=1;vUnmark(v);vOrient(v);vMark(v);vDoorPose(v);NAVD=true}
+// hedges give under the tracks: the carrier rides over them, and a hedge it has wholly passed over is a step more trampled
+const vHK=(cx,cy)=>{const k=OM[cy]&&OM[cy][cx]||'';return/^hedge(~\d)?$/.test(k)?k:null};
+const vHedge=(X,Y)=>!!vHK(X>>4,Y>>4);
+function vHedges(v){const now=new Set(),R=80,cx0=Math.max(0,(v.x-R)>>4),cx1=Math.min(CW-1,(v.x+R)>>4),cy0=Math.max(0,(v.y-R)>>4),cy1=Math.min(CH-1,(v.y+R)>>4);
+ for(let cy=cy0;cy<=cy1;cy++)for(let cx=cx0;cx<=cx1;cx++){if(!vHK(cx,cy))continue;const[lx,ly]=vW2L(v,cx*T+8,cy*T+8);if(lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H){now.add(cy*CW+cx);if(!v.hov.has(cy*CW+cx))sfx('rustle')}}
+ for(const c of v.hov)if(!now.has(c)){const cx=c%CW,cy=c/CW|0,k=vHK(cx,cy);if(k){const n=k==='hedge'?3:Math.max(1,+k.slice(6)-2),nk='hedge~'+n,m=fmat(nk);OM[cy][cx]=nk;for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[nk](X,Y,cx,cy);OBJ[j]=c?m:0;if(c)OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]))}sfx('rustle')}}v.hov=now}
 
 // boarding and leaving: units walk set waypoints through the rear doors to a seat, or out behind the carrier
 function vFree(v,role){const res=new Set(bodies.filter(t=>t.vwalk&&t.vwalk.v===v).map(t=>t.vwalk.i));for(let i=0;i<VSEATS.length;i++)if(!v.seats[i]&&!res.has(i)&&(role?VSEATS[i][3]===role:VSEATS[i][3]==='p'))return i;return -1}
-function vBoard(v,t,i){if(i===undefined)i=vFree(v);if(i<0)return false;const[sx]=VSEATS[i],front=i<2,path=[[VC.L+14,VC.CY],[VC.L-14,VC.CY]];if(front)path.push([VC.XP+12,VC.CY],[VC.XP-6,VC.CY],[12.5,VC.CY]);else path.push([sx+.5,VC.CY]);path.push(vSit(i));t.vwalk={v,i,path,k:0,T:0,o:tick};t.ord=null;v.hold={r:tick+400,c:front?tick+400:0};return true}
+function vBoard(v,t,i){if(i===undefined)i=vFree(v);if(i<0)return false;const[sx]=VSEATS[i],front=i<2,path=[[VC.L+14,VC.CY],[VC.L-14,VC.CY]];if(front)path.push([VC.XP+12,VC.CY],[VC.XP-6,VC.CY],[12.5,VC.CY]);else path.push([sx+.5,VC.CY]);path.push(vSit(i));t.vwalk={v,i,path,k:0,T:0,o:tick};t.ord=null;return true}
 function vSeatNow(v,t,i){v.seats[i]=t;t.vseat=v;t.vwalk=null;t.ord=null;t.mw=null;t.glide=null;if(t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}vPin(v);if(i===0)v.offT=0;sfx('flick')}
 function vStand(v,t,out){const i=v.seats.indexOf(t);if(i<0)return;v.seats[i]=null;t.vseat=null;const front=i<2,sx=VSEATS[i][0]+.5;
- if(out){const path=front?[[12.5,VC.CY],[VC.XP-6,VC.CY],[VC.XP+12,VC.CY]]:[[sx,VC.CY]];const sp=v.seats.filter(Boolean).length+bodies.filter(o=>o.vwalk&&o.vwalk.v===v).length,side=sp%2?1:-1;path.push([VC.L-14,VC.CY],[VC.L+18,VC.CY],[VC.L+30+Math.random()*16,VC.CY+side*(10+Math.random()*26)]);t.vwalk={v,i:-1,path,k:0,T:0,o:tick*100-sx};v.hold={r:tick+400,c:front?tick+300:0};return}
+ if(out){const path=front?[[12.5,VC.CY],[VC.XP-6,VC.CY],[VC.XP+12,VC.CY]]:[[sx,VC.CY]];const sp=v.seats.filter(Boolean).length+bodies.filter(o=>o.vwalk&&o.vwalk.v===v).length,side=sp%2?1:-1;path.push([VC.L-14,VC.CY],[VC.L+18,VC.CY],[VC.L+30+Math.random()*16,VC.CY+side*(10+Math.random()*26)]);t.vwalk={v,i:-1,path,k:0,T:0,o:tick*100-sx};return}
  const[gx,gy]=vL2W(v,front?12.5:sx,VC.CY);t.x=gx;t.y=gy}
 function vUnload(v){v.seats.forEach((t,i)=>{if(t&&i>1)vStand(v,t,true)})}
 // one at a time through the aisle: a walker sets off once those already moving are clear of it
@@ -161,7 +166,7 @@ var VGP=null;function vPrompt(){const t=[...sel].find(b=>b.type==='token'&&b.dir
 function vLabels(){for(const v of VEH){if(!vRoof(v))continue;for(const t of bodies)if(t.lab&&t.type==='token'&&vHas(v,t))t.lab.style.display='none'}}
 
 // the engine goes: a short fuse of sparks and smoke, then a heavy blast; the hull is left a burnt shell
-function vBlow(v){const[gx,gy]=vL2W(v,VC.XST+8,VC.RC[2]+.5);v.dead=true;v.on=0;v.sp=v.w=0;v.door.r=v.door.c=0;for(const t of v.seats)if(t){t.vseat=null}v.seats.fill(null);explode(gx,gy,2.4);const[cx,cy]=vL2W(v,VC.PX,VC.PY);explode(cx,cy,1.6);for(const q of v.src)if(q[7]==='e'||q[7]==='c'&&Math.random()<.5)q.dead=1;vRefresh(v);scorch(gx,gy,40);shake=Math.max(shake,12)}
+function vBlow(v){const[gx,gy]=vL2W(v,VC.XST+8,VC.RC[2]+.5);v.dead=true;v.on=0;v.sp=v.w=0;for(const t of v.seats)if(t){t.vseat=null}v.seats.fill(null);explode(gx,gy,2.4);const[cx,cy]=vL2W(v,VC.PX,VC.PY);explode(cx,cy,1.6);for(const q of v.src)if(q[7]==='e'||q[7]==='c'&&Math.random()<.5)q.dead=1;vRefresh(v);scorch(gx,gy,40);shake=Math.max(shake,12)}
 function vBlastCheck(x,y,s){for(const v of VEH){if(v.dead||v.fuse)continue;const[lx,ly]=vW2L(v,x,y),d=Math.hypot(lx-(VC.XST+8),ly-VC.RC[2]);if(d<10+6*s&&vInside(v,lx,ly))vBreach(v)}}
 
 // AI drivers close on the nearest foe, stop short and let their squad out
@@ -174,6 +179,51 @@ function vAI(){for(const v of VEH){const d=vDriver(v);if(!aiOn||!d||!d.ai||v.dea
   let df=Math.atan2(f.y-v.y,f.x-v.x)-v.ang-Math.PI;while(df>Math.PI)df-=6.283;while(df<-Math.PI)df+=6.283;a.turn=Math.abs(df)>.06?Math.sign(df):0;a.thr=Math.abs(df)<.9?1:0;
   if(!a.thr)a.dT=0;else if(++a.dT%90===0){if(a.dT>=180&&Math.hypot(v.x-a.lx,v.y-a.ly)<4){if(fd<260){a.st='stop';a.T=tick;continue}a.rev=70;a.rt=Math.random()<.5?-1:1;a.dT=0}a.lx=v.x;a.ly=v.y}}}
 
+// carrier engine, rebuilt from four recordings: a lumpy idle (fires at 5x the shaft, lopes at 4 Hz), a rich moving growl at 2x,
+// a mechanical drive drone (strong 7th-9th and 30th-31st partials, 13 Hz shudder) and slow ratchet ticks that layer in while turning.
+const VENG={
+ idle:[-51,-43,-29,-26,0,-27,-22,-28,-26,-13,-14,-24,-23,-15,-24,-31,-34,-36,-32,-25,-28,-22,-29,-36,-32,-34,-38,-46,-35,-40],
+ move:[-12,0,-3,-4,-5,-13,-12,-15,-18,-10,-11,-18,-22,-18,-16,-12,-15,-30,-25,-27,-19,-31,-28,-26,-20,-25,-19,-21,-27,-30],
+ drive:[-30,-62,-55,-76,-66,-46,-16,-9,-21,-47,-51,-44,-38,-30,-56,-62,-73,-72,-81,-75,-78,-70,-60,-68,-68,-76,-69,-66,-37,-1,-1,-22,-34,-44,-50,-47]};
+function vEngWave(ac,db){const re=new Float32Array(db.length+1),im=new Float32Array(db.length+1);db.forEach((d,i)=>{const a=Math.pow(10,d/20),p=Math.sin(i*2.39)*3.1;re[i+1]=a*Math.cos(p);im[i+1]=a*Math.sin(p)});return ac.createPeriodicWave(re,im)}
+function vEngNoise(ac,sec,brown){const n=ac.sampleRate*sec|0,b=ac.createBuffer(1,n,ac.sampleRate),d=b.getChannelData(0);let l=0;for(let i=0;i<n;i++){const w=Math.random()*2-1;l=brown?(l+.02*w)/1.02:w;d[i]=brown?l*3.5:w}return b}
+function vEngine(ac,out){const T=()=>ac.currentTime,o=(t,f)=>{const x=ac.createOscillator();if(typeof t==='string')x.type=t;else x.setPeriodicWave(t);x.frequency.value=f;x.start();return x},g=v=>{const x=ac.createGain();x.gain.value=v;return x},
+  bp=(f,q)=>{const x=ac.createBiquadFilter();x.type='bandpass';x.frequency.value=f;x.Q.value=q;return x},lp=f=>{const x=ac.createBiquadFilter();x.type='lowpass';x.frequency.value=f;return x},
+  ns=(br)=>{const s=ac.createBufferSource();s.buffer=vEngNoise(ac,3,br);s.loop=true;s.start(0,Math.random()*2);return s};
+ const bus=g(0),tone=lp(900);bus.connect(tone).connect(out);
+ // idle: the shaft tone, the firing pulses through low noise, and a slow lope
+ const sh=o(vEngWave(ac,VENG.idle),12.6),shG=g(.5),lope=o('sine',4),lopeG=g(.12),lopeS=g(1);sh.connect(shG).connect(lopeS).connect(bus);lope.connect(lopeG).connect(lopeS.gain);
+ const fire=o('sawtooth',63),fireSh=ac.createWaveShaper(),fc=new Float32Array(256);for(let i=0;i<256;i++){const x=i/127.5-1;fc[i]=Math.pow(Math.max(0,x),3)}fireSh.curve=fc;
+ const fireG=g(0),nz=ns(true),nzF=bp(170,.6),nzG=g(1.3);fire.connect(fireSh).connect(fireG.gain);nz.connect(nzF).connect(fireG).connect(nzG).connect(lopeS);
+ // valve clatter: bright ticks riding the firing pulses
+ const clt=ns(false),cltF=bp(2600,.7),cltM=g(0),cltG=g(0);fireSh.connect(cltM.gain);clt.connect(cltF).connect(cltM).connect(cltG).connect(out);
+ const rum=ns(true),rumF=lp(70),rumG=g(.35);rum.connect(rumF).connect(rumG).connect(bus);
+ // moving: a rich growl an octave over the shaft, with grit
+ const mv=o(vEngWave(ac,VENG.move),25.2),mvG=g(0),chug=o('sine',6),chugG=g(.3),chugS=g(.7);mv.connect(chugS).connect(mvG).connect(bus);chug.connect(chugG).connect(chugS.gain);const grit=ns(false),gritF=bp(420,.8),gritG=g(0);grit.connect(gritF).connect(gritG).connect(bus);
+ // turning: the drive drone with its shudder, and slow ratchet ticks
+ const dr=o(vEngWave(ac,VENG.drive),13.65),drG=g(0),sd=o('sine',13.1),sdG=g(.5),sdS=g(.5);dr.connect(sdS).connect(drG).connect(out);sd.connect(sdG).connect(sdS.gain);
+ const rat=g(0);rat.connect(out);const RES=[[1850,26,1],[3500,30,.7],[4300,34,.55],[2650,22,.35]];let nextT=0;
+ function tick(t,rate){const b=ac.createBufferSource(),n=ac.createBuffer(1,ac.sampleRate*.004|0,ac.sampleRate),d=n.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);b.buffer=n;
+  const v=g(.5+Math.random()*.5);for(const[f,q,a]of RES){const r=bp(f*(.97+Math.random()*.06),q),k=g(a*2.2);b.connect(r).connect(k).connect(v)}const e=g(1);v.connect(e).connect(rat);e.gain.setValueAtTime(1,t);e.gain.exponentialRampToValueAtTime(.001,t+.11);b.start(t)}
+ const st={on:0,load:0,turn:0,rpm:0,lv:0,tv:0,lvV:0,tvV:0,up:0,solo:null};
+ // a gentle curve on everything: changes start slow and settle
+ function frame(dt){const tg=st.on?1:0;st.up+=(tg-st.up)*Math.min(1,dt*(st.on?1.1:.7));const L=st.on?st.load:0,R=st.on?Math.abs(st.turn):0;st.lvV+=((L-st.lv)*3-st.lvV*3.2)*dt;st.lv=Math.max(0,Math.min(1,st.lv+st.lvV*dt));st.tvV+=((R-st.tv)*4-st.tvV*3.8)*dt;st.tv=Math.max(0,Math.min(1,st.tv+st.tvV*dt));
+  const rpm=st.up*(1+.42*st.lv+.12*st.tv)*(1+(Math.random()-.5)*.006),t=T();
+  sh.frequency.setTargetAtTime(12.6*rpm,t,.05);fire.frequency.setTargetAtTime(63*rpm,t,.05);mv.frequency.setTargetAtTime(25.2*rpm,t,.05);dr.frequency.setTargetAtTime(13.65*(.9+.2*st.lv),t,.08);sd.frequency.setTargetAtTime(13.1*(.9+.2*st.lv),t,.08);
+  const so=st.solo,mB=so&&so!=='engine'?0:1,mD=so&&so!=='drive'?0:1,mR=so&&so!=='rat'?0:1;bus.gain.setTargetAtTime(mB*.9*Math.pow(st.up,1.5),t,.06);cltG.gain.setTargetAtTime(mB*.05*Math.pow(st.up,2)*(1+.6*st.lv),t,.08);lopeG.gain.setTargetAtTime(.07*(1-st.lv),t,.1);chug.frequency.setTargetAtTime(6*rpm,t,.08);shG.gain.setTargetAtTime(.5*(1-.5*st.lv),t,.1);
+  mvG.gain.setTargetAtTime(.32*st.lv,t,.1);gritG.gain.setTargetAtTime(.05*st.lv,t,.1);tone.frequency.setTargetAtTime(1100+900*st.lv,t,.1);rumG.gain.setTargetAtTime(.3+.25*st.lv,t,.1);
+  drG.gain.setTargetAtTime(mD*(so==='drive'?.5:.22)*st.tv*st.up,t,.12);rat.gain.setTargetAtTime(mR*(so==='rat'?.7:.35)*st.tv*st.up*(st.near??1),t,.08);
+  if(st.tv>.08&&st.up>.5){const iv=.095/(.6+.6*st.tv);if(nextT<t)nextT=t+.02;while(nextT<t+.12){tick(nextT);nextT+=iv*(.85+Math.random()*.3)}}}
+ return{st,frame,stop(){for(const n of[bus,drG,rat,cltG])n.gain.setTargetAtTime(0,T(),.05);for(const x of[sh,lope,fire,mv,chug,dr,sd])x.stop(T()+.4);for(const x of[nz,rum,grit,clt])x.stop(T()+.4)}}}
+
+// each running carrier has its own engine voice, placed by distance and side from the listener, muffled through walls and from inside
+const VSND=new Map();
+function vSound(){const ok=AC&&!mute&&gest;for(const[id,s]of VSND){const v=VEH.find(q=>q.id===id);if(!ok||!v||v.dead||!v.on&&s.e.st.up<.01){s.e.stop();setTimeout(()=>{try{s.g.disconnect()}catch(e){}},600);VSND.delete(id)}}if(!ok)return;
+ const me=[...sel].find(b=>b.type==='token'),vw=$('stage').parentElement,lx=me?me.x:(vw.clientWidth/2-cam.x)/S,ly=me?me.y:(vw.clientHeight/2-cam.y)/S;
+ for(const v of VEH){if(v.dead)continue;let s=VSND.get(v.id);if(!s){if(!v.on)continue;const g=AC.createGain(),p=AC.createStereoPanner(),f=AC.createBiquadFilter();f.type='lowpass';g.gain.value=0;g.connect(p).connect(f).connect(MS);s={g,p,f,e:vEngine(AC,g)};VSND.set(v.id,s)}
+  const d=Math.hypot(v.x-lx,v.y-ly),inn=me&&vHas(v,me),los=inn||losClear(lx,ly,v.x,v.y),t=AC.currentTime;s.e.st.on=v.on?1:0;s.e.st.load=Math.min(1,Math.abs(v.sp)/.378);s.e.st.turn=Math.min(1,Math.abs(v.w)/.0028);s.e.st.near=Math.max(0,1-d/160);
+  s.g.gain.setTargetAtTime(.75*Math.min(1,70/(d+40)),t,.1);s.p.pan.setTargetAtTime(inn?0:Math.max(-.7,Math.min(.7,(v.x-lx)/220)),t,.1);s.f.frequency.setTargetAtTime(inn?1400:los?7000:900,t,.15);s.e.frame(2/60)}}
+
 function vPick(X,Y){const v=vAt(X,Y);return v&&!v.dead&&vDriver(v)||null}
 function vMenu(v,e){closeMenu();const r=$('sm').getBoundingClientRect();menu=document.createElement('div');menu.className='menu';menu.style.left=(e.clientX-r.left+4)+'px';menu.style.top=(e.clientY-r.top+4)+'px';
  const it=(t,f)=>{const bt=document.createElement('button');bt.textContent=t;bt.onclick=()=>{f();closeMenu()};menu.appendChild(bt)};
@@ -182,15 +232,16 @@ function vMenu(v,e){closeMenu();const r=$('sm').getBoundingClientRect();menu=doc
 {const e0=explode;explode=function(x,y,s=1){e0(x,y,s);vBlastCheck(x,y,s)}}
 {const r0=render;render=function(){r0();vLabels()}}
 
-// the test ground: a walled yard with a carrier and a Reaper squad dug in across it
+// the test ground: an Imperial proving yard with a crewed carrier, an empty one, hedge rows to drive through and stone blocks to stop against
 MAPSZ.yard=[44,28];TITLE.yard='Fluoria · Carrier yard';ENVSET.yard='out';
-NBM.yard=()=>paintAll((cx,cy)=>{if(cx===0||cy===0||cx===43||cy===27)return'stone.grey.block.w';
- if(cx>=33&&cx<=34&&(cy>=6&&cy<=9||cy>=18&&cy<=21))return'stone.grey.block.w';if(cx===30&&cy>=12&&cy<=15)return'stone.grey.block.w';
- if(cy>=12&&cy<=15)return'dirt';if((cx*7+cy*13)%23===0&&cx>3&&cx<28&&(cy<10||cy>17))return'bush';return'grass'});
+NBM.yard=()=>{UND=Array.from({length:28},()=>Array(44).fill('grass'));paintAll((cx,cy)=>{if(cx===0||cy===0||cx===43||cy===27)return'stone.grey.block.w';
+ if(cx>=37&&cx<=38&&(cy>=4&&cy<=7||cy>=20&&cy<=23))return'stone.grey.block.w';
+ if(cx===27&&cy>=10&&cy<=17||cx===32&&(cy>=3&&cy<=8||cy>=19&&cy<=24)||cy===24&&cx>=5&&cx<=14)return'hedge';
+ if(cy>=12&&cy<=15)return'dirt';return'grass'})};
 NUM.yard=()=>{const v=carrier('steel',15*T,14*T,0,'Imperium');const g=[U('Legate Varro','Imperium','civ',0,0,0,'pistol','Officer'),U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer')];vSeatNow(v,g[0],0);vSeatNow(v,g[1],1);
  ['Brask','Coll','Dunn','Ivo','Hale','Marl'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<2?'guard':'rifle',0,0,0),2+i));
- U('Ser Davin','Imperium','civ',4.5,6.5,0,'pistol','Officer');
- U('Gull','Reapers','home',37.5,8,Math.PI,'pistol');U('Rask','Reapers','guard',37.5,13.5,Math.PI);U('Teague','Reapers','shock',38.5,19,Math.PI,'spear');U('Brine','Reapers','home',36.5,22.5,Math.PI,'blunder');U('Kesh','Reapers','rifle',39.5,15.5,Math.PI,'rod');
- for(const t of bodies)if(t.type==='token'&&t.nat==='Imperium')t.auto=false};
+ carrier('iron',15*T,6*T,0,'Imperium');
+ U('Ser Davin','Imperium','civ',27.5,6,Math.PI,'pistol','Officer');['Orrin','Pell','Wat','Ned'].forEach((n,i)=>U(n,'Imperium',i<1?'guard':'rifle',25.5+(i%2)*1.6,3.6+(i>>1)*1.6,Math.PI));
+ for(const t of bodies)if(t.type==='token')t.auto=false};
 {const o=document.createElement('option');o.value='yard';o.textContent='Fluoria carrier yard';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['yard','Fluoria carrier yard']);ms.value=curMap}}
 if(curMap==='yard'){CW=-1;reset()}

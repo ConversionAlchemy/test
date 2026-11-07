@@ -59,7 +59,7 @@ let HALFF='dirt';
 function paintCell0(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;key=modK(key);map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(undAt(cx,cy)||HALFF,cx,cy):null,m=WMAT[bk]||0,hpK=CATN[bk]?mprop(CATN[bk][0],CATN[bk][1]).hp:(MAT[m]||{}).hp,gk=CATN[bk]&&CATN[bk][0]==='Stone'&&CATN[bk][1]==='gold'?1:0,ud=m&&undAt(cx,cy)?tilePix(undAt(cx,cy),cx,cy):null;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&(hv==='H'?x>=T/2:hv==='N'?y>=T/2:y<T/2),c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=NODK.has(bk)?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
-let curMap='yard',VEH=[];
+let curMap='yard',VEH=[],VOB=null;
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
 function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
@@ -188,10 +188,10 @@ function drawTethers(){for(const b of bodies){const t=b.tether;if(!t)continue;co
   out[Y*W+X]=ch?(i%3===0?rgb(70,78,74):i%3===1?rgb(178,188,182):rgb(128,138,132)):(i%2?rgb(118,88,52):rgb(160,126,80))}
  for(const[a,c]of[[-1,0],[1,0],[0,-1],[0,1],[0,0]]){const X=Math.round(t.x)+a,Y=Math.round(t.y)+c;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=a||c?rgb(150,160,154):rgb(40,44,42)}}}
 // doorways get a threshold stone under the leaf
-function sills(){for(const d of bodies){if(d.type!=='slab'||d.free)continue;const cs=new Set(),bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px)cs.add(((by+p[1])/T|0)*CW+((bx+p[0])/T|0));
+function sills(){for(const d of bodies){if(d.type!=='slab'||d.free||d.vdoor)continue;const cs=new Set(),bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px)cs.add(((by+p[1])/T|0)*CW+((bx+p[0])/T|0));
  for(const k of cs){const cx=k%CW,cy=k/CW|0,key=map[cy]&&map[cy][cx];if(!key||WMAT[key]||key==='sky'||key==='dirt'||key==='grass'||key==='sill'||key==='msill')continue;const m=[[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>{const q=(map[cy+b]||[])[cx+a];return!!q&&matK(q)==='marble'});paintCell(cx,cy,m?'msill':'sill')}}}
 // doors sit centred in the wall line and meet the wall ends
-function snapDoors(){NAVD=true;for(const d of bodies){if(d.type!=='slab'||d.free)continue;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){x0=Math.min(x0,bx+p[0]);x1=Math.max(x1,bx+p[0]);y0=Math.min(y0,by+p[1]);y1=Math.max(y1,by+p[1])}
+function snapDoors(){NAVD=true;for(const d of bodies){if(d.type!=='slab'||d.free||d.vdoor)continue;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){x0=Math.min(x0,bx+p[0]);x1=Math.max(x1,bx+p[0]);y0=Math.min(y0,by+p[1]);y1=Math.max(y1,by+p[1])}
  let sx,sy;if(x1-x0>y1-y0){sx=Math.round(x0/(T/2))*(T/2)-x0;sy=Math.floor((y0+y1)/2/T)*T+T/2-(d.th||8)/2-y0}else{sy=Math.round(y0/(T/2))*(T/2)-y0;sx=Math.floor((x0+x1)/2/T)*T+T/2-(d.th||8)/2-x0}d.x=bx+sx;d.y=by+sy;orient(d)}}
 function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k of r)if(k==='grass'){any=true;break}if(!any)return;
  const R=6,ind=new Float32Array(N),tmp=new Float32Array(N);for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){const k=map[Y/T|0][X/T|0];ind[Y*W+X]=k==='grass'?1:k==='dirt'||k.endsWith('H')?0:.5}
@@ -689,9 +689,9 @@ function mkLabel(b){const l=b.lab=document.createElement('div');l.className='lab
 function remove(b){if(b.snd){b.snd.stop();b.snd=null}bodies=bodies.filter(o=>o!==b);if(b.lab)b.lab.remove();if(drag&&drag.b===b)drag=null;sel.delete(b);if(hover===b)hover=null}
 
 // geometry
-function markSlabs(){slabG.fill(0);for(const v of VEH)vMark(v);for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!(!b.free&&Math.abs(b.ang)>.2)){const bx=Math.round(b.x),by=Math.round(b.y);for(const p of b.px){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H)slabG[Y*W+X]=b.id}}}
+function markSlabs(){slabG.fill(0);if(VOB)VOB.fill(0);for(const v of VEH)vMark(v);for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!(!b.free&&Math.abs(b.ang)>.2)){const bx=Math.round(b.x),by=Math.round(b.y);for(const p of b.px){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H)slabG[Y*W+X]=b.id}}}
 function solidHits(b,ox,oy){const bx=Math.round(b.x+ox),by=Math.round(b.y+oy),tk=b.type==='token';let h=null;
- for(const p of b.px){if(tk&&p[0]*p[0]+p[1]*p[1]>45)continue;const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H){(h||(h=[])).push([X,Y]);continue}const j=Y*W+X;if(sol[j]||(slabG[j]&&slabG[j]!==b.id)||tk&&OBJ[j])(h||(h=[])).push([X,Y])}return h}
+ for(const p of b.px){if(tk&&p[0]*p[0]+p[1]*p[1]>45)continue;const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H){(h||(h=[])).push([X,Y]);continue}const j=Y*W+X;if(sol[j]||(slabG[j]&&slabG[j]!==b.id)||tk&&(OBJ[j]||VOB&&VOB[j]))(h||(h=[])).push([X,Y])}return h}
 const byId=id=>bodies.find(o=>o.id===id)||VEH.find(o=>o.id===id);
 function matAt(X,Y){if(X<0||Y<0||X>=W||Y>=H)return 1;const j=Y*W+X;if(sol[j])return sol[j];const s=slabG[j]&&byId(slabG[j]);return s?s.mat:0}
 function bodyAt(X,Y,r=1,skip,filter){for(let i=bodies.length-1;i>=0;i--){const b=bodies[i];if(b===skip||(filter&&!filter(b))||(!filter&&b.status==='dead'))continue;const bx=Math.round(b.x),by=Math.round(b.y);for(let j=-r;j<=r;j++)for(let k=-r;k<=r;k++)if(b.set.has(K(X+k-bx,Y+j-by)))return b}
@@ -1135,7 +1135,7 @@ function render(){
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}
  for(const b of bodies)if((b.stuck&&!b.att)||b.fallen)drawBody(b);
  {const tp=TOPS||OUTD;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,NOD[j]?.72:.5);else if(k===2)c=mul(c,NOD[j]?1.05:1.1);if(!tp){const d=DS[j],d0=DS0?DS0[j]:d;let f=DF[Math.min(9,d0)];if(d<d0)f=Math.max(f,d===1?.6:d===2?.22:0);c=mul(c,f)}else if(OUTD&&!TOPS)c=mul(c,1-(1-DF[Math.min(9,DS0?DS0[j]:DS[j])])*.35);if(SHN[j]&&(DS[j]<4||tp))c=shine(c,X,Y,SHN[j]);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}}
- for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!inDrag(b))drawBody(b);vDraw(0);
+ for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!inDrag(b)&&!b.vdoor)drawBody(b);vDraw(0);
  const hot=p=>p.life!==undefined||(p.em!==undefined&&p.em/p.em0>.2),rest=p=>!hot(p)&&Math.hypot(p.vx||0,p.vy||0)<.3;
  for(const p of parts){if(!rest(p))continue;const X=Math.round(p.x),Y=Math.round(p.y);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=p.c}
  drawTethers();selRings();for(const b of bodies)if(!b.stuck&&b.type!=='slab'&&!inDrag(b)&&b.status==='dead')drawBody(b);{const fly=b=>b.type!=='token'&&b.type!=='part'&&(b.thrown&&Math.hypot(b.vx,b.vy)>.6||b.fuse);for(const b of bodies)if(!b.stuck&&b.type!=='slab'&&b.type!=='token'&&!inDrag(b)&&b.status!=='dead'&&!fly(b))drawBody(b);for(const b of bodies)if(!b.stuck&&b.type==='token'&&!inDrag(b)&&b.status!=='dead')drawBody(b);for(const b of bodies)if(!b.stuck&&b.type!=='slab'&&b.type!=='token'&&!inDrag(b)&&b.status!=='dead'&&fly(b))drawBody(b)}
@@ -1219,7 +1219,7 @@ function heldBlocked(b,sx,sy){if(!b.held||b.raised)return false;for(const p of h
 function tryStep(b,sx,sy,depth=0){if(b.ghost){b.x+=sx;b.y+=sy;return true}
  const h=solidHits(b,sx,sy);if(h){if(b.type==='token'&&pushSlabs(b,h,sx,sy)){b.x+=sx;b.y+=sy;return true}pushDoor(b,h);const h0=b.type==='token'&&solidHits(b,0,0);if(h0&&h.length<h0.length){b.x+=sx;b.y+=sy;return true}return false}
  const hx=Math.round(b.x+sx)-Math.round(b.x),hy=Math.round(b.y+sy)-Math.round(b.y);if(heldBlocked(b,hx,hy)&&!(b.type==='token'&&pullFit(b,hx,hy))){const was=heldBlocked(b,0,0);if(!was)pushDoor(b,heldPix(b).map(p=>[p[0]+hx,p[1]+hy]));if(b.type==='token')raise(b);else if(!was)return false}
- const o0=tokHit(b,sx,sy),o=o0&&(o0.vseat||b.vseat)&&(b.vwalk||o0.vwalk)?null:o0;if(o&&o.type==='token'&&b.type==='token'&&teamOf(o)===teamOf(b)&&(b.dash&&b.dash.phase||(o.x-b.x)*sx+(o.y-b.y)*sy<=0)){b.x+=sx;b.y+=sy;return true}if(o&&b.type==='token'&&o.type==='token'&&!b.flee&&teamOf(o)===teamOf(b)&&o.status==='free'){if(!(o.mv>0&&b.id>o.id))makeWay(o,sx,sy,b);return false}if(o){if(depth>2||(o.mass||1)>(b.mass||1)*1.05&&!(b.flee&&o.type==='token'&&teamOf(o)===teamOf(b))||!tryStep(o,sx,sy,depth+1))return false;o.mv=6}
+ const o0=tokHit(b,sx,sy),o=o0&&(o0.vseat||b.vseat)?null:o0;if(o&&o.type==='token'&&b.type==='token'&&teamOf(o)===teamOf(b)&&(b.dash&&b.dash.phase||(o.x-b.x)*sx+(o.y-b.y)*sy<=0)){b.x+=sx;b.y+=sy;return true}if(o&&b.type==='token'&&o.type==='token'&&!b.flee&&teamOf(o)===teamOf(b)&&o.status==='free'){if(!(o.mv>0&&b.id>o.id))makeWay(o,sx,sy,b);return false}if(o){if(depth>2||(o.mass||1)>(b.mass||1)*1.05&&!(b.flee&&o.type==='token'&&teamOf(o)===teamOf(b))||!tryStep(o,sx,sy,depth+1))return false;o.mv=6}
  b.x+=sx;b.y+=sy;return true}
 function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=tx-b.x,dy=ty-b.y;if(Math.abs(dx)<.01&&Math.abs(dy)<.01)break;const sx=Math.max(-1,Math.min(1,dx)),sy=Math.max(-1,Math.min(1,dy));let moved=false;
   if(sx&&tryStep(b,sx,0))moved=true;if(sy&&tryStep(b,0,sy))moved=true;if(!moved)break}
