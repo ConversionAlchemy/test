@@ -244,11 +244,11 @@ const ELEM={
  Stone:{p:{cls:'stone',hp:3,tarn:[96,94,80],moss:[78,100,52],age:'moss'},vars:{block:'Block',quarter:'Quartered',slabs:'Slabs'},mats:{grey:{n:'Greystone',c:[124,119,111],sp:'rubble'},gran:{n:'Highland granite',c:[146,132,128],hp:4,tarn:[108,100,94],moss:[150,156,118],age:'lichen',speck:1,sp:'crazy'},
   aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,tarn:[196,180,146],moss:0,age:'staining',shine:28,vein:[255,255,252],sp:'chequer'},gold:{n:'Aurumstone',c:[200,170,100],tarn:[128,104,62],moss:0,fade:.25,age:'grime',vein:[252,234,168],sp:'lozenge'},night:{n:'Umbrastone',c:[35,28,46],cls:'marble',hp:5,tarn:[78,68,92],moss:0,fade:.5,age:'dulling',shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'},sp:'vent',cut:1}},
   old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',tarn:[150,150,124],moss:0,hp:4,shine:28,sp:'quatre'}}},
- Wood:{p:{cls:'wood',hp:2,burn:1,tarn:[140,136,126],split:1,scuff:1,age:'weathering'},vars:{panel:'Polished',planks:'Planks'},mats:{oak:{n:'Oak',c:WOOD.oak,rim:.575,tarn:[150,148,140],age:'silvering',sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,tarn:[184,166,118],scuff:1.7,age:'yellowing, dents',sp:'basket'},teak:{n:'Teak',c:WOOD.teak,tarn:[176,172,162],split:.4,age:'pale silver',sp:'endgrain'},mahog:{n:'Mahogany',c:MAHOG,tarn:[176,96,72],split:.8,craze:1,age:'fading, crazing',sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,tarn:[64,58,54],scuff:1.8,age:'light scratches',sp:'brassinlay'}},old:{walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'}}},
+ Wood:{p:{cls:'wood',hp:2,burn:1,tarn:[140,136,126],split:1,scuff:1,age:'weathering'},vars:{panel:'Polished',planks:'Planks'},mats:{oak:{n:'Oak',c:WOOD.oak,rim:.575,tarn:[150,148,140],age:'silvering',sp:'herring'},pine:{n:'Pine',c:WOOD.pine,hp:1,tarn:[184,166,118],scuff:1.7,age:'yellowing, dents',sp:'basket'},teak:{n:'Teak',c:WOOD.teak,tarn:[176,172,162],split:.4,age:'pale silver',sp:'endgrain'},mahog:{n:'Mahogany',c:MAHOG,tarn:[176,96,72],split:.8,craze:1,age:'fading, crazing',sp:'parquet'},ebony:{n:'Ebony',c:EBONY,hp:3,tarn:[64,58,54],scuff:1.8,age:'light scratches',sp:'bchequer'}},old:{walnut:{n:'Walnut',c:WOOD.walnut,sp:'chevron'}}},
  Metal:{p:{cls:'metal',hp:6,shine:60},vars:{panel:'Panels',inset:'Inset panels'},mats:{steel:{n:'Steel',c:[145,148,151],tarn:[112,124,146],hp:7,w:1,shine:70,age:'tinge',tint:[[104,132,118],[88,118,100]],sp:'louvre'},iron:{n:'Iron',c:[118,116,112],tarn:[146,98,62],hp:6,w:1.3,age:'tinge',tint:[[132,100,72],[116,82,56]],shine:45,sp:'treadplate'},
   brass:{n:'Brass',c:[200,146,88],tarn:[96,150,122],hp:5,w:.9,age:'verdigris',shine:80,sp:'fluted'},gold:{n:'Aurum',c:[228,196,104],tarn:[176,124,70],hp:8,w:.8,age:'dents',shine:80,sp:'mosaic'},umbra:{n:'Umbra',c:[56,56,67],tarn:[36,41,41],hp:10,w:.5,age:'dark tinge',dk:.57,shine:25,sp:'runes'}}},
  Cloth:{p:{cls:'cloth',hp:1,burn:1,nowall:1,age:'fading, fraying'},vars:{border:'Bordered'},mats:{crimson:{n:'Crimson',c:[128,34,38],sp:'diamond'},verdant:{n:'Verdant',c:[34,82,56],sp:'trellis'},purple:{n:'Royal purple',c:[58,30,78],sp:'medal'},blue:{n:'Topaz',c:[34,52,104],sp:'wave'},white:{n:'Ivory',c:[206,198,180],sp:'rosette'}}}};
-const SPN={brassinlay:'Brass inlay',endgrain:'End-grain blocks',diamond:'Diamond weave',trellis:'Vine trellis',medal:'Lozenge medallion',wave:'Wave meander',rosette:'Rosette',basket:'Basketweave',rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',treadplate:'Tread plate',fluted:'Fluted',coffer:'Coffered',coffer2:'Coffered ceiling',mosaic:'Solari mosaic',vent:'Glow panel',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
+const SPN={bchequer:'Brass chequer',endgrain:'End-grain blocks',diamond:'Diamond weave',trellis:'Vine trellis',medal:'Lozenge medallion',wave:'Wave meander',rosette:'Rosette',basket:'Basketweave',rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',treadplate:'Tread plate',fluted:'Fluted',coffer:'Coffered',coffer2:'Coffered ceiling',mosaic:'Solari mosaic',vent:'Glow panel',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
 // retired members stay drawable so older maps still load
 const memb=(el,mat)=>ELEM[el].mats[mat]||(ELEM[el].old||{})[mat],mprop=(el,mat)=>({...ELEM[el].p,...memb(el,mat)});
 const varsOf=(el,mat)=>{const M=memb(el,mat),o={...ELEM[el].vars};for(const v of M.nov||[])delete o[v];if(M.sp)o[M.sp]=SPN[M.sp];for(const a of[].concat(M.alt||[]))o[a]=SPN[a];return o};
@@ -304,9 +304,8 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='brick')return(X,Y)=>{const r=Y>>2,xx=X+(r&1?4:0);return sc(W0(X,Y,(xx>>3)%7),(Y&3)===0||(xx&7)===0?.72:tone(r*977+(xx>>3),s,.12))};
   if(v==='inlay')return(X,Y)=>{const y=Y&15;let k=sc(W0(X,Y,(Y>>3)*3),tone(Y>>3,s,.06));if((Y&7)===7)k=sc(k,.8);if(y===2||y===13)k=mx(k,[220,186,126],.45);return k};
   if(v==='parquet')return(X,Y)=>{const u=((X+Y)%16+16)%16,w=((X-Y)%16+16)%16,g=(X&15)===0||(Y&15)===0;let k=W0(X,Y,((X+Y)>>3)*3);if(g)return sc(k,.66);if(u===0||w===0)return sc(k,.69);if(u===1||w===1)return sc(k,1.06);return k};
-  // brass inlay: polished ebony squares with a thin brass line in every joint and a brass stud where four meet
-  if(v==='brassinlay'){const L=metalTone('brass',.62),SH=metalTone('brass',.95),SM=metalTone('brass',.74);return(X,Y)=>{const x=X&15,y=Y&15,nx=x>=15||x<=1,ny=y>=15||y<=1;if(nx&&ny)return x===0&&y===0?SH:SM;if(x===0||y===0)return L;
-   let k=sc(W0(X,Y,((X>>4)*7+(Y>>4))%9),tone((X>>4)*31+(Y>>4),s,.06));if(x===1||y===1)k=sc(k,.82);else if(x===15||y===15)k=sc(k,1.1);return k}}
+  // brass chequer: polished ebony and brass squares alternating, laid like the Imperial chequer
+  if(v==='bchequer')return(X,Y)=>{const q=((X>>4)+(Y>>4))&1,x=X&15,y=Y&15;if(q&&(x===1||y===1))return metalTone('brass',1.2);if(q&&(x===15||y===15))return metalTone('brass',.62);const sh=(x+y)/30;let k=q?metalTone('brass',1.1-sh*.35):sc(W0(X,Y,((X>>4)*7+(Y>>4))%9),tone((X>>4)*31+(Y>>4),s,.06));return x===0||y===0?sc(k,.78):x===1||y===1?sc(k,1.06):k};
   if(v==='marq')return(X,Y)=>{const x=X&15,y=Y&15,dx=Math.abs(x-7.5),dy=Math.abs(y-7.5),d=dx+dy;let k=W0(X,Y,0);if(Math.abs(d-6)<.6)return mx(k,GOLDL,.24);if(d<6)return(dx<.6||dy<.6)?mx(k,GOLDL,.16):woodT(X,Y,sc(c,1.6),s+3);return x===0||y===0?sc(k,.7):k};
   if(v==='fret')return(X,Y)=>{const x=X&15,y=Y&15,qx=x<8?x:15-x,qy=y<8?y:15-y,on=KEYQ[qy][qx]==='#'||KEYQ[qx][qy]==='#'&&qx===qy;let k=W0(X,Y,0);if(on)return mx(woodT(X,Y,WOOD.ash,s+4),k,.35);return x===0||y===0?sc(k,.72):k}}
  if(el==='Metal'){const M=(X,Y)=>metalOf(mat,X,Y);
@@ -431,7 +430,7 @@ const AGE={
    if(M.craze&&a>.4&&Math.abs(vn(X/3,Y/3,sd+9)-.5)<.035)o=sc(o,.84);
    if(a>.25&&hh(X>>2,Y,sd+2)>.93-.08*t*sf)o=lt?mx(o,[150,132,112],.35):sc(o,1.1);else if(hh(X,Y,sd+3)>.99-.012*t*sf)o=sc(o,.78);return o}},
  // soil wear: it darkens and packs down, trodden paths smooth out the light grit, dark stains and clods spread as it gets worse
- Earth:(el,mat,t)=>{const sd=ageSd(el,mat);
+ Earth:(el,mat,t)=>{const sd=ageSd(el,mat),ageA=(X,Y,sd,t)=>{const m=fbm(X/13,Y/13,sd)*.7+hh(X>>1,Y>>1,sd+1)*.3;return Math.max(0,Math.min(1,(t*.66-m)/.14))*(.4+.6*t)};
   // grass wears through to the base soil in noisy patches, the rest dries out
   if(mat==='grass')return(k,X,Y)=>{const f=fbm(X/9,Y/9,64)*.8+hh(X>>1,Y>>1,sd)*.2,th=.84-t*.5;let o=t>.3?mx(k,GDRY,(t-.3)*.35):k;if(f>th){const a=Math.min(1,(f-th)*6);o=hh(X,Y,sd+1)<a?soilT(X,Y):mx(o,sc(o,.82),.5)}return o};
   // soil packs down and darkens, then wears through to greystone with the soil dark around the bare rock
@@ -445,15 +444,17 @@ const AGE={
   return(k,X,Y)=>{const a=ageA(X,Y,sd,t);if(a<=0)return k;
    let o=mx(k,F,a*.3);if(a>.4&&(X+Y)&1)o=sc(o,.95);const D=[150,140,124],du=fbm(X/5,Y/5,sd+7);if(du>1.02-a*.4-t*.1)o=mx(o,D,.1+.06*t);if(a>.2&&hh(X>>2,Y,sd+2)>.95-.04*t)o=mx(o,D,.16);if(a>.5)WEARF=1;if(t>.8&&a>.5&&hh(X>>1,Y>>1,sd+6)>.988)o=sc(k,.5);return o}}};
 const AGEC={},ageOf=(el,mat,cd,w)=>{if(!AGE[el]||!(cd<5))return null;const q=el+'.'+mat+'.'+cd+(w?'w':'');return AGEC[q]||(AGEC[q]=AGE[el](el,mat,ageT(cd),w))};
-for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
+// Umbra furniture, doors and slabs sit a step lighter than its floor, at the wall's tone, so they read on pale floors
+const UMBL=1.28;
+for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=MCHEST[k][0]==='umbra'?(X,Y)=>sc(metalOf('umbra',X,Y),UMBL):(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
 // a metal table's top (its rim and bevel come with the other furniture, in regions)
-for(const k in MTABLE)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MTABLE[k][0],X,Y);KIND[n]='floor'}
+for(const k in MTABLE)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=MTABLE[k][0]==='umbra'?(X,Y)=>sc(metalOf('umbra',X,Y),UMBL):(X,Y)=>metalOf(MTABLE[k][0],X,Y);KIND[n]='floor'}
 for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e]||e==='Earth'&&mat!=='dirt'&&mat!=='grass')continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(POLT.has(k))POLT.add(n)}}
-// grass thins out toward any soil beside it, over a ragged edge a few pixels deep
-const isSoil=k=>k==='dirt'||/^earth\.dirt/.test(k||''),isGrass=k=>k==='grass'||/^earth\.grass/.test(k||'');
-for(const k of Object.keys(TEX))if(isGrass(k)&&!/\.w/.test(k)){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);if(cx===undefined||!q)return q;const x=X&15,y=Y&15;let d=99,nk=null,nx=0,ny=0;
- for(const[dx,dy,v]of[[-1,0,x],[1,0,15-x],[0,-1,y],[0,1,15-y],[-1,-1,Math.max(x,y)],[1,-1,Math.max(15-x,y)],[-1,1,Math.max(x,15-y)],[1,1,Math.max(15-x,15-y)]])if(v<d&&isSoil(LINK(cx+dx,cy+dy))){d=v;nk=LINK(cx+dx,cy+dy);nx=cx+dx;ny=cy+dy}
- if(d>10)return q;const w=3+fbm(X/5,Y/5,91)*8,a=1-d/w;if(a<=0)return q;return hh(X,Y,92)<a*1.1?(TEX[nk]||soilT)(X,Y,nx,ny)||soilT(X,Y):mx(q,sc(q,.8),a*.6)}}
+// ground edges blend: grass thins out toward soil beside it, and any two wear levels of the same ground dither into each other over a ragged edge
+const isSoil=k=>k==='dirt'||/^earth\.dirt/.test(k||''),isGrass=k=>k==='grass'||/^earth\.grass/.test(k||''),ladT=k=>{if(!k)return -1;const g=isGrass(k);if(!g&&!isSoil(k))return -1;const c=+((/~(\d)$/.exec(k)||[])[1]||5);return g?5-c:c===5?4:9-c};
+const RAWE={};for(const k of Object.keys(TEX))if((isGrass(k)||isSoil(k))&&!/\.w/.test(k)){const f=RAWE[k]=TEX[k],L=ladT(k),gr=isGrass(k);TEX[k]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);if(cx===undefined||!q)return q;const x=X&15,y=Y&15;let d=99,nk=null,nx=0,ny=0;
+ for(const[dx,dy,v]of[[-1,0,x],[1,0,15-x],[0,-1,y],[0,1,15-y],[-1,-1,Math.max(x,y)],[1,-1,Math.max(15-x,y)],[-1,1,Math.max(x,15-y)],[1,1,Math.max(15-x,15-y)]]){if(v>=d)continue;const n=LINK(cx+dx,cy+dy),Ln=ladT(n);if(Ln<0||Ln===L||!gr&&isGrass(n))continue;d=v;nk=n;nx=cx+dx;ny=cy+dy}
+ if(d>10)return q;const w=3+fbm(X/5,Y/5,91)*8,a=1-d/w;if(a<=0)return q;const N=()=>(RAWE[nk]||soilT)(X,Y,nx,ny)||q;if(gr&&isSoil(nk))return hh(X,Y,92)<a*1.1?N():mx(q,sc(q,.8),a*.6);return hh(X,Y,93)<a*.55?N():q}}
 // wooden furniture: each piece is [wood, shape, name], drawn as its wood's polished face; rim, bevel and inlay are drawn per piece, as on polished floors
 const WSHAPE={table:'table',desk:'desk',chest:'chest',seat:'chair'},WOLD={'oak.table':'table','oak.chest':'chest','oak.seat':'seat','mahog.desk':'desk','ebony.desk':'edesk','pine.table':'ptable','pine.chest':'pchest','pine.seat':'pseat','teak.table':'ttable','teak.chest':'tchest','teak.seat':'tseat'},WPIECE={};
 for(const m of Object.keys(ELEM.Wood.mats))for(const sh in WSHAPE)WPIECE[WOLD[m+'.'+sh]||sh+'.'+m]=[m,sh,memb('Wood',m).n+' '+WSHAPE[sh]];
@@ -716,7 +717,7 @@ let map=[],UND=[];LINK=(x,y)=>map[y]&&map[y][x];// UND: the floor laid under fur
 const undAt=(cx,cy)=>UND[cy]&&UND[cy][cx]||null;
 // a grass cell is repainted when an earth cell beside it changes, so its edge follows the soil
 let RPG=0;
-function paintCell(cx,cy,key){paintCell0(cx,cy,key);if(RPG||!/^(grass|dirt|earth\.)/.test(map[cy][cx]||''))return;RPG=1;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const k=map[cy+dy]&&map[cy+dy][cx+dx];if((dx||dy)&&k&&/^(grass|earth\.grass)/.test(k))paintCell0(cx+dx,cy+dy,k)}RPG=0}
+function paintCell(cx,cy,key){paintCell0(cx,cy,key);if(RPG||!/^(grass|dirt|earth\.)/.test(map[cy][cx]||''))return;RPG=1;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const k=map[cy+dy]&&map[cy+dy][cx+dx];if((dx||dy)&&k&&/^(grass|dirt|earth\.(grass|dirt))/.test(k))paintCell0(cx+dx,cy+dy,k)}RPG=0}
 function tilePix(key,cx,cy){const f=TEX[key]||TEX.dirt,d=new Uint8ClampedArray(T*T*4);for(let y=0;y<T;y++)for(let x=0;x<T;x++){WEARF=0;const c=f(cx*T+x,cy*T+y,cx,cy)||SOIL,i=(y*T+x)*4;d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255-WEARF}return d}
 // every tile has one material; custom textures take their recipe's, or their parent's. Hit class: 1 stone, 2 wood, 3 metal
 let EDOK=false;
@@ -846,7 +847,7 @@ function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);
 const softOf=(el,mat)=>Math.max(.3,Math.min(1.6,3/(mprop(el,mat).hp||3)));
 // grass and soil wear down one ladder: grass New to Ruined, then soil Used to Ruined, each blast taking it further
 const ladL=k=>{if(k==='grass')return 0;if(k==='dirt')return 4;const c=CATN[k];if(!c||c[0]!=='Earth'||c[3])return -1;const n=c[4]||5;return c[1]==='grass'?5-n:c[1]==='dirt'?(n===5?4:9-n):-1},ladK=L=>L<=4?'earth.grass.plain'+(L?'~'+(5-L):''):'earth.dirt.plain~'+(9-L);
-function earthWear(cx,cy,x,y,R,top,L0){const so=Math.min(1.2,softOf('Earth','grass')),Rm=R*(.55+.45*so),st=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?0:Math.round((1-d)*top*so+.3)},to=(X,Y)=>{const s=st(X,Y);return s<=0?L0:Math.min(8,Math.max(L0+Math.ceil(s/2),Math.round(s*1.2)))};
+function earthWear(cx,cy,x,y,R,top,L0){const so=Math.min(1.2,softOf('Earth','grass')),Rm=R*(.55+.45*so),st=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?0:(1-d)*top*so+.15},to=(X,Y)=>{const s=st(X,Y);if(s<=0)return L0;const r=hh(X,Y,93);return Math.min(8,Math.max(L0+Math.floor(s/2+r),Math.floor(s*1.2+r)))};
  const Lc=to(cx*T+8,cy*T+8);if(Lc>L0)map[cy][cx]=ladK(Lc);
  for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const L=to(X,Y);if(L<=L0)continue;const q=TEX[ladK(L)](X,Y,cx,cy);if(!q)continue;floor[j]=rgb(cl(q[0]),cl(q[1]),cl(q[2]));if(PR)PR.floor[j]=floor[j]}}
 function blastWear(x,y,s){const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
@@ -1290,7 +1291,7 @@ function orient(b){let a=b.ang||0;if(!b.src){for(const p of b.px){const q=swingP
  b.px=px;b.used=used;mkSet(b)}
 function slab(m,x,y,rot=0,len=16,th=8){const b={id:uid++,type:'slab',mat:m,x,y,vx:0,vy:0,rot,ang:0,tgt:0,len,th,src:slabPix(m,len,th),px:[],mass:9*len/16};orient(b);bodies.push(b);return b}
 // metal slabs are drawn in steel, then recoloured into their own metal
-function barricade(m,x,y,len,th,mat,cd){const b=slab(m,x,y,0,len,th);b.free=true;if(m===3&&mat&&mat!=="steel"){for(const q of b.src)q[2]=toneC(mat,q[2]);b.used=null;b.px=[];orient(b)}if(m===3)wearSrc(b,'Metal',mat||'steel',cd);else{if(mat&&ELEM.Wood.mats[mat]&&mat!=='oak')mahogany(b,memb('Wood',mat).c,0);wearSrc(b,'Wood',mat||'oak',cd)}return b}
+function barricade(m,x,y,len,th,mat,cd){const b=slab(m,x,y,0,len,th);b.free=true;if(m===3&&mat&&mat!=="steel"){for(const q of b.src)q[2]=mat==='umbra'?mul(toneC(mat,q[2]),UMBL):toneC(mat,q[2]);b.used=null;b.px=[];orient(b)}if(m===3)wearSrc(b,'Metal',mat||'steel',cd);else{if(mat&&ELEM.Wood.mats[mat]&&mat!=='oak')mahogany(b,memb('Wood',mat).c,0);wearSrc(b,'Wood',mat||'oak',cd)}return b}
 // a slab or door in condition cd: its material's wear over each pixel, from the slab's own edge; pieces sample the wear at twice the scale of tiles so small ones still show patches
 function wearSrc(b,el,mat,cd){const A=ageOf(el,mat,cd);if(!A)return;const L=b.len||16,th=b.th||8,o=b.id*37;for(const q of b.src){const x=q[8],y=q[9],c=q[2],r=A([c&255,c>>8&255,c>>16&255],(x+o)*2,(y+o)*2,()=>Math.min(x,L-1-x,y+th,-1-y)-1);q[2]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}b.cond=cd;b.used=null;b.px=[];orient(b)}
 function slabFits(d,ignore){const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H)return false;const j=Y*W+X;if(sol[j]||(slabG[j]&&slabG[j]!==d.id&&!(ignore&&ignore.has(slabG[j]))))return false}return true}
@@ -2712,7 +2713,7 @@ const FURN={Earth:{grass:{furn:['hedge']}},Wood:{oak:{doors:['wood'],slabs:[[2,'
 for(const k in WPIECE){const[m,sh]=WPIECE[k];if(sh==='table'||sh==='desk')FW[k]=2;if(!RETIRED.has(k)&&sh!=='desk')(FURN.Wood[m].furn=FURN.Wood[m].furn||[]).push(k)}
 // every metal gives a slab and a heavy slab as cover
 for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[[3,n+' slab',16,8,mat],[3,'Heavy '+n.toLowerCase()+' slab',32,8,mat]]}
-const umbraC=c=>toneC('umbra',c);
+const umbraC=c=>mul(toneC('umbra',c),UMBL);
 // a door is its material's slab plus a hinge and a lock
 // hinges grey and the lock orange, each picked light or dark against the leaf so they always stand out
 const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9],c=q[2],lum=((c&255)+(c>>8&255)+(c>>16&255))/3,my=-(th>>1);

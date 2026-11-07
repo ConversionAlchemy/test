@@ -43,7 +43,7 @@ let map=[],UND=[];LINK=(x,y)=>map[y]&&map[y][x];// UND: the floor laid under fur
 const undAt=(cx,cy)=>UND[cy]&&UND[cy][cx]||null;
 // a grass cell is repainted when an earth cell beside it changes, so its edge follows the soil
 let RPG=0;
-function paintCell(cx,cy,key){paintCell0(cx,cy,key);if(RPG||!/^(grass|dirt|earth\.)/.test(map[cy][cx]||''))return;RPG=1;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const k=map[cy+dy]&&map[cy+dy][cx+dx];if((dx||dy)&&k&&/^(grass|earth\.grass)/.test(k))paintCell0(cx+dx,cy+dy,k)}RPG=0}
+function paintCell(cx,cy,key){paintCell0(cx,cy,key);if(RPG||!/^(grass|dirt|earth\.)/.test(map[cy][cx]||''))return;RPG=1;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const k=map[cy+dy]&&map[cy+dy][cx+dx];if((dx||dy)&&k&&/^(grass|dirt|earth\.(grass|dirt))/.test(k))paintCell0(cx+dx,cy+dy,k)}RPG=0}
 function tilePix(key,cx,cy){const f=TEX[key]||TEX.dirt,d=new Uint8ClampedArray(T*T*4);for(let y=0;y<T;y++)for(let x=0;x<T;x++){WEARF=0;const c=f(cx*T+x,cy*T+y,cx,cy)||SOIL,i=(y*T+x)*4;d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255-WEARF}return d}
 // every tile has one material; custom textures take their recipe's, or their parent's. Hit class: 1 stone, 2 wood, 3 metal
 let EDOK=false;
@@ -173,7 +173,7 @@ function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);
 const softOf=(el,mat)=>Math.max(.3,Math.min(1.6,3/(mprop(el,mat).hp||3)));
 // grass and soil wear down one ladder: grass New to Ruined, then soil Used to Ruined, each blast taking it further
 const ladL=k=>{if(k==='grass')return 0;if(k==='dirt')return 4;const c=CATN[k];if(!c||c[0]!=='Earth'||c[3])return -1;const n=c[4]||5;return c[1]==='grass'?5-n:c[1]==='dirt'?(n===5?4:9-n):-1},ladK=L=>L<=4?'earth.grass.plain'+(L?'~'+(5-L):''):'earth.dirt.plain~'+(9-L);
-function earthWear(cx,cy,x,y,R,top,L0){const so=Math.min(1.2,softOf('Earth','grass')),Rm=R*(.55+.45*so),st=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?0:Math.round((1-d)*top*so+.3)},to=(X,Y)=>{const s=st(X,Y);return s<=0?L0:Math.min(8,Math.max(L0+Math.ceil(s/2),Math.round(s*1.2)))};
+function earthWear(cx,cy,x,y,R,top,L0){const so=Math.min(1.2,softOf('Earth','grass')),Rm=R*(.55+.45*so),st=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?0:(1-d)*top*so+.15},to=(X,Y)=>{const s=st(X,Y);if(s<=0)return L0;const r=hh(X,Y,93);return Math.min(8,Math.max(L0+Math.floor(s/2+r),Math.floor(s*1.2+r)))};
  const Lc=to(cx*T+8,cy*T+8);if(Lc>L0)map[cy][cx]=ladK(Lc);
  for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const L=to(X,Y);if(L<=L0)continue;const q=TEX[ladK(L)](X,Y,cx,cy);if(!q)continue;floor[j]=rgb(cl(q[0]),cl(q[1]),cl(q[2]));if(PR)PR.floor[j]=floor[j]}}
 function blastWear(x,y,s){const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
@@ -617,7 +617,7 @@ function orient(b){let a=b.ang||0;if(!b.src){for(const p of b.px){const q=swingP
  b.px=px;b.used=used;mkSet(b)}
 function slab(m,x,y,rot=0,len=16,th=8){const b={id:uid++,type:'slab',mat:m,x,y,vx:0,vy:0,rot,ang:0,tgt:0,len,th,src:slabPix(m,len,th),px:[],mass:9*len/16};orient(b);bodies.push(b);return b}
 // metal slabs are drawn in steel, then recoloured into their own metal
-function barricade(m,x,y,len,th,mat,cd){const b=slab(m,x,y,0,len,th);b.free=true;if(m===3&&mat&&mat!=="steel"){for(const q of b.src)q[2]=toneC(mat,q[2]);b.used=null;b.px=[];orient(b)}if(m===3)wearSrc(b,'Metal',mat||'steel',cd);else{if(mat&&ELEM.Wood.mats[mat]&&mat!=='oak')mahogany(b,memb('Wood',mat).c,0);wearSrc(b,'Wood',mat||'oak',cd)}return b}
+function barricade(m,x,y,len,th,mat,cd){const b=slab(m,x,y,0,len,th);b.free=true;if(m===3&&mat&&mat!=="steel"){for(const q of b.src)q[2]=mat==='umbra'?mul(toneC(mat,q[2]),UMBL):toneC(mat,q[2]);b.used=null;b.px=[];orient(b)}if(m===3)wearSrc(b,'Metal',mat||'steel',cd);else{if(mat&&ELEM.Wood.mats[mat]&&mat!=='oak')mahogany(b,memb('Wood',mat).c,0);wearSrc(b,'Wood',mat||'oak',cd)}return b}
 // a slab or door in condition cd: its material's wear over each pixel, from the slab's own edge; pieces sample the wear at twice the scale of tiles so small ones still show patches
 function wearSrc(b,el,mat,cd){const A=ageOf(el,mat,cd);if(!A)return;const L=b.len||16,th=b.th||8,o=b.id*37;for(const q of b.src){const x=q[8],y=q[9],c=q[2],r=A([c&255,c>>8&255,c>>16&255],(x+o)*2,(y+o)*2,()=>Math.min(x,L-1-x,y+th,-1-y)-1);q[2]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}b.cond=cd;b.used=null;b.px=[];orient(b)}
 function slabFits(d,ignore){const bx=Math.round(d.x),by=Math.round(d.y);for(const p of d.px){const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H)return false;const j=Y*W+X;if(sol[j]||(slabG[j]&&slabG[j]!==d.id&&!(ignore&&ignore.has(slabG[j]))))return false}return true}

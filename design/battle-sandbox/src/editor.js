@@ -191,7 +191,7 @@ const FURN={Earth:{grass:{furn:['hedge']}},Wood:{oak:{doors:['wood'],slabs:[[2,'
 for(const k in WPIECE){const[m,sh]=WPIECE[k];if(sh==='table'||sh==='desk')FW[k]=2;if(!RETIRED.has(k)&&sh!=='desk')(FURN.Wood[m].furn=FURN.Wood[m].furn||[]).push(k)}
 // every metal gives a slab and a heavy slab as cover
 for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[[3,n+' slab',16,8,mat],[3,'Heavy '+n.toLowerCase()+' slab',32,8,mat]]}
-const umbraC=c=>toneC('umbra',c);
+const umbraC=c=>mul(toneC('umbra',c),UMBL);
 // a door is its material's slab plus a hinge and a lock
 // hinges grey and the lock orange, each picked light or dark against the leaf so they always stand out
 const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9],c=q[2],lum=((c&255)+(c>>8&255)+(c>>16&255))/3,my=-(th>>1);
