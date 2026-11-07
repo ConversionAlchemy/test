@@ -338,7 +338,7 @@ const HIC={musket:[['...................','..........bbbbbbbbb','wwwwwwwwwwbbbbb
  gold:[['..kkkk..','.kyyyyk.','kyyddyyk','kydyydyk','kydyydyk','kyyddyyk','.kyyyyk.','..kkkk..'],{k:'#5a4410',y:'#e2c46a',d:'#b8942e'},3],
  box:[['kkkkkkkk','kwwwwwwk','kwyyyywk','kwwwwwwk','kkkkkkkk'],{k:'#3a2a18',w:'#8a6038',y:'#d8c08a'},3],
  cell:[['.kkkk.','kbbbbk','kbccbk','kbccbk','kbbbbk','.kkkk.'],{k:'#1a2a3a',b:'#3a6a9a',c:'#9ad8ff'},3]};
-HIC.note=[['kkkkkkkkk','kwwwwwwwk','kwsssswwk','kwwwwwwwk','kwssssswk','kwwwwwwwk','kwssswwwk','kwwwwwwwk','kkkkkkkkk'],{k:'#3a2a18',w:'#e6d6ae',s:'#8a6a3e'},3];
+HIC.note=[['rrrrrrrrrrrrrq','rpppspppppppsq','rpppppjpppppqq','rpjjijjpjijjpq','rpppspppppppsq','rppjpppppjpppq','rpijjjpjjijpqq','rspppppppppppq','rppppjpppppspq','rpjjijjpijjppq','rppppppspppppq','rpppppppjijjpq','rpspppppppppqq','qqqqqqqqqqqqqq'],{r:'#f6eed8',p:'#ebdfc2',s:'#ddcea9',q:'#c4b28c',i:'#4a3524',j:'#8a7356'},2];
 const hic=k=>k==='note'?pix(...HIC.note):sicon(k);// every icon is the item's top-down sprite
 function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?q.t||'Note':q.k}
  else if(sil){const c=hic(sil);c.className='sil';d.append(c)}return d}
