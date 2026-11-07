@@ -328,7 +328,7 @@ function cleanUp(){if(!CL)return;const c=CL;CL=null;vacOff();if(c.k==='wand'&&c.
 let WQ=null;function wandTick(){const w=WQ;if(!w)return;const t=performance.now();if(t<w.next)return;const[x,y]=w.q.shift();repairCell(x,y);w.run++;chime(1+Math.min(.4,w.run*.03));w.next=t+Math.max(45,110-w.run*6);if(!w.q.length){WQ=null;ds0Need=true;if(ROOMS)ROOMS.t=-1e9}}
 
 // items
-const ITEMS=[['gold','Solari'],['mbox','Musket balls'],['pbox','Pistol shot'],['sbox','Shells'],['rbox','Bolter rods'],['cell','Plasma cells']];let itDrag=null;
+const ITEMS=[['gold','Solari'],['mbox','Musket balls'],['pbox','Pistol shot'],['sbox','Blunderbuss pellets'],['rbox','Bolter rods'],['cell','Plasma cells']];let itDrag=null;
 {const host=$('items');for(const[k,n]of ITEMS){const d=mk('div');d.append(icon(shape(k,0),1),mk('span','n',n));let amt=null;if(k==='gold'){amt=mk('input');amt.type='number';amt.value=50;amt.min=1;amt.style.cssText='width:56px;background:transparent;border:0;padding:0;font-size:16px';amt.onpointerdown=e=>e.stopPropagation();d.append(amt)}else d.append(mk('span','c',''));
  d.onpointerdown=e=>{au();e.preventDefault();const g=icon(shape(k,0),2);g.className='ghost';g.style.left=e.clientX-28+'px';g.style.top=e.clientY-20+'px';$('sm').appendChild(g);itDrag={k,n:amt?Math.max(1,+amt.value||50):1,g}};host.appendChild(d)}}
 window.addEventListener('pointermove',e=>{if(itDrag){itDrag.g.style.left=e.clientX-28+'px';itDrag.g.style.top=e.clientY-20+'px'}});
