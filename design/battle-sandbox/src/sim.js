@@ -300,7 +300,7 @@ function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
  for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='metal.gold.panel')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='metal.gold.panel';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
  for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};slab(3,36,400,1);
- {const[a,b]=dbl(3,208,128,271,111,0,2,true,32,16);a.kid=b.kid='aurum'}dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,true,32,8);
+ dbl(3,208,128,271,111,0,2,true,32,16);dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,false,32,8);
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
  container(8,2,[{k:'gold',n:1500}]);container(13,2,[{k:'gold',n:1600}]);container(19,2,[{k:'gold',n:1500}]);container(5,25,[{k:'gold',n:200}]);container(20,25,[{k:'gold',n:200}]);
  container(22,10,[{k:'gold',n:400},{k:'grenade',n:3}]);container(5,10,[]);container(5,33,[]);container(22,33,[{k:'gold',n:120}]);for(const o of bodies){if(o.type==='slab')goldify(o);if(o.kind==='crate')o.metal=true}
@@ -364,7 +364,7 @@ function cApply(c){const r=cPack(c);if(r)for(const[q,p]of r)Object.assign(q,p,{v
 function cFit(c,k){const e={k},r=cPack(c,e);return r?r.get(e):null}
 function cAt(c,k,X,Y,skip){if(skip&&c.inv.includes(skip))return{gx:skip.gx,gy:skip.gy,r:skip.r,sl:skip.sl};return cFit(c,k)}
 // chests take weapons, grenades and ammo; desks take gold, notes and keys
-const ITEMK=new Set(['gold','note']),cOK=(c,k)=>c.chest?!ITEMK.has(k):c.desk?ITEMK.has(k):true;
+const ITEMK=new Set(['gold','note']),isItem=k=>ITEMK.has(k)||isKey(k),cOK=(c,k)=>c.chest?!isItem(k):c.desk?isItem(k):true;
 function cAdd(c,it){if(!cOK(c,it.k))return false;c.inv=c.inv||[];if(it.k==='gold'){const m=c.inv.find(q=>q&&q.k==='gold');if(m){m.n+=it.n;return true}}const q={...it,n:it.k==='gold'?it.n:1};delete q.mode;delete q.sl;const r=cPack(c,q);if(!r)return false;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);for(const[z,p]of r)Object.assign(z,p,{v:9});c._sig=cSig(c);return true}
 function cFill(c,items){c.inv=[];for(const it of items||[]){if(!it)continue;const n=it.k==='gold'||it.k==='note'?1:it.n||1;for(let i=0;i<n;i++){const one={...it};if(one.k!=='gold')one.n=1;delete one.gx;delete one.gy;delete one.r;if(!cAdd(c,one))cSpill(c,one)}}}
 const cFitsAll=(c,items)=>{const t={x:c.x,y:c.y,long:c.long,box:c.box,cells:c.cells,inv:[]};for(const it of items)for(let i=0;i<(it.k==='gold'||it.k==='note'?1:it.n||1);i++)if(!cAdd(t,{...it,n:it.k==='gold'?it.n:1}))return false;return true};
@@ -530,7 +530,7 @@ const slotOK=(t,i)=>t.type!=='token'||!(i===1&&LIGHT.has(t.unit))&&i<4+(PACK[t.u
 // what a body fires from: a unit's held item, or a ground weapon acting as its own holder
 const slot=b=>b.type==='token'?b.held:b.type==='weapon'&&WP[b.kind]?b.gs||(b.res===undefined&&CAP[b.kind]&&(b.res=CAP[b.kind]*2),b.gs={get k(){return b.kind},get ammo(){return b.ammo??CAP[b.kind]},set ammo(v){b.ammo=v},get res(){return b.res||0},set res(v){b.res=v},heat:0}):null;
 function consume(b){const s=b.held;if(!s)return;s.n=(s.n||1)-1;if(s.n>0){if(CAP[s.k])s.ammo=CAP[s.k];delete s.mode;b.hc=null;return}if(b.inv&&b.si>=0)b.inv[b.si]=null;b.held=null;b.si=-1;b.hc=null}
-function selectSlot(b,i){const s=b.inv&&b.inv[i];if(!s||s.k==='gold'||s.k==='note')return;if(s.k.endsWith('box')||s.k==='cell'){const h=b.held;if(h&&BOX[h.k]===s.k){h.res=(h.res||0)+RCAP(h.k)*(s.n||1);b.inv[i]=null;sfx('reload');if((h.ammo??CAP[h.k])<CAP[h.k])reload(b)}return}if(b.si===i)return;b.si=i;b.held=s;b.hc=null;sfx('flick')}
+function selectSlot(b,i){const s=b.inv&&b.inv[i];if(!s||s.k==='gold'||s.k==='note'||isKey(s.k))return;if(s.k.endsWith('box')||s.k==='cell'){const h=b.held;if(h&&BOX[h.k]===s.k){h.res=(h.res||0)+RCAP(h.k)*(s.n||1);b.inv[i]=null;sfx('reload');if((h.ammo??CAP[h.k])<CAP[h.k])reload(b)}return}if(b.si===i)return;b.si=i;b.held=s;b.hc=null;sfx('flick')}
 function reload(b,o2){if(!o2&&offGun(b)){let r2=false;withOff(b,()=>{r2=reload(b,1)});return reload(b,1)||r2}const h=slot(b);if(!h||!CAP[h.k])return false;if(h.k==='sspear'&&(h.res||0)>0){delete h.mode;h.spent=false;b.hc=null}const v=h.vent;delete h.vent;const cur=h.ammo??CAP[h.k],take=Math.min(CAP[h.k]-cur,h.res||0);if(take<=0){if(v){b.cock=14;b.hc=null;sfx('reload')}return!!v}h.res-=take;h.ammo=cur+take;b.cock=14;b.hc=null;sfx('reload');if(b.type==='token'&&(b.ai||b.pa))say(b,'Reloading');hear(b.x,b.y,60,b,'reload');return true}
 const THR={civ:.5,home:.7,rifle:.8,guard:.9,cmd:1.25,shock:1};
 const C={lw:rgb(198,164,112),lwD:rgb(160,126,80),wood:rgb(138,96,58),woodH:rgb(162,118,74),woodD:rgb(110,74,44),iron:rgb(138,150,144),ironH:rgb(196,206,200),ironD:rgb(86,98,92),ironK:rgb(40,46,44),lead:rgb(78,80,86),clay:rgb(156,82,60),clayD:rgb(104,50,36),cloth:rgb(214,204,180),fuse:rgb(230,170,60)};
@@ -543,6 +543,8 @@ const SPRT=new Set(['pgun','musket','blunder','pistol','rod','sspear','spear','g
 function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(a);
  const st=(t0,t1,w,f)=>{for(let t=t0;t<=t1;t+=.5)for(let u=-w;u<=w+.01;u+=.5)m.set(K(Math.round(c*t-s*u),Math.round(s*t+c*u)),f(t,u))};
  const disc=(r,f)=>{for(let y=-6;y<=6;y++)for(let x=-6;x<=6;x++){const d=Math.hypot(x,y);if(d<=r)m.set(K(x,y),f(x,y,d))}};
+ if(isKey(kind)){const big=kind[0]==='b',mt=kind.split('_')[1],P=big?['###########','#.#....#..#','#.#.....##.','#.#........']:['###########','##.....#..#','#.......##.','#..........'],L=rgb(222,226,232),M=rgb(168,174,182),D=rgb(104,108,116);
+  for(let y=0;y<4;y++)for(let x=0;x<11;x++)if(P[y][x]==='#'){const v=y===0?(x>=7?M:L):x>=7?D:M,X=x-5,Y=y-1.5;m.set(K(Math.round(c*X-s*Y),Math.round(s*X+c*Y)),mt==='steel'?v:toneC(mt,v))}}
  if(kind==='spear')st(-12.8,12.4,0,t=>t>11?C.ironH:(t*2|0)%7===0?C.ironD:C.iron);
  if(kind==='sspear')st(-12,11.5,0,t=>{if(t>8)return(t*2|0)%2?plasC(Math.random()):rgb(240,226,255);const base=(t*2|0)%7===0?rgb(26,27,31):rgb(48,50,57);if(!heat)return base;const c=heatCol(heat*(.8+.25*(t+12)/20)+(hh(t*2|0,7,3)-.5)*.05*Math.min(1,heat*3),base,PHEAT);return heat>1?mix(c,rgb(255,255,255),Math.min(.7,(heat-1)*2.5)):c});
  if(kind==='pgun'){const dm=rgb(44,46,54);st(-10,-5,1,(t,u)=>sh3(dm,u));st(-5,6,.5,(t,u)=>sh3(rgb(54,56,66),u));st(6,8,1,(t,u)=>sh3(rgb(50,54,66),u));st(8.5,10,1.5,(t,u)=>t>=10&&Math.abs(u)<.3?rgb(220,170,255):sh3(rgb(58,60,68),u))}
@@ -1228,7 +1230,12 @@ function lightPass(){if(PBX){const[x0,y0,x1,y1]=PBX;for(let Y=y0;Y<=y1;Y++){cons
   for(const j of [j0,j0+1,j0+W,j0+W+1]){const c=out[j];out[j]=rgb(ch(c&255,lr),ch(c>>8&255,lg),ch(c>>16&255,lb))}}}
 const PICK=new Set(['musket','blunder','pistol','spear','sspear','grenade','bomb','rod','gold','rbox']);
 const ONE=new Set(['musket','pistol','blunder']);
-function slotFor(t,k,draw){const free=i=>slotOK(t,i)&&!t.inv[i];if(k==='note'){for(let i=4;i<t.inv.length;i++)if(!t.inv[i])return i;return -1}
+// keys: one per metal, small for ordinary doors, big for full-tile doors; a key opens only its own kind
+const KEYM=['steel','iron','brass','gold','umbra'],KEYN={steel:'Steel',iron:'Iron',brass:'Brass',gold:'Aurum',umbra:'Umbra'},isKey=k=>/^b?key_/.test(k||'');
+for(const mt of KEYM){WP['key_'+mt]={n:KEYN[mt]+' key',hide:1,fr:.8,max:10,m:.3};WP['bkey_'+mt]={n:KEYN[mt]+' vault key',hide:1,fr:.8,max:10,m:.4};PICK.add('key_'+mt);PICK.add('bkey_'+mt)}
+const doorMetal=o=>{const k=baseK((o.dk||'').replace('!',''));return KEYM.includes(k)?k:o.umbra?'umbra':o.gold?'gold':o.mat===2?null:'steel'};
+const doorKey=o=>{const m=doorMetal(o);return m?((o.th||8)>=16?'bkey_':'key_')+m:null};
+function slotFor(t,k,draw){const free=i=>slotOK(t,i)&&!t.inv[i];if(k==='note'||isKey(k)){for(let i=4;i<t.inv.length;i++)if(!t.inv[i])return i;return -1}
  if(SEC.has(k)){if(free(1)||k==='pistol'&&!t.inv[1]&&t.inv[0]&&t.inv[0].k==='pistol')return 1;if(free(0))return 0;if(draw&&t.unit==='cmd'&&t.inv[1]&&t.inv[1].k==='pistol'&&t.inv[0]&&t.inv[0].k!=='pistol')return 0;return -1}
  if(CAP[k])return free(0)?0:-1;if(WP[k]&&WP[k].melee&&free(0))return 0;if(GREN.has(k)&&free(2))return 2;if(k==='bomb'&&free(3))return 3;
  for(let i=4;i<t.inv.length;i++)if(free(i))return i;return -1}
@@ -1245,9 +1252,9 @@ const fullRes=(t,k)=>RCAP(k)*(t.unit==='guard'||t.unit==='cmd'?2:1)*(k==='pgun'&
 function refill(t,k){const h=t.inv.find(z=>z&&z.k===k);if(!h||k==='gold')return false;if(k==='pistol'&&gunsOf(t,k).length<2&&slotFor(t,k)>=0)return false;if(k==='pistol'&&gunsOf(t,k).length>1){for(const z of gunsOf(t,k)){z.ammo=CAP[k];z.res=Math.max(z.res||0,fullRes(t,k))}t.hc=null;return true}if(CAP[k]){h.ammo=CAP[k];h.res=Math.max(h.res||0,RCAP(k)*(t.unit==='guard'||t.unit==='cmd'?2:1)*(k==='pgun'&&t.unit==='cmd'?1.75:1)|0);h.spent=false;delete h.mode}else if(k==='spear'||k==='sspear')h.n=4;else h.n=Math.max(h.n||1,fullN(t,k));if(t.held===h)t.hc=null;return true}
 // civilians and units that start unarmed don't scoop up weapons unless switched on
 const autoOff=t=>t.noAuto??(t.noAuto=t.unit==='civ');
-const mayTake=(t,k)=>!autoOff(t)||k==='gold'||k==='cell'||k.endsWith('box')||!CAP[k]&&gunsOf(t,k).length>0;
+const mayTake=(t,k)=>!autoOff(t)||k==='gold'||isKey(k)||k==='cell'||k.endsWith('box')||!CAP[k]&&gunsOf(t,k).length>0;
 // anyone carrying the right key unlocks its door by walking up to it
-function keyTick(){for(const d of bodies){if(d.type!=='slab'||!d.locked||!(d.kid||d.pair&&d.pair.kid))continue;for(const t of bodies)if(t.type==='token'&&t.status==='free'&&carriesKey(t,d)&&d.px.some(p=>Math.hypot(d.x+p[0]-t.x,d.y+p[1]-t.y)<14)){for(const q of d.pair?[d,d.pair]:[d])q.locked=false;sfx('lock');break}}}
+function keyTick(){for(const d of bodies){if(d.type!=='slab'||!d.locked)continue;for(const t of bodies)if(t.type==='token'&&t.status==='free'&&carriesKey(t,d)&&d.px.some(p=>Math.hypot(d.x+p[0]-t.x,d.y+p[1]-t.y)<14)){for(const q of d.pair?[d,d.pair]:[d])q.locked=false;sfx('lock');break}}}
 function autoPick(){for(const t of bodies){if(t.type!=='token'||!t.inv)continue;autoOff(t);if(t.status!=='free'||inDrag(t))continue;
   for(const w of [...bodies]){if(w.type!=='weapon'||!PICK.has(w.kind)||w.stuck||w.att||w.fuse||inDrag(w)||(w.noPick&&w.noPick>tick)||Math.hypot(w.vx,w.vy)>.3||Math.hypot(w.x-t.x,w.y-t.y)>13)continue;
    if(w.byHand&&refill(t,w.kind)){remove(w);sfx('reload');continue}
@@ -1278,8 +1285,9 @@ function aiSetup(){for(const b of bodies)b.ai=null;GS={};NZ=[];RINGS=[];ROOMS=nu
 const aiOpen=(cx,cy)=>{if(cx<0||cy<0||cx>=CW||cy>=CH||map[cy][cx]==='sky')return false;const j=(cy*T+8)*W+cx*T+8;return !sol[j]&&!OBJ[j]};
 const isDoor=o=>o.type==='slab'&&!o.free&&!o.fallen;let DL=[];const doorsNow=()=>DL.filter(o=>bodies.includes(o)&&!o.fallen);
 const onDoor=(o,x,y)=>o.dt?o.dt.has((y/T|0)*CW+(x/T|0)):Math.abs(o.x-x)<12&&Math.abs(o.y-y)<12;
-const carriesKey=(b,o)=>{const id=o.kid||o.pair&&o.pair.kid;return!!id&&!!b&&!!b.inv&&b.inv.some(z=>z&&z.key===id)};
-const hasKey=(o,tm,b)=>{if(carriesKey(b,o))return true;if(!tm)return false;const k=o.keys||o.pair&&o.pair.keys;if(k)return k===tm;try{return MAPOWN()===tm}catch(e){return false}};
+const carriesKey=(b,o)=>{const k=doorKey(o);return!!k&&!!b&&!!b.inv&&b.inv.some(z=>z&&z.k===k)};
+const hasKey=(o,tm,b)=>{if(b)return carriesKey(b,o);if(!tm)return false;return bodies.some(t=>t.type==='token'&&t.status==='free'&&teamOf(t)===tm&&carriesKey(t,o))};
+const hasKey0=(o,tm)=>{if(!tm)return false;const k=o.keys||o.pair&&o.pair.keys;if(k)return k===tm;try{return MAPOWN()===tm}catch(e){return false}};
 // navigation: one map for routes and rooms. Every 4px node (tile centres among them) knows its distance in pixels to the nearest wall, furniture or map edge; open door leaves only make a route dearer, since bodies push them; a body fits where that is at least NCL. Rebuilt soon after the space changes
 const G=4,NCL=8;let NV=null,NC=null,NLF=null,NCOMP=null,GW=0,GH=0,NAVD=true,NAVV=0;
 function navBuild(){GW=W/G|0;GH=H/G|0;const n=GW*GH,D=new Float32Array(N);
@@ -1414,10 +1422,10 @@ function aiSense(b){const a=b.ai;let tg=null,td=1e9;
 function aiShare(us){for(const a of us)for(const b of us){if(a===b||Math.hypot(a.x-b.x,a.y-b.y)>140&&roomAt(a.x,a.y)!==roomAt(b.x,b.y))continue;for(const[id,m]of a.ai.mem){const o=b.ai.mem.get(id);if(!o||o.t<m.t)b.ai.mem.set(id,{...m})}if(a.ai.nz&&(!b.ai.nz||b.ai.nz.t<a.ai.nz.t))b.ai.nz={...a.ai.nz}}}
 const nearObj=b=>{for(let r=4;r<=12;r+=4)for(let k=0;k<8;k++){const X=Math.round(b.x+Math.cos(k*.785)*r),Y=Math.round(b.y+Math.sin(k*.785)*r);if(X>=0&&Y>=0&&X<W&&Y<H&&OBJ[Y*W+X])return true}return false};
 function breach(b,d,a){if(a.bsaid!==d){a.bsaid=d;say(b,'Breaking in')}if(Math.hypot(d.x-b.x,d.y-b.y)>44){a.path=null;return}const lv=d.pair?[d,d.pair]:[d],tm=teamOf(b);
- const kh=bodies.find(o=>o.type==='token'&&o.status==='free'&&teamOf(o)===tm&&hasKey(d,tm)&&Math.hypot(o.x-d.x,o.y-d.y)<70);if(kh){for(const q of lv)q.locked=false;sfx('lock');a.door=null;a.path=null;return}
+ const kh=bodies.find(o=>o.type==='token'&&o.status==='free'&&teamOf(o)===tm&&carriesKey(o,d)&&Math.hypot(o.x-d.x,o.y-d.y)<70);if(kh){for(const q of lv)q.locked=false;sfx('lock');a.door=null;a.path=null;return}
  turnTo(b,Math.atan2(d.y-b.y,d.x-b.x));if(--a.cd>0)return;const h=b.held;if(h&&CAP[h.k]&&h.ammo>0&&facing(b,d.x,d.y)){fire(b,d.x,d.y);a.cd=50}else{sfx('thunk');shake=Math.max(shake,2);a.cd=40}
  d.kicks=(d.kicks||0)+1;hear(d.x,d.y,120,b);if(d.kicks>=8){for(const q of lv){q.lockBroken=true;q.locked=false}sfx('door');for(let i=0;i<8;i++)spark(d.x,d.y,rgb(214,176,70),0,0,2.4);a.door=null;a.path=null}}
-function aiLock(b,e,home){const d=e.d,lv=d.pair?[d,d.pair]:[d];let tgt=[d.x,d.y];if(d.dt)for(const c of d.dt){const cx=c%CW,cy=c/CW|0;for(const[a,q]of[[1,0],[-1,0],[0,1],[0,-1]]){const f=(cy+q)*CW+cx+a;if(ROOMS.R[f]===home&&aiOpen(cx+a,cy+q)){tgt=aiOpen(cx+2*a,cy+2*q)&&ROOMS.R[(cy+2*q)*CW+cx+2*a]===home?[(cx+2*a)*T+8,(cy+2*q)*T+8]:[(cx+a)*T+8,(cy+q)*T+8]}}}const dd=Math.hypot(tgt[0]-b.x,tgt[1]-b.y);if(dd>6){aiGo(b,tgt[0],tgt[1]);return false}turnTo(b,Math.atan2(d.y-b.y,d.x-b.x));
+function aiLock(b,e,home){const d=e.d,lv=d.pair?[d,d.pair]:[d];if(d.mat===2||!carriesKey(b,d))return true;// only metal doors lock, and only with the keylet tgt=[d.x,d.y];if(d.dt)for(const c of d.dt){const cx=c%CW,cy=c/CW|0;for(const[a,q]of[[1,0],[-1,0],[0,1],[0,-1]]){const f=(cy+q)*CW+cx+a;if(ROOMS.R[f]===home&&aiOpen(cx+a,cy+q)){tgt=aiOpen(cx+2*a,cy+2*q)&&ROOMS.R[(cy+2*q)*CW+cx+2*a]===home?[(cx+2*a)*T+8,(cy+2*q)*T+8]:[(cx+a)*T+8,(cy+q)*T+8]}}}const dd=Math.hypot(tgt[0]-b.x,tgt[1]-b.y);if(dd>6){aiGo(b,tgt[0],tgt[1]);return false}turnTo(b,Math.atan2(d.y-b.y,d.x-b.x));
  for(const q of lv)q.tgt=0;if(lv.every(q=>q.ang===0)){for(const q of lv){q.locked=true;q.keys=teamOf(b)}sfx('lock');hear(d.x,d.y,70,b);return true}return false}
 function aiArm(b){if(!b.held&&!(b.ai.sheath>tick&&!b.ai.tg)){const i=b.inv.findIndex((q,i)=>q&&i<2&&WP[q.k]&&!WP[q.k].hide);if(i>=0)selectSlot(b,i)}}
 function flipFor(b,tg){if(!b.held||sideOf(b)===0)return;const t=tipOf(b);if(losClear(t[0],t[1],tg.x,tg.y,b.crouch,tg.crouch))return;b.side=-(b.side||1);b.hc=null;const u=tipOf(b);if(!losClear(u[0],u[1],tg.x,tg.y,b.crouch,tg.crouch)){b.side=-b.side;b.hc=null}}
@@ -1648,7 +1656,7 @@ function openMenu(b,e){if(b.type==='token'&&sel.has(b)&&[...sel].filter(o=>o.typ
   if(b.held)it('Drop weapon',0,()=>dropHeld(b))}
  if(b.hidden&&b.inv){it('Delete inventory',0,()=>{b.inv=b.inv.map(()=>null);lastHud='';sfx('flick')});$('sm').appendChild(menu);return}
  if((b.kind==='grenade'||b.kind==='bomb')&&!b.fuse)it('Pull pin',0,()=>{b.fuse=150;sfx('pin')});
- if(b.type==='slab'&&!b.free&&!b.fallen){const lv=b.pair?[b,b.pair]:[b];it('Locked',b.locked,()=>{for(const q of lv)q.locked=!b.locked;sfx('lock')});const s=document.createElement('select');for(const n of ['',...Object.keys(NAT)]){const o=document.createElement('option');o.value=n;o.textContent=n?n+' keys':'Auto keys';if((b.keys||'')===n)o.selected=true;s.appendChild(o)}s.onchange=()=>{for(const q of lv)q.keys=s.value||undefined;closeMenu()};menu.appendChild(s)}
+ if(b.type==='slab'&&!b.free&&!b.fallen){const lv=b.pair?[b,b.pair]:[b];if(b.mat!==2)it('Locked',b.locked,()=>{for(const q of lv)q.locked=!b.locked;sfx('lock')});const s=document.createElement('select');for(const n of ['',...Object.keys(NAT)]){const o=document.createElement('option');o.value=n;o.textContent=n?n+' keys':'Auto keys';if((b.keys||'')===n)o.selected=true;s.appendChild(o)}s.onchange=()=>{for(const q of lv)q.keys=s.value||undefined;closeMenu()};menu.appendChild(s)}
  if(b.type==='slab')it('Rotate',0,()=>{b.rot=(b.rot+1)%4;orient(b)});
  it('Delete',0,()=>remove(b));$('sm').appendChild(menu)}
 document.addEventListener('pointerdown',e=>{if(menu&&!menu.contains(e.target)&&e.target!==cv)closeMenu()});
@@ -1698,6 +1706,11 @@ for(const sc of document.querySelectorAll('#sm .sec')){const k='bsx:'+sc.dataset
 function dbl(m,x1,y1,x2,y2,r1,r2,lk,len,th){const a=slab(m,x1,y1,r1,len,th),b=slab(m,x2,y2,r2,len,th);a.pair=b;b.pair=a;a.locked=b.locked=lk;return[a,b]}
 function goldify(d){d.gold=true;for(const p of d.px)p[2]=toneC('gold',p[2])}
 const MAPSZ={council:[24,16],road:[30,18],alley:[22,10],stock:[26,16],count:[44,26],vault:[30,47],range:[40,40],air:[34,20]};
+// after setup: wood doors never stay locked, and the side that owns the map has a guard carrying each locked door's key
+function keyUp(){let own=null;try{own=MAPOWN()}catch(e){}const done=new Set();
+ for(const d of bodies){if(d.type!=='slab'||!d.locked||d.free)continue;if(d.mat===2){d.locked=false;continue}const k=doorKey(d);if(!k||done.has(k)&&!d.pair)continue;done.add(k);
+  const ts=bodies.filter(t=>t.type==='token'&&t.status==='free'&&t.inv&&(!own||teamOf(t)===own));if(!ts.length||ts.some(t=>carriesKey(t,d)))continue;
+  const rank=t=>(t.unit==='guard'?0:t.unit!=='civ'?1:2)*1e5+Math.hypot(t.x-d.x,t.y-d.y);ts.sort((a,b)=>rank(a)-rank(b));addItem(ts[0],{k,n:1})}}
 function reset(){ds0Need=true;EDG.clear();{const sz=MAPSZ[curMap]||[18,14];if(sz[0]!==CW||sz[1]!==CH){alloc(sz[0],sz[1]);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);camInit=true}setTimeout(fit,0)}for(const b of bodies)if(b.lab)b.lab.remove();bodies=[];parts=[];drag=null;charge=null;box=null;moveSel=null;sel.clear();build();HZ.fill(0);hzOn=false;if(NUM[curMap]){NUM[curMap]();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='air'){unitsAir();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='range'){unitsRange();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='count'){unitsCount();for(const t of bodies)if(t.type==='token')t.hc=null;return}if(curMap==='vault'){unitsVault();for(const t of bodies)if(t.type==='token')t.hc=null;return}
  token('Aldric','Goldbank','guard',36,40,true);token('Bryn','Goldbank','rifle',62,40);token('Pell','Goldbank','rifle',88,40);
  token('Orla','Goldbank','home',28,82);token('Rook','Goldbank','cmd',28,150).leader=true;token('Tam','Goldbank','shock',150,150);token('Hask','Goldbank','shock',150,186);
@@ -1708,6 +1721,7 @@ function reset(){ds0Need=true;EDG.clear();{const sz=MAPSZ[curMap]||[18,14];if(sz
  slab(2,180,32,1);dbl(3,180,96,187,127,1,3,false);dbl(3,224,171,255,164,0,2,true);
  weapon('grenade',120,196,0);weapon('bomb',60,200,0);weapon('sspear',236,104,.3);
  for(const t of bodies)if(t.type==='token')t.hc=null}
+{const r0=reset;reset=function(){r0();keyUp()}}
 const NAMED={count:{'Lord Vane':'Bank Lord','Archivist Lell':'Head Clerk','Master Orsk':'Banker',Corvo:'Reaper'},vault:{'Master Corwin':'Banker','Manager Vance':'Bank Lord',Dorran:'Merchant',Lyse:'Noble',Sora:'Noble',Merrit:'Merchant'},bank:{}};
 {const r0=reset;reset=function(){r0();setTimeout(aiSetup,0);for(const t of bodies)if(t.type==='token'&&NAMED[curMap]&&NAMED[curMap][t.name])t.look=NAMED[curMap][t.name];snapDoors();sills();arrivals();exitLabels();alarm=curMap==='range';if(!alarm)for(const t of bodies)if(t.type==='token'&&t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}}}
 reset();loop();

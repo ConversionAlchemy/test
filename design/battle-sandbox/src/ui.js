@@ -118,8 +118,11 @@ function tilerCtx(){TCX.innerHTML='';if(!edBrush||edBrush.t==='clean'){if(!UI.ti
   g.style.gridTemplateColumns='repeat(4,1fr)';const fc=k=>k?cell(k,swatch(bake(k),30,30),()=>{UI.tile={t:'tile',k};edBrush={t:'tile',k};tilerCtx()}):mk('span'),L=FT[UI.ft][1];
   if(UI.ft==='mods')for(const k of L)g.append(fc(k));else{const wl=L.filter(k=>!MCHEST[k]),ml=L.filter(k=>MCHEST[k]);for(let i=0;i<Math.max(wl.length,ml.length);i++)g.append(fc(wl[i]),fc(ml[i]),mk('span'),mk('span'))}nm=cur&&furnK(cur)?tName(cur):''}
  else{// rows of: wood door, metal door, then the same two as full-tile doors
-  const wd=Object.keys(DOORK).filter(k=>DOORK[k][1]===2),md=Object.keys(DOORK).filter(k=>DOORK[k][1]!==2),dc=(k,f)=>{if(!k)return mk('span');const c=icon(doorIcon(k,f),1);c.style.cssText='width:34px;height:'+(f?34:24)+'px;image-rendering:pixelated;display:block;margin-top:'+(f?0:5)+'px';const id='door:'+k+(f?'!':'');return cell(id,c,()=>{UI.tile={t:'door',k:id};edBrush={...UI.tile};tilerCtx()})};
-  g.style.gridTemplateColumns='repeat(4,1fr)';for(let i=0;i<Math.max(wd.length,md.length);i++)g.append(dc(wd[i]),dc(md[i]),dc(wd[i],1),dc(md[i],1));
+  const wd=Object.keys(DOORK).filter(k=>DOORK[k][1]===2),md=Object.keys(DOORK).filter(k=>DOORK[k][1]!==2),dc=(k,f)=>{if(!k)return mk('span');
+   // the door's own top-down sprite, one tile across
+   const th=f?16:8,c=mk('canvas');c.width=16;c.height=th;const x=c.getContext('2d'),im=x.createImageData(16,th),u=new Uint32Array(im.data.buffer);for(const[px,py,col]of doorIcon(k,f))if(px>=0&&px<16&&py+th>=0&&py+th<th)u[(py+th)*16+px]=col;x.putImageData(im,0,0);
+   c.style.cssText='width:56px;height:'+(f?56:28)+'px;image-rendering:pixelated;display:block';const id='door:'+k+(f?'!':''),s=cell(id,c,()=>{UI.tile={t:'door',k:id};edBrush={...UI.tile};tilerCtx()});s.style.cssText='width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:#181818';return s};
+  g.style.gridTemplateColumns='repeat(4,1fr)';g.style.gap='6px';for(let i=0;i<Math.max(wd.length,md.length);i++)g.append(dc(wd[i]),dc(md[i]),dc(wd[i],1),dc(md[i],1));
   if(String(cur).startsWith('door:')){const k=cur.slice(5).replace('!','');nm=DOORK[k]?DOORK[k][0]+(cur.includes('!')?', full tile':''):''}}
  TCX.append(g,mk('div','tbox',nm));if(UI.pop==='ae'&&cur&&!String(cur).startsWith('door:')&&cur!==AE.key)aeLoad(cur)}
 function setTile(k){if(!validK(k))return;pkFrom(k);UI.erase=false;cv.style.cursor='crosshair';UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';if(UI.tt==='furn')UI.ft=WPIECE[k]?WPIECE[k][1]:MCHEST[k]?'chest':k==='hedge'?'plant':'mods';tilerCtx()}
