@@ -40,6 +40,15 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Tools: Rope, Chain | Drag onto a unit, or click the tool then a unit, to tie it to the nearest wall; Esc cancels |
 | Inspector (right column) | Shows the selected unit, or an opened chest, desk, shelf or rack with the selected unit beneath it when it stands beside it. Click an item to move it to the other box, drag it across, drag it out to drop it, Shift+click to drop it; click a unit's slot to draw it |
 
+## Carrier
+
+- `src/vehicle.js`: the tracked carrier and the Carrier yard test map. Its hull, tracks, doors, chest and engine sit in the slab grid, so shots, blasts, sight and units meet it like any slab.
+- Click the carrier to select its driver; E takes control and WASD drives (slow to start and stop, slow to turn, pivots in place). G by the driver's seat sits or stands; G by any free seat sits.
+- Right-click the carrier with units selected to send them aboard; with none selected it offers Unload, Driver out and Commander out. Units file through the rear doors one at a time; doors open for anyone close while it stands still.
+- The roof hides the crew unless a selected unit is aboard. The roof grille breathes dark mist while the engine runs, more while driving, fading after the driver leaves. Moving tracks press tread marks into the ground.
+- The engine core is the weak point: a bolter rod through the side, or a blast inside next to the engine, breaks it; after a short fuse of sparks and smoke the carrier explodes and is left a burnt shell that still blocks.
+- With AI on, an AI driver turns toward the nearest foe, drives nose-first, stops short and lets its squad out.
+
 ## Rules worth knowing
 
 - Everyone starts sheathed; the first shot or blast draws every weapon.
