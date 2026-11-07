@@ -240,7 +240,7 @@ function wearWall(cx,cy,amt){if(cx<0||cy<0||cx>=CW||cy>=CH)return;const k=map[cy
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X;if(!sol[j])continue;const q=a[y*T+x],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9);scol[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}solDirty=true}
 // very hot hits leave temper colours on metal: straw, bronze, blue at the centre
 function temperF(a){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0,f0]=TEMPER[i-1],[p1,f1]=TEMPER[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0)));return f0.map((v,k)=>v+(f1[k]-v)*u)}
-function heatMark(x,y,r,k){for(let Y=Math.floor(y-r);Y<=y+r;Y++)for(let X=Math.floor(x-r);X<=x+r;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j]!==3)continue;const d=Math.hypot(X-x,Y-y);if(d>r)continue;
+function heatMark(x,y,r,k){vHeatMark(x,y,r,k);for(let Y=Math.floor(y-r);Y<=y+r;Y++)for(let X=Math.floor(x-r);X<=x+r;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j]!==3)continue;const d=Math.hypot(X-x,Y-y);if(d>r)continue;
   const a=Math.min(.85,k*(1-d/r)*(.85+.3*hh(X,Y,71))),o=HTM.get(j)||0;if(a<=o)continue;const f1=temperF(a),f0=temperF(o),c=scol[j];scol[j]=rgb(cl((c&255)*f1[0]/f0[0]),cl((c>>8&255)*f1[1]/f0[1]),cl((c>>16&255)*f1[2]/f0[2]));HTM.set(j,a)}solDirty=true}
 // a blast breaks a built floor by its material: stone and marble through to soil with a chipped edge and hairline cracks, wood broken through to soil inside a rim of splintered board ends, cloth burnt through, metal dented with a bright lip; how far follows toughness
 // what lies under a carpet: the cell's underlay, else plain boards
@@ -709,7 +709,7 @@ function settle(o){if(o.veh){vSettle(o);return}o.px=o.px.filter(p=>o.set.has(K(p
  for(const cp of comps)if(cp!==hinge){const f={id:uid++,type:'slab',mat:o.mat,x:o.x,y:o.y,vx:0,vy:0,rot:o.rot,ang:o.ang,tgt:o.ang,fallen:true,mass:9,px:cp};mkSet(f);bodies.push(f);sfx('drop')}}
 function damagePixel(X,Y,pow,dx=0,dy=0){if(X<1||Y<1||X>=W-1||Y>=H-1)return 1;const j=Y*W+X;
  if(sol[j]){const m=sol[j];if(shp[j]>pow){shp[j]-=pow;scol[j]=mul(scol[j],.9);wallHit(X,Y,.25);return m}sol[j]=0;solDirty=true;NAVD=true;rubble(j);wallHit(X,Y,1);if(Math.random()<.45)spark(X,Y,scol[j],dx,dy);return m}
- const s=slabG[j]&&byId(slabG[j]);if(s){doorPart(s,X,Y);const r=hitPix(s,X,Y,pow);if(s.veh)s.dirty=1;if(r===2){slabG[j]=0;if(Math.random()<.5)spark(X,Y,s.mat===2?C.wood:C.iron,dx,dy);settle(s)}return s.mat}return 0}
+ const s=slabG[j]&&byId(slabG[j]);if(s){doorPart(s,X,Y);const r=hitPix(s,X,Y,pow);if(s.veh)vScar(s,X,Y,Math.min(1.2,pow*.15));if(r===2){slabG[j]=0;if(Math.random()<.5)spark(X,Y,s.mat===2?C.wood:C.iron,dx,dy);settle(s)}return s.mat}return 0}
 function carve(cx,cy,r,pow,dx,dy){const R=Math.ceil(r*1.7)+1;for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const X=Math.round(cx+i),Y=Math.round(cy+j),m=matAt(X,Y);if(!m)continue;const rm=r*(m===2?1.7:m===3?.8:1);if(Math.hypot(i,j)+hh(X,Y,4)*1.2>rm)continue;damagePixel(X,Y,pow,dx,dy)}}
 let BLU=false;const swb=c=>{const r=c&255,g=c>>8&255,b=c>>16&255;return b>=r&&b>g+30?rgb(g,r,b):c};
 function spark(x,y,c,dx=0,dy=0,sp=2.2,life,mn=0){if(BLU)c=swb(c);if(parts.length>1200)return;const a=Math.random()*6.283,s=sp*(mn+(1-mn)*Math.random());parts.push({x,y,vx:Math.cos(a)*s-dx*.35,vy:Math.sin(a)*s-dy*.35,c,life})}

@@ -70,7 +70,14 @@ function vMark(v){if(!VOB||VOB.length!==W*H)VOB=new Uint8Array(W*H);const bx=Mat
 function vUnmark(v){const bx=Math.round(v.x),by=Math.round(v.y);for(const p of v.px){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H&&slabG[Y*W+X]===v.id)slabG[Y*W+X]=0}if(VOB)for(const p of v.tpx||[]){const X=bx+p[0],Y=by+p[1];if(X>=0&&Y>=0&&X<W&&Y<H)VOB[Y*W+X]=0}}
 // a hit pixel gives its damage back to the hull's own pixel; the core going breaks the engine
 function vSettle(v){for(const t of v.px){if(!t.s)continue;if(t[3]<t.s[3])t.s[3]=t[3];if(!v.set.has(K(t[0],t[1]))){t.s.dead=1;if(t.e)vBreach(v)}}v.px=v.px.filter(p=>!p.s.dead);mkSet(v);v.dirty=1}
-function vBreach(v){if(v.fuse||v.dead)return;v.fuse=150;sfx('sizzle');sfx('crack')}
+function vBreach(v){if(v.fuse||v.dead)return;v.fuse=150;sfx('sizzle');sfx('crack');vCharge(v)}
+// a breached core winds up: a whine climbing in pitch with a quickening tremolo, crackling as it goes
+function vCharge(v){if(!AC||mute||!gest)return;const me=[...sel].find(b=>b.type==='token'),d=me?Math.hypot(me.x-v.x,me.y-v.y):120,vol=.5*Math.min(1,70/(d+40)),t=AC.currentTime+.02,D=150/60;
+ const o=AC.createOscillator(),o2=AC.createOscillator(),g=AC.createGain(),tr=AC.createGain(),lf=AC.createOscillator(),lg=AC.createGain(),f=AC.createBiquadFilter();o.type='sawtooth';o2.type='square';f.type='bandpass';f.Q.value=2;
+ o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(1900,t+D);o2.frequency.setValueAtTime(143,t);o2.frequency.exponentialRampToValueAtTime(1920,t+D);f.frequency.setValueAtTime(400,t);f.frequency.exponentialRampToValueAtTime(3600,t+D);
+ lf.frequency.setValueAtTime(5,t);lf.frequency.exponentialRampToValueAtTime(34,t+D);lg.gain.value=.45;tr.gain.value=.55;lf.connect(lg).connect(tr.gain);
+ g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol*.6,t+.4);g.gain.exponentialRampToValueAtTime(vol,t+D-.05);g.gain.exponentialRampToValueAtTime(.0001,t+D+.05);
+ o.connect(f);o2.connect(f);f.connect(tr).connect(g).connect(MS);for(const x of[o,o2,lf]){x.start(t);x.stop(t+D+.1)}}
 const vInside=(v,lx,ly)=>lx>=VC.X0-1&&lx<VC.X0+VC.IL+1&&ly>=VC.R0-1&&ly<VC.R0+VC.IH+1;
 const vAt=(X,Y)=>VEH.find(v=>{const[lx,ly]=vW2L(v,X+.5,Y+.5);return lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H});
 const vSeatOf=t=>{for(const v of VEH){const i=v.seats.indexOf(t);if(i>=0)return[v,i]}return null};
@@ -93,17 +100,21 @@ function vOver(v){const LW=VC.LW;if(!v.LD||v.LD.length!==LW*VC.H)v.LD=new Uint32
  for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d))continue;const{ax,ay,a}=d.vdoor,sl=Math.round(Math.min(1,Math.abs(d.ang)/1.4)*((d.len||16)-3)),cells=new Map();
   for(const q of d.px){if(d.set.get(K(q[0],q[1]))!==q)continue;const dx=q[8]-sl,dy=q[9],x=a>0?ax-dy:ax+dy,y=a>0?ay+dx:ay-dx;cells.set(K(x,y),q)}
   for(const[k,q]of cells){const x=Math.floor(k/1024)-512,y=k%1024-512,r=!cells.has(K(x+1,y))||!cells.has(K(x,y+1)),l=!cells.has(K(x-1,y))||!cells.has(K(x,y-1));let c0=q[3]<q[6]?mul(q[2],.6+.4*q[3]/q[6]):q[2];if(q[5]>.01)c0=mix(c0,glow(q[5]),Math.min(1,q[5]*1.6));put(x,y,r?mul(c0,.5):l?mul(c0,.8):c0)}}
- for(const t of v.px)if(t[5]>.01&&t.s&&t[7]!=='x'){const q=t.s,c0=q[3]<q[6]||t[3]<q[6]?mul(q[2],.6+.4*Math.min(q[3],t[3])/q[6]):q[2];put(q[8],q[9],mix(c0,glow(t[5]),Math.min(1,t[5]*1.6)))}
+ for(const t of v.px)if(t[5]>.01&&t.s&&t[7]!=='x'){if(t[5]*.6>(t.s.tm||0)+.08){t.s.tm=t[5]*.6;v.dirty=1}const q=t.s,c0=q[3]<q[6]||t[3]<q[6]?mul(q[2],.6+.4*Math.min(q[3],t[3])/q[6]):q[2];put(q[8],q[9],mix(c0,glow(t[5]),Math.min(1,t[5]*1.6)))}
  const g=v.glow||0;if(g>.01)for(const q of v.src)if(q[7]==='e'&&!q.dead){const c=q[2],br=(c&255)+(c>>8&255)>300;put(q[8],q[9],mix(c,br?rgb(255,250,255):rgb(206,150,255),Math.min(.85,g*(br?.9:.6))))}
  v.ldI=used}
 // the core's light spills over the floor around it, strongest when the engine works hardest
 function vGlow(v){const g=v.glow||0;if(g<.02||v.dead)return;const[cx,cy]=vL2W(v,VC.XST+8,VC.R0+VC.IH-8),R=28,col=rgb(190,130,255);
  for(let Y=Math.max(0,Math.floor(cy-R));Y<=Math.min(H-1,cy+R);Y++)for(let X=Math.max(0,Math.floor(cx-R));X<=Math.min(W-1,cx+R);X++){const d=Math.hypot(X-cx,Y-cy)/R;if(d>=1)continue;const[lx,ly]=vW2L(v,X+.5,Y+.5);if(!vInside(v,lx,ly))continue;const j=Y*W+X,a=Math.min(.85,g*.9*(1-d)*(1-d)+g*.12*(1-d));out[j]=mix(out[j],col,a)}}
 function vFloorPx(v,lx,ly){const q=v.smap.get(K(lx,ly));let c=0;
- if(q&&!q.dead){c=q[7]==='T'||q[7]==='B'?vTrack(v,lx,ly,q[7]):q[7]==='e'&&v.fuse&&(tick>>2)%2?VPB:q[2];if(q[3]<q[6]&&q[7]!=='e')c=mul(c,.6+.4*q[3]/q[6])}
+ if(q&&!q.dead){c=vScarC(v,q);c=q[7]==='T'||q[7]==='B'?vTrack(v,lx,ly,q[7]):q[7]==='e'&&v.fuse&&(tick>>2)%2?VPB:c;if(q[3]<q[6]&&q[7]!=='e')c=mul(c,.6+.4*q[3]/q[6])}
  if(!c){const b=v.base[ly*VC.LW+lx];c=b?b&0xffffff:0}
  return c&&v.dead?vChar(c,lx,ly,v):c}
 function vRoofPx(v,lx,ly,roof){const r=roof&&v.roofL[ly*VC.LW+lx];if(r)return r&0xffffff;const q=v.smap.get(K(lx,ly));return q&&!q.dead&&(q[7]==='w'||q[7]==='g')?vFloorPx(v,lx,ly):0}
+function vScarC(v,q){let c=q[2];if(q.wr>.5){const cd=Math.max(1,5-Math.floor(q.wr)),A=ageOf('Metal',v.mat,cd);if(A){const r=A([c&255,c>>8&255,c>>16&255],q[8]*2+v.id*37,q[9]*2,()=>9);c=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}
+ if(q.tm>.02){const f=temperF(q.tm),f0=temperF(0);c=rgb(cl((c&255)*f[0]/f0[0]),cl((c>>8&255)*f[1]/f0[1]),cl((c>>16&255)*f[2]/f0[2]))}return c}
+function vScar(v,X,Y,amt,heat){const[lx,ly]=vW2L(v,X+.5,Y+.5),R=3;let ch=false;for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const q=v.smap.get(K(Math.floor(lx)+i,Math.floor(ly)+j));if(!q||q[7]==='T'||q[7]==='B')continue;const d=Math.hypot(i,j)/(R+1);if(d>=1)continue;const w=amt*(1-d);q.wr=Math.min(4.5,(q.wr||0)+w);if(heat){const t=Math.min(.85,heat*(1-d));if(t>(q.tm||0)){q.tm=t}}ch=true}if(ch)v.dirty=1}
+function vHeatMark(x,y,r,k){for(const v of VEH){const[lx,ly]=vW2L(v,x,y);if(lx<-r||ly<-r||lx>VC.LW+r||ly>VC.H+r)continue;for(let j=-Math.ceil(r);j<=r;j++)for(let i=-Math.ceil(r);i<=r;i++){const q=v.smap.get(K(Math.floor(lx)+i,Math.floor(ly)+j));if(!q)continue;const d=Math.hypot(i,j);if(d>r)continue;const a=Math.min(.85,k*(1-d/r)*(.85+.3*hh(q[8],q[9],71)));if(a>(q.tm||0)){q.tm=a;v.dirty=1}}}}
 const vChar=(c,x,y,v)=>{const h=v&&v.hole,k=h?Math.max(0,1-Math.hypot(x-h[0],y-h[1])/52):1;return k>0?mix(c,rgb(26,22,20),Math.min(.92,(.62+.3*hh(x,y,41))*k*1.15)):c};
 function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==='T'?0:1]),e=t===0||t===VC.TR-1,lk=((x-ph)%4+4)%4===0;return e?rgb(30,30,32):lk?rgb(78,78,80):t===2?rgb(56,56,58):rgb(46,46,48)}
 // the roof hides the crew unless a selected unit is aboard (V switches back to the roof)
@@ -121,6 +132,7 @@ function vMist(v){{const lt=v.on&&tick-v.onT>=VIGN,gt=lt?Math.min(1,.4+.6*Math.m
  const run=Math.abs(v.sp)>.05||Math.abs(v.w)>.001,lit=v.on&&tick-v.onT>=VIGN,pw=lit?1:v.on?0:Math.max(0,1-v.offT/180);
  if(!v.dead&&(v.on&&tick-v.onT>=VIGN&&tick-v.onT<VIGN+50||!v.on&&v.offT<150)&&tick%3===0){const[gx,gy]=vL2W(v,VC.XST+5.5+Math.random()*5,VC.R0+VC.IH-16+(Math.random()<.5?6.5:9.5));v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:2,gr:.2,a:v.on?.5:.36*(1-v.offT/150),c:rgb(150,152,158),sd:Math.random()*99|0,R:v.on?16:20})}
  if(pw>0&&!v.dead&&tick%(run?2:6)===0){const[gx,gy]=vL2W(v,VC.XST+5.5+Math.random()*5,VC.R0+VC.IH-16+(Math.random()<.5?6.5:9.5)),k=.55+Math.random()*.45;v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.12,vy:(Math.random()-.5)*.12-.03,r:2.5,gr:run?.16:.1,a:(run?.52:.42)*pw,c:rgb(52*k+20|0,50*k+20|0,54*k+22|0),sd:Math.random()*99|0,R:run?18:12})}
+ if(v.fuse&&tick%5===0){const[cx,cy]=vL2W(v,VC.XST+8,VC.RC[2]+.5),a=Math.random()*6.283,r=4+Math.random()*(10+(150-v.fuse)/8);zaps.push({x0:cx,y0:cy,x1:cx+Math.cos(a)*r,y1:cy+Math.sin(a)*r,l:3,b:false});if(Math.random()<.4)sfx('zap')}
  if(v.fuse&&tick%2===0){const[gx,gy]=vL2W(v,VC.XST+8,VC.RC[2]);v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:2,gr:.18,a:.55,c:rgb(34,32,34),sd:Math.random()*99|0,R:14})}
  vSide(v);if(v.dead&&tick-v.burnT<420&&tick%3===0){const[hx,hy]=vL2W(v,v.hole[0]+(Math.random()-.5)*16,v.hole[1]+(Math.random()-.5)*12),f=1-(tick-v.burnT)/420;v.puffs.push({x:hx,y:hy,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2-.05,r:3,gr:.22,a:.6*f,c:rgb(30,28,28),sd:Math.random()*99|0,R:22,out:1});if(Math.random()<f*.6)emberPatch(hx,hy,3,4)}
  for(const p of v.puffs){p.x+=p.vx;p.y+=p.vy;p.r+=p.gr;p.a*=.992;if(p.out){p.vx*=.95;p.vy*=.95}if(p.r>p.R*.7)p.a*=.95}v.puffs=v.puffs.filter(p=>p.r<p.R&&p.a>.02)}
@@ -161,8 +173,9 @@ function vRefresh(v){v.dirty=1;vUnmark(v);vOrient(v);vMark(v);vDoorPose(v);NAVD=
 const vHK=(cx,cy)=>{const k=OM[cy]&&OM[cy][cx]||'';return/^hedge(~\d)?$/.test(k)?k:null};
 const vHedge=(X,Y)=>!!vHK(X>>4,Y>>4);
 function vHedges(v){const now=new Set(),R=80,cx0=Math.max(0,(v.x-R)>>4),cx1=Math.min(CW-1,(v.x+R)>>4),cy0=Math.max(0,(v.y-R)>>4),cy1=Math.min(CH-1,(v.y+R)>>4);
- for(let cy=cy0;cy<=cy1;cy++)for(let cx=cx0;cx<=cx1;cx++){if(!vHK(cx,cy))continue;const[lx,ly]=vW2L(v,cx*T+8,cy*T+8);if(lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H){now.add(cy*CW+cx);if(!v.hov.has(cy*CW+cx))sfx('rustle')}}
- for(const c of v.hov)if(!now.has(c)){const cx=c%CW,cy=c/CW|0,k=vHK(cx,cy);if(k){const n=k==='hedge'?3:Math.max(1,+k.slice(6)-2),nk='hedge~'+n,m=fmat(nk);OM[cy][cx]=nk;for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[nk](X,Y,cx,cy);OBJ[j]=c?m:0;if(c)OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]))}sfx('rustle')}}v.hov=now}
+ for(let cy=cy0;cy<=cy1;cy++)for(let cx=cx0;cx<=cx1;cx++){const k=vHK(cx,cy);if(!k)continue;let n=0;for(let j=0;j<4;j++)for(let i=0;i<4;i++){const[lx,ly]=vW2L(v,cx*T+2+i*4,cy*T+2+j*4);if(lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H)n++}
+  const id=cy*CW+cx;if(n>0)now.add(id);if(n>8&&!v.hov.has(id)){const m=k==='hedge'?3:Math.max(1,+k.slice(6)-2),nk='hedge~'+m,f=fmat(nk);OM[cy][cx]=nk;for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[nk](X,Y,cx,cy);OBJ[j]=c?f:0;if(c)OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]))}sfx('rustle');v.hov.add(id)}}
+ for(const c of [...v.hov])if(!now.has(c))v.hov.delete(c)}
 
 // boarding and leaving: units walk set waypoints through the rear doors to a seat, or out behind the carrier
 function vFree(v,role){const res=new Set(bodies.filter(t=>t.vwalk&&t.vwalk.v===v).map(t=>t.vwalk.i));for(let i=0;i<VSEATS.length;i++)if(!v.seats[i]&&!res.has(i)&&(role?VSEATS[i][3]===role:VSEATS[i][3]==='p'))return i;return -1}
@@ -193,8 +206,8 @@ function vLabels(){for(const v of VEH){if(!vRoof(v))continue;for(const t of bodi
 function vBlow(v){const ex=VC.XST+8,ey=VC.RC[2]+.5,[gx,gy]=vL2W(v,ex,ey),RH=19;v.dead=true;v.on=0;v.sp=v.w=0;v.burnT=tick;v.hole=[ex,ey];for(const t of v.seats)if(t){t.vseat=null}v.seats.fill(null);
  const rag=(x,y)=>RH*(.75+.45*hh(Math.round(Math.atan2(y-ey,x-ex)*5),0,v.id));for(const q of v.src)if(q[7]==='e'||Math.hypot(q[8]-ex,q[9]-ey)<rag(q[8],q[9]))q.dead=1;
  for(let y=0;y<VC.H;y++)for(let x=0;x<VC.LW;x++){const d=Math.hypot(x-ex,y-ey),i=y*VC.LW+x;if(d<rag(x,y)*1.15)v.roofL[i]=0;if(d<rag(x,y)*.8)v.base[i]=v.base[i]?mul(v.base[i]&0xffffff,.35)|0xff000000:0}
- explode(gx,gy,2.4);vRefresh(v);scorch(gx,gy,34);emberPatch(gx,gy,30,14);shake=Math.max(shake,12)}
-function vBlastCheck(x,y,s){for(const v of VEH){if(v.dead||v.fuse)continue;const[lx,ly]=vW2L(v,x,y),d=Math.hypot(lx-(VC.XST+8),ly-VC.RC[2]);if(d<10+6*s&&vInside(v,lx,ly))vBreach(v)}}
+ explode(gx,gy,2.4);BLU=false;arcBlast(gx,gy,3);for(let i=0;i<9;i++){const a=Math.random()*6.283,r=10+Math.random()*24;zaps.push({x0:gx,y0:gy,x1:gx+Math.cos(a)*r,y1:gy+Math.sin(a)*r,l:6+(Math.random()*8|0),b:false})}for(let i=0;i<40;i++)spark(gx,gy,Math.random()<.6?plasC(Math.random()):rgb(240,226,255),0,0,3.4,10+(Math.random()*16|0));vRefresh(v);scorch(gx,gy,34);emberPatch(gx,gy,30,14);shake=Math.max(shake,12)}
+function vBlastCheck(x,y,s){vHeatMark(x,y,9*s,.7);for(const v of VEH){if(v.dead||v.fuse)continue;const[lx,ly]=vW2L(v,x,y),d=Math.hypot(lx-(VC.XST+8),ly-VC.RC[2]);if(d<10+6*s&&vInside(v,lx,ly))vBreach(v)}}
 
 // AI drivers close on the nearest foe, stop short and let their squad out
 function vAI(){for(const v of VEH){const d=vDriver(v);if(!aiOn||!d||!d.ai||v.dead){v.ai=null;continue}const a=v.ai||(v.ai={thr:0,turn:0,st:'go',T:0,lx:v.x,ly:v.y,rev:0});
