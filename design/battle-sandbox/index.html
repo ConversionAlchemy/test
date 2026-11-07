@@ -3160,14 +3160,24 @@ function vBake(v){const n=VC.LW*VC.H;v.L0=new Uint32Array(n);v.L1=new Uint32Arra
  for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx,q=v.smap.get(K(lx,ly));if(q&&!q.dead&&(q[7]==='T'||q[7]==='B'))v.trk.push(i,lx,ly,q[7]);const a=vFloorPx(v,lx,ly),r=vRoofPx(v,lx,ly,true),w=vRoofPx(v,lx,ly,false);v.L0[i]=a?a|0xff000000:0;v.L1[i]=r?r|0xff000000:0;v.L2[i]=w?w|0xff000000:0}v.dirty=0;v.fz=v.fuse?(tick>>2)%2:0}
 function vDraw(top){for(const v of VEH){if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!==v.fz)vBake(v);
   if(!top){const t=v.trk;for(let k=0;k<t.length;k+=4){const c=vTrack(v,t[k+1],t[k+2],t[k+3]);v.L0[t[k]]=v.dead?vChar(c,t[k+1],t[k+2])|0xff000000:c|0xff000000}}
-  const L=top?(vRoof(v)?v.L1:v.L2):v.L0,c=Math.cos(v.ang),s=Math.sin(v.ang),LW=VC.LW,LH=VC.H;
+  if(!top)vOver(v);const LD=top?null:v.LD,L=top?(vRoof(v)?v.L1:v.L2):v.L0,c=Math.cos(v.ang),s=Math.sin(v.ang),LW=VC.LW,LH=VC.H;
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[lx,ly]of[[0,0],[LW,0],[0,LH],[LW,LH]]){const[gx,gy]=vL2W(v,lx,ly);x0=Math.min(x0,gx);x1=Math.max(x1,gx);y0=Math.min(y0,gy);y1=Math.max(y1,gy)}
   const crisp=Math.abs(Math.sin(v.ang*2))<1e-3,SUB=crisp?[.5,.5]:[.25,.25,.75,.25,.25,.75,.75,.75],ns=SUB.length/2,PX=VC.PX,PY=VC.PY;
   for(let Y=Math.max(0,Math.floor(y0));Y<=Math.min(H-1,Math.ceil(y1));Y++)for(let X=Math.max(0,Math.floor(x0));X<=Math.min(W-1,Math.ceil(x1));X++){let r=0,g=0,b=0,n=0;
-   for(let k=0;k<SUB.length;k+=2){const dx=X+SUB[k]-v.x,dy=Y+SUB[k+1]-v.y,lx=Math.floor(PX+dx*c+dy*s),ly=Math.floor(PY-dx*s+dy*c);if(lx<0||ly<0||lx>=LW||ly>=LH)continue;const col=L[ly*LW+lx];if(!col)continue;r+=col&255;g+=col>>8&255;b+=col>>16&255;n++}
+   for(let k=0;k<SUB.length;k+=2){const dx=X+SUB[k]-v.x,dy=Y+SUB[k+1]-v.y,lx=Math.floor(PX+dx*c+dy*s),ly=Math.floor(PY-dx*s+dy*c);if(lx<0||ly<0||lx>=LW||ly>=LH)continue;const col=LD&&LD[ly*LW+lx]||L[ly*LW+lx];if(!col)continue;r+=col&255;g+=col>>8&255;b+=col>>16&255;n++}
    if(!n)continue;const j=Y*W+X,col=rgb(r/n|0,g/n|0,b/n|0);out[j]=n===ns?col:mix(out[j],col,n/ns)}
-  if(!top)for(const d of v.doors||[])if(!d.fallen&&bodies.includes(d))drawBody(d);
-  if(top)vPuffs(v)}}
+  if(!top)vGlow(v);
+  if(top&&L===v.L1)vPuffs(v)}}
+// overlay in the hull's frame: the door leaves at their slide, with the seams of a door, and the core lit by the engine's power
+function vOver(v){const LW=VC.LW;if(!v.LD||v.LD.length!==LW*VC.H)v.LD=new Uint32Array(LW*VC.H);else for(const i of v.ldI||[])v.LD[i]=0;const used=[],put=(x,y,c)=>{if(x<0||y<0||x>=LW||y>=VC.H)return;const i=y*LW+x;v.LD[i]=c|0xff000000;used.push(i)};
+ for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d))continue;const{ax,ay,a}=d.vdoor,sl=Math.round(Math.min(1,Math.abs(d.ang)/1.4)*((d.len||16)-3)),cells=new Map();
+  for(const q of d.src){if(q.dead)continue;const dx=q[8]-sl,dy=q[9],x=a>0?ax-dy:ax+dy,y=a>0?ay+dx:ay-dx;cells.set(K(x,y),q)}
+  for(const[k,q]of cells){const x=Math.floor(k/1024)-512,y=k%1024-512,r=!cells.has(K(x+1,y))||!cells.has(K(x,y+1)),l=!cells.has(K(x-1,y))||!cells.has(K(x,y-1));put(x,y,r?mul(q[2],.5):l?mul(q[2],.8):q[2])}}
+ const g=v.glow||0;if(g>.01)for(const q of v.src)if(q[7]==='e'&&!q.dead){const c=q[2],br=(c&255)+(c>>8&255)>300;put(q[8],q[9],mix(c,br?rgb(255,250,255):rgb(206,150,255),Math.min(.85,g*(br?.9:.6))))}
+ v.ldI=used}
+// the core's light spills over the floor around it, strongest when the engine works hardest
+function vGlow(v){const g=v.glow||0;if(g<.02||v.dead)return;const[cx,cy]=vL2W(v,VC.XST+8,VC.R0+VC.IH-8),R=28,col=rgb(190,130,255);
+ for(let Y=Math.max(0,Math.floor(cy-R));Y<=Math.min(H-1,cy+R);Y++)for(let X=Math.max(0,Math.floor(cx-R));X<=Math.min(W-1,cx+R);X++){const d=Math.hypot(X-cx,Y-cy)/R;if(d>=1)continue;const[lx,ly]=vW2L(v,X+.5,Y+.5);if(!vInside(v,lx,ly))continue;const j=Y*W+X,a=Math.min(.85,g*.9*(1-d)*(1-d)+g*.12*(1-d));out[j]=mix(out[j],col,a)}}
 function vFloorPx(v,lx,ly){const q=v.smap.get(K(lx,ly));let c=0;
  if(q&&!q.dead){c=q[7]==='T'||q[7]==='B'?vTrack(v,lx,ly,q[7]):q[7]==='e'&&v.fuse&&(tick>>2)%2?VPB:q[2];if(q[3]<q[6]&&q[7]!=='e')c=mul(c,.7+.3*q[3]/q[6])}
  if(!c){const b=v.base[ly*VC.LW+lx];c=b?b&0xffffff:0}
@@ -3183,7 +3193,8 @@ function vHas(v,t){if(v.seats.includes(t))return true;const[lx,ly]=vW2L(v,t.x,t.
 
 // mist from the roof grille: musket-like puffs, thicker while driving, fading after the engine stops
 function vPuffs(v){for(const p of v.puffs){const R=Math.ceil(p.r);for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const d=Math.hypot(i,j)/p.r;if(d>1)continue;const X=Math.round(p.x+i),Y=Math.round(p.y+j);if(X<0||Y<0||X>=W||Y>=H)continue;const a=p.a*(1-d*d)*(.65+.35*hh(X+p.sd,Y,7));if(a>.01)out[Y*W+X]=mix(out[Y*W+X],p.c,Math.min(.8,a))}}}
-function vMist(v){const run=Math.abs(v.sp)>.05||Math.abs(v.w)>.001,lit=v.on&&tick-v.onT>=VIGN,pw=lit?1:v.on?0:Math.max(0,1-v.offT/180);
+function vMist(v){{const lt=v.on&&tick-v.onT>=VIGN,gt=lt?Math.min(1,.4+.6*Math.max(Math.abs(v.sp)/.378,Math.abs(v.w)/.0028)):0;v.glow=(v.glow||0)+(gt-(v.glow||0))*(gt>(v.glow||0)?.05:.02)}
+ const run=Math.abs(v.sp)>.05||Math.abs(v.w)>.001,lit=v.on&&tick-v.onT>=VIGN,pw=lit?1:v.on?0:Math.max(0,1-v.offT/180);
  if(!v.dead&&(v.on&&tick-v.onT>=VIGN&&tick-v.onT<VIGN+50||!v.on&&v.offT<150)&&tick%3===0){const[gx,gy]=vL2W(v,VC.XST+5.5+Math.random()*5,VC.R0+VC.IH-16+(Math.random()<.5?6.5:9.5));v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:2,gr:.2,a:v.on?.5:.36*(1-v.offT/150),c:rgb(150,152,158),sd:Math.random()*99|0,R:v.on?16:20})}
  if(pw>0&&!v.dead&&tick%(run?2:6)===0){const[gx,gy]=vL2W(v,VC.XST+5.5+Math.random()*5,VC.R0+VC.IH-16+(Math.random()<.5?6.5:9.5)),k=.55+Math.random()*.45;v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.12,vy:(Math.random()-.5)*.12-.03,r:2.5,gr:run?.16:.1,a:(run?.52:.42)*pw,c:rgb(52*k+20|0,50*k+20|0,54*k+22|0),sd:Math.random()*99|0,R:run?18:12})}
  if(v.fuse&&tick%2===0){const[gx,gy]=vL2W(v,VC.XST+8,VC.RC[2]);v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:2,gr:.18,a:.55,c:rgb(34,32,34),sd:Math.random()*99|0,R:14})}
@@ -3204,9 +3215,10 @@ function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%
   vPin(v);vMist(v);vWalkers(v);if(v.fuse&&--v.fuse===0)vBlow(v)}
  vPrompt();if(tick%2===0)vSound()}
 function vMove(v){const n={x:v.x-Math.cos(v.ang)*v.sp,y:v.y-Math.sin(v.ang)*v.sp,ang:v.ang+v.w};
- const tryPose=P=>{const o=vOrient(v,P),bx=Math.round(P.x),by=Math.round(P.y),cells=new Set();for(const p of[...o.px,...o.tk]){const X=bx+p[0],Y=by+p[1];if(X<1||Y<1||X>=W-1||Y>=H-1)return null;const j=Y*W+X;if((sol[j]||OBJ[j])&&!vHedge(X,Y)||slabG[j]&&slabG[j]!==v.id&&!v.dids.has(slabG[j]))return null;cells.add(j)}return{px:o.px,tk:o.tk,cells}};
+ const tryPose=P=>{const o=vOrient(v,P),bx=Math.round(P.x),by=Math.round(P.y),cells=new Set();for(const p of[...o.px,...o.tk]){const X=bx+p[0],Y=by+p[1];if(X<1||Y<1||X>=W-1||Y>=H-1)return null;const j=Y*W+X;if((sol[j]||OBJ[j])&&!vHedge(X,Y)||slabG[j]&&slabG[j]!==v.id&&!v.dids.has(slabG[j])){const sb=slabG[j]&&byId(slabG[j]);hitM=sol[j]===3||!!sb&&(sb.veh||sb.mat===3);return null}cells.add(j)}return{px:o.px,tk:o.tk,cells}};let hitM=false;
  let P=n,r=tryPose(n);if(!r&&v.w){P={x:n.x,y:n.y,ang:v.ang};r=tryPose(P);if(r)v.w=0}if(!r&&v.sp){P={x:v.x,y:v.y,ang:n.ang};r=tryPose(P);if(r)v.sp=0}
- if(!r){if(Math.abs(v.sp)>.1)sfx('thunk');v.sp=0;v.w=0;return}
+ // a bump: metal rings like any metal contact, anything else thuds; no damage at these speeds
+ if(!r){if((Math.abs(v.sp)>.05||Math.abs(v.w)>.0008)&&tick-(v.bumpT||0)>24){v.bumpT=tick;if(hitM){sfx('chink');sfx('clank')}else sfx('thunk')}v.sp=0;v.w=0;v.acc=0;v.alp=0;return}
  // units outside in the way are shoved; one that can't give stops the carrier
  const carried=bodies.filter(b=>(b.type==='token'||b.type==='weapon')&&!inDrag(b)&&(v.seats.includes(b)||(()=>{const[lx,ly]=vW2L(v,b.x,b.y);return vInside(v,lx,ly)})()));
  for(const t of bodies){if(t.type!=='token'||carried.includes(t)||Math.abs(t.x-P.x)>90||Math.abs(t.y-P.y)>90)continue;const tx=Math.round(t.x),ty=Math.round(t.y);let hit=false;for(const p of t.px){if(p[0]*p[0]+p[1]*p[1]>45)continue;if(r.cells.has((ty+p[1])*W+tx+p[0])){hit=true;break}}if(!hit)continue;
