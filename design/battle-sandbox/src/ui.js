@@ -409,8 +409,8 @@ OVL.push(()=>{if(UI.tool!=='paint')return;const now=performance.now();if(PDN&&PN
 let stK='';function storePanel(){const c=openCrate||(!sel.size&&hoverC);if(UI.tool!=='hand'||!c||!c.inv||!bodies.includes(c)){if(stK){stK='';HCX.innerHTML='';head('hand')}return false}cNorm(c);
  const k=JSON.stringify([c.id,c.inv]);if(k===stK)return true;stK=k;hbK='';HCX.innerHTML='';TH.innerHTML='';TH.append(pieceIcon(c),mk('span',null,c.name||'Storage'));
  const g=mk('div','hg cg');c.inv.forEach((q,i)=>{const d=slotEl(q,null,false);if(q)d.onpointerdown=e=>{e.preventDefault();dropSlot(c,i);lastHud='';stK=''};g.append(d)});const cp=mk('div','hpan');cp.append(g);HCX.append(cp);return true}
-window.addEventListener('pointermove',()=>{if(hoverC||!mouse.in||drag)return;const X=mouse.x|0,Y=mouse.y|0,k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(k&&PCK.has(k)&&!bodyAt(X,Y,1))hoverC=boxAt(X,Y)});
-VIEW.addEventListener('contextmenu',e=>{if(EM||!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;if(bodyAt(X,Y,3))return;const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(!k||!PCK.has(k))return;const c=boxAt(X,Y);if(!c)return;e.preventDefault();e.stopPropagation();openMenu(c,e)},true);
+window.addEventListener('pointermove',()=>{if(hoverC||!mouse.in||drag)return;const X=mouse.x|0,Y=mouse.y|0,k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(k&&(PCK.has(k)||isTbl(k))&&!bodyAt(X,Y,1))hoverC=boxAt(X,Y)});
+VIEW.addEventListener('contextmenu',e=>{if(EM||!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;if(bodyAt(X,Y,3))return;const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(!k||!PCK.has(k)&&!isTbl(k))return;const c=boxAt(X,Y);if(!c)return;e.preventDefault();e.stopPropagation();openMenu(c,e)},true);
 // drag a slot from the inventory panel out onto the board
 let SPD=null;window.addEventListener('pointermove',e=>{if(SPD&&Math.hypot(e.clientX-SPD.x,e.clientY-SPD.y)>6){SDR={c:SPD.tk,i:SPD.i};SPD=null}});
 // press an item inside a shown container and drag it to a unit, another container, a new spot or the floor
