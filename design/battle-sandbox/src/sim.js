@@ -911,7 +911,7 @@ function pierce(o,x,y,dx,dy,E,ap,maxD){const ox=Math.round(o.x),oy=Math.round(o.
  for(let i=0;i<24&&o.set.has(K(Math.round(x)-ox,Math.round(y)-oy));i++){x-=dx;y-=dy}
  let last=null,inside=false,removed=0,blood=false,miss=0;
  for(let i=0;i<60;i++){x+=dx*.5;y+=dy*.5;const k=K(Math.round(x)-ox,Math.round(y)-oy);if(k===last)continue;last=k;const p=o.set.get(k);
-  if(!p){if(inside&&++miss>3)break;continue}if(ex===null){ex=x;ey=y}if(maxD&&Math.hypot(x-ex,y-ey)>maxD)return{stop:true,p,x,y,blood,removed};inside=true;miss=0;const ra=o.type!=='token'||p[7]==='f'||p[10]===undefined?p[7]:p[4]===3?'a':p[7]==='a'?'s':p[7],hp=ra==='s'?Math.min(p[3],p[10]==='l'?2:1):p[3],f=ra==='f'?(frontOf(o,p)?ap:1/p[3]):ra==='a'?ap*(o.unit==='shock'&&p[8]*Math.cos(o.ang||0)+p[9]*Math.sin(o.ang||0)<-2?.35:1):1,cost=hp*f*((ra==='a'||ra==='f')&&f>=ap*.9?1/Math.max(.45,Math.abs(dx*p[8]+dy*p[9])/(Math.hypot(p[8],p[9])||1)):1);
+  if(!p){if(inside&&++miss>3)break;continue}if(ex===null){ex=x;ey=y}if(maxD&&Math.hypot(x-ex,y-ey)>maxD)return{stop:true,p,x,y,blood,removed};inside=true;miss=0;const ra=o.type!=='token'||p[7]==='f'||p[10]===undefined?p[7]:p[4]===3?'a':p[7]==='a'?'s':p[7],hp=ra==='s'?Math.min(p[3],p[10]==='l'?2:1):p[3],f=ra==='f'?(frontOf(o,p)?ap:1/p[3]):ra==='a'?ap:1,cost=hp*f*((ra==='a'||ra==='f')&&f>=ap*.9?1/Math.max(.45,Math.abs(dx*p[8]+dy*p[9])/(Math.hypot(p[8],p[9])||1)):1);
   if(E>=cost){E-=cost;o.set.delete(k);removed++;if(p[7]==='h'||p[7]==='k')o.coreHit=true;if(ra!=='a')blood=true}
   else{p[3]-=Math.max(1,Math.floor(E/f));if(p[3]<=0){o.set.delete(k);removed++}if(ra!=='a')blood=true;if(p[3]<=0&&(p[7]==='h'||p[7]==='k'))o.coreHit=true;return{stop:true,p,x,y,blood,removed}}}
  return{stop:false,E,x,y,blood,removed}}
