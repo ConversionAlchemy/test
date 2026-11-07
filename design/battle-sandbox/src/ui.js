@@ -108,7 +108,7 @@ function tilerCtx(){TCX.innerHTML='';if((!edBrush||edBrush.t==='clean')&&UI.tile
  if(UI.tt==='floor'||UI.tt==='wall'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)&&(KIND[k]==='wall')===!!PK.w),els=[...EORDER.filter(e=>!PK.w||Object.keys(ELEM[e].mats).some(m=>!mprop(e,m).nowall)),...(mods.length?['Mods']:[])];if(!els.includes(PK.el))PK.el='Stone';
   sub(els.map(e=>[e,e]),PK.el,e=>{PK.el=e;if(e!=='Mods'){PK.mat=Object.keys(ELEM[e].mats)[0];PK.v=Object.keys(varsOf(e,PK.mat))[0]}else PK.mat=mods[0]});
   if(PK.el==='Mods'){four(mods);pref=PK.mat}else{const e=PK.el.toLowerCase(),sf=PK.w?'.w':'';for(const m of Object.keys(ELEM[PK.el].mats).filter(m=>!PK.w||!mprop(PK.el,m).nowall))four(Object.keys(varsOf(PK.el,m)).map(v=>e+'.'+m+'.'+v+sf).filter(validK));pref=e+'.'+PK.mat+'.'+PK.v+sf}}
- else if(UI.tt==='furn'){const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',wk('chest'),Object.keys(MCHEST)],table:['Tables',[...wk('table'),...wk('desk')],Object.keys(MTABLE)],seat:['Chairs',wk('seat'),[]],plant:['Plants',['hedge'],[]],...(mods.length?{mods:['Mods',mods,[]]}:{})};
+ else if(UI.tt==='furn'){const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',wk('chest'),Object.keys(MCHEST)],table:['Tables',wk('table'),Object.keys(MTABLE)],seat:['Chairs',wk('seat'),[]],plant:['Plants',['hedge'],[]],...(mods.length?{mods:['Mods',mods,[]]}:{})};
   if(!FT[UI.ft])UI.ft='chest';sub(Object.entries(FT).map(([t,v])=>[t,v[0]]),UI.ft,t=>UI.ft=t);const[,wl,ml]=FT[UI.ft];
   // wood down the first column, metal down the second
   if(UI.ft==='mods')four(wl);else for(let i=0;i<Math.max(wl.length,ml.length);i++)rows.push([wl[i]||null,ml[i]||null,null,null])}
@@ -339,7 +339,7 @@ const HIC={musket:[['...................','..........bbbbbbbbb','wwwwwwwwwwbbbbb
  box:[['kkkkkkkk','kwwwwwwk','kwyyyywk','kwwwwwwk','kkkkkkkk'],{k:'#3a2a18',w:'#8a6038',y:'#d8c08a'},3],
  cell:[['.kkkk.','kbbbbk','kbccbk','kbccbk','kbbbbk','.kkkk.'],{k:'#1a2a3a',b:'#3a6a9a',c:'#9ad8ff'},3]};
 HIC.note=[['kkkkkkk','kwwwwwk','kwsswwk','kwwwwwk','kwssswk','kwwwwwk','kwsswwk','kkkkkkk'],{k:'#3a2a18',w:'#e6d6ae',s:'#8a6a3e'},3];
-const hic=k=>{const d=HIC[k]||(/box$/.test(k)?HIC.box:null);return d?pix(...d):sicon(k)};
+const hic=k=>k==='note'?pix(...HIC.note):sicon(k);// every icon is the item's top-down sprite
 function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?q.t||'Note':q.k}
  else if(sil){const c=hic(sil);c.className='sil';d.append(c)}return d}
 const itemName=q=>q?WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?'Note':q.k.endsWith('box')?'Ammo':q.k:'';

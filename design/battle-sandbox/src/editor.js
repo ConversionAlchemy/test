@@ -188,14 +188,14 @@ const DOORK={wood:['Wood door',2],pine:['Pine door',2],teak:['Teak door',2],stee
 // what each material makes beyond walls and floors: furniture, doors and cover slabs
 const FURN={Earth:{grass:{furn:['hedge']}},Wood:{oak:{doors:['wood'],slabs:[[2,'Wood slab']]},pine:{doors:['pine'],slabs:[[2,'Pine slab',16,8,'pine']]},teak:{doors:['teak'],slabs:[[2,'Teak slab',16,8,'teak']]},mahog:{doors:['mahog']},ebony:{doors:['ebony']}},
  Metal:{steel:{furn:['schest','stable'],doors:['steel']},iron:{furn:['mchest','itable'],doors:['iron']},brass:{furn:['bchest','btable'],doors:['brass']},gold:{furn:['gchest','gtable'],doors:['gold']},umbra:{furn:['uchest','utable'],doors:['umbra']}}},FW={hedge:4,books:2,shelf:2,rack:2,wagon:2,stable:2,itable:2,btable:2,gtable:2,utable:2};
-for(const k in WPIECE){const[m,sh]=WPIECE[k];if(sh==='table'||sh==='desk')FW[k]=2;if(!RETIRED.has(k))(FURN.Wood[m].furn=FURN.Wood[m].furn||[]).push(k)}
+for(const k in WPIECE){const[m,sh]=WPIECE[k];if(sh==='table'||sh==='desk')FW[k]=2;if(!RETIRED.has(k)&&sh!=='desk')(FURN.Wood[m].furn=FURN.Wood[m].furn||[]).push(k)}
 // every metal gives a slab and a heavy slab as cover
 for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[[3,n+' slab',16,8,mat],[3,'Heavy '+n.toLowerCase()+' slab',32,8,mat]]}
 const umbraC=c=>toneC('umbra',c);
 // a door is its material's slab plus a hinge and a lock
 // hinges grey and the lock orange, each picked light or dark against the leaf so they always stand out
 const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9],c=q[2],lum=((c&255)+(c>>8&255)+(c>>16&255))/3,my=-(th>>1);
- if((x===1||x===2)&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=lum>120?rgb(74,76,82):rgb(170,172,178);
+ if((x===1||x===2)&&(y===my-1||y===my))q[2]=lum>120?rgb(74,76,82):rgb(170,172,178);
  else if((x===L-4||x===L-3)&&(y===my-1||y===my))q[2]=lum>150?rgb(176,84,18):rgb(238,148,52)};
 // a door leaf hangs from whichever side has wall: two leaves in a double opening open from opposite jambs
 function smartDoor(k,cx,cy,full){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]),L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);

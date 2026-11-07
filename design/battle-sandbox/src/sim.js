@@ -94,7 +94,7 @@ function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)
  for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
 // finishes: riveted iron band on chests and racks, book spines on a bookshelf's open edges, a riveted steel vault shelf
 // wooden chests get metal corner brackets (iron on the plain woods, steel on mahogany and ebony) that are metal to hit; dark on light wood, bright on dark wood
-function brackets(){for(const p of new Set(PCS.values())){const W0=WPIECE[baseK(p.k)],MC=MCHEST[baseK(p.k)];if(MC){metalBrackets(p);continue}if(!W0||W0[1]!=='chest')continue;const X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T,c0=OBJC[(Y0+(ph>>1))*W+X0+(pw>>1)],light=((c0&255)+(c0>>8&255)+(c0>>16&255))/3>95,mt=W0[0]==='mahog'||W0[0]==='ebony'?'steel':'iron',hi=toneC(mt,light?rgb(84,88,96):rgb(206,210,216)),lo=toneC(mt,light?rgb(48,50,56):rgb(120,124,130));
+function brackets(){for(const p of new Set(PCS.values())){const W0=WPIECE[baseK(p.k)],MC=MCHEST[baseK(p.k)];if(MC){metalBrackets(p);continue}if(!W0||W0[1]!=='chest')continue;const X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T,c0=OBJC[(Y0+(ph>>1))*W+X0+(pw>>1)],light=((c0&255)+(c0>>8&255)+(c0>>16&255))/3>95,mt=W0[0]==='mahog'||W0[0]==='ebony'?'steel':'iron',hi=toneC(mt,rgb(206,210,216)),lo=toneC(mt,rgb(120,124,130));
  for(const[cx,cy,sx,sy]of[[X0+2,Y0+2,1,1],[X0+pw-3,Y0+2,-1,1],[X0+2,Y0+ph-3,1,-1],[X0+pw-3,Y0+ph-3,-1,-1]])for(let i=0;i<4;i++)for(const[x,y]of[[cx+sx*i,cy],[cx,cy+sy*i]]){const j=y*W+x;OBJC[j]=i<3?hi:lo;OBJ[j]=3;SHN[j]=60}}}
 // metal chests: the same corner brackets, in a lighter cut of the chest's own metal
 function metalBrackets(p){const L=rgb(255,255,255),X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T;for(const[cx,cy,sx,sy]of[[X0+2,Y0+2,1,1],[X0+pw-3,Y0+2,-1,1],[X0+2,Y0+ph-3,1,-1],[X0+pw-3,Y0+ph-3,-1,-1]]){const arm=[];for(let i=0;i<4;i++)arm.push([cx+sx*i,cy,i],[cx,cy+sy*i,i]);const on=new Set(arm.map(([x,y])=>y*W+x));
@@ -528,7 +528,8 @@ const WP={musket:{n:'Musket',gun:1,fr:.9,m:1,range:300,spread:.03,speed:46,proj:
 const CAP={musket:12,pistol:18,blunder:8,rod:3,pgun:3},RCAP=k=>k==='pgun'?6:CAP[k],BOX={musket:'mbox',pistol:'pbox',blunder:'sbox',rod:'rbox',pgun:'cell'},CARRY={civ:1,home:2,rifle:2,guard:3,cmd:4,shock:5};
 function loadout(u,w){const L=[];if(u==='civ')return L;if(RND()<.25)L.push({k:'grenade',n:1});if((u==='cmd'||u==='guard')&&RND()<.1)L.push({k:'bomb',n:1});return L}
 // slots: 0 primary, 1 secondary, 2 grenade, 3 heavy, 4+ pack
-const SEC=new Set(['pistol']),GREN=new Set(['grenade','pot','sbomb']),PACK={civ:1,home:1,rifle:1,guard:2,cmd:2,shock:2},LIGHT=new Set(['civ','home']);
+delete WP.pot;// fire pot retired
+const SEC=new Set(['pistol']),GREN=new Set(['grenade','sbomb']),PACK={civ:1,home:1,rifle:1,guard:2,cmd:2,shock:2},LIGHT=new Set(['civ','home']);
 const slotOK=(t,i)=>t.type!=='token'||!(i===1&&LIGHT.has(t.unit))&&i<4+(PACK[t.unit]||1);
 // what a body fires from: a unit's held item, or a ground weapon acting as its own holder
 const slot=b=>b.type==='token'?b.held:b.type==='weapon'&&WP[b.kind]?b.gs||(b.res===undefined&&CAP[b.kind]&&(b.res=CAP[b.kind]*2),b.gs={get k(){return b.kind},get ammo(){return b.ammo??CAP[b.kind]},set ammo(v){b.ammo=v},get res(){return b.res||0},set res(v){b.res=v},heat:0}):null;
@@ -546,8 +547,10 @@ const SPRT=new Set(['pgun','musket','blunder','pistol','rod','sspear','spear','g
 function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(a);
  const st=(t0,t1,w,f)=>{for(let t=t0;t<=t1;t+=.5)for(let u=-w;u<=w+.01;u+=.5)m.set(K(Math.round(c*t-s*u),Math.round(s*t+c*u)),f(t,u))};
  const disc=(r,f)=>{for(let y=-6;y<=6;y++)for(let x=-6;x<=6;x++){const d=Math.hypot(x,y);if(d<=r)m.set(K(x,y),f(x,y,d))}};
- if(isKey(kind)){const big=kind[0]==='b',mt=kind.split('_')[1],P=big?['###########','#.#....#..#','#.#.....##.','#.#........']:['###########','##.....#..#','#.......##.','#..........'],L=rgb(222,226,232),M=rgb(168,174,182),D=rgb(104,108,116);
-  for(let y=0;y<4;y++)for(let x=0;x<11;x++)if(P[y][x]==='#'){const v=y===0?(x>=7?M:L):x>=7?D:M,X=x-5,Y=y-1.5;m.set(K(Math.round(c*X-s*Y),Math.round(s*X+c*Y)),mt==='steel'?v:toneC(mt,v))}}
+ if(isKey(kind)){const big=kind[0]==='b',mt=kind.split('_')[1],L=rgb(222,226,232),M=rgb(168,174,182),D=rgb(104,108,116),put=(x,y,v)=>{const X=x-4,Y=y-4;m.set(K(Math.round(c*X-s*Y),Math.round(s*X+c*Y)),mt==='steel'?v:toneC(mt,v))};
+  // top-down key laid on the diagonal so it fills a square: a ring bow top-left, the blade down to the bottom-right, one bit (two on a vault key)
+  const R=big?1.9:1.4,o=big?2:1.5;for(let y=-1;y<=5;y++)for(let x=-1;x<=5;x++){const d=Math.hypot(x-o,y-o);if(d>R-.6&&d<R+.6)put(x,y,x+y<2*o?L:M)}
+  for(let t=Math.ceil(o+R);t<=8;t++)put(t,t,M);put(8,6,D);put(7,7,M);if(big){put(6,4,D);put(7,5,D)}else put(7,5,D)}
  if(kind==='spear')st(-12.8,12.4,0,t=>t>11?C.ironH:(t*2|0)%7===0?C.ironD:C.iron);
  if(kind==='sspear')st(-12,11.5,0,t=>{if(t>8)return(t*2|0)%2?plasC(Math.random()):rgb(240,226,255);const base=(t*2|0)%7===0?rgb(26,27,31):rgb(48,50,57);if(!heat)return base;const c=heatCol(heat*(.8+.25*(t+12)/20)+(hh(t*2|0,7,3)-.5)*.05*Math.min(1,heat*3),base,PHEAT);return heat>1?mix(c,rgb(255,255,255),Math.min(.7,(heat-1)*2.5)):c});
  if(kind==='pgun'){const dm=rgb(44,46,54);st(-10,-5,1,(t,u)=>sh3(dm,u));st(-5,6,.5,(t,u)=>sh3(rgb(54,56,66),u));st(6,8,1,(t,u)=>sh3(rgb(50,54,66),u));st(8.5,10,1.5,(t,u)=>t>=10&&Math.abs(u)<.3?rgb(220,170,255):sh3(rgb(58,60,68),u))}
@@ -564,11 +567,11 @@ function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(
  if(kind==='pball'||kind==='pel')m.set(K(0,0),C.lead);
  if(kind==='crossbow'){st(-8,6,.5,()=>C.lw);for(let u=-5;u<=5;u+=.5)m.set(K(Math.round(c*3.5-s*u),Math.round(s*3.5+c*u)),C.lwD)}
  if(kind==='ball')m.set(K(0,0),C.lead);
- if(kind==='gold'){for(const[ox,oy]of[[-4,0],[0,0],[-2,-2]])for(let y=0;y<2;y++)for(let x=0;x<4;x++)m.set(K(ox+x,oy+y),y===0?rgb(250,214,90):rgb(190,146,40))}
+ if(kind==='gold'){for(const[ox,oy]of[[-2,1],[2,1],[0,-2]])for(let y=-2;y<=2;y++)for(let x=-2;x<=2;x++){const d=Math.hypot(x,y);if(d>2.4)continue;m.set(K(ox+x,oy+y),d>1.7?rgb(176,132,36):x+y<-1?rgb(255,236,140):rgb(236,196,72))}}
  if(kind==='crate'||kind==='lcrate'){const hw=kind==='lcrate'?15:5;for(let y=-5;y<=5;y++)for(let x=-hw;x<=hw;x++){const e=Math.abs(x)===hw||Math.abs(y)===5;m.set(K(x,y),e?C.woodD:(x===y||x===-y)?mul(C.wood,.82):(y+5)%3===0?mul(C.wood,.9):C.woodH)}}
- if(kind==='mbox'||kind==='pbox'||kind==='sbox'){const t=kind==='mbox'?rgb(176,140,90):kind==='pbox'?rgb(150,120,80):rgb(120,110,96);for(let y=-3;y<=3;y++)for(let x=-5;x<=5;x++)m.set(K(x,y),Math.abs(y)===3||Math.abs(x)===5||y===0?mul(t,.68):t)}
- if(kind==='rbox'){for(let y=-2;y<=2;y++)for(let x=-6;x<=6;x++)m.set(K(x,y),x===-3||x===3?rgb(40,42,48):y%2?rgb(140,144,152):rgb(184,188,196))}
- if(kind==='cell'){for(let y=-4;y<=4;y++)for(let x=-2;x<=2;x++)m.set(K(x,y),Math.abs(x)===2||Math.abs(y)===4?rgb(36,48,84):y<-1?rgb(140,205,255):rgb(70,100,170))}
+ if(kind==='mbox'||kind==='pbox'||kind==='sbox'){const t=kind==='mbox'?rgb(176,140,90):kind==='pbox'?rgb(150,120,80):rgb(120,110,96);for(let y=-5;y<=4;y++)for(let x=-5;x<=4;x++){const e=x===-5||y===-5||x===4||y===4;m.set(K(x,y),e?mul(t,.62):(x===-4||y===-4)?mul(t,1.12):(x===-1||x===0)&&y>-4&&y<3?mul(t,.78):t)}}
+ if(kind==='rbox'){for(let y=-5;y<=4;y++)for(let x=-5;x<=4;x++){const e=x===-5||y===-5||x===4||y===4;m.set(K(x,y),e?rgb(40,42,48):(x&1)?rgb(140,144,152):rgb(184,188,196))}}
+ if(kind==='cell'){for(let y=-5;y<=4;y++)for(let x=-5;x<=4;x++){const e=x===-5||y===-5||x===4||y===4;m.set(K(x,y),e?rgb(36,48,84):x>=-2&&x<=1&&y>=-3&&y<=2?(y<-1?rgb(140,205,255):rgb(70,100,170)):rgb(52,66,110))}}
  if(kind==='grenade'){disc(3.2,(x,y,d)=>d>2.6?C.ironK:Math.hypot(x+1,y+1)<1.2?C.ironH:x+y<-1?C.iron:C.ironD);m.set(K(0,0),C.fuse)}
  if(kind==='pot'){disc(3.4,(x,y,d)=>d>2.8?C.clayD:x+y<-2?mul(C.clay,1.2):C.clay);m.set(K(0,-1),C.cloth);m.set(K(0,-2),C.cloth);m.set(K(1,-2),C.cloth)}
  if(kind==='bomb')disc(4.6,(x,y,d)=>d>3.9?C.ironK:Math.abs(d-3.2)<.45?mul(C.ironD,.7):Math.hypot(x+1.5,y+1.5)<1.3?C.ironH:d>1.4?(x+y<-2?C.iron:C.ironD):rgb(214,176,70));

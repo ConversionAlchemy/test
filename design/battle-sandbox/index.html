@@ -426,6 +426,8 @@ for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;c
 // wooden furniture: each piece is [wood, shape, name], drawn as its wood's polished face; rim, bevel and inlay are drawn per piece, as on polished floors
 const WSHAPE={table:'table',desk:'desk',chest:'chest',seat:'chair'},WOLD={'oak.table':'table','oak.chest':'chest','oak.seat':'seat','mahog.desk':'desk','ebony.desk':'edesk','pine.table':'ptable','pine.chest':'pchest','pine.seat':'pseat','teak.table':'ttable','teak.chest':'tchest','teak.seat':'tseat'},WPIECE={};
 for(const m of Object.keys(ELEM.Wood.mats))for(const sh in WSHAPE)WPIECE[WOLD[m+'.'+sh]||sh+'.'+m]=[m,sh,memb('Wood',m).n+' '+WSHAPE[sh]];
+// desks are tables now: every desk key loads as its wood's table
+const DESK2T={};for(const k in WPIECE)if(WPIECE[k][1]==='desk'){const t=Object.keys(WPIECE).find(q=>WPIECE[q][0]===WPIECE[k][0]&&WPIECE[q][1]==='table');if(t)DESK2T[k]=t}
 const wshape=k=>{const b=baseK(k),p=WPIECE[b];return p?p[1]:MTABLE[b]?'table':undefined};
 const woodFin=mat=>{const dk=mat==='mahog'||mat==='ebony';return{rim:mprop('Wood',mat).rim||.5,gl:dk?[210,168,100]:[176,126,84],gt:dk?.4:.25}};
 for(const k in WPIECE){const[m,sh]=WPIECE[k],f=TEX['wood.'+m+'.panel'];KIND[k]='floor';TEX[k]=sh==='seat'?(X,Y,cx,cy)=>{const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y),c=f(X,Y);return e===0?sc(c,woodFin(m).rim):e===1?sc(c,.82):sc(c,1.08-Math.hypot(x-7.5,y-7.5)/7*.18)}:f;
@@ -435,7 +437,7 @@ const OLDK={marble:'stone.aur.block',dmarble:'stone.aur.chequer',omarble:'stone.
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.teak.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.panel.w',mpanel:'metal.steel.panel.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',
  books:'chest',rack:'chest',wagon:'chest',shelf:'schest',
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};
-const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];const r=n&&!n.startsWith('earth.')?n+s:k;return r.replace(/^metal\.(\w+)\.rivet/,'metal.$1.panel')};// riveted plate retired: old maps get panels
+const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];let r=n&&!n.startsWith('earth.')?n+s:k;{const m=/^(.*?)(~\d)?$/.exec(r);if(typeof DESK2T!=='undefined'&&DESK2T[m[1]])r=DESK2T[m[1]]+(m[2]||'')}return r.replace(/^metal\.(\w+)\.rivet/,'metal.$1.panel')};// riveted plate retired: old maps get panels
 // a door's floor: each half carries on the floor of the cell beside it; a neighbouring doorway counts as wall line, so double doors work (the sill shows only where a side has none)
 for(const k of['sill','msill']){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const at=(x,y)=>LINK(x,y),fl=q=>q&&TEX[q]&&KIND[q]!=='wall'&&!WPIECE[baseK(q)]&&!MCHEST[baseK(q)]&&!MTABLE[baseK(q)]&&q!=='sill'&&q!=='msill'?q:null,wl=q=>KIND[q]==='wall'||q==='sill'||q==='msill',hz=!(wl(at(cx,cy-1))&&wl(at(cx,cy+1))),lo=((hz?Y:X)&15)<8,dx=hz?0:lo?-1:1,dy=hz?lo?-1:1:0,q=fl(at(cx+dx,cy+dy));return q?TEX[q](X+dx*T,Y+dy*T,cx+dx,cy+dy):f(X,Y,cx,cy)}}
 TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
@@ -731,7 +733,7 @@ function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)
  for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
 // finishes: riveted iron band on chests and racks, book spines on a bookshelf's open edges, a riveted steel vault shelf
 // wooden chests get metal corner brackets (iron on the plain woods, steel on mahogany and ebony) that are metal to hit; dark on light wood, bright on dark wood
-function brackets(){for(const p of new Set(PCS.values())){const W0=WPIECE[baseK(p.k)],MC=MCHEST[baseK(p.k)];if(MC){metalBrackets(p);continue}if(!W0||W0[1]!=='chest')continue;const X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T,c0=OBJC[(Y0+(ph>>1))*W+X0+(pw>>1)],light=((c0&255)+(c0>>8&255)+(c0>>16&255))/3>95,mt=W0[0]==='mahog'||W0[0]==='ebony'?'steel':'iron',hi=toneC(mt,light?rgb(84,88,96):rgb(206,210,216)),lo=toneC(mt,light?rgb(48,50,56):rgb(120,124,130));
+function brackets(){for(const p of new Set(PCS.values())){const W0=WPIECE[baseK(p.k)],MC=MCHEST[baseK(p.k)];if(MC){metalBrackets(p);continue}if(!W0||W0[1]!=='chest')continue;const X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T,c0=OBJC[(Y0+(ph>>1))*W+X0+(pw>>1)],light=((c0&255)+(c0>>8&255)+(c0>>16&255))/3>95,mt=W0[0]==='mahog'||W0[0]==='ebony'?'steel':'iron',hi=toneC(mt,rgb(206,210,216)),lo=toneC(mt,rgb(120,124,130));
  for(const[cx,cy,sx,sy]of[[X0+2,Y0+2,1,1],[X0+pw-3,Y0+2,-1,1],[X0+2,Y0+ph-3,1,-1],[X0+pw-3,Y0+ph-3,-1,-1]])for(let i=0;i<4;i++)for(const[x,y]of[[cx+sx*i,cy],[cx,cy+sy*i]]){const j=y*W+x;OBJC[j]=i<3?hi:lo;OBJ[j]=3;SHN[j]=60}}}
 // metal chests: the same corner brackets, in a lighter cut of the chest's own metal
 function metalBrackets(p){const L=rgb(255,255,255),X0=p.x0*T,Y0=p.y0*T,pw=p.w*T,ph=p.h*T;for(const[cx,cy,sx,sy]of[[X0+2,Y0+2,1,1],[X0+pw-3,Y0+2,-1,1],[X0+2,Y0+ph-3,1,-1],[X0+pw-3,Y0+ph-3,-1,-1]]){const arm=[];for(let i=0;i<4;i++)arm.push([cx+sx*i,cy,i],[cx,cy+sy*i,i]);const on=new Set(arm.map(([x,y])=>y*W+x));
@@ -1165,7 +1167,8 @@ const WP={musket:{n:'Musket',gun:1,fr:.9,m:1,range:300,spread:.03,speed:46,proj:
 const CAP={musket:12,pistol:18,blunder:8,rod:3,pgun:3},RCAP=k=>k==='pgun'?6:CAP[k],BOX={musket:'mbox',pistol:'pbox',blunder:'sbox',rod:'rbox',pgun:'cell'},CARRY={civ:1,home:2,rifle:2,guard:3,cmd:4,shock:5};
 function loadout(u,w){const L=[];if(u==='civ')return L;if(RND()<.25)L.push({k:'grenade',n:1});if((u==='cmd'||u==='guard')&&RND()<.1)L.push({k:'bomb',n:1});return L}
 // slots: 0 primary, 1 secondary, 2 grenade, 3 heavy, 4+ pack
-const SEC=new Set(['pistol']),GREN=new Set(['grenade','pot','sbomb']),PACK={civ:1,home:1,rifle:1,guard:2,cmd:2,shock:2},LIGHT=new Set(['civ','home']);
+delete WP.pot;// fire pot retired
+const SEC=new Set(['pistol']),GREN=new Set(['grenade','sbomb']),PACK={civ:1,home:1,rifle:1,guard:2,cmd:2,shock:2},LIGHT=new Set(['civ','home']);
 const slotOK=(t,i)=>t.type!=='token'||!(i===1&&LIGHT.has(t.unit))&&i<4+(PACK[t.unit]||1);
 // what a body fires from: a unit's held item, or a ground weapon acting as its own holder
 const slot=b=>b.type==='token'?b.held:b.type==='weapon'&&WP[b.kind]?b.gs||(b.res===undefined&&CAP[b.kind]&&(b.res=CAP[b.kind]*2),b.gs={get k(){return b.kind},get ammo(){return b.ammo??CAP[b.kind]},set ammo(v){b.ammo=v},get res(){return b.res||0},set res(v){b.res=v},heat:0}):null;
@@ -1183,8 +1186,10 @@ const SPRT=new Set(['pgun','musket','blunder','pistol','rod','sspear','spear','g
 function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(a);
  const st=(t0,t1,w,f)=>{for(let t=t0;t<=t1;t+=.5)for(let u=-w;u<=w+.01;u+=.5)m.set(K(Math.round(c*t-s*u),Math.round(s*t+c*u)),f(t,u))};
  const disc=(r,f)=>{for(let y=-6;y<=6;y++)for(let x=-6;x<=6;x++){const d=Math.hypot(x,y);if(d<=r)m.set(K(x,y),f(x,y,d))}};
- if(isKey(kind)){const big=kind[0]==='b',mt=kind.split('_')[1],P=big?['###########','#.#....#..#','#.#.....##.','#.#........']:['###########','##.....#..#','#.......##.','#..........'],L=rgb(222,226,232),M=rgb(168,174,182),D=rgb(104,108,116);
-  for(let y=0;y<4;y++)for(let x=0;x<11;x++)if(P[y][x]==='#'){const v=y===0?(x>=7?M:L):x>=7?D:M,X=x-5,Y=y-1.5;m.set(K(Math.round(c*X-s*Y),Math.round(s*X+c*Y)),mt==='steel'?v:toneC(mt,v))}}
+ if(isKey(kind)){const big=kind[0]==='b',mt=kind.split('_')[1],L=rgb(222,226,232),M=rgb(168,174,182),D=rgb(104,108,116),put=(x,y,v)=>{const X=x-4,Y=y-4;m.set(K(Math.round(c*X-s*Y),Math.round(s*X+c*Y)),mt==='steel'?v:toneC(mt,v))};
+  // top-down key laid on the diagonal so it fills a square: a ring bow top-left, the blade down to the bottom-right, one bit (two on a vault key)
+  const R=big?1.9:1.4,o=big?2:1.5;for(let y=-1;y<=5;y++)for(let x=-1;x<=5;x++){const d=Math.hypot(x-o,y-o);if(d>R-.6&&d<R+.6)put(x,y,x+y<2*o?L:M)}
+  for(let t=Math.ceil(o+R);t<=8;t++)put(t,t,M);put(8,6,D);put(7,7,M);if(big){put(6,4,D);put(7,5,D)}else put(7,5,D)}
  if(kind==='spear')st(-12.8,12.4,0,t=>t>11?C.ironH:(t*2|0)%7===0?C.ironD:C.iron);
  if(kind==='sspear')st(-12,11.5,0,t=>{if(t>8)return(t*2|0)%2?plasC(Math.random()):rgb(240,226,255);const base=(t*2|0)%7===0?rgb(26,27,31):rgb(48,50,57);if(!heat)return base;const c=heatCol(heat*(.8+.25*(t+12)/20)+(hh(t*2|0,7,3)-.5)*.05*Math.min(1,heat*3),base,PHEAT);return heat>1?mix(c,rgb(255,255,255),Math.min(.7,(heat-1)*2.5)):c});
  if(kind==='pgun'){const dm=rgb(44,46,54);st(-10,-5,1,(t,u)=>sh3(dm,u));st(-5,6,.5,(t,u)=>sh3(rgb(54,56,66),u));st(6,8,1,(t,u)=>sh3(rgb(50,54,66),u));st(8.5,10,1.5,(t,u)=>t>=10&&Math.abs(u)<.3?rgb(220,170,255):sh3(rgb(58,60,68),u))}
@@ -1201,11 +1206,11 @@ function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(
  if(kind==='pball'||kind==='pel')m.set(K(0,0),C.lead);
  if(kind==='crossbow'){st(-8,6,.5,()=>C.lw);for(let u=-5;u<=5;u+=.5)m.set(K(Math.round(c*3.5-s*u),Math.round(s*3.5+c*u)),C.lwD)}
  if(kind==='ball')m.set(K(0,0),C.lead);
- if(kind==='gold'){for(const[ox,oy]of[[-4,0],[0,0],[-2,-2]])for(let y=0;y<2;y++)for(let x=0;x<4;x++)m.set(K(ox+x,oy+y),y===0?rgb(250,214,90):rgb(190,146,40))}
+ if(kind==='gold'){for(const[ox,oy]of[[-2,1],[2,1],[0,-2]])for(let y=-2;y<=2;y++)for(let x=-2;x<=2;x++){const d=Math.hypot(x,y);if(d>2.4)continue;m.set(K(ox+x,oy+y),d>1.7?rgb(176,132,36):x+y<-1?rgb(255,236,140):rgb(236,196,72))}}
  if(kind==='crate'||kind==='lcrate'){const hw=kind==='lcrate'?15:5;for(let y=-5;y<=5;y++)for(let x=-hw;x<=hw;x++){const e=Math.abs(x)===hw||Math.abs(y)===5;m.set(K(x,y),e?C.woodD:(x===y||x===-y)?mul(C.wood,.82):(y+5)%3===0?mul(C.wood,.9):C.woodH)}}
- if(kind==='mbox'||kind==='pbox'||kind==='sbox'){const t=kind==='mbox'?rgb(176,140,90):kind==='pbox'?rgb(150,120,80):rgb(120,110,96);for(let y=-3;y<=3;y++)for(let x=-5;x<=5;x++)m.set(K(x,y),Math.abs(y)===3||Math.abs(x)===5||y===0?mul(t,.68):t)}
- if(kind==='rbox'){for(let y=-2;y<=2;y++)for(let x=-6;x<=6;x++)m.set(K(x,y),x===-3||x===3?rgb(40,42,48):y%2?rgb(140,144,152):rgb(184,188,196))}
- if(kind==='cell'){for(let y=-4;y<=4;y++)for(let x=-2;x<=2;x++)m.set(K(x,y),Math.abs(x)===2||Math.abs(y)===4?rgb(36,48,84):y<-1?rgb(140,205,255):rgb(70,100,170))}
+ if(kind==='mbox'||kind==='pbox'||kind==='sbox'){const t=kind==='mbox'?rgb(176,140,90):kind==='pbox'?rgb(150,120,80):rgb(120,110,96);for(let y=-5;y<=4;y++)for(let x=-5;x<=4;x++){const e=x===-5||y===-5||x===4||y===4;m.set(K(x,y),e?mul(t,.62):(x===-4||y===-4)?mul(t,1.12):(x===-1||x===0)&&y>-4&&y<3?mul(t,.78):t)}}
+ if(kind==='rbox'){for(let y=-5;y<=4;y++)for(let x=-5;x<=4;x++){const e=x===-5||y===-5||x===4||y===4;m.set(K(x,y),e?rgb(40,42,48):(x&1)?rgb(140,144,152):rgb(184,188,196))}}
+ if(kind==='cell'){for(let y=-5;y<=4;y++)for(let x=-5;x<=4;x++){const e=x===-5||y===-5||x===4||y===4;m.set(K(x,y),e?rgb(36,48,84):x>=-2&&x<=1&&y>=-3&&y<=2?(y<-1?rgb(140,205,255):rgb(70,100,170)):rgb(52,66,110))}}
  if(kind==='grenade'){disc(3.2,(x,y,d)=>d>2.6?C.ironK:Math.hypot(x+1,y+1)<1.2?C.ironH:x+y<-1?C.iron:C.ironD);m.set(K(0,0),C.fuse)}
  if(kind==='pot'){disc(3.4,(x,y,d)=>d>2.8?C.clayD:x+y<-2?mul(C.clay,1.2):C.clay);m.set(K(0,-1),C.cloth);m.set(K(0,-2),C.cloth);m.set(K(1,-2),C.cloth)}
  if(kind==='bomb')disc(4.6,(x,y,d)=>d>3.9?C.ironK:Math.abs(d-3.2)<.45?mul(C.ironD,.7):Math.hypot(x+1.5,y+1.5)<1.3?C.ironH:d>1.4?(x+y<-2?C.iron:C.ironD):rgb(214,176,70));
@@ -2650,14 +2655,14 @@ const DOORK={wood:['Wood door',2],pine:['Pine door',2],teak:['Teak door',2],stee
 // what each material makes beyond walls and floors: furniture, doors and cover slabs
 const FURN={Earth:{grass:{furn:['hedge']}},Wood:{oak:{doors:['wood'],slabs:[[2,'Wood slab']]},pine:{doors:['pine'],slabs:[[2,'Pine slab',16,8,'pine']]},teak:{doors:['teak'],slabs:[[2,'Teak slab',16,8,'teak']]},mahog:{doors:['mahog']},ebony:{doors:['ebony']}},
  Metal:{steel:{furn:['schest','stable'],doors:['steel']},iron:{furn:['mchest','itable'],doors:['iron']},brass:{furn:['bchest','btable'],doors:['brass']},gold:{furn:['gchest','gtable'],doors:['gold']},umbra:{furn:['uchest','utable'],doors:['umbra']}}},FW={hedge:4,books:2,shelf:2,rack:2,wagon:2,stable:2,itable:2,btable:2,gtable:2,utable:2};
-for(const k in WPIECE){const[m,sh]=WPIECE[k];if(sh==='table'||sh==='desk')FW[k]=2;if(!RETIRED.has(k))(FURN.Wood[m].furn=FURN.Wood[m].furn||[]).push(k)}
+for(const k in WPIECE){const[m,sh]=WPIECE[k];if(sh==='table'||sh==='desk')FW[k]=2;if(!RETIRED.has(k)&&sh!=='desk')(FURN.Wood[m].furn=FURN.Wood[m].furn||[]).push(k)}
 // every metal gives a slab and a heavy slab as cover
 for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[[3,n+' slab',16,8,mat],[3,'Heavy '+n.toLowerCase()+' slab',32,8,mat]]}
 const umbraC=c=>toneC('umbra',c);
 // a door is its material's slab plus a hinge and a lock
 // hinges grey and the lock orange, each picked light or dark against the leaf so they always stand out
 const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9],c=q[2],lum=((c&255)+(c>>8&255)+(c>>16&255))/3,my=-(th>>1);
- if((x===1||x===2)&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=lum>120?rgb(74,76,82):rgb(170,172,178);
+ if((x===1||x===2)&&(y===my-1||y===my))q[2]=lum>120?rgb(74,76,82):rgb(170,172,178);
  else if((x===L-4||x===L-3)&&(y===my-1||y===my))q[2]=lum>150?rgb(176,84,18):rgb(238,148,52)};
 // a door leaf hangs from whichever side has wall: two leaves in a double opening open from opposite jambs
 function smartDoor(k,cx,cy,full){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]),L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
@@ -3119,7 +3124,7 @@ function tilerCtx(){TCX.innerHTML='';if((!edBrush||edBrush.t==='clean')&&UI.tile
  if(UI.tt==='floor'||UI.tt==='wall'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)&&(KIND[k]==='wall')===!!PK.w),els=[...EORDER.filter(e=>!PK.w||Object.keys(ELEM[e].mats).some(m=>!mprop(e,m).nowall)),...(mods.length?['Mods']:[])];if(!els.includes(PK.el))PK.el='Stone';
   sub(els.map(e=>[e,e]),PK.el,e=>{PK.el=e;if(e!=='Mods'){PK.mat=Object.keys(ELEM[e].mats)[0];PK.v=Object.keys(varsOf(e,PK.mat))[0]}else PK.mat=mods[0]});
   if(PK.el==='Mods'){four(mods);pref=PK.mat}else{const e=PK.el.toLowerCase(),sf=PK.w?'.w':'';for(const m of Object.keys(ELEM[PK.el].mats).filter(m=>!PK.w||!mprop(PK.el,m).nowall))four(Object.keys(varsOf(PK.el,m)).map(v=>e+'.'+m+'.'+v+sf).filter(validK));pref=e+'.'+PK.mat+'.'+PK.v+sf}}
- else if(UI.tt==='furn'){const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',wk('chest'),Object.keys(MCHEST)],table:['Tables',[...wk('table'),...wk('desk')],Object.keys(MTABLE)],seat:['Chairs',wk('seat'),[]],plant:['Plants',['hedge'],[]],...(mods.length?{mods:['Mods',mods,[]]}:{})};
+ else if(UI.tt==='furn'){const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',wk('chest'),Object.keys(MCHEST)],table:['Tables',wk('table'),Object.keys(MTABLE)],seat:['Chairs',wk('seat'),[]],plant:['Plants',['hedge'],[]],...(mods.length?{mods:['Mods',mods,[]]}:{})};
   if(!FT[UI.ft])UI.ft='chest';sub(Object.entries(FT).map(([t,v])=>[t,v[0]]),UI.ft,t=>UI.ft=t);const[,wl,ml]=FT[UI.ft];
   // wood down the first column, metal down the second
   if(UI.ft==='mods')four(wl);else for(let i=0;i<Math.max(wl.length,ml.length);i++)rows.push([wl[i]||null,ml[i]||null,null,null])}
@@ -3350,7 +3355,7 @@ const HIC={musket:[['...................','..........bbbbbbbbb','wwwwwwwwwwbbbbb
  box:[['kkkkkkkk','kwwwwwwk','kwyyyywk','kwwwwwwk','kkkkkkkk'],{k:'#3a2a18',w:'#8a6038',y:'#d8c08a'},3],
  cell:[['.kkkk.','kbbbbk','kbccbk','kbccbk','kbbbbk','.kkkk.'],{k:'#1a2a3a',b:'#3a6a9a',c:'#9ad8ff'},3]};
 HIC.note=[['kkkkkkk','kwwwwwk','kwsswwk','kwwwwwk','kwssswk','kwwwwwk','kwsswwk','kkkkkkk'],{k:'#3a2a18',w:'#e6d6ae',s:'#8a6a3e'},3];
-const hic=k=>{const d=HIC[k]||(/box$/.test(k)?HIC.box:null);return d?pix(...d):sicon(k)};
+const hic=k=>k==='note'?pix(...HIC.note):sicon(k);// every icon is the item's top-down sprite
 function slotEl(q,sil,on,big=true){const d=mk('div','slot'+(on?' on':'')+(big?'':' sm'));if(q){const c=hic(q.k);d.append(c);const v=CAP[q.k]?q.ammo??CAP[q.k]:q.k!=='gold'&&(q.n>1||/^(grenade|bomb|spear|sspear)$/.test(q.k))?q.n||1:q.k==='gold'?q.n:'';if(v!==''){d.append(mk('b',null,v))}d.title=WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?q.t||'Note':q.k}
  else if(sil){const c=hic(sil);c.className='sil';d.append(c)}return d}
 const itemName=q=>q?WP[q.k]?WP[q.k].n:q.k==='gold'?'Solari':q.k==='note'?'Note':q.k.endsWith('box')?'Ammo':q.k:'';

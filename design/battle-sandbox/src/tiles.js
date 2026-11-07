@@ -230,6 +230,8 @@ for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;c
 // wooden furniture: each piece is [wood, shape, name], drawn as its wood's polished face; rim, bevel and inlay are drawn per piece, as on polished floors
 const WSHAPE={table:'table',desk:'desk',chest:'chest',seat:'chair'},WOLD={'oak.table':'table','oak.chest':'chest','oak.seat':'seat','mahog.desk':'desk','ebony.desk':'edesk','pine.table':'ptable','pine.chest':'pchest','pine.seat':'pseat','teak.table':'ttable','teak.chest':'tchest','teak.seat':'tseat'},WPIECE={};
 for(const m of Object.keys(ELEM.Wood.mats))for(const sh in WSHAPE)WPIECE[WOLD[m+'.'+sh]||sh+'.'+m]=[m,sh,memb('Wood',m).n+' '+WSHAPE[sh]];
+// desks are tables now: every desk key loads as its wood's table
+const DESK2T={};for(const k in WPIECE)if(WPIECE[k][1]==='desk'){const t=Object.keys(WPIECE).find(q=>WPIECE[q][0]===WPIECE[k][0]&&WPIECE[q][1]==='table');if(t)DESK2T[k]=t}
 const wshape=k=>{const b=baseK(k),p=WPIECE[b];return p?p[1]:MTABLE[b]?'table':undefined};
 const woodFin=mat=>{const dk=mat==='mahog'||mat==='ebony';return{rim:mprop('Wood',mat).rim||.5,gl:dk?[210,168,100]:[176,126,84],gt:dk?.4:.25}};
 for(const k in WPIECE){const[m,sh]=WPIECE[k],f=TEX['wood.'+m+'.panel'];KIND[k]='floor';TEX[k]=sh==='seat'?(X,Y,cx,cy)=>{const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y),c=f(X,Y);return e===0?sc(c,woodFin(m).rim):e===1?sc(c,.82):sc(c,1.08-Math.hypot(x-7.5,y-7.5)/7*.18)}:f;
@@ -239,7 +241,7 @@ const OLDK={marble:'stone.aur.block',dmarble:'stone.aur.chequer',omarble:'stone.
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.teak.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.panel.w',mpanel:'metal.steel.panel.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',
  books:'chest',rack:'chest',wagon:'chest',shelf:'schest',
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};
-const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];const r=n&&!n.startsWith('earth.')?n+s:k;return r.replace(/^metal\.(\w+)\.rivet/,'metal.$1.panel')};// riveted plate retired: old maps get panels
+const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];let r=n&&!n.startsWith('earth.')?n+s:k;{const m=/^(.*?)(~\d)?$/.exec(r);if(typeof DESK2T!=='undefined'&&DESK2T[m[1]])r=DESK2T[m[1]]+(m[2]||'')}return r.replace(/^metal\.(\w+)\.rivet/,'metal.$1.panel')};// riveted plate retired: old maps get panels
 // a door's floor: each half carries on the floor of the cell beside it; a neighbouring doorway counts as wall line, so double doors work (the sill shows only where a side has none)
 for(const k of['sill','msill']){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const at=(x,y)=>LINK(x,y),fl=q=>q&&TEX[q]&&KIND[q]!=='wall'&&!WPIECE[baseK(q)]&&!MCHEST[baseK(q)]&&!MTABLE[baseK(q)]&&q!=='sill'&&q!=='msill'?q:null,wl=q=>KIND[q]==='wall'||q==='sill'||q==='msill',hz=!(wl(at(cx,cy-1))&&wl(at(cx,cy+1))),lo=((hz?Y:X)&15)<8,dx=hz?0:lo?-1:1,dy=hz?lo?-1:1:0,q=fl(at(cx+dx,cy+dy));return q?TEX[q](X+dx*T,Y+dy*T,cx+dx,cy+dy):f(X,Y,cx,cy)}}
 TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
