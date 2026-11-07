@@ -103,11 +103,11 @@ function special(el,mat,v,c,s,wall){const A=(X,Y)=>[X&15,Y&15];
   if(v==='endgrain'){const J=[85,52,30];return(X,Y)=>{const r=Y>>3,o=r&1?4:0,bx=(X+o)>>3,x=(X+o)&7,y=Y&7;if(x===0||y===0)return J;const id=r*131+bx,cx=1+hh(id,r,s+5)*6,cy=1+hh(r,id,s+6)*6,d=Math.hypot(x-cx,y-cy),ring=Math.sin(d*2.1+hh(id,id,s+7)*6);
    let k=sc(c,tone(id,s,.14)*(.97+hh(X,Y,s+8)*.06));if(ring>.55)k=sc(k,.84);else if(ring<-.7)k=sc(k,1.05);if(x===1||y===1)k=sc(k,1.06);return k}}
   if(v==='deck')return(X,Y)=>{const r=Y>>3,y=Y&7,xx=(X+r*13)&31;let k=sc(W0(X,Y,r*3),tone(r*31+((X+r*13)>>5),s,.1));if(y===7||xx===0)return mx(k,[24,20,16],.75);return k};
-  if(v==='basket')return(X,Y)=>{const[j,id]=basket(X,Y);return sc(W0(X,Y,id%5),j?.72:tone(id,s,.12))};
+  if(v==='basket')return(X,Y)=>{const[j,id]=basket(X,Y);return sc(W0(X,Y,id%5),j?.83:tone(id,s,.12))};
   if(v==='chevron')return(X,Y)=>{const cc=X>>3,x=X&7,d=Y+(cc&1?7-x:x);return sc(W0(X,Y,(d>>2)%9),(d&3)===0||x===0&&cc&1?.72:tone(cc*977+(d>>2),s,.12))};
   if(v==='brick')return(X,Y)=>{const r=Y>>2,xx=X+(r&1?4:0);return sc(W0(X,Y,(xx>>3)%7),(Y&3)===0||(xx&7)===0?.72:tone(r*977+(xx>>3),s,.12))};
   if(v==='inlay')return(X,Y)=>{const y=Y&15;let k=sc(W0(X,Y,(Y>>3)*3),tone(Y>>3,s,.06));if((Y&7)===7)k=sc(k,.8);if(y===2||y===13)k=mx(k,[220,186,126],.45);return k};
-  if(v==='parquet')return(X,Y)=>{const u=((X+Y)%16+16)%16,w=((X-Y)%16+16)%16,g=(X&15)===0||(Y&15)===0;let k=W0(X,Y,((X+Y)>>3)*3);if(g)return sc(k,.82);if(u===0||w===0)return sc(k,.86);if(u===1||w===1)return sc(k,1.06);return k};
+  if(v==='parquet')return(X,Y)=>{const u=((X+Y)%16+16)%16,w=((X-Y)%16+16)%16,g=(X&15)===0||(Y&15)===0;let k=W0(X,Y,((X+Y)>>3)*3);if(g)return sc(k,.66);if(u===0||w===0)return sc(k,.69);if(u===1||w===1)return sc(k,1.06);return k};
   if(v==='marq')return(X,Y)=>{const x=X&15,y=Y&15,dx=Math.abs(x-7.5),dy=Math.abs(y-7.5),d=dx+dy;let k=W0(X,Y,0);if(Math.abs(d-6)<.6)return mx(k,GOLDL,.24);if(d<6)return(dx<.6||dy<.6)?mx(k,GOLDL,.16):woodT(X,Y,sc(c,1.6),s+3);return x===0||y===0?sc(k,.7):k};
   if(v==='fret')return(X,Y)=>{const x=X&15,y=Y&15,qx=x<8?x:15-x,qy=y<8?y:15-y,on=KEYQ[qy][qx]==='#'||KEYQ[qx][qy]==='#'&&qx===qy;let k=W0(X,Y,0);if(on)return mx(woodT(X,Y,WOOD.ash,s+4),k,.35);return x===0||y===0?sc(k,.72):k}}
  if(el==='Metal'){const M=(X,Y)=>metalOf(mat,X,Y);
