@@ -235,7 +235,8 @@ function importPack(o){const ids=[];if(!o||typeof o!=='object')return ids;if((o.
 
 // painting on the board
 const view=stage.parentElement;view.style.position='relative';
-view.addEventListener('pointerdown',e=>{if(EM!=='map'||panKey||e.button===1||UI.drop)return;// the dropper takes the clickif(!edBrush){if(e.button===0&&inBoard(e)){const[x,y]=toBoard(e),X=x|0,Y=y|0;if(!bodyAt(X,Y,1))boxAt(X,Y)}return}if(!inBoard(e))return;e.stopImmediatePropagation();e.preventDefault();closeMenu();
+// the eyedropper takes the click when it is armed
+view.addEventListener('pointerdown',e=>{if(EM!=='map'||panKey||e.button===1||UI.drop)return;if(!edBrush){if(e.button===0&&inBoard(e)){const[x,y]=toBoard(e),X=x|0,Y=y|0;if(!bodyAt(X,Y,1))boxAt(X,Y)}return}if(!inBoard(e))return;e.stopImmediatePropagation();e.preventDefault();closeMenu();
  const[x,y]=toBoard(e),cx=x/T|0,cy=y/T|0;if(edBrush.t==='clean'){if(e.button===0)cleanDown(edBrush.k,e);return}const er=e.button===2||e.button===0&&UI.erase;if(edBrush.t==='door'){if(er)clearDoor(cx,cy);else placeDoor(edBrush.k.slice(5),cx,cy);return}
  flushPlop();const k=er?'dirt':edBrush.k;// erasing leaves the floor under a wall, else bare soil
  edPush();if(e.shiftKey){const c=fillCells(cx,cy);plop(c,k,er);return}
