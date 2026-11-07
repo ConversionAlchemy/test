@@ -76,7 +76,7 @@ const vAt=(X,Y)=>VEH.find(v=>{const[lx,ly]=vW2L(v,X+.5,Y+.5);return lx>=0&&ly>=0
 const vSeatOf=t=>{for(const v of VEH){const i=v.seats.indexOf(t);if(i>=0)return[v,i]}return null};
 
 // drawing: the floor layer under units, the roof and mist over them; supersampled 2x2 when turned
-function vBake(v){const n=VC.LW*VC.H;v.L0=new Uint32Array(n);v.L1=new Uint32Array(n);v.L2=new Uint32Array(n);v.trk=[];
+function vBake(v){for(const t of v.px)if(t.s&&t[3]<t.s[3])t.s[3]=t[3];const n=VC.LW*VC.H;v.L0=new Uint32Array(n);v.L1=new Uint32Array(n);v.L2=new Uint32Array(n);v.trk=[];
  for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx,q=v.smap.get(K(lx,ly));if(q&&!q.dead&&(q[7]==='T'||q[7]==='B'))v.trk.push(i,lx,ly,q[7]);const a=vFloorPx(v,lx,ly),r=vRoofPx(v,lx,ly,true),w=vRoofPx(v,lx,ly,false);v.L0[i]=a?a|0xff000000:0;v.L1[i]=r?r|0xff000000:0;v.L2[i]=w?w|0xff000000:0}v.dirty=0;v.fz=v.fuse?(tick>>2)%2:0}
 function vDraw(top){for(const v of VEH){if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!==v.fz)vBake(v);
   if(!top){const t=v.trk;for(let k=0;k<t.length;k+=4){const c=vTrack(v,t[k+1],t[k+2],t[k+3]);v.L0[t[k]]=v.dead?vChar(c,t[k+1],t[k+2])|0xff000000:c|0xff000000}}
@@ -91,8 +91,8 @@ function vDraw(top){for(const v of VEH){if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!=
 // overlay in the hull's frame: the door leaves at their slide, with the seams of a door, and the core lit by the engine's power
 function vOver(v){const LW=VC.LW;if(!v.LD||v.LD.length!==LW*VC.H)v.LD=new Uint32Array(LW*VC.H);else for(const i of v.ldI||[])v.LD[i]=0;const used=[],put=(x,y,c)=>{if(x<0||y<0||x>=LW||y>=VC.H)return;const i=y*LW+x;v.LD[i]=c|0xff000000;used.push(i)};
  for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d))continue;const{ax,ay,a}=d.vdoor,sl=Math.round(Math.min(1,Math.abs(d.ang)/1.4)*((d.len||16)-3)),cells=new Map();
-  for(const q of d.src){if(q.dead)continue;const dx=q[8]-sl,dy=q[9],x=a>0?ax-dy:ax+dy,y=a>0?ay+dx:ay-dx;cells.set(K(x,y),q)}
-  for(const[k,q]of cells){const x=Math.floor(k/1024)-512,y=k%1024-512,r=!cells.has(K(x+1,y))||!cells.has(K(x,y+1)),l=!cells.has(K(x-1,y))||!cells.has(K(x,y-1));put(x,y,r?mul(q[2],.5):l?mul(q[2],.8):q[2])}}
+  for(const q of d.px){if(d.set.get(K(q[0],q[1]))!==q)continue;const dx=q[8]-sl,dy=q[9],x=a>0?ax-dy:ax+dy,y=a>0?ay+dx:ay-dx;cells.set(K(x,y),q)}
+  for(const[k,q]of cells){const x=Math.floor(k/1024)-512,y=k%1024-512,r=!cells.has(K(x+1,y))||!cells.has(K(x,y+1)),l=!cells.has(K(x-1,y))||!cells.has(K(x,y-1));const c0=q[3]<q[6]?mul(q[2],.7+.3*q[3]/q[6]):q[2];put(x,y,r?mul(c0,.5):l?mul(c0,.8):c0)}}
  const g=v.glow||0;if(g>.01)for(const q of v.src)if(q[7]==='e'&&!q.dead){const c=q[2],br=(c&255)+(c>>8&255)>300;put(q[8],q[9],mix(c,br?rgb(255,250,255):rgb(206,150,255),Math.min(.85,g*(br?.9:.6))))}
  v.ldI=used}
 // the core's light spills over the floor around it, strongest when the engine works hardest
