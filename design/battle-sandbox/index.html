@@ -701,7 +701,7 @@ function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();OWT.clea
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,bk=baseK(k),o=(x,y)=>!L[y]||baseK(L[y][x])!==bk&&!(rug&&OM[y]&&OM[y][x]);
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99),j=(cy*T+y)*W+cx*T+x;let c=floor[j];
   if(rug&&!ok){const t=ageT(condK(k));if(t>.3&&d<=1&&hh(cx*T+x,cy*T+y,95)>.97-.1*t)c=mul(c,.62);else if(d===0)c=mul(c,.6);else if(d<=3)c=mix(mul(c,.9),/gcarpet|verdant/.test(k)?rgb(176,140,70):/pcarpet|purple/.test(k)?rgb(188,184,204):rgb(150,104,60),(x+y)%3?.5:.62);else if(d===4)c=mul(c,.72)}
-  if(ok){const F=WPIECE[baseK(k)]&&woodFin(WPIECE[baseK(k)][0]);c=OBJC[j];if(d===0)c=mul(c,F?F.rim:.5);else if(d===1)c=mul(c,x===0||y===0||o(cx-1,cy)&&x===1||o(cx,cy-1)&&y===1?1.12:.82);else if(d===3&&F&&/^(table|desk)$/.test(wshape(k)))c=mix(c,rgb(...F.gl),F.gt);OBJC[j]=c}else floor[j]=c}}
+  if(ok){const F=WPIECE[baseK(k)]&&woodFin(WPIECE[baseK(k)][0]);c=OBJC[j];if(d===0)c=mul(c,F?F.rim:.5);else if(d===1)c=mul(c,o(cx-1,cy)&&x===1||o(cx,cy-1)&&y===1?1.12:.82);else if(d===3&&F&&/^(table|desk)$/.test(wshape(k)))c=mix(c,rgb(...F.gl),F.gt);OBJC[j]=c}else floor[j]=c}}
 }
 // plank joints are laid from each floor's own edges, boards split evenly across its width
 const PLK=new Set();
@@ -1545,7 +1545,7 @@ function pierce(o,x,y,dx,dy,E,ap,maxD){const ox=Math.round(o.x),oy=Math.round(o.
  for(let i=0;i<24&&o.set.has(K(Math.round(x)-ox,Math.round(y)-oy));i++){x-=dx;y-=dy}
  let last=null,inside=false,removed=0,blood=false,miss=0;
  for(let i=0;i<60;i++){x+=dx*.5;y+=dy*.5;const k=K(Math.round(x)-ox,Math.round(y)-oy);if(k===last)continue;last=k;const p=o.set.get(k);
-  if(!p){if(inside&&++miss>3)break;continue}if(ex===null){ex=x;ey=y}if(maxD&&Math.hypot(x-ex,y-ey)>maxD)return{stop:true,p,x,y,blood,removed};inside=true;miss=0;const ra=o.type!=='token'||p[7]==='f'||p[10]===undefined?p[7]:p[4]===3?'a':p[7]==='a'?'s':p[7],hp=ra==='s'?Math.min(p[3],p[10]==='l'?2:1):p[3],f=ra==='f'?(frontOf(o,p)?ap:1/p[3]):ra==='a'?ap*(o.unit==='shock'&&p[8]*Math.cos(o.ang||0)+p[9]*Math.sin(o.ang||0)<-2?.35:1):1,cost=hp*f*((ra==='a'||ra==='f')&&f>=ap*.9?1/Math.max(.45,Math.abs(dx*p[8]+dy*p[9])/(Math.hypot(p[8],p[9])||1)):1);
+  if(!p){if(inside&&++miss>3)break;continue}if(ex===null){ex=x;ey=y}if(maxD&&Math.hypot(x-ex,y-ey)>maxD)return{stop:true,p,x,y,blood,removed};inside=true;miss=0;const ra=o.type!=='token'||p[7]==='f'||p[10]===undefined?p[7]:p[4]===3?'a':p[7]==='a'?'s':p[7],hp=ra==='s'?Math.min(p[3],p[10]==='l'?2:1):p[3],f=ra==='f'?(frontOf(o,p)?ap:1/p[3]):ra==='a'?ap:1,cost=hp*f*((ra==='a'||ra==='f')&&f>=ap*.9?1/Math.max(.45,Math.abs(dx*p[8]+dy*p[9])/(Math.hypot(p[8],p[9])||1)):1);
   if(E>=cost){E-=cost;o.set.delete(k);removed++;if(p[7]==='h'||p[7]==='k')o.coreHit=true;if(ra!=='a')blood=true}
   else{p[3]-=Math.max(1,Math.floor(E/f));if(p[3]<=0){o.set.delete(k);removed++}if(ra!=='a')blood=true;if(p[3]<=0&&(p[7]==='h'||p[7]==='k'))o.coreHit=true;return{stop:true,p,x,y,blood,removed}}}
  return{stop:false,E,x,y,blood,removed}}
