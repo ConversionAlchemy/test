@@ -193,7 +193,10 @@ for(const k in WPIECE){const[m,sh]=WPIECE[k];if(sh==='table'||sh==='desk')FW[k]=
 for(const mat in FURN.Metal){const n=memb('Metal',mat).n;FURN.Metal[mat].slabs=[[3,n+' slab',16,8,mat],[3,'Heavy '+n.toLowerCase()+' slab',32,8,mat]]}
 const umbraC=c=>toneC('umbra',c);
 // a door is its material's slab plus a hinge and a lock
-const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9];if(x===2&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=mul(q[2],.62);else if(x===L-4&&(y===-5||y===-4))q[2]=toneC('brass',rgb(220,220,220))};
+// hinges grey and the lock orange, each picked light or dark against the leaf so they always stand out
+const doorMarks=(q,L=16,th=8)=>{const x=q[8],y=q[9],c=q[2],lum=((c&255)+(c>>8&255)+(c>>16&255))/3,my=-(th>>1);
+ if(x===1&&(y===-th+1||y===-th+2||y===-3||y===-2))q[2]=lum>120?rgb(74,76,82):rgb(170,172,178);
+ else if(x===L-3&&(y===my-1||y===my))q[2]=lum>150?rgb(176,84,18):rgb(238,148,52)};
 // a door leaf hangs from whichever side has wall: two leaves in a double opening open from opposite jambs
 function smartDoor(k,cx,cy,full){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]),L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
  const fl=hz?R&&!L:D&&!U,d=hz?mkDoor(k,cx*T,cy*T+T/2+4,0,full?16:8):mkDoor(k,cx*T+T/2-5,cy*T,1,full?16:8);if(full)d.dk+='!';
@@ -201,8 +204,8 @@ function smartDoor(k,cx,cy,full){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]
  if(fl){const b0=box();d.rot+=2;orient(d);const b1=box();d.x+=b0[0]-b1[0];d.y+=b0[1]-b1[1];orient(d)}
  // a full-tile leaf sits square in its cell
  if(full){const b=box();d.x+=cx*T+7.5-(b[0]+b[2])/2;d.y+=cy*T+7.5-(b[1]+b[3])/2;orient(d)}return d}
-function mkDoor(k0,x,y,rot,th=8){const k=baseK(k0),d=slab(DOORK[k][1],x,y,rot,16,th);if(k==='umbra'){for(const q of d.src)q[2]=umbraC(q[2]);d.umbra=true;d.mass*=.6}else if(k==='gold'||k==='iron'||k==='brass'){for(const q of d.src)q[2]=toneC(k,q[2]);if(k==='gold')d.gold=true}else if(ELEM.Wood.mats[k])mahogany(d,memb('Wood',k).c,k==='mahog'||k==='ebony');for(const q of d.src)doorMarks(q);d.used=null;d.px=[];orient(d);wearSrc(d,ELEM.Metal.mats[k]?'Metal':'Wood',k==='wood'?'oak':k,condK(k0));d.dk=k0;return d}
-function doorIcon(k,full){const s=slabPix(DOORK[k][1],16,full?16:8);for(const q of s){const c=q[2];if(k==='umbra')q[2]=umbraC(c);else if(k==='gold'||k==='iron'||k==='brass')q[2]=toneC(k,c);else if(ELEM.Wood.mats[k]){const x=q[8],y=q[9],e=Math.min(x,15-x,y+(full?16:8),-1-y),w=woodT(x+93,y,memb('Wood',k).c,13);q[2]=e===2&&(k==='mahog'||k==='ebony')?rgb(cl(w[0]*.6+84),cl(w[1]*.6+67),cl(w[2]*.6+40)):rgb(cl(w[0]),cl(w[1]),cl(w[2]))}doorMarks(q)}return s.map(q=>[q[8],q[9],q[2]])}
+function mkDoor(k0,x,y,rot,th=8){const k=baseK(k0),d=slab(DOORK[k][1],x,y,rot,16,th);if(k==='umbra'){for(const q of d.src)q[2]=umbraC(q[2]);d.umbra=true;d.mass*=.6}else if(k==='gold'||k==='iron'||k==='brass'){for(const q of d.src)q[2]=toneC(k,q[2]);if(k==='gold')d.gold=true}else if(ELEM.Wood.mats[k])mahogany(d,memb('Wood',k).c,0);for(const q of d.src)doorMarks(q,16,th);d.used=null;d.px=[];orient(d);wearSrc(d,ELEM.Metal.mats[k]?'Metal':'Wood',k==='wood'?'oak':k,condK(k0));d.dk=k0;return d}
+function doorIcon(k,full){const s=slabPix(DOORK[k][1],16,full?16:8);for(const q of s){const c=q[2];if(k==='umbra')q[2]=umbraC(c);else if(k==='gold'||k==='iron'||k==='brass')q[2]=toneC(k,c);else if(ELEM.Wood.mats[k]){const x=q[8],y=q[9],e=Math.min(x,15-x,y+(full?16:8),-1-y),w=woodT(x+93,y,memb('Wood',k).c,13);q[2]=rgb(cl(w[0]),cl(w[1]),cl(w[2]))}doorMarks(q,16,full?16:8)}return s.map(q=>[q[8],q[9],q[2]])}
 function clearDoor(cx,cy){let n=0;for(const d of bodies.filter(o=>o.type==='slab'&&!o.free&&slabCell(o)===cy*CW+cx)){if(d.pair)d.pair.pair=null;remove(d);n++}return n}
 function placeDoor(k,cx,cy){const full=k.includes('!');k=k.replace('!','');const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]);clearDoor(cx,cy);const L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
  if(isWallK(s[cy][cx])){s[cy][cx]=floorNear(cx,cy);refinish()}smartDoor(k,cx,cy,full);snapDoors();sills();solDirty=true;puff(cx,cy,k==='iron'||k==='gold'?'iron':'wood');sndT=0;edSnd(k==='iron'||k==='gold'?'metal':'furn',.85)}
