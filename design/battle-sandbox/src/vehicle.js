@@ -138,6 +138,7 @@ function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%
   const tw=turn*.0028,wm=.000175*(turn?1:1.6),wT=Math.max(-wm,Math.min(wm,(tw-v.w)*.06));v.alp+=Math.max(-.000006,Math.min(.000006,wT-v.alp));v.w+=v.alp;if(Math.abs(v.w)<.00015&&!turn&&Math.abs(v.alp)<.00002){v.w=0;v.alp=0}
   if(v.sp||v.w)vMove(v);
   v.ph[0]+=v.sp-v.w*VC.PY;v.ph[1]+=v.sp+v.w*VC.PY;
+  if(v.ext&&![...sel].some(b=>b.type==='token'&&v.seats.includes(b)))v.ext=false;
   vPin(v);vMist(v);vWalkers(v);if(v.fuse&&--v.fuse===0)vBlow(v)}
  vPrompt();if(tick%2===0)vSound()}
 function vMove(v){const n={x:v.x-Math.cos(v.ang)*v.sp,y:v.y-Math.sin(v.ang)*v.sp,ang:v.ang+v.w};
@@ -167,7 +168,7 @@ function vHedges(v){const now=new Set(),R=80,cx0=Math.max(0,(v.x-R)>>4),cx1=Math
 function vFree(v,role){const res=new Set(bodies.filter(t=>t.vwalk&&t.vwalk.v===v).map(t=>t.vwalk.i));for(let i=0;i<VSEATS.length;i++)if(!v.seats[i]&&!res.has(i)&&(role?VSEATS[i][3]===role:VSEATS[i][3]==='p'))return i;return -1}
 function vBoard(v,t,i){if(i===undefined)i=vFree(v);if(i<0)return false;const[sx]=VSEATS[i],front=i<2,path=[[VC.L+14,VC.CY],[VC.L-14,VC.CY]];if(front)path.push([VC.XP+12,VC.CY],[VC.XP-6,VC.CY],[12.5,VC.CY]);else path.push([sx+.5,VC.CY]);path.push(vSit(i));t.vwalk={v,i,path,k:0,T:0,o:tick};t.ord=null;return true}
 function vSeatNow(v,t,i){v.seats[i]=t;t.vseat=v;t.vwalk=null;t.ord=null;t.mw=null;t.glide=null;if(t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}vPin(v);if(i===0)v.offT=0;sfx('flick')}
-function vStand(v,t,out){const i=v.seats.indexOf(t);if(i<0)return;v.seats[i]=null;t.vseat=null;const front=i<2,sx=VSEATS[i][0]+.5;
+function vStand(v,t,out){const i=v.seats.indexOf(t);if(i<0)return;if(sel.has(t))v.ext=false;v.seats[i]=null;t.vseat=null;const front=i<2,sx=VSEATS[i][0]+.5;
  if(out){const path=front?[[12.5,VC.CY],[VC.XP-6,VC.CY],[VC.XP+12,VC.CY]]:[[sx,VC.CY]];const sp=v.seats.filter(Boolean).length+bodies.filter(o=>o.vwalk&&o.vwalk.v===v).length,side=sp%2?1:-1;path.push([VC.L-14,VC.CY],[VC.L+18,VC.CY],[VC.L+30+Math.random()*16,VC.CY+side*(10+Math.random()*26)]);t.vwalk={v,i:-1,path,k:0,T:0,o:tick*100-sx};return}
  const[gx,gy]=vL2W(v,front?12.5:sx,VC.CY);t.x=gx;t.y=gy}
 function vUnload(v){v.seats.forEach((t,i)=>{if(t&&i>1)vStand(v,t,true)})}
@@ -269,20 +270,19 @@ function vMenu(v,e){closeMenu();const r=$('sm').getBoundingClientRect();menu=doc
  if(!menu.children.length){menu=null;return}$('sm').appendChild(menu)}
 {const e0=explode;explode=function(x,y,s=1){e0(x,y,s);vBlastCheck(x,y,s)}}
 
-// key hints: one quiet line for the unit under direct control, showing only the keys that do something right now; H hides it
-var VHB=null,VHK='',VHOFF=(()=>{try{return localStorage.getItem('flHints')==='off'}catch(e){return false}})();
-function vHints(){const t=sel.size===1&&[...sel][0],on=!VHOFF&&t&&t.type==='token'&&t.direct&&t.status==='free'&&!EM;let L=[];
+// key hints: one quiet line for the unit under direct control, showing only the keys that do something right now
+var VHB=null,VHK='';
+function vHints(){const t=sel.size===1&&[...sel][0],on=t&&t.type==='token'&&t.direct&&t.status==='free'&&!EM;let L=[];
  if(on){const s=vSeatOf(t),h=t.held,gun=h&&CAP[h.k],thr=h&&(h.k==='grenade'||h.k==='bomb');
-  if(s&&s[1]===0)L=[['W S','drive'],['A D','turn'],['V','view'],['G','get up']];
+  if(s&&s[1]===0)L=[['W S','drive'],['A D','turn'],['V','view'],['G','ignition off']];
   else if(s)L=[['V','view'],['G','get up']];
-  else{L=[['WASD','move'],['Shift','dash'],['C','crouch']];if(vNearSeat(t))L.push(['G','sit']);
+  else{L=[['WASD','move'],['Shift','dash'],['C','crouch']];{const n=vNearSeat(t);if(n)L.push(['G',n[1]===0?'ignition on':'sit'])}
    if(gun)L.push(['Hold','fire'],['R','reload'],['Q','sheathe']);else if(thr)L.push(['Hold','throw'],['Q','sheathe']);else if(h)L.push(['Hold','attack'],['Q','sheathe']);else if(t.inv&&t.inv.some(Boolean))L.push(['Q','draw']);
    if(t.inv&&t.inv.some(Boolean))L.push(['1–6','slots']);if(h&&!vNearSeat(t))L.push(['G','drop'])}
-  L.push(['E','let go'],['H','hide'])}
+  L.push(['E','release '+t.name])}
  const k=L.map(x=>x.join(':')).join('|');if(k===VHK)return;VHK=k;
  if(!VHB){VHB=document.createElement('div');VHB.className='khint';stage.parentElement.appendChild(VHB)}
  VHB.innerHTML='';VHB.style.display=L.length?'':'none';for(const[a,b]of L){const i=document.createElement('span');const c=document.createElement('b');c.textContent=a;i.append(c,' '+b);VHB.append(i)}}
-function vKeyH(){if(!sel.size||![...sel].some(b=>b.direct))return false;VHOFF=!VHOFF;VHK='';try{localStorage.setItem('flHints',VHOFF?'off':'on')}catch(e){}vHints();return true}
 {const r0=render;render=function(){r0();vLabels();vHints()}}
 
 // the test ground: an Imperial proving yard with a crewed carrier, an empty one, hedge rows to drive through and stone blocks to stop against
