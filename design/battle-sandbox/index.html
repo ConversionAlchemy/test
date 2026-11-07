@@ -432,7 +432,7 @@ const AGE={
   const DK=sc(SOIL,.58),GS=memb('Stone','grey').c;return(k,X,Y)=>{let o=sc(k,1-.14*t);const L=(o[0]+o[1]+o[2])/3,a=ageA(X,Y,sd,t);
   if(a>0){o=mx(o,DK,a*.5);if(L>(SOIL[0]+SOIL[1]+SOIL[2])/3*1.08)o=mx(o,sc(SOIL,.9),a*.8)}
   const p=fbm(X/18,Y/5,sd+5);if(p>1.05-t*.42)o=mx(o,sc(o,.84),.6);if(hh(X,Y,sd+3)>.985-.03*t)o=sc(o,.66);
-  if(t>.2){const r=fbm(X/9,Y/9,sd+20)*.95+hh(X>>1,Y>>1,sd+21)*.05,th=1.1-t*.48;if(r>th)return sc(softStone(X,Y,GS,7,0),.92-(r-th)*.4<.75?.75:.92);if(r>th-.08)o=mx(o,[42,32,22],(r-th+.08)/.08*.75)}
+  if(t>.2){const r=fbm(X/9,Y/9,sd+20)*.95+hh(X>>1,Y>>1,sd+21)*.05,th=1.14-t*.48;if(r>th){const g=TEX['stone.grey.rubble'](X,Y,X>>4,Y>>4);return sc(g,r>th+.03?.72:.6)}if(r>th-.08)o=mx(o,[42,32,22],(r-th+.08)/.08*.75)}
   return o}},
  // cloth wear, kept subtle: patches fade and the weave shows through the pile, with dust and scuffs; Ruined wears a few small holes (edges fray in the rug border pass)
  Cloth:(el,mat,t)=>{const c=memb(el,mat).c,L=(c[0]+c[1]+c[2])/3,F=sc(mx(c,[L,L,L],.35),1.18),sd=ageSd(el,mat);
@@ -466,6 +466,9 @@ const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(
 // a door's floor: each half carries on the floor of the cell beside it; a neighbouring doorway counts as wall line, so double doors work (the sill shows only where a side has none)
 for(const k of['sill','msill']){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const at=(x,y)=>LINK(x,y),fl=q=>q&&TEX[q]&&KIND[q]!=='wall'&&!WPIECE[baseK(q)]&&!MCHEST[baseK(q)]&&!MTABLE[baseK(q)]&&q!=='sill'&&q!=='msill'?q:null,wl=q=>KIND[q]==='wall'||q==='sill'||q==='msill',hz=!(wl(at(cx,cy-1))&&wl(at(cx,cy+1))),lo=((hz?Y:X)&15)<8,dx=hz?0:lo?-1:1,dy=hz?lo?-1:1:0,q=fl(at(cx+dx,cy+dy));return q?TEX[q](X+dx*T,Y+dy*T,cx+dx,cy+dy):f(X,Y,cx,cy)}}
 TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
+// a worn hedge goes ragged: more gaps, leaves stripped back to bare twigs, what's left dries brown
+for(let c=1;c<=4;c++){const t=ageT(c);TEX['hedge~'+c]=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27+t*.16&&hh(X,Y,20)>.3-t*.2)return null;const tw=Math.abs(vn(X/3,Y/3,23)-.5)<.045+t*.035,loss=vn(X/4,Y/4,26)*.55+hh(X,Y,21)*.45<t*.85;
+ if(loss)return tw?(hh(X,Y,24)>.5?[104,80,54]:[80,60,40]):hh(X,Y,25)<t*.4?null:[36,46,28];return mx(bushT(X,Y),[128,112,66],t*.4)};KIND['hedge~'+c]='floor'}
 for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];KIND[o]=KIND[n]}
 // unit looks: each sprite rebuilt as flesh, cloth and metal layers (from the wardrobe); a token samples its own spawn
 const WARD=(()=>{
@@ -756,7 +759,7 @@ function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(
   for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);if(!c)continue;OBJ[j]=m;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}pieces();furnish();brackets()}
 // storage and desks come in pieces of at most 2×2, filled from the top-left; each piece has its own rim and inventory
 const PCK=new Set([...Object.keys(WPIECE).filter(k=>/chest/.test(WPIECE[k][1])),...Object.keys(MCHEST),'books','shelf']);let PCS=new Map();
-for(const k of[...Object.keys(MCHEST),...Object.keys(MTABLE),...Object.keys(WPIECE)])for(let c=1;c<5;c++){const n=k+'~'+c;if(OBJK.has(k))OBJK.add(n);if(PCK.has(k))PCK.add(n);ONAME[n]=ONAME[k];BMAT[n]=BMAT[k]}
+for(const k of[...Object.keys(MCHEST),...Object.keys(MTABLE),...Object.keys(WPIECE),'hedge'])for(let c=1;c<5;c++){const n=k+'~'+c;if(OBJK.has(k))OBJK.add(n);if(PCK.has(k))PCK.add(n);ONAME[n]=ONAME[k];BMAT[n]=BMAT[k]}
 function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k||!PCK.has(k)||PCS.has(cy*CW+cx))continue;const ok=(x,y)=>OM[y]&&OM[y][x]===k&&!PCS.has(y*CW+x),w=ok(cx+1,cy)?2:1,h=ok(cx,cy+1)&&(w<2||ok(cx+1,cy+1))?2:1,p={k,x0:cx,y0:cy,w,h,cells:[]};
  for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
 // finishes: riveted iron band on chests and racks, book spines on a bookshelf's open edges, a riveted steel vault shelf
@@ -832,9 +835,14 @@ function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);
   for(let i=0;i<T;i++){const x=dx<0?0:dx>0?T-1:i,y=dy<0?0:dy>0?T-1:i;set((cy*T+y)*W+cx*T+x,near?1:2);if(!near){const ox=cx*T+x+dx,oy=cy*T+y+dy;if(ox>=0&&oy>=0&&ox<W&&oy<H)set(oy*W+ox,3)}}}}}
 // blasts wear the floor in a ragged circle, strongest at the blast: how far and how hard follow the floor's toughness from the material table (soft wood further, umbra hardly at all). Each pixel takes the wear of the condition it reaches; each cell's condition is what its centre reached. The worn look becomes the cell's clean state, so cleaning keeps it and the wand undoes it
 const softOf=(el,mat)=>Math.max(.3,Math.min(1.6,3/(mprop(el,mat).hp||3)));
+// grass and soil wear down one ladder: grass New to Ruined, then soil Used to Ruined, each blast taking it further
+const ladL=k=>{if(k==='grass')return 0;if(k==='dirt')return 4;const c=CATN[k];if(!c||c[0]!=='Earth'||c[3])return -1;const n=c[4]||5;return c[1]==='grass'?5-n:c[1]==='dirt'?(n===5?4:9-n):-1},ladK=L=>L<=4?'earth.grass.plain'+(L?'~'+(5-L):''):'earth.dirt.plain~'+(9-L);
+function earthWear(cx,cy,x,y,R,top,L0){const so=Math.min(1.2,softOf('Earth','grass')),Rm=R*(.55+.45*so),st=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?0:Math.round((1-d)*top*so+.3)},to=(X,Y)=>{const s=st(X,Y);return s<=0?L0:Math.min(8,Math.max(L0+Math.ceil(s/2),Math.round(s*1.2)))};
+ const Lc=to(cx*T+8,cy*T+8);if(Lc>L0)map[cy][cx]=ladK(Lc);
+ for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const L=to(X,Y);if(L<=L0)continue;const q=TEX[ladK(L)](X,Y,cx,cy);if(!q)continue;floor[j]=rgb(cl(q[0]),cl(q[1]),cl(q[2]));if(PR)PR.floor[j]=floor[j]}}
 function blastWear(x,y,s){const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
  for(let cy=Math.max(0,(y-R*2.6)/T|0);cy<=Math.min(CH-1,(y+R*2.6)/T|0);cy++)for(let cx=Math.max(0,(x-R*2.6)/T|0);cx<=Math.min(CW-1,(x+R*2.6)/T|0);cx++){const k=map[cy][cx],c=CATN[k],ok=OM[cy]&&OM[cy][cx],oe=ok&&objEl(ok);if(oe){const so=softOf(oe[0],oe[1]),wd=oe[0]==='Wood',Rm=R*1.3*(wd?1.6:1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearObj(cx,cy,(1-d/Rm)*top*(wd?40:26))}
-  if(c&&c[3]&&AGE[c[0]]){const so=softOf(c[0],c[1]),wd=c[0]==='Wood',Rm=R*1.3*(wd?1.6:1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearWall(cx,cy,(1-d/Rm)*top*(wd?40:26));continue}if(!c||c[3]||!AGE[c[0]]||OM[cy]&&OM[cy][cx])continue;
+  if(c&&c[3]&&AGE[c[0]]){const so=softOf(c[0],c[1]),wd=c[0]==='Wood',Rm=R*1.3*(wd?1.6:1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearWall(cx,cy,(1-d/Rm)*top*(wd?40:26));continue}if(OM[cy]&&OM[cy][cx])continue;{const L0=ladL(k);if(L0>=0){earthWear(cx,cy,x,y,R,top,L0);continue}}if(!c||c[3]||!AGE[c[0]])continue;
   const c0=c[4]||5,so=softOf(c[0],c[1]),wf=c[0]==='Wood',Rm=R*(c[0]==='Cloth'?1.6:wf?1.5:1)*(.55+.45*Math.min(1.2,so)),lv=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?c0:Math.max(1,Math.min(c0,5-Math.round((wf?Math.pow(1-d,.9)*1.15:1-d)*top*Math.min(1.2,so)+.3)))};
   const cc=lv(cx*T+8,cy*T+8);if(cc<c0)map[cy][cx]=baseK(k)+'~'+cc;
   for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const p=lv(X,Y);if(p>=c0)continue;const ak=c[0]+c[1]+p,A=AC[ak]||(AC[ak]=ageOf(c[0],c[1],p)),q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9);floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]));if(PR)PR.floor[j]=floor[j]}}edgeMask()}

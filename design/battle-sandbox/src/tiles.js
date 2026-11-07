@@ -236,7 +236,7 @@ const AGE={
   const DK=sc(SOIL,.58),GS=memb('Stone','grey').c;return(k,X,Y)=>{let o=sc(k,1-.14*t);const L=(o[0]+o[1]+o[2])/3,a=ageA(X,Y,sd,t);
   if(a>0){o=mx(o,DK,a*.5);if(L>(SOIL[0]+SOIL[1]+SOIL[2])/3*1.08)o=mx(o,sc(SOIL,.9),a*.8)}
   const p=fbm(X/18,Y/5,sd+5);if(p>1.05-t*.42)o=mx(o,sc(o,.84),.6);if(hh(X,Y,sd+3)>.985-.03*t)o=sc(o,.66);
-  if(t>.2){const r=fbm(X/9,Y/9,sd+20)*.95+hh(X>>1,Y>>1,sd+21)*.05,th=1.1-t*.48;if(r>th)return sc(softStone(X,Y,GS,7,0),.92-(r-th)*.4<.75?.75:.92);if(r>th-.08)o=mx(o,[42,32,22],(r-th+.08)/.08*.75)}
+  if(t>.2){const r=fbm(X/9,Y/9,sd+20)*.95+hh(X>>1,Y>>1,sd+21)*.05,th=1.14-t*.48;if(r>th){const g=TEX['stone.grey.rubble'](X,Y,X>>4,Y>>4);return sc(g,r>th+.03?.72:.6)}if(r>th-.08)o=mx(o,[42,32,22],(r-th+.08)/.08*.75)}
   return o}},
  // cloth wear, kept subtle: patches fade and the weave shows through the pile, with dust and scuffs; Ruined wears a few small holes (edges fray in the rug border pass)
  Cloth:(el,mat,t)=>{const c=memb(el,mat).c,L=(c[0]+c[1]+c[2])/3,F=sc(mx(c,[L,L,L],.35),1.18),sd=ageSd(el,mat);
@@ -270,4 +270,7 @@ const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(
 // a door's floor: each half carries on the floor of the cell beside it; a neighbouring doorway counts as wall line, so double doors work (the sill shows only where a side has none)
 for(const k of['sill','msill']){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const at=(x,y)=>LINK(x,y),fl=q=>q&&TEX[q]&&KIND[q]!=='wall'&&!WPIECE[baseK(q)]&&!MCHEST[baseK(q)]&&!MTABLE[baseK(q)]&&q!=='sill'&&q!=='msill'?q:null,wl=q=>KIND[q]==='wall'||q==='sill'||q==='msill',hz=!(wl(at(cx,cy-1))&&wl(at(cx,cy+1))),lo=((hz?Y:X)&15)<8,dx=hz?0:lo?-1:1,dy=hz?lo?-1:1:0,q=fl(at(cx+dx,cy+dy));return q?TEX[q](X+dx*T,Y+dy*T,cx+dx,cy+dy):f(X,Y,cx,cy)}}
 TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
+// a worn hedge goes ragged: more gaps, leaves stripped back to bare twigs, what's left dries brown
+for(let c=1;c<=4;c++){const t=ageT(c);TEX['hedge~'+c]=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27+t*.16&&hh(X,Y,20)>.3-t*.2)return null;const tw=Math.abs(vn(X/3,Y/3,23)-.5)<.045+t*.035,loss=vn(X/4,Y/4,26)*.55+hh(X,Y,21)*.45<t*.85;
+ if(loss)return tw?(hh(X,Y,24)>.5?[104,80,54]:[80,60,40]):hh(X,Y,25)<t*.4?null:[36,46,28];return mx(bushT(X,Y),[128,112,66],t*.4)};KIND['hedge~'+c]='floor'}
 for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];KIND[o]=KIND[n]}
