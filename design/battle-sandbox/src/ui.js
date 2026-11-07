@@ -114,8 +114,13 @@ function tilerCtx(){TCX.innerHTML='';if(!edBrush||edBrush.t==='clean'){if(!UI.ti
  else if(UI.tt==='furn'){// one tab per kind of piece: wood first in table order, then metal
   const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',[...wk('chest'),...Object.keys(MCHEST)]],table:['Tables',wk('table')],desk:['Desks',wk('desk')],seat:['Chairs',wk('seat')],plant:['Plants',['hedge']],...(mods.length?{mods:['Mods',mods]}:{})};
   if(!FT[UI.ft]){const c=cur&&(WPIECE[cur]?WPIECE[cur][1]:MCHEST[cur]?'chest':cur==='hedge'?'plant':null);UI.ft=FT[c]?c:'chest'}const ft=mk('div','tabs');for(const t in FT)ft.append(ubtn(FT[t][0],UI.ft===t?'on':'',()=>{UI.ft=t;tilerCtx()}));TCX.append(ft);
-  g.style.gridTemplateColumns='repeat(5,1fr)';for(const k of FT[UI.ft][1])g.append(cell(k,swatch(bake(k),30,30),()=>{UI.tile={t:'tile',k};edBrush={t:'tile',k};tilerCtx()}));nm=cur&&furnK(cur)?tName(cur):''}
- else{for(const k in DOORK){const c=icon(doorIcon(k),1);c.style.cssText='width:34px;height:24px;image-rendering:pixelated;display:block;margin-top:5px';g.append(cell('door:'+k,c,()=>{UI.tile={t:'door',k:'door:'+k};edBrush={...UI.tile};tilerCtx()}))}nm=String(cur).startsWith('door:')?DOORK[cur.slice(5)][0]:''}
+  // four columns: wood down the first, metal down the second
+  g.style.gridTemplateColumns='repeat(4,1fr)';const fc=k=>k?cell(k,swatch(bake(k),30,30),()=>{UI.tile={t:'tile',k};edBrush={t:'tile',k};tilerCtx()}):mk('span'),L=FT[UI.ft][1];
+  if(UI.ft==='mods')for(const k of L)g.append(fc(k));else{const wl=L.filter(k=>!MCHEST[k]),ml=L.filter(k=>MCHEST[k]);for(let i=0;i<Math.max(wl.length,ml.length);i++)g.append(fc(wl[i]),fc(ml[i]),mk('span'),mk('span'))}nm=cur&&furnK(cur)?tName(cur):''}
+ else{// rows of: wood door, metal door, then the same two as full-tile doors
+  const wd=Object.keys(DOORK).filter(k=>DOORK[k][1]===2),md=Object.keys(DOORK).filter(k=>DOORK[k][1]!==2),dc=(k,f)=>{if(!k)return mk('span');const c=icon(doorIcon(k,f),1);c.style.cssText='width:34px;height:'+(f?34:24)+'px;image-rendering:pixelated;display:block;margin-top:'+(f?0:5)+'px';const id='door:'+k+(f?'!':'');return cell(id,c,()=>{UI.tile={t:'door',k:id};edBrush={...UI.tile};tilerCtx()})};
+  g.style.gridTemplateColumns='repeat(4,1fr)';for(let i=0;i<Math.max(wd.length,md.length);i++)g.append(dc(wd[i]),dc(md[i]),dc(wd[i],1),dc(md[i],1));
+  if(String(cur).startsWith('door:')){const k=cur.slice(5).replace('!','');nm=DOORK[k]?DOORK[k][0]+(cur.includes('!')?', full tile':''):''}}
  TCX.append(g,mk('div','tbox',nm));if(UI.pop==='ae'&&cur&&!String(cur).startsWith('door:')&&cur!==AE.key)aeLoad(cur)}
 function setTile(k){if(!validK(k))return;pkFrom(k);UI.erase=false;cv.style.cursor='crosshair';UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';if(UI.tt==='furn')UI.ft=WPIECE[k]?WPIECE[k][1]:MCHEST[k]?'chest':k==='hedge'?'plant':'mods';tilerCtx()}
 {const p0=fillMapTools;fillMapTools=function(){p0();if(edBrush&&edBrush.t!=='clean')UI.tile={...edBrush}}}

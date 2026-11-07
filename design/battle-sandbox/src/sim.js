@@ -107,7 +107,9 @@ function inlays(){const ring=(X0,Y0,R)=>{for(let Y=Y0-R-2;Y<=Y0+R+2;Y++)for(let 
  ring(240,408,40)}
 function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return null;if(wshape(k)==='table'){for(const it of items||[]){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.k==='gold')w.amt=it.n;else if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}return null}const pc=PCS.get(cy*CW+cx),cells=pc?pc.cells.slice():[],seen=new Set([cy*CW+cx]),q=pc?[]:[[cx,cy]];while(q.length){const[a,b]=q.pop();cells.push([a,b]);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(OM[nb]&&OM[nb][na]===k&&!seen.has(nb*CW+na)){seen.add(nb*CW+na);q.push([na,nb])}}}
  const xs=cells.map(c=>c[0]),ys=cells.map(c=>c[1]),box=[Math.min(...xs)*T,Math.min(...ys)*T,(Math.max(...xs)+1)*T-1,(Math.max(...ys)+1)*T-1],c=weapon('crate',(box[0]+box[2])/2,(box[1]+box[3])/2,0);
- c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.cells=cells;c.box=box;cFill(c,items);c.n0=cells.length*T*T;c.metal=fmat(k)===3;return c}
+ c.px=[];mkSet(c);c.hidden=true;c.mass=1e9;c.name=name||ONAME[k];c.cells=cells;c.box=box;c.chest=wshape(k)==='chest'||!!MCHEST[baseK(k)];c.desk=wshape(k)==='desk';
+ for(const it of (items||[]).filter(it=>it&&!cOK(c,it.k))){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.k==='gold')w.amt=it.n;else if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}
+ cFill(c,(items||[]).filter(it=>it&&cOK(c,it.k)));c.n0=cells.length*T*T;c.metal=fmat(k)===3;return c}
 const containerAt=(X,Y)=>{const cx=X/T|0,cy=Y/T|0;if(!OBJ[Y*W+X])return null;return bodies.find(o=>o.hidden&&o.cells.some(c=>c[0]===cx&&c[1]===cy))||null};
 const EDG=new Set();
 function cutEdges(x,y,R){const x0=Math.max(1,Math.floor(x-R-3)),x1=Math.min(W-2,Math.ceil(x+R+3)),y0=Math.max(1,Math.floor(y-R-3)),y1=Math.min(H-2,Math.ceil(y+R+3)),add=[];
@@ -298,7 +300,7 @@ function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
  for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='metal.gold.panel')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='metal.gold.panel';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
  for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};slab(3,36,400,1);
- dbl(3,208,124,271,115,0,2,true,32,8);dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,true,32,8);
+ {const[a,b]=dbl(3,208,128,271,111,0,2,true,32,16);a.kid=b.kid='aurum'}dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,true,32,8);
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
  container(8,2,[{k:'gold',n:1500}]);container(13,2,[{k:'gold',n:1600}]);container(19,2,[{k:'gold',n:1500}]);container(5,25,[{k:'gold',n:200}]);container(20,25,[{k:'gold',n:200}]);
  container(22,10,[{k:'gold',n:400},{k:'grenade',n:3}]);container(5,10,[]);container(5,33,[]);container(22,33,[{k:'gold',n:120}]);for(const o of bodies){if(o.type==='slab')goldify(o);if(o.kind==='crate')o.metal=true}
@@ -361,7 +363,9 @@ const cSig=c=>c.inv.map(q=>q?q.k:'').join();
 function cApply(c){const r=cPack(c);if(r)for(const[q,p]of r)Object.assign(q,p,{v:9});c._sig=cSig(c);return!!r}
 function cFit(c,k){const e={k},r=cPack(c,e);return r?r.get(e):null}
 function cAt(c,k,X,Y,skip){if(skip&&c.inv.includes(skip))return{gx:skip.gx,gy:skip.gy,r:skip.r,sl:skip.sl};return cFit(c,k)}
-function cAdd(c,it){c.inv=c.inv||[];if(it.k==='gold'){const m=c.inv.find(q=>q&&q.k==='gold');if(m){m.n+=it.n;return true}}const q={...it,n:it.k==='gold'?it.n:1};delete q.mode;delete q.sl;const r=cPack(c,q);if(!r)return false;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);for(const[z,p]of r)Object.assign(z,p,{v:9});c._sig=cSig(c);return true}
+// chests take weapons, grenades and ammo; desks take gold, notes and keys
+const ITEMK=new Set(['gold','note']),cOK=(c,k)=>c.chest?!ITEMK.has(k):c.desk?ITEMK.has(k):true;
+function cAdd(c,it){if(!cOK(c,it.k))return false;c.inv=c.inv||[];if(it.k==='gold'){const m=c.inv.find(q=>q&&q.k==='gold');if(m){m.n+=it.n;return true}}const q={...it,n:it.k==='gold'?it.n:1};delete q.mode;delete q.sl;const r=cPack(c,q);if(!r)return false;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);for(const[z,p]of r)Object.assign(z,p,{v:9});c._sig=cSig(c);return true}
 function cFill(c,items){c.inv=[];for(const it of items||[]){if(!it)continue;const n=it.k==='gold'||it.k==='note'?1:it.n||1;for(let i=0;i<n;i++){const one={...it};if(one.k!=='gold')one.n=1;delete one.gx;delete one.gy;delete one.r;if(!cAdd(c,one))cSpill(c,one)}}}
 const cFitsAll=(c,items)=>{const t={x:c.x,y:c.y,long:c.long,box:c.box,cells:c.cells,inv:[]};for(const it of items)for(let i=0;i<(it.k==='gold'||it.k==='note'?1:it.n||1);i++)if(!cAdd(t,{...it,n:it.k==='gold'?it.n:1}))return false;return true};
 function spillAt(c){const b=c.box||[c.x-6,c.y-6,c.x+6,c.y+6],cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2,free=(x,y)=>{for(let v=-3;v<=3;v++)for(let u=-3;u<=3;u++){const X=Math.round(x+u),Y=Math.round(y+v);if(X<1||Y<1||X>=W-1||Y>=H-1||sol[Y*W+X]||OBJ[Y*W+X])return false}return true};
@@ -1242,13 +1246,15 @@ function refill(t,k){const h=t.inv.find(z=>z&&z.k===k);if(!h||k==='gold')return 
 // civilians and units that start unarmed don't scoop up weapons unless switched on
 const autoOff=t=>t.noAuto??(t.noAuto=t.unit==='civ');
 const mayTake=(t,k)=>!autoOff(t)||k==='gold'||k==='cell'||k.endsWith('box')||!CAP[k]&&gunsOf(t,k).length>0;
+// anyone carrying the right key unlocks its door by walking up to it
+function keyTick(){for(const d of bodies){if(d.type!=='slab'||!d.locked||!(d.kid||d.pair&&d.pair.kid))continue;for(const t of bodies)if(t.type==='token'&&t.status==='free'&&carriesKey(t,d)&&d.px.some(p=>Math.hypot(d.x+p[0]-t.x,d.y+p[1]-t.y)<14)){for(const q of d.pair?[d,d.pair]:[d])q.locked=false;sfx('lock');break}}}
 function autoPick(){for(const t of bodies){if(t.type!=='token'||!t.inv)continue;autoOff(t);if(t.status!=='free'||inDrag(t))continue;
   for(const w of [...bodies]){if(w.type!=='weapon'||!PICK.has(w.kind)||w.stuck||w.att||w.fuse||inDrag(w)||(w.noPick&&w.noPick>tick)||Math.hypot(w.vx,w.vy)>.3||Math.hypot(w.x-t.x,w.y-t.y)>13)continue;
    if(w.byHand&&refill(t,w.kind)){remove(w);sfx('reload');continue}
    if(w.byHand&&w.kind!=='gold'&&addItem(t,{k:w.kind,n:fullN(t,w.kind),ammo:CAP[w.kind]||undefined,res:CAP[w.kind]?fullRes(t,w.kind):undefined})){remove(w);sfx('flick');continue}
    if((w.byHand||mayTake(t,w.kind))&&addItem(t,{k:w.kind,n:w.kind==='gold'?(w.amt||50):1,ammo:CAP[w.kind]?(w.ammo??CAP[w.kind]):undefined,res:CAP[w.kind]?(w.res||0):undefined,spent:w.spent||undefined,mode:w.spent?'throw':undefined,draw:w.kind==='pistol'||undefined})){remove(w);sfx('flick')}else if(!w.byHand&&strip(t,w.kind,w.ammo??CAP[w.kind],w.res))remove(w)}
   // any chest or crate you stand by keeps you stocked: ammo, grenades and heavy grenades; an open one also hands over what else you can carry
-  for(const c of bodies){if(c.kind!=='crate'||Math.hypot(c.x-t.x,c.y-t.y)>20)continue;if(c.open){let tk=false;for(let i=0;i<c.inv.length&&!tk;i++){const q=c.inv[i];if(!q||q.k==='note')continue;const one={k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}if(mayTake(t,q.k)&&addItem(t,one)){q.n-=one.n;if(q.n<=0)c.inv[i]=null;sfx('flick');tk=true}}if(tk)continue}
+  for(const c of bodies){if(c.kind!=='crate'||Math.hypot(c.x-t.x,c.y-t.y)>20)continue;if(c.open){let tk=false;for(let i=0;i<c.inv.length&&!tk;i++){const q=c.inv[i];if(!q||q.k==='note')continue;const one=q.k==='note'?{...q}:{k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}if(mayTake(t,q.k)&&addItem(t,one)){q.n-=one.n;if(q.n<=0)c.inv[i]=null;sfx('flick');tk=true}}if(tk)continue}
    for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q)continue;const g=Object.keys(BOX).find(k=>BOX[k]===q.k);if(g&&needRes(t,g)&&addRes(t,g,RCAP(g))){sfx('reload');if(--q.n<=0)c.inv[i]=null;break}if((q.k==='grenade'||q.k==='bomb')&&addItem(t,{k:q.k,n:1})){sfx('reload');if(--q.n<=0)c.inv[i]=null;break}if(strip(t,q.k,q.ammo??CAP[q.k],q.res)){if(--q.n<=0)c.inv[i]=null;break}}}}}
 const inZone=(b,p)=>{if(b.fa===undefined||b.fw>=3.1&&b.fd>=8)return true;const r2=p[0]*p[0]+p[1]*p[1],d=8.3-b.fd;if(r2<d*d)return false;if(b.fw>=3.1)return true;const a=Math.atan2(p[1],p[0]);return Math.abs(Math.atan2(Math.sin(a-b.fa),Math.cos(a-b.fa)))<=b.fw};
 function ignite(b,a,w,d){if(!(b.burn>.05)||b.fa===undefined){b.fa=a;b.fw=w;b.fd=d}else{b.fw=Math.min(3.15,b.fw+.008);b.fd=Math.min(8.3,b.fd+.008)}}
@@ -1272,7 +1278,8 @@ function aiSetup(){for(const b of bodies)b.ai=null;GS={};NZ=[];RINGS=[];ROOMS=nu
 const aiOpen=(cx,cy)=>{if(cx<0||cy<0||cx>=CW||cy>=CH||map[cy][cx]==='sky')return false;const j=(cy*T+8)*W+cx*T+8;return !sol[j]&&!OBJ[j]};
 const isDoor=o=>o.type==='slab'&&!o.free&&!o.fallen;let DL=[];const doorsNow=()=>DL.filter(o=>bodies.includes(o)&&!o.fallen);
 const onDoor=(o,x,y)=>o.dt?o.dt.has((y/T|0)*CW+(x/T|0)):Math.abs(o.x-x)<12&&Math.abs(o.y-y)<12;
-const hasKey=(o,tm)=>{if(!tm)return false;const k=o.keys||o.pair&&o.pair.keys;if(k)return k===tm;try{return MAPOWN()===tm}catch(e){return false}};
+const carriesKey=(b,o)=>{const id=o.kid||o.pair&&o.pair.kid;return!!id&&!!b&&!!b.inv&&b.inv.some(z=>z&&z.key===id)};
+const hasKey=(o,tm,b)=>{if(carriesKey(b,o))return true;if(!tm)return false;const k=o.keys||o.pair&&o.pair.keys;if(k)return k===tm;try{return MAPOWN()===tm}catch(e){return false}};
 // navigation: one map for routes and rooms. Every 4px node (tile centres among them) knows its distance in pixels to the nearest wall, furniture or map edge; open door leaves only make a route dearer, since bodies push them; a body fits where that is at least NCL. Rebuilt soon after the space changes
 const G=4,NCL=8;let NV=null,NC=null,NLF=null,NCOMP=null,GW=0,GH=0,NAVD=true,NAVV=0;
 function navBuild(){GW=W/G|0;GH=H/G|0;const n=GW*GH,D=new Float32Array(N);
@@ -1295,7 +1302,7 @@ const navLine=(x0,y0,x1,y1)=>{const L=Math.hypot(x1-x0,y1-y0);for(let i=0;i<=L;i
 function navOpen(x,y){navEnsure();const gx=Math.round(x/G),gy=Math.round(y/G);let best=-1,bs=-1e9;for(let j=-2;j<=2;j++)for(let i=-2;i<=2;i++){const X=gx+i,Y=gy+j;if(X<0||Y<0||X>=GW||Y>=GH)continue;const m=Y*GW+X;if(!NV[m])continue;const sc=Math.min(NC[m],12)-Math.hypot(X*G-x,Y*G-y)*.4;if(sc>bs){bs=sc;best=m}}return best}
 const compAt=(x,y)=>{navEnsure();const n=navNear(x,y);return n<0?-1:NCOMP[n]};
 // route: A* over the nodes, a little dearer close to walls so units keep to the middle; a door locked against this team is shut unless anyLock. If the goal can't be reached the route ends as close as it gets, marked partial
-function aiPath(b,tx,ty,anyLock){navEnsure();const tm=teamOf(b),LK=new Set();if(!anyLock)for(const o of doorsNow())if(o.locked&&!o.lockBroken&&!hasKey(o,tm)){if(o.dt)for(const c of o.dt)LK.add(c);else LK.add((o.y/T|0)*CW+(o.x/T|0))}
+function aiPath(b,tx,ty,anyLock){navEnsure();const tm=teamOf(b),LK=new Set();if(!anyLock)for(const o of doorsNow())if(o.locked&&!o.lockBroken&&!hasKey(o,tm,b)){if(o.dt)for(const c of o.dt)LK.add(c);else LK.add((o.y/T|0)*CW+(o.x/T|0))}
  const tl=m=>((m/GW|0)*G>>4)*CW+((m%GW)*G>>4),av=b.ai&&b.ai.avoid&&b.ai.avoid.t>tick?b.ai.avoid:null,blk=m=>!NV[m]||LK.size>0&&LK.has(tl(m))||!!av&&Math.hypot((m%GW)*G-av.x,(m/GW|0)*G-av.y)<14;
  const s0=navNear(b.x,b.y,blk);if(s0<0)return null;let g=navNear(tx,ty,blk);const gx0=tx/G,gy0=ty/G;
  const n=GW*GH,gs=new Float32Array(n).fill(1e9),prev=new Int32Array(n).fill(-1),done=new Uint8Array(n),H=[],F=[];
@@ -1319,7 +1326,7 @@ function phaseBy(b,x,y,a){if(tick<(b.phT||0)||b.dash||b.status!=='free')return f
  for(let L=pr+17;L<=pr+120;L+=4){let left=L,X=null,Y=null;const way=[];for(let k=1;k<pts.length;k++){const[x0,y0]=pts[k-1],[x1,y1]=pts[k],s=Math.hypot(x1-x0,y1-y0);if(left<=s){X=x0+(x1-x0)*left/s;Y=y0+(y1-y0)*left/s;way.push([X,Y]);break}way.push([x1,y1]);left-=s}
   if(X===null||!free(X,Y))continue;b.dash={x:ux,y:uy,left:L,phase:true,way};b.phT=tick+90;a.stk=0;sfxP('dash',.35);return true}return false}
 function aiStep(b,x,y,a=b.ai){const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy);if(d<2)return true;if((a.stk||0)>20&&solidHits(b,0,0))b.ghost=true;const u=UNITS[b.unit],sp=.85*(1-u.arm*.07)*(b.held?.8:1)*(b.crouch?.4:1);
- for(const o of DL)if(isDoor(o)&&o.locked&&!o.lockBroken&&hasKey(o,teamOf(b))&&Math.hypot(o.x-b.x,o.y-b.y)<24&&(onDoor(o,x,y)||onDoor(o,b.x,b.y))){for(const q of o.pair?[o,o.pair]:[o])q.locked=false;sfx('lock')}
+ for(const o of DL)if(isDoor(o)&&o.locked&&!o.lockBroken&&hasKey(o,teamOf(b),b)&&Math.hypot(o.x-b.x,o.y-b.y)<24&&(onDoor(o,x,y)||onDoor(o,b.x,b.y))){for(const q of o.pair?[o,o.pair]:[o])q.locked=false;sfx('lock')}
  for(const o of DL)if(isDoor(o)&&!o.locked&&o.tgt===0&&o.ang===0&&Math.hypot(o.x-b.x,o.y-b.y)<24&&(onDoor(o,x,y)||onDoor(o,b.x,b.y)))openGroup(o,b);
  const gain=()=>d-Math.hypot(x-b.x,y-b.y);moveToward(b,b.x+dx/d*sp,b.y+dy/d*sp);let m=gain();
  if(m<=.15&&b.held&&!a.tg&&b.ai&&(GS[teamOf(b)]||{}).mode==='calm'){b.psi=b.si;b.si=-1;b.held=null;b.hc=null;a.sheath=tick+90;moveToward(b,b.x+dx/d*sp,b.y+dy/d*sp);m=gain()}
@@ -1535,7 +1542,7 @@ function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||
  if(b.inO)return false;b.inO=true;hitFx(X,Y,m,b.vx/s,b.vy/s,pel);b.pen=(b.pen||0)+1;
  if(m!==2||pel||b.pen>2||s<7){remove(b);return true}b.vx*=.6;b.vy*=.6;return false}
 function update(){tick++;SND&&SND.near();SND&&SND.fireTick();for(const b of bodies)if(b.type==='token'&&b.status==='captured')b.ang=-Math.PI/2;// captives face up so their cuffs read
- for(const b of bodies)if(b.type==='token'&&(b.matA!==b.ang||b.matN!==lookOf(b)))tokMat(b);if(!aiOn)for(const b of bodies){if(b.ord){ensureRooms();ordTick(b)}else if(b.lookAt)lookTick(b)}if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%3===0)fogTick();if(tick%3===0)sightTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0)autoPick();for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;b.pull=8;if(heldBlocked(b,0,0)){b.raised=true;b.pull=0;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(!b.raised&&b.pull>0&&tick%3===0){b.pull--;if(heldBlocked(b,0,0))b.pull++}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();for(const b of bodies)if(b.held)melee(b);rodTick();
+ for(const b of bodies)if(b.type==='token'&&(b.matA!==b.ang||b.matN!==lookOf(b)))tokMat(b);if(!aiOn)for(const b of bodies){if(b.ord){ensureRooms();ordTick(b)}else if(b.lookAt)lookTick(b)}if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%3===0)fogTick();if(tick%3===0)sightTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0){autoPick();keyTick()}for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;b.pull=8;if(heldBlocked(b,0,0)){b.raised=true;b.pull=0;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(!b.raised&&b.pull>0&&tick%3===0){b.pull--;if(heldBlocked(b,0,0))b.pull++}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=i.heat?Math.min(1,.35+(slot(b).heat||0)*.65):pr*pr}}
  if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);if(holdFire&&armed().length&&armed().every(o=>{const i=srcInfo(o);return i&&!i.throw&&!i.heat}))charge={...charge,t:performance.now()};else charge=null}
