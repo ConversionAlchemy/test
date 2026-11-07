@@ -1133,7 +1133,7 @@ function render(){
  if(fxDirty||(fxActive&&tick%3===0)||(tick%7===0&&FX.fire.some(v=>v>.3)))buildFx();
  for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}
- for(const b of bodies)if((b.stuck&&!b.att)||b.fallen)drawBody(b);
+ for(const b of bodies)if(((b.stuck&&!b.att)||b.fallen)&&!(VEH.length&&b.type!=='slab'&&VEH.some(v=>vNear(v,b))))drawBody(b);
  {const tp=TOPS||OUTD;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,NOD[j]?.72:.5);else if(k===2)c=mul(c,NOD[j]?1.05:1.1);if(!tp){const d=DS[j],d0=DS0?DS0[j]:d;let f=DF[Math.min(9,d0)];if(d<d0)f=Math.max(f,d===1?.6:d===2?.22:0);c=mul(c,f)}else if(OUTD&&!TOPS)c=mul(c,1-(1-DF[Math.min(9,DS0?DS0[j]:DS[j])])*.35);if(SHN[j]&&(DS[j]<4||tp))c=shine(c,X,Y,SHN[j]);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}}
  for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!inDrag(b)&&!b.vdoor)drawBody(b);vDraw(0);
  const hot=p=>p.life!==undefined||(p.em!==undefined&&p.em/p.em0>.2),rest=p=>!hot(p)&&Math.hypot(p.vx||0,p.vy||0)<.3;
