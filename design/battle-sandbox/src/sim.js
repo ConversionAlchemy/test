@@ -41,6 +41,9 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&AC&&AC.st
 // map
 let map=[],UND=[];LINK=(x,y)=>map[y]&&map[y][x];// UND: the floor laid under furniture and walls, shown when they are destroyed
 const undAt=(cx,cy)=>UND[cy]&&UND[cy][cx]||null;
+// a grass cell is repainted when an earth cell beside it changes, so its edge follows the soil
+let RPG=0;
+function paintCell(cx,cy,key){paintCell0(cx,cy,key);if(RPG||!/^(grass|dirt|earth\.)/.test(map[cy][cx]||''))return;RPG=1;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const k=map[cy+dy]&&map[cy+dy][cx+dx];if((dx||dy)&&k&&/^(grass|earth\.grass)/.test(k))paintCell0(cx+dx,cy+dy,k)}RPG=0}
 function tilePix(key,cx,cy){const f=TEX[key]||TEX.dirt,d=new Uint8ClampedArray(T*T*4);for(let y=0;y<T;y++)for(let x=0;x<T;x++){WEARF=0;const c=f(cx*T+x,cy*T+y,cx,cy)||SOIL,i=(y*T+x)*4;d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255-WEARF}return d}
 // every tile has one material; custom textures take their recipe's, or their parent's. Hit class: 1 stone, 2 wood, 3 metal
 let EDOK=false;
@@ -53,7 +56,7 @@ const hitCls=m=>m==='metal'?3:m==='foliage'?4:m==='stone'||m==='marble'||m==='so
 const WMAT={bush:2,berm:1,rail:2};
 const SHINE={msill:28};
 let HALFF='dirt';
-function paintCell(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;key=modK(key);map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(undAt(cx,cy)||HALFF,cx,cy):null,m=WMAT[bk]||0,hpK=CATN[bk]?mprop(CATN[bk][0],CATN[bk][1]).hp:(MAT[m]||{}).hp,gk=CATN[bk]&&CATN[bk][0]==='Stone'&&CATN[bk][1]==='gold'?1:0,ud=m&&undAt(cx,cy)?tilePix(undAt(cx,cy),cx,cy):null;
+function paintCell0(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;key=modK(key);map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(undAt(cx,cy)||HALFF,cx,cy):null,m=WMAT[bk]||0,hpK=CATN[bk]?mprop(CATN[bk][0],CATN[bk][1]).hp:(MAT[m]||{}).hp,gk=CATN[bk]&&CATN[bk][0]==='Stone'&&CATN[bk][1]==='gold'?1:0,ud=m&&undAt(cx,cy)?tilePix(undAt(cx,cy),cx,cy):null;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&(hv==='H'?x>=T/2:hv==='N'?y>=T/2:y<T/2),c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=NODK.has(bk)?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='vault';
