@@ -225,6 +225,8 @@ const KEYQ=['........','.#######','.#......','.#.#####','.#.#....','.#.#.###','.
 const EBONY=[58,36,26];
 // one chest per metal, fully built in that metal: key → [member, name]
 const MCHEST={schest:['steel','Steel chest'],mchest:['iron','Iron chest'],bchest:['brass','Brass chest'],gchest:['gold','Aurum chest'],uchest:['umbra','Umbra chest']};
+// metal tables: hold items on top, like wooden ones (vaults)
+const MTABLE={stable:['steel','Steel table'],itable:['iron','Iron table'],btable:['brass','Brass table'],gtable:['gold','Aurum table'],utable:['umbra','Umbra table']};
 const TEX={sill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,0),msill:(X,Y,cx,cy)=>sillT(X,Y,cx,cy,1),rail:(X,Y)=>woodT(X,Y,WOOD.rail,9),grass:grassT,dirt:soilT,bush:bushT,
  sky:(X,Y)=>{const v=hh(X>>3,Y>>2,21)*.6+hh(X>>2,Y>>1,22)*.4;return SKY[v>.78?4:v>.64?3:v<.22?1:2]}};
 const KIND={grass:'floor',dirt:'floor',sky:'floor',rail:'wall',sill:'floor',msill:'floor',bush:'wall'};
@@ -418,11 +420,13 @@ const AGE={
    let o=mx(k,F,a*.3);if(a>.4&&(X+Y)&1)o=sc(o,.95);const D=[150,140,124],du=fbm(X/5,Y/5,sd+7);if(du>1.02-a*.4-t*.1)o=mx(o,D,.1+.06*t);if(a>.2&&hh(X>>2,Y,sd+2)>.95-.04*t)o=mx(o,D,.16);if(a>.5)WEARF=1;if(t>.8&&a>.5&&hh(X>>1,Y>>1,sd+6)>.988)o=sc(k,.5);return o}}};
 const AGEC={},ageOf=(el,mat,cd,w)=>{if(!AGE[el]||!(cd<5))return null;const q=el+'.'+mat+'.'+cd+(w?'w':'');return AGEC[q]||(AGEC[q]=AGE[el](el,mat,ageT(cd),w))};
 for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
+// a metal table's top (its rim and bevel come with the other furniture, in regions)
+for(const k in MTABLE)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MTABLE[k][0],X,Y);KIND[n]='floor'}
 for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(POLT.has(k))POLT.add(n)}}
 // wooden furniture: each piece is [wood, shape, name], drawn as its wood's polished face; rim, bevel and inlay are drawn per piece, as on polished floors
 const WSHAPE={table:'table',desk:'desk',chest:'chest',seat:'chair'},WOLD={'oak.table':'table','oak.chest':'chest','oak.seat':'seat','mahog.desk':'desk','ebony.desk':'edesk','pine.table':'ptable','pine.chest':'pchest','pine.seat':'pseat','teak.table':'ttable','teak.chest':'tchest','teak.seat':'tseat'},WPIECE={};
 for(const m of Object.keys(ELEM.Wood.mats))for(const sh in WSHAPE)WPIECE[WOLD[m+'.'+sh]||sh+'.'+m]=[m,sh,memb('Wood',m).n+' '+WSHAPE[sh]];
-const wshape=k=>{const p=WPIECE[baseK(k)];return p&&p[1]};
+const wshape=k=>{const b=baseK(k),p=WPIECE[b];return p?p[1]:MTABLE[b]?'table':undefined};
 const woodFin=mat=>{const dk=mat==='mahog'||mat==='ebony';return{rim:mprop('Wood',mat).rim||.5,gl:dk?[210,168,100]:[176,126,84],gt:dk?.4:.25}};
 for(const k in WPIECE){const[m,sh]=WPIECE[k],f=TEX['wood.'+m+'.panel'];KIND[k]='floor';TEX[k]=sh==='seat'?(X,Y,cx,cy)=>{const x=X-cx*T,y=Y-cy*T,e=Math.min(x,y,T-1-x,T-1-y),c=f(X,Y);return e===0?sc(c,woodFin(m).rim):e===1?sc(c,.82):sc(c,1.08-Math.hypot(x-7.5,y-7.5)/7*.18)}:f;
  for(let cd=1;cd<5;cd++){const A=ageOf('Wood',m,cd),g=TEX[k];KIND[k+'~'+cd]='floor';TEX[k+'~'+cd]=(X,Y,cx,cy)=>{const q=g(X,Y,cx,cy),x=X&15,y=Y&15;return q&&A(q,X*2,Y*2,()=>Math.min(x,y,15-x,15-y)-1)}}}
@@ -433,7 +437,7 @@ const OLDK={marble:'stone.aur.block',dmarble:'stone.aur.chequer',omarble:'stone.
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};
 const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];return n&&!n.startsWith('earth.')?n+s:k};
 // a door's floor: each half carries on the floor of the cell beside it; a neighbouring doorway counts as wall line, so double doors work (the sill shows only where a side has none)
-for(const k of['sill','msill']){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const at=(x,y)=>LINK(x,y),fl=q=>q&&TEX[q]&&KIND[q]!=='wall'&&!WPIECE[baseK(q)]&&!MCHEST[baseK(q)]&&q!=='sill'&&q!=='msill'?q:null,wl=q=>KIND[q]==='wall'||q==='sill'||q==='msill',hz=!(wl(at(cx,cy-1))&&wl(at(cx,cy+1))),lo=((hz?Y:X)&15)<8,dx=hz?0:lo?-1:1,dy=hz?lo?-1:1:0,q=fl(at(cx+dx,cy+dy));return q?TEX[q](X+dx*T,Y+dy*T,cx+dx,cy+dy):f(X,Y,cx,cy)}}
+for(const k of['sill','msill']){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const at=(x,y)=>LINK(x,y),fl=q=>q&&TEX[q]&&KIND[q]!=='wall'&&!WPIECE[baseK(q)]&&!MCHEST[baseK(q)]&&!MTABLE[baseK(q)]&&q!=='sill'&&q!=='msill'?q:null,wl=q=>KIND[q]==='wall'||q==='sill'||q==='msill',hz=!(wl(at(cx,cy-1))&&wl(at(cx,cy+1))),lo=((hz?Y:X)&15)<8,dx=hz?0:lo?-1:1,dy=hz?lo?-1:1:0,q=fl(at(cx+dx,cy+dy));return q?TEX[q](X+dx*T,Y+dy*T,cx+dx,cy+dy):f(X,Y,cx,cy)}}
 TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
 for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];KIND[o]=KIND[n]}
 // unit looks: each sprite rebuilt as flesh, cloth and metal layers (from the wardrobe); a token samples its own spawn
@@ -679,7 +683,7 @@ function tilePix(key,cx,cy){const f=TEX[key]||TEX.dirt,d=new Uint8ClampedArray(T
 let EDOK=false;
 // hit material of the keys outside the material table (earth names, fence, sill, sky) and of furniture
 const BMAT={hedge:'foliage',bush:'grass',grass:'grass',crop:'grass',dirt:'soil',berm:'soil',sky:'soil',rail:'wood',sill:'stone',msill:'marble',
- ...Object.fromEntries(Object.keys(MCHEST).map(k=>[k,'metal'])),...Object.fromEntries(Object.keys(WPIECE).map(k=>[k,'wood']))};
+ ...Object.fromEntries(Object.keys(MCHEST).map(k=>[k,'metal'])),...Object.fromEntries(Object.keys(MTABLE).map(k=>[k,'metal'])),...Object.fromEntries(Object.keys(WPIECE).map(k=>[k,'wood']))};
 function matK(k){if(!k)return'stone';k=modK(k);if(/[HNS]$/.test(k)&&WMAT[k.slice(0,-1)])k=k.slice(0,-1);if(EDOK){const m=MODS.tex[k];if(m)return m.rec?m.rec.mat==='plaster'?'stone':m.rec.mat:matK(m.from);
  if(CATN[k]){const[el,mm]=CATN[k];return mprop(el,mm).cls}}return BMAT[k]||'stone'}
 const hitCls=m=>m==='metal'?3:m==='foliage'?4:m==='stone'||m==='marble'||m==='soil'?1:2;
@@ -709,20 +713,20 @@ function boards(){const seen=new Set();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<C
 const NOB=new Set(['grass','dirt','sky','bush','sill','msill']);
 // what each material-table key is: wall class, shine (dulled by wear), no-border and plank sets; set before the first map is built
 for(const k in CATN){const[el,mat,v,w]=CATN[k];const P=mprop(el,mat),cd=CATN[k][4]||5;if(w)WMAT[k]=hitCls(P.cls);if(P.shine)SHINE[k]=Math.round(P.shine*(.4+.6*(cd-1)/4));if(!w&&(el==='Earth'||el==='Cloth')||el==='Wood'&&v==='panel')NOB.add(k);if(!w&&el==='Wood'&&v==='planks')PLK.add(k)}
-for(const k in MCHEST){SHINE[k]=mprop('Metal',MCHEST[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}SHINE.mchest=60;
+for(const k in MTABLE){SHINE[k]=mprop('Metal',MTABLE[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}for(const k in MCHEST){SHINE[k]=mprop('Metal',MCHEST[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}SHINE.mchest=60;
 // tile borders follow inner corners too, so a rim turns square instead of breaking
 function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const bk=baseK(k),o=(x,y)=>map[y]&&map[y][x]!==undefined&&baseK(map[y][x])!==bk;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){let d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);for(const[a,b]of[[-1,-1],[1,-1],[-1,1],[1,1]])if(!o(cx+a,cy)&&!o(cx,cy+b)&&o(cx+a,cy+b))d=Math.min(d,Math.max(a<0?x:T-1-x,b<0?y:T-1-y));if(d>(WMAT[k]===3?2:1))continue;const j=(cy*T+y)*W+cx*T+x,mt=WMAT[k]===3,f=mt?[.7,1.3,.88][d]:d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
 const fmat=k=>hitCls(matK(k));
 function objMat(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k)continue;const m=fmat(k);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;if(OBJ[j])OBJ[j]=m}}}
 // furniture and fixtures: above the floor, block walking, bullets pass over, blasts break them
-const OBJK=new Set([...Object.keys(WPIECE).filter(k=>WPIECE[k][1]!=='seat'),'books','shelf',...Object.keys(MCHEST),'wagon','hedge']),ONAME={...Object.fromEntries(Object.entries(MCHEST).map(([k,v])=>[k,v[1]])),...Object.fromEntries(Object.entries(WPIECE).map(([k,v])=>[k,v[2]])),hedge:'Hedge',wagon:'Wagon',books:'Shelves',shelf:'Shelf'};let OM=[];
+const OBJK=new Set([...Object.keys(WPIECE).filter(k=>WPIECE[k][1]!=='seat'),'books','shelf',...Object.keys(MCHEST),...Object.keys(MTABLE),'wagon','hedge']),ONAME={...Object.fromEntries(Object.entries(MCHEST).map(([k,v])=>[k,v[1]])),...Object.fromEntries(Object.entries(MTABLE).map(([k,v])=>[k,v[1]])),...Object.fromEntries(Object.entries(WPIECE).map(([k,v])=>[k,v[2]])),hedge:'Hedge',wagon:'Wagon',books:'Shelves',shelf:'Shelf'};let OM=[];
 function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(0);const cells=[];for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(OBJK.has(map[cy][cx])){OM[cy][cx]=map[cy][cx];cells.push([cx,cy])}
  for(const[cx,cy]of cells){let u=null;for(const d of [2,1,3,4])for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){if(u)break;const k=(map[cy+b*d]||[])[cx+a*d];if(k&&!OBJK.has(k)&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky')u=k}const k=OM[cy][cx],m=fmat(k);paintCell(cx,cy,undAt(cx,cy)||u||'flag');
   for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);if(!c)continue;OBJ[j]=m;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}pieces();furnish()}
 // storage and desks come in pieces of at most 2×2, filled from the top-left; each piece has its own rim and inventory
 const PCK=new Set([...Object.keys(WPIECE).filter(k=>/chest|desk/.test(WPIECE[k][1])),...Object.keys(MCHEST),'books','shelf']);let PCS=new Map();
-for(const k of[...Object.keys(MCHEST),...Object.keys(WPIECE)])for(let c=1;c<5;c++){const n=k+'~'+c;if(OBJK.has(k))OBJK.add(n);if(PCK.has(k))PCK.add(n);ONAME[n]=ONAME[k];BMAT[n]=BMAT[k]}
+for(const k of[...Object.keys(MCHEST),...Object.keys(MTABLE),...Object.keys(WPIECE)])for(let c=1;c<5;c++){const n=k+'~'+c;if(OBJK.has(k))OBJK.add(n);if(PCK.has(k))PCK.add(n);ONAME[n]=ONAME[k];BMAT[n]=BMAT[k]}
 function pieces(){PCS=new Map();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k||!PCK.has(k)||PCS.has(cy*CW+cx))continue;const ok=(x,y)=>OM[y]&&OM[y][x]===k&&!PCS.has(y*CW+x),w=ok(cx+1,cy)?2:1,h=ok(cx,cy+1)&&(w<2||ok(cx+1,cy+1))?2:1,p={k,x0:cx,y0:cy,w,h,cells:[]};
  for(let y=cy;y<cy+h;y++)for(let x=cx;x<cx+w;x++){p.cells.push([x,y]);PCS.set(y*CW+x,p)}}}
 // finishes: riveted iron band on chests and racks, book spines on a bookshelf's open edges, a riveted steel vault shelf
@@ -801,7 +805,7 @@ function blastWear(x,y,s){const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
 // walls lose condition as they're shot, chipped and blasted: each cell keeps a tally, every step of it wears one condition, softer materials faster; its wall neighbours take a share
 const WWT=new Map(),WB0=new Map(),HTM=new Map(),OWT=new Map(),OB0=new Map();
 // furniture wears the same way, by its wood or metal from the material table
-const objEl=k=>{const b=baseK(k);return WPIECE[b]?['Wood',WPIECE[b][0]]:MCHEST[b]?['Metal',MCHEST[b][0]]:null};
+const objEl=k=>{const b=baseK(k);return WPIECE[b]?['Wood',WPIECE[b][0]]:MCHEST[b]?['Metal',MCHEST[b][0]]:MTABLE[b]?['Metal',MTABLE[b][0]]:null};
 function wearObj(cx,cy,amt){if(cx<0||cy<0||cx>=CW||cy>=CH)return;const k=OM[cy]&&OM[cy][cx],e=k&&objEl(k);if(!e||!AGE[e[0]])return;const id=cy*CW+cx,v=(OWT.get(id)||0)+amt*softOf(e[0],e[1]);OWT.set(id,v);
  const o=OB0.get(id),c0=o?o.c0:condK(k),cc=Math.max(1,c0-Math.floor(v/9));if(cc>=condK(k))return;
  if(!o){const a=new Uint32Array(T*T);for(let y=0;y<T;y++)for(let x=0;x<T;x++)a[y*T+x]=OBJC[(cy*T+y)*W+cx*T+x];OB0.set(id,{a,c0,k})}
@@ -919,7 +923,7 @@ function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
  barricade(2,392,312);barricade(3,456,312);barricade(3,560,560,32,8);for(const t of bodies)if(t.type==='token'&&t.nat==='Reapers')tie(t,t.unit==='guard'||t.unit==='shock'||t.unit==='cmd'||['Bel','Dace','Fenn','Hart'].includes(t.name)?'chain':'rope');}
 function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.block.w'));
  const F=(cx,cy)=>{if(cy>=39&&cy<=45)return cx>=1&&cx<=4&&cy>=41&&cy<=44?(cx>=2&&cx<=3&&cy>=42&&cy<=43?'bush':'grass'):'stone.grey.quarter';if(cy===46)return 'bush';if(cy===38)return cx>=13?'stone.aur.block':'stone.gold.block.w';if(cx<=2||cy<=1)return 'stone.gold.block.w';
-  if(cy>=2&&cy<=6&&cx>=8)return cx===10&&cy===4?'stone.aur.block.w':cy===2&&(cx<=10||cx>=13)?'schest':'stone.aur.block';if(cy===7)return cx>=13?'stone.aur.block':'stone.gold.block.w';
+  if(cy>=2&&cy<=6&&cx>=8)return cy>=4&&cy<=5&&cx>=13?'gtable':cx===10&&cy===4?'stone.aur.block.w':cy===2&&(cx<=10||cx>=13)?'schest':'stone.aur.block';if(cy===7)return cx>=13?'stone.aur.block':'stone.gold.block.w';
   if(cy>=8&&cy<=18){if(cx>=11)return cx===12&&(cy===10||cy===16)?'stone.aur.block.w':'stone.aur.chequer';if(cx===10)return cy===13?'stone.aur.block':'stone.gold.block.w';if(cx>=3&&cy>=9&&cy<=17)return cy===10&&cx>=5&&cx<=7?'desk':cx>=4&&cx<=8&&cy>=11&&cy<=16?'cloth.crimson.diamond':'stone.aur.block';return 'stone.gold.block.w'}
   if(cy===19)return cx>=13?'stone.aur.block':'stone.gold.block.w';
   if(cy>=20&&cy<=30){if((cx===6||cx===10)&&(cy===22||cy===28))return 'stone.aur.block.w';if(cy===25&&cx>=5&&cx<=9)return 'table';return 'stone.aur.block'}
@@ -932,7 +936,7 @@ function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
 function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};slab(3,36,400,1);
  dbl(3,208,128,271,111,0,2,true,32,16);dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,false,32,8);
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
- container(8,2,[{k:'gold',n:1500}]);container(13,2,[{k:'gold',n:1600}]);container(19,2,[{k:'gold',n:1500}]);container(5,25,[{k:'gold',n:200}]);container(20,25,[{k:'gold',n:200}]);
+ container(8,2,[{k:'grenade',n:2}]);container(19,2,[{k:'bomb',n:1}]);for(const[x,y]of[[13,4],[14,4],[15,4],[16,4],[13,5],[16,5]])container(x,y,[{k:'gold',n:800}]);container(5,25,[{k:'gold',n:200}]);container(20,25,[{k:'gold',n:200}]);
  container(22,10,[{k:'gold',n:400},{k:'grenade',n:3}]);container(5,10,[]);container(5,33,[]);container(22,33,[{k:'gold',n:120}]);for(const o of bodies){if(o.type==='slab')goldify(o);if(o.kind==='crate')o.metal=true}
  // the crew: a commando with a blunderbuss, grenades and heavy grenades, backed by two riflemen with a couple of grenades each
  for(const[n,u,x,w,k]of[['Rask','cmd',240,'blunder',[{k:'grenade',n:4},{k:'bomb',n:3}]],['Mott','rifle',205,'musket',[{k:'grenade',n:2}]],['Hook','rifle',275,'musket',[{k:'grenade',n:2}]]]){const t=face(token(n,'Reapers',u,x,640,false,w),up);t.inv=[t.inv[0],null,...k,null,null].slice(0,6)}{const r=bodies.find(o=>o.name==='Rask');sel.clear();sel.add(r);r.direct=true}
@@ -1700,7 +1704,7 @@ function render(){
  for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(fxTop[j0]){const al=fxA[j0],f=fxTop[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])out[j]=al>=255?f:mix(out[j],f,al/255);continue}const v=SV[q];if(v>.04){const a=Math.min(.42,v*.5);for(const j of [j0,j0+1,j0+W,j0+W+1])out[j]=mix(out[j],HAZE,a)}}
  for(const p of parts){if(!hot(p))continue;const X=Math.round(p.x),Y=Math.round(p.y);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=p.em!==undefined&&!p.vx&&Math.random()<.15?mul(p.c,1.25):p.c}
  if(hzOn)veil();
- if(slowMo)streaks();lightPass();if(fogOn())fogPass();if(DSV&&!fogOn())sightPass();
+ if(slowMo)streaks();lightPass();if(fogOn()){const sg=(tick/3|0)+':'+bodies.filter(b=>b.direct&&b.status!=='dead').map(b=>b.id+','+Math.round(b.x)+','+Math.round(b.y)).join(';');if(sg!==FOGS){FOGS=sg;fogTick()}fogPass()}
  if(box){const x0=Math.round(Math.min(box.x0,box.x1)),x1=Math.round(Math.max(box.x0,box.x1)),y0=Math.round(Math.min(box.y0,box.y1)),y1=Math.round(Math.max(box.y0,box.y1)),c=rgb(242,239,230);
   for(let x=x0;x<=x1;x++)if(x%2===0){if(y0>=0&&y0<H)out[y0*W+x]=c;if(y1>=0&&y1<H)out[y1*W+x]=c}for(let y=y0;y<=y1;y++)if(y%2===0){if(x0>=0&&x0<W)out[y*W+x0]=c;if(x1>=0&&x1<W)out[y*W+x1]=c}}
  if(cellDrag&&moveSel){const k=(mouse.y/T|0)*CW+(mouse.x/T|0);if(moveSel.cells.has(k)){const cx=k%CW,cy=k/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++)if(x===1||y===1||x===T-2||y===T-2)out[(cy*T+y)*W+cx*T+x]=rgb(242,239,230)}}
@@ -2142,35 +2146,30 @@ function surrender(b){say(b,'I yield',true);if(b.held)dropHeld(b);b.status='capt
 function canSeeUp(b,o){const c=b.crouch;b.crouch=false;const r=canSee(b,o);b.crouch=c;return r}
 // your side's view when AI is on: live where your units look, a fading picture elsewhere (5 s to black)
 let VS=new Uint8Array(1),VSF=new Float32Array(1),fSel=false,VIS=new Uint8Array(1),SEEN=new Float32Array(1),SNAP=new Uint32Array(1),VF=new Float32Array(1),VT=new Float32Array(1);
-const fogOn=()=>aiOn&&!!aiMe&&dirOn(); // fog only while you're driving a unit yourself (E); commanding from above sees everything
+// fog only while you're driving a unit yourself (E), paused or not; commanding from above sees everything
+let FOGS='';const fogTeam=()=>{if(aiMe)return aiMe;const d=bodies.find(b=>b.direct&&b.type==='token'&&b.status!=='dead');return d?teamOf(d):null},fogOn=()=>dirOn()&&!EM&&!!fogTeam();
 let DIRT=-1,DIRV=false;const dirOn=()=>{if(DIRT!==tick){DIRT=tick;DIRV=bodies.some(b=>b.direct&&b.type==='token'&&b.status!=='dead')}return DIRV};
-function fogTick(){if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Array(NB).fill(-1e9)}if(SNAP.length!==W*H)SNAP=new Uint32Array(W*H);VIS.fill(0);
- const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status!=='dead');
+function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Array(NB).fill(-1e9)}if(SNAP.length!==W*H)SNAP=new Uint32Array(W*H);VIS.fill(0);
+ const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===FT&&b.status!=='dead');
  if(VS.length!==NB){VS=new Uint8Array(NB);VSF=new Float32Array(NB)}VS.fill(0);fSel=me.some(b=>sel.has(b));
  if(VD.length!==NB)VD=new Float32Array(NB);VD.fill(0);for(const b of me){const sb=sel.has(b);sight360(b,(q,v)=>{VIS[q]=1;if(v>VD[q])VD[q]=v;if(sb)VS[q]=1})}
  for(let y=1;y<BH-1;y++)for(let x=1;x<BW-1;x++){const q=y*BW+x;if(!VIS[q]&&(VIS[q-1]&1&&VIS[q+1]&1||VIS[q-BW]&1&&VIS[q+BW]&1)){VIS[q]=2;VD[q]=Math.max(Math.min(VD[q-1],VD[q+1]),Math.min(VD[q-BW],VD[q+BW]))}}
  for(let q=0;q<NB;q++)if(VIS[q])SEEN[q]=tick;
  // soft edge: blur the view mask a few cells
  if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VD[q];blurMask(VF);if(fSel){for(let q=0;q<NB;q++)VSF[q]=VS[q]?1:0;blurMask(VSF)}
- for(const o of bodies)if(o.type==='token')o.fogH=relOf(aiMe,teamOf(o))!=='self'&&relOf(aiMe,teamOf(o))!=='ally'&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>Math.hypot(o.x-b.x,o.y-b.y)<FOVR*.88&&losClear(b.x,b.y,o.x,o.y,!!b.crouch,!!o.crouch)))}
+ for(const o of bodies)if(o.type==='token')o.fogH=relOf(FT,teamOf(o))!=='self'&&relOf(FT,teamOf(o))!=='ally'&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>Math.hypot(o.x-b.x,o.y-b.y)<FOVR*.88&&losClear(b.x,b.y,o.x,o.y,!!b.crouch,!!o.crouch)))}
 // your side's sight, Door Kickers style: all round, stopped dead by walls and closed doors, full bright to about half range then fading to black
 const FOVR=320;let VD=new Float32Array(1);
 function sight360(b,f){const low=!!b.crouch,n=Math.ceil(6.283*FOVR/2.5),fade=r=>{const t=(r-FOVR*.5)/(FOVR*.5);return t<=0?1:1-t*t*(3-2*t)};
  for(let i=0;i<n;i++){const a=i/n*6.283,c=Math.cos(a),s=Math.sin(a);let wd=0;for(let r=0;r<FOVR;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)break;const j=Y*W+X,wl=sol[j]||slabG[j];if(wd&&!wl)break;f((Y>>1)*BW+(X>>1),fade(r));if(wl&&(wd+=2)>8)break;if(low&&OBJ[j]&&r>5)break}}}
 // a unit under direct control shows what it can see: the cone, cut by walls and, when crouched, by furniture
 // what a unit sees: a cone plus a small circle; rays look a little way into walls but never out the other side
-function sight(b,nr,f){const low=!!b.crouch,cast=(a,R)=>{const c=Math.cos(a),s=Math.sin(a);let wd=0;for(let r=0;r<R;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X,wl=sol[j]||slabG[j];if(wd&&!wl)return;f((Y>>1)*BW+(X>>1));if(wl&&(wd+=2)>8)return;if(low&&OBJ[j]&&r>5)return}};
- for(let i=0;i<=nr;i++)cast(b.ang-.96+1.92*i/nr,VR);for(let i=0;i<24;i++)cast(i/24*6.283,22)}
-// a unit under direct control shows what it sees; what its allies see stays lighter than the rest
-let DSV=null,DSA=null;function sightTick(){const me=EM?[]:bodies.filter(b=>b.direct&&b.type==='token'&&b.status==='free');if(!me.length){DSV=null;return}if(!DSV||DSV.length!==NB){DSV=new Float32Array(NB);DSA=new Float32Array(NB)}if(VT.length!==NB)VT=new Float32Array(NB);DSV.fill(0);DSA.fill(0);
- for(const b of me)sight(b,160,q=>DSV[q]=1);const t=teamOf(me[0]);for(const o of bodies)if(o.type==='token'&&o.status==='free'&&!o.direct&&/self|ally/.test(relOf(t,teamOf(o))))sight(o,60,q=>DSA[q]=1);blurMask(DSV);blurMask(DSA)}
-function sightPass(){const sm=v=>{v=Math.min(1,v*1.6);return v*v*(3-2*v)};for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),w=Math.max(sm(DSV[q]),.49*sm(DSA[q]));if(w<1)out[j]=mul(out[j],.55+.45*w)}}}
 function blurMask(A){for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o=y*BW;let sum=0;for(let k=0;k<=2&&k<BW;k++)sum+=A[o+k];for(let x=0;x<BW;x++){const n=Math.min(BW-1,x+2)-Math.max(0,x-2)+1;VT[o+x]=sum/n;if(x+3<BW)sum+=A[o+x+3];if(x-2>=0)sum-=A[o+x-2]}}
   for(let x=0;x<BW;x++){let sum=0;for(let k=0;k<=2&&k<BH;k++)sum+=VT[k*BW+x];for(let y=0;y<BH;y++){const n=Math.min(BH-1,y+2)-Math.max(0,y-2)+1;A[y*BW+x]=sum/n;if(y+3<BH)sum+=VT[(y+3)*BW+x];if(y-2>=0)sum-=VT[(y-2)*BW+x]}}}}
 // with one of your units selected, what the others see is dimmed slightly
-function fogPass(){const sl=!DSV&&fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===aiMe);const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const m=F;out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
+function fogPass(){const sl=fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===fogTeam());const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const m=F;out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
  for(const z of RINGS){const k=(tick-z.t)/40,rad=2+k*7;for(let i=0;i<28;i++){const X=Math.round(z.x+Math.cos(i*.2244)*rad),Y=Math.round(z.y+Math.sin(i*.2244)*rad);if(X>=0&&Y>=0&&X<W&&Y<H){const j=Y*W+X;out[j]=mix(out[j],rgb(230,226,214),.5*(1-k))}}}RINGS=RINGS.filter(z=>tick-z.t<40)}
-function ringFor(z){if(!fogOn()||z.src&&teamOf(z.src)===aiMe||z.src&&!z.src.fogH)return;const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===aiMe&&b.status==='free');if(me.some(b=>heardBy(b,z))&&!RINGS.some(r=>tick-r.t<12&&Math.hypot(r.x-z.x,r.y-z.y)<10))RINGS.push({x:z.x,y:z.y,t:tick})}
+function ringFor(z){const FT=fogTeam();if(!fogOn()||z.src&&teamOf(z.src)===FT||z.src&&!z.src.fogH)return;const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===FT&&b.status==='free');if(me.some(b=>heardBy(b,z))&&!RINGS.some(r=>tick-r.t<12&&Math.hypot(r.x-z.x,r.y-z.y)<10))RINGS.push({x:z.x,y:z.y,t:tick})}
 // a crouched unit hides behind low furniture: a low shot hits any desk; a high shot hits one beside a crouched unit
 function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||Y>=H||!OBJ[Y*W+X]){b.inO=false;return false}
  if(!b.low&&!bodies.some(t=>t.type==='token'&&t.crouch&&t.status!=='dead'&&Math.hypot(t.x-b.x,t.y-b.y)<26&&(t.x-b.x)*b.vx+(t.y-b.y)*b.vy>0))return false;
@@ -2180,7 +2179,7 @@ function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||
  if(b.inO)return false;b.inO=true;hitFx(X,Y,m,b.vx/s,b.vy/s,pel);b.pen=(b.pen||0)+1;
  if(m!==2||pel||b.pen>2||s<7){remove(b);return true}b.vx*=.6;b.vy*=.6;return false}
 function update(){tick++;SND&&SND.near();SND&&SND.fireTick();for(const b of bodies)if(b.type==='token'&&b.status==='captured')b.ang=-Math.PI/2;// captives face up so their cuffs read
- for(const b of bodies)if(b.type==='token'&&(b.matA!==b.ang||b.matN!==lookOf(b)))tokMat(b);if(!aiOn)for(const b of bodies){if(b.ord){ensureRooms();ordTick(b)}else if(b.lookAt)lookTick(b)}if(tick%30===0)leaderTick();turnTick();try{aiTick();if(fogOn()&&tick%3===0)fogTick();if(tick%3===0)sightTick()}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0){autoPick();keyTick()}for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;b.pull=8;if(heldBlocked(b,0,0)){b.raised=true;b.pull=0;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(!b.raised&&b.pull>0&&tick%3===0){b.pull--;if(heldBlocked(b,0,0))b.pull++}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();for(const b of bodies)if(b.held)melee(b);rodTick();
+ for(const b of bodies)if(b.type==='token'&&(b.matA!==b.ang||b.matN!==lookOf(b)))tokMat(b);if(!aiOn)for(const b of bodies){if(b.ord){ensureRooms();ordTick(b)}else if(b.lookAt)lookTick(b)}if(tick%30===0)leaderTick();turnTick();try{aiTick();}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0){autoPick();keyTick()}for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;b.pull=8;if(heldBlocked(b,0,0)){b.raised=true;b.pull=0;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(!b.raised&&b.pull>0&&tick%3===0){b.pull--;if(heldBlocked(b,0,0))b.pull++}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=i.heat?Math.min(1,.35+(slot(b).heat||0)*.65):pr*pr}}
  if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);if(holdFire&&armed().length&&armed().every(o=>{const i=srcInfo(o);return i&&!i.throw&&!i.heat}))charge={...charge,t:performance.now()};else charge=null}
@@ -2476,7 +2475,7 @@ function pickFile(f){const i=document.createElement('input');i.type='file';i.acc
 
 // textures
 const TNAME={grass:'Grass',dirt:'Dirt',sky:'Sky',sill:'Sill',msill:'Marble sill',crop:'Wheat',berm:'Earth bank',rail:'Fence',bush:'Hedge'};
-for(const k in WPIECE)TNAME[k]=WPIECE[k][2];TNAME.hedge='Hedge';for(const k in MCHEST)TNAME[k]=MCHEST[k][1];
+for(const k in WPIECE)TNAME[k]=WPIECE[k][2];TNAME.hedge='Hedge';for(const k in MCHEST)TNAME[k]=MCHEST[k][1];for(const k in MTABLE)TNAME[k]=MTABLE[k][1];
 const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w,cd]=c;return memb(el,mat).n+' · '+(varsOf(el,mat)[v]||v)+(w?' wall':'')+(cd?' · '+CONDN[cd]:'')};
 const tName=k=>MODS.tex[k]?MODS.tex[k].name:catName(k)||TNAME[k]||k;
 const TS=32,enc=a=>{let s='';for(const v of a)s+=(v<16?'0':'')+v.toString(16);return s},dec=s=>{const a=new Uint8ClampedArray(s.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(s.substr(i*2,2),16);return a};
@@ -2539,7 +2538,7 @@ const ATL=(()=>{const rows=EORDER.map(el=>{const E=ELEM[el],mats=Object.keys(E.m
 MAPSZ.atelier=[ATL.CW,ATL.CH];TITLE.atelier='Fluoria · The Atelier';
 NBM.atelier=()=>{const g=Array.from({length:ATL.CH},(_,y)=>Array.from({length:ATL.CW},(_,x)=>x===0||y===0||x===ATL.CW-1||y===ATL.CH-1?'stone.grey.block.w':'stone.lime.paving'));
  ATL.rows.forEach((r,i)=>{const y0=2+i*4;let x=2;r.mats.forEach((m,mi)=>{const vs=r.vars[mi];vs.forEach((v,j)=>{const b=r.el.toLowerCase()+'.'+m+'.'+v;g[y0][x+j]=b+'.w';g[y0+1][x+j]=b;g[y0+2][x+j]=b});x+=vs.length+1})});
- let fx=2,fy=ATL.CH-6;for(const[k,n]of[...Object.keys(WPIECE).filter(k=>!RETIRED.has(k)).map(k=>[k,/table|desk/.test(WPIECE[k][1])?2:1]),...Object.keys(MCHEST).map(k=>[k,1])]){if(fx+n>ATL.CW-2){fx=2;fy+=2}if(fy>ATL.CH-2)break;for(let i=0;i<n;i++)g[fy][fx+i]=k;fx+=n+1}
+ let fx=2,fy=ATL.CH-6;for(const[k,n]of[...Object.keys(WPIECE).filter(k=>!RETIRED.has(k)).map(k=>[k,/table|desk/.test(WPIECE[k][1])?2:1]),...Object.keys(MCHEST).map(k=>[k,1]),...Object.keys(MTABLE).map(k=>[k,2])]){if(fx+n>ATL.CW-2){fx=2;fy+=2}if(fy>ATL.CH-2)break;for(let i=0;i<n;i++)g[fy][fx+i]=k;fx+=n+1}
  const dy=2+4,dx=ATL.rows[1].w+3;for(let x=dx;x<dx+Object.keys(DOORK).length*2+1&&x<ATL.CW-1;x++)g[dy][x]=(x-dx)%2?'stone.lime.paving':'stone.grey.block.w';paintAll((cx,cy)=>g[cy][cx])};
 NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i)=>{const cx=dx+1+i*2;if(cx<ATL.CW-1)mkDoor(k,cx*T,dy*T+T/2+4,0)});const t=U('Curator',null,'civ',2,1.5,0,null,'Clerk')};
 ENVSET.atelier='out';
@@ -3111,7 +3110,7 @@ function tilerCtx(){TCX.innerHTML='';if((!edBrush||edBrush.t==='clean')&&UI.tile
  if(UI.tt==='floor'||UI.tt==='wall'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)&&(KIND[k]==='wall')===!!PK.w),els=[...EORDER.filter(e=>!PK.w||Object.keys(ELEM[e].mats).some(m=>!mprop(e,m).nowall)),...(mods.length?['Mods']:[])];if(!els.includes(PK.el))PK.el='Stone';
   sub(els.map(e=>[e,e]),PK.el,e=>{PK.el=e;if(e!=='Mods'){PK.mat=Object.keys(ELEM[e].mats)[0];PK.v=Object.keys(varsOf(e,PK.mat))[0]}else PK.mat=mods[0]});
   if(PK.el==='Mods'){four(mods);pref=PK.mat}else{const e=PK.el.toLowerCase(),sf=PK.w?'.w':'';for(const m of Object.keys(ELEM[PK.el].mats).filter(m=>!PK.w||!mprop(PK.el,m).nowall))four(Object.keys(varsOf(PK.el,m)).map(v=>e+'.'+m+'.'+v+sf).filter(validK));pref=e+'.'+PK.mat+'.'+PK.v+sf}}
- else if(UI.tt==='furn'){const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',wk('chest'),Object.keys(MCHEST)],table:['Tables',wk('table'),[]],desk:['Desks',wk('desk'),[]],seat:['Chairs',wk('seat'),[]],plant:['Plants',['hedge'],[]],...(mods.length?{mods:['Mods',mods,[]]}:{})};
+ else if(UI.tt==='furn'){const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',wk('chest'),Object.keys(MCHEST)],table:['Tables',wk('table'),Object.keys(MTABLE)],desk:['Desks',wk('desk'),[]],seat:['Chairs',wk('seat'),[]],plant:['Plants',['hedge'],[]],...(mods.length?{mods:['Mods',mods,[]]}:{})};
   if(!FT[UI.ft])UI.ft='chest';sub(Object.entries(FT).map(([t,v])=>[t,v[0]]),UI.ft,t=>UI.ft=t);const[,wl,ml]=FT[UI.ft];
   // wood down the first column, metal down the second
   if(UI.ft==='mods')four(wl);else for(let i=0;i<Math.max(wl.length,ml.length);i++)rows.push([wl[i]||null,ml[i]||null,null,null])}
@@ -3127,7 +3126,7 @@ function tilerCtx(){TCX.innerHTML='';if((!edBrush||edBrush.t==='clean')&&UI.tile
  const g=mk('div','swg'+(UI.tt==='door'?' big':''));g.style.gridTemplateColumns='repeat(4,1fr)';for(const r of rows)for(let i=0;i<4;i++){const k=r[i];if(!k){g.append(mk('span'));continue}const s=mk('span','sw'+(k===cur?' on':''));s.append(pic(k));s.onclick=()=>pick(k);g.append(s)}
  const nm=!cur?'':isDoor(cur)?(d=>DOORK[d]?DOORK[d][0]+(cur.endsWith('!')?', full tile':''):'')(cur.slice(5).replace('!','')):tName(cur);
  TCX.append(g,mk('div','tname',nm));if(UI.pop==='ae'&&cur&&!isDoor(cur)&&cur!==AE.key)aeLoad(cur)}
-function setTile(k){if(!validK(k))return;pkFrom(k);UI.erase=false;cv.style.cursor='crosshair';UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';if(UI.tt==='furn')UI.ft=WPIECE[k]?WPIECE[k][1]:MCHEST[k]?'chest':k==='hedge'?'plant':'mods';tilerCtx()}
+function setTile(k){if(!validK(k))return;pkFrom(k);UI.erase=false;cv.style.cursor='crosshair';UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';if(UI.tt==='furn')UI.ft=WPIECE[k]?WPIECE[k][1]:MCHEST[k]?'chest':MTABLE[baseK(k)]?'table':k==='hedge'?'plant':'mods';tilerCtx()}
 {const p0=fillMapTools;fillMapTools=function(){p0();if(edBrush&&edBrush.t!=='clean')UI.tile={...edBrush}}}
 
 // small form helpers
@@ -3171,8 +3170,8 @@ function paintCtx(){PCX.innerHTML='';const L=mk('div','ulist');for(const[k,n,c]o
  PCX.append(L);if(PNT.k==='chisel'){const r=mk('div','tabs');r.append(ubtn('Mirror',PNT.mir?'on':'',()=>{PNT.mir=!PNT.mir;PNT.box=null;paintCtx()}));if(PNT.mir)r.append(ubtn('X',PNT.mx?'on':'',()=>{PNT.mx=!PNT.mx;paintCtx()}),ubtn('Y',PNT.my?'on':'',()=>{PNT.my=!PNT.my;paintCtx()}));PCX.append(r)}}
 let PDN=false;
 // undo: each stroke saves what it can change
-const PU=[];function puPush(){const k=PNT.k,e=k==='cond'?{ed:snapEd()}:k==='chisel'?{ch:chis().slice(),fl:floor.slice(),pr:prOK()?[PR.floor.slice(),PR.floor0.slice()]:null}:{fx:[FX.blood.slice(),BURN.slice()]};e.map=curMap;PU.push(e);if(PU.length>30)PU.shift()}
-function puUndo(){const e=PU.pop();if(!e||e.map!==curMap)return false;if(e.ed){edSrc=e.ed;if(e.ed.und)UND=e.ed.und.map(r=>r&&r.slice());refinish()}else if(e.ch){CHM[curMap]=e.ch;floor.set(e.fl);if(e.pr&&prOK()){PR.floor.set(e.pr[0]);PR.floor0.set(e.pr[1])}}else{FX.blood.set(e.fx[0]);BURN.set(e.fx[1])}ds0Need=true;fxDirty=true;solDirty=true;return true}
+const PU=[];function puPush(){const k=PNT.k,e=k==='cond'?{ed:snapEd()}:k==='chisel'?{ch:chis().slice(),cb:new Map(chb()),fl:floor.slice(),pr:prOK()?[PR.floor.slice(),PR.floor0.slice()]:null}:{fx:[FX.blood.slice(),BURN.slice()]};e.map=curMap;PU.push(e);if(PU.length>30)PU.shift()}
+function puUndo(){const e=PU.pop();if(!e||e.map!==curMap)return false;if(e.ed){edSrc=e.ed;if(e.ed.und)UND=e.ed.und.map(r=>r&&r.slice());refinish()}else if(e.ch){CHM[curMap]=e.ch;CHB[curMap]=e.cb;floor.set(e.fl);if(e.pr&&prOK()){PR.floor.set(e.pr[0]);PR.floor0.set(e.pr[1])}}else{FX.blood.set(e.fx[0]);BURN.set(e.fx[1])}ds0Need=true;fxDirty=true;solDirty=true;return true}
 function daub(x,y){const R=3+PNT.size*4,a=PNT.size*.12;
  for(let Y=Math.floor((y-R)/2);Y<=(y+R)/2;Y++)for(let X=Math.floor((x-R)/2);X<=(x+R)/2;X++){if(X<0||Y<0||X>=BW||Y>=BH)continue;const d=Math.hypot(X*2+1-x,Y*2+1-y)/R;if(d>1)continue;const q=Y*BW+X,f=a*(1-d*d)*(.6+Math.random()*.8);
   if(PNT.k==='blood')FX.blood[q]=Math.min(1,FX.blood[q]+f);else BURN[q]=Math.min(1,BURN[q]+f)}
@@ -3182,19 +3181,22 @@ function wearAt(x,y){const s=srcNow(),o=PNT.size>1?0:0,cx0=(x/T|0)-(PNT.size>1&&
  for(let cy=cy0;cy<cy0+PNT.size;cy++)for(let cx=cx0;cx<cx0+PNT.size;cx++){const k=s[cy]&&s[cy][cx];if(!k)continue;const c=condK(k);if(c<=1)continue;const n=baseK(k)+'~'+(c-1);if(!validK(n))continue;s[cy][cx]=n;ch=true}
  if(ch){refinish();sfx('thunk')}}
 // floor chisel: darkens floor pixels for good (wand and sponge leave it); a mirror box repeats each cut across it
-const CHM={};function chis(){let a=CHM[curMap];if(!a||a.length!==N)a=CHM[curMap]=new Uint8Array(N);return a}
-function chiselPt(X,Y){const a=chis(),pts=[[X,Y]],b=PNT.mir&&PNT.box;if(b&&X>=b[0]&&X<b[2]&&Y>=b[1]&&Y<b[3]){const mx=b[0]+b[2]-1-X,my=b[1]+b[3]-1-Y;if(PNT.mx)pts.push([mx,Y]);if(PNT.my)pts.push([X,my]);if(PNT.mx&&PNT.my)pts.push([mx,my])}
- for(const[px,py]of pts)for(let v=0;v<PNT.size;v++)for(let u=0;u<PNT.size;u++){const x=px+u,y=py+v;if(x<0||y<0||x>=W||y>=H)continue;const j=y*W+x;if(a[j]||sol[j]||OBJ[j])continue;a[j]=1;floor[j]=mul(floor[j],.45);if(prOK()){PR.floor[j]=floor[j];PR.floor0[j]=floor[j]}}}
+const CHM={},CHB={};function chis(){let a=CHM[curMap];if(!a||a.length!==N)a=CHM[curMap]=new Uint8Array(N);return a}const chb=()=>CHB[curMap]||(CHB[curMap]=new Map());
+// a cut is a faint 14% darkening, with a shadow under its top and left lip and a lighter bottom and right edge, so it reads as sunk into the stone
+function chShade(j){const a=chis(),base=chb().get(j);if(!a[j]||base===undefined)return;const f=!a[j-W]?.7:!a[j-1]?.76:!a[j+W]||!a[j+1]?.94:.86;floor[j]=mul(base,f);if(prOK()){PR.floor[j]=floor[j];PR.floor0[j]=floor[j]}}
+function chSet(j){const a=chis();if(a[j]||sol[j]||OBJ[j])return;chb().set(j,floor[j]);a[j]=1;for(const k of[j,j-1,j+1,j-W,j+W])if(k>=0&&k<N)chShade(k)}
+function chiselPt(X,Y){const pts=[[X,Y]],b=PNT.mir&&PNT.box;if(b&&X>=b[0]&&X<b[2]&&Y>=b[1]&&Y<b[3]){const mx=b[0]+b[2]-1-X,my=b[1]+b[3]-1-Y;if(PNT.mx)pts.push([mx,Y]);if(PNT.my)pts.push([X,my]);if(PNT.mx&&PNT.my)pts.push([mx,my])}
+ for(const[px,py]of pts)for(let v=0;v<PNT.size;v++)for(let u=0;u<PNT.size;u++){const x=px+u,y=py+v;if(x>=0&&y>=0&&x<W&&y<H)chSet(y*W+x)}}
 function chiselLine(x,y){const p=PNT.last||[x,y],n=Math.max(1,Math.ceil(Math.hypot(x-p[0],y-p[1])*2));for(let i=0;i<=n;i++)chiselPt(Math.floor(p[0]+(x-p[0])*i/n),Math.floor(p[1]+(y-p[1])*i/n));PNT.last=[x,y];ds0Need=true;solDirty=true}
-function chApply(){const a=CHM[curMap];if(!a||a.length!==N)return;for(let j=0;j<N;j++)if(a[j]&&!sol[j]&&!OBJ[j])floor[j]=mul(floor[j],.45)}
+function chApply(){const a=CHM[curMap];if(!a||a.length!==N)return;const m=CHB[curMap]=new Map();for(let j=0;j<N;j++)if(a[j]){if(sol[j]||OBJ[j])a[j]=0;else m.set(j,floor[j])}for(const j of m.keys())chShade(j)}
 {const b0=build;build=function(){b0();if(curMap==='vault'&&!CHM.vault)vaultRose();else chApply()}}
 // the Aurum hall's floor star, cut with the chisel: one quarter drawn inside a 6 by 5 tile mirror box
-function vaultRose(){const keep={...PNT};Object.assign(PNT,{mir:true,mx:true,my:true,size:1,box:[192,368,288,448]});const R=40;
+function vaultRose(){delete CHB.vault;const keep={...PNT};Object.assign(PNT,{mir:true,mx:true,my:true,size:1,box:[192,368,288,448]});const R=40;
  for(let Y=368;Y<408;Y++)for(let X=192;X<240;X++){const dx=X-239.5,dy=Y-407.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3);if(r<3||r>=st*.55&&r<st-.8||r>R*.82+.7&&r<R-.7)chiselPt(X,Y)}
  Object.assign(PNT,{mir:keep.mir,mx:keep.mx,my:keep.my,size:keep.size,box:keep.box})}
 // the map on screen was built before this file ran
 if(curMap==='vault'&&!CHM.vault){vaultRose();snapPR();ds0Need=true;solDirty=true}{const r0=refinish;refinish=function(){r0();chApply();snapPR()}}
-{const r0=reset;reset=function(){delete CHM[curMap];PU.length=0;r0()}}
+{const r0=reset;reset=function(){delete CHM[curMap];delete CHB[curMap];PU.length=0;r0()}}
 function paintDown(x,y){if(PNT.k==='chisel'&&PNT.mir&&(!PNT.box||x<PNT.box[0]||y<PNT.box[1]||x>=PNT.box[2]||y>=PNT.box[3])){const cx=x/T|0,cy=y/T|0;PNT.drag=[cx,cy];PNT.box=[cx*T,cy*T,cx*T+T,cy*T+T];return}
  puPush();PDN=true;PNT.last=null;PNT.t=0;if(PNT.k==='chisel')chiselLine(x,y);else if(PNT.k!=='cond')daub(x,y)}
 VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='paint'||UI.drop||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e);paintDown(x|0,y|0)},true);
@@ -3213,7 +3215,7 @@ function drawSigns(){SL.innerHTML='';for(const s of SIGNS[curMap]||[]){const m=m
 // ui overlays drawn after each frame
 const OVL=[];{const r0=render;render=function(){r0();for(const f of OVL)f()}}
 OVL.push(()=>{if(sgS!==S||sgM!==curMap)drawSigns()});
-{const s0=spawnMap;spawnMap=function(d){s0(d);if(d.ch&&d.CW===CW){const a=chis();for(const j of d.ch)if(!a[j]&&!sol[j]&&!OBJ[j]){a[j]=1;floor[j]=mul(floor[j],.45)}}if(d.signs)SIGNS[curMap]=d.signs.map(s=>({...s}));if(d.owner)OWN[curMap]=d.owner;sgM=''}}
+{const s0=spawnMap;spawnMap=function(d){s0(d);if(d.ch&&d.CW===CW)for(const j of d.ch)chSet(j);if(d.signs)SIGNS[curMap]=d.signs.map(s=>({...s}));if(d.owner)OWN[curMap]=d.owner;sgM=''}}
 function signCtx(){const L=mk('div','ulist');for(const[k,[n,c]]of Object.entries(SMAT)){const r=mk('div','urow'+(UI.smat===k?' on':''));const sw=mk('span','swd');sw.style.background=c;r.append(sw,mk('span','n',n));r.onclick=()=>{UI.smat=k;LS.set('bs.smat',k);signCtx();sgP()};L.append(r)}SNX.innerHTML='';SNX.append(L)}
 const SNX=mk('div','snx');ZC.append(SNX);const SGP=mk('div','sgn sgp');SL.append(SGP);function sgP(){SGP.innerHTML='';SGP.dataset.m='';SGP.append(plate(UI.smat))}
 // signs sit on cell centres; placing one puffs dust like a laid tile

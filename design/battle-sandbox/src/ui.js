@@ -108,7 +108,7 @@ function tilerCtx(){TCX.innerHTML='';if((!edBrush||edBrush.t==='clean')&&UI.tile
  if(UI.tt==='floor'||UI.tt==='wall'){const mods=Object.keys(MODS.tex).filter(k=>!furnK(k)&&(KIND[k]==='wall')===!!PK.w),els=[...EORDER.filter(e=>!PK.w||Object.keys(ELEM[e].mats).some(m=>!mprop(e,m).nowall)),...(mods.length?['Mods']:[])];if(!els.includes(PK.el))PK.el='Stone';
   sub(els.map(e=>[e,e]),PK.el,e=>{PK.el=e;if(e!=='Mods'){PK.mat=Object.keys(ELEM[e].mats)[0];PK.v=Object.keys(varsOf(e,PK.mat))[0]}else PK.mat=mods[0]});
   if(PK.el==='Mods'){four(mods);pref=PK.mat}else{const e=PK.el.toLowerCase(),sf=PK.w?'.w':'';for(const m of Object.keys(ELEM[PK.el].mats).filter(m=>!PK.w||!mprop(PK.el,m).nowall))four(Object.keys(varsOf(PK.el,m)).map(v=>e+'.'+m+'.'+v+sf).filter(validK));pref=e+'.'+PK.mat+'.'+PK.v+sf}}
- else if(UI.tt==='furn'){const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',wk('chest'),Object.keys(MCHEST)],table:['Tables',wk('table'),[]],desk:['Desks',wk('desk'),[]],seat:['Chairs',wk('seat'),[]],plant:['Plants',['hedge'],[]],...(mods.length?{mods:['Mods',mods,[]]}:{})};
+ else if(UI.tt==='furn'){const wk=sh=>Object.keys(WPIECE).filter(k=>WPIECE[k][1]===sh),mods=modKeys('furn'),FT={chest:['Chests',wk('chest'),Object.keys(MCHEST)],table:['Tables',wk('table'),Object.keys(MTABLE)],desk:['Desks',wk('desk'),[]],seat:['Chairs',wk('seat'),[]],plant:['Plants',['hedge'],[]],...(mods.length?{mods:['Mods',mods,[]]}:{})};
   if(!FT[UI.ft])UI.ft='chest';sub(Object.entries(FT).map(([t,v])=>[t,v[0]]),UI.ft,t=>UI.ft=t);const[,wl,ml]=FT[UI.ft];
   // wood down the first column, metal down the second
   if(UI.ft==='mods')four(wl);else for(let i=0;i<Math.max(wl.length,ml.length);i++)rows.push([wl[i]||null,ml[i]||null,null,null])}
@@ -124,7 +124,7 @@ function tilerCtx(){TCX.innerHTML='';if((!edBrush||edBrush.t==='clean')&&UI.tile
  const g=mk('div','swg'+(UI.tt==='door'?' big':''));g.style.gridTemplateColumns='repeat(4,1fr)';for(const r of rows)for(let i=0;i<4;i++){const k=r[i];if(!k){g.append(mk('span'));continue}const s=mk('span','sw'+(k===cur?' on':''));s.append(pic(k));s.onclick=()=>pick(k);g.append(s)}
  const nm=!cur?'':isDoor(cur)?(d=>DOORK[d]?DOORK[d][0]+(cur.endsWith('!')?', full tile':''):'')(cur.slice(5).replace('!','')):tName(cur);
  TCX.append(g,mk('div','tname',nm));if(UI.pop==='ae'&&cur&&!isDoor(cur)&&cur!==AE.key)aeLoad(cur)}
-function setTile(k){if(!validK(k))return;pkFrom(k);UI.erase=false;cv.style.cursor='crosshair';UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';if(UI.tt==='furn')UI.ft=WPIECE[k]?WPIECE[k][1]:MCHEST[k]?'chest':k==='hedge'?'plant':'mods';tilerCtx()}
+function setTile(k){if(!validK(k))return;pkFrom(k);UI.erase=false;cv.style.cursor='crosshair';UI.tile={t:'tile',k};edBrush={t:'tile',k};addRecent(k);UI.tt=furnK(k)?'furn':CATN[k]&&CATN[k][3]||KIND[k]==='wall'?'wall':'floor';if(UI.tt==='furn')UI.ft=WPIECE[k]?WPIECE[k][1]:MCHEST[k]?'chest':MTABLE[baseK(k)]?'table':k==='hedge'?'plant':'mods';tilerCtx()}
 {const p0=fillMapTools;fillMapTools=function(){p0();if(edBrush&&edBrush.t!=='clean')UI.tile={...edBrush}}}
 
 // small form helpers
@@ -168,8 +168,8 @@ function paintCtx(){PCX.innerHTML='';const L=mk('div','ulist');for(const[k,n,c]o
  PCX.append(L);if(PNT.k==='chisel'){const r=mk('div','tabs');r.append(ubtn('Mirror',PNT.mir?'on':'',()=>{PNT.mir=!PNT.mir;PNT.box=null;paintCtx()}));if(PNT.mir)r.append(ubtn('X',PNT.mx?'on':'',()=>{PNT.mx=!PNT.mx;paintCtx()}),ubtn('Y',PNT.my?'on':'',()=>{PNT.my=!PNT.my;paintCtx()}));PCX.append(r)}}
 let PDN=false;
 // undo: each stroke saves what it can change
-const PU=[];function puPush(){const k=PNT.k,e=k==='cond'?{ed:snapEd()}:k==='chisel'?{ch:chis().slice(),fl:floor.slice(),pr:prOK()?[PR.floor.slice(),PR.floor0.slice()]:null}:{fx:[FX.blood.slice(),BURN.slice()]};e.map=curMap;PU.push(e);if(PU.length>30)PU.shift()}
-function puUndo(){const e=PU.pop();if(!e||e.map!==curMap)return false;if(e.ed){edSrc=e.ed;if(e.ed.und)UND=e.ed.und.map(r=>r&&r.slice());refinish()}else if(e.ch){CHM[curMap]=e.ch;floor.set(e.fl);if(e.pr&&prOK()){PR.floor.set(e.pr[0]);PR.floor0.set(e.pr[1])}}else{FX.blood.set(e.fx[0]);BURN.set(e.fx[1])}ds0Need=true;fxDirty=true;solDirty=true;return true}
+const PU=[];function puPush(){const k=PNT.k,e=k==='cond'?{ed:snapEd()}:k==='chisel'?{ch:chis().slice(),cb:new Map(chb()),fl:floor.slice(),pr:prOK()?[PR.floor.slice(),PR.floor0.slice()]:null}:{fx:[FX.blood.slice(),BURN.slice()]};e.map=curMap;PU.push(e);if(PU.length>30)PU.shift()}
+function puUndo(){const e=PU.pop();if(!e||e.map!==curMap)return false;if(e.ed){edSrc=e.ed;if(e.ed.und)UND=e.ed.und.map(r=>r&&r.slice());refinish()}else if(e.ch){CHM[curMap]=e.ch;CHB[curMap]=e.cb;floor.set(e.fl);if(e.pr&&prOK()){PR.floor.set(e.pr[0]);PR.floor0.set(e.pr[1])}}else{FX.blood.set(e.fx[0]);BURN.set(e.fx[1])}ds0Need=true;fxDirty=true;solDirty=true;return true}
 function daub(x,y){const R=3+PNT.size*4,a=PNT.size*.12;
  for(let Y=Math.floor((y-R)/2);Y<=(y+R)/2;Y++)for(let X=Math.floor((x-R)/2);X<=(x+R)/2;X++){if(X<0||Y<0||X>=BW||Y>=BH)continue;const d=Math.hypot(X*2+1-x,Y*2+1-y)/R;if(d>1)continue;const q=Y*BW+X,f=a*(1-d*d)*(.6+Math.random()*.8);
   if(PNT.k==='blood')FX.blood[q]=Math.min(1,FX.blood[q]+f);else BURN[q]=Math.min(1,BURN[q]+f)}
@@ -179,19 +179,22 @@ function wearAt(x,y){const s=srcNow(),o=PNT.size>1?0:0,cx0=(x/T|0)-(PNT.size>1&&
  for(let cy=cy0;cy<cy0+PNT.size;cy++)for(let cx=cx0;cx<cx0+PNT.size;cx++){const k=s[cy]&&s[cy][cx];if(!k)continue;const c=condK(k);if(c<=1)continue;const n=baseK(k)+'~'+(c-1);if(!validK(n))continue;s[cy][cx]=n;ch=true}
  if(ch){refinish();sfx('thunk')}}
 // floor chisel: darkens floor pixels for good (wand and sponge leave it); a mirror box repeats each cut across it
-const CHM={};function chis(){let a=CHM[curMap];if(!a||a.length!==N)a=CHM[curMap]=new Uint8Array(N);return a}
-function chiselPt(X,Y){const a=chis(),pts=[[X,Y]],b=PNT.mir&&PNT.box;if(b&&X>=b[0]&&X<b[2]&&Y>=b[1]&&Y<b[3]){const mx=b[0]+b[2]-1-X,my=b[1]+b[3]-1-Y;if(PNT.mx)pts.push([mx,Y]);if(PNT.my)pts.push([X,my]);if(PNT.mx&&PNT.my)pts.push([mx,my])}
- for(const[px,py]of pts)for(let v=0;v<PNT.size;v++)for(let u=0;u<PNT.size;u++){const x=px+u,y=py+v;if(x<0||y<0||x>=W||y>=H)continue;const j=y*W+x;if(a[j]||sol[j]||OBJ[j])continue;a[j]=1;floor[j]=mul(floor[j],.45);if(prOK()){PR.floor[j]=floor[j];PR.floor0[j]=floor[j]}}}
+const CHM={},CHB={};function chis(){let a=CHM[curMap];if(!a||a.length!==N)a=CHM[curMap]=new Uint8Array(N);return a}const chb=()=>CHB[curMap]||(CHB[curMap]=new Map());
+// a cut is a faint 14% darkening, with a shadow under its top and left lip and a lighter bottom and right edge, so it reads as sunk into the stone
+function chShade(j){const a=chis(),base=chb().get(j);if(!a[j]||base===undefined)return;const f=!a[j-W]?.7:!a[j-1]?.76:!a[j+W]||!a[j+1]?.94:.86;floor[j]=mul(base,f);if(prOK()){PR.floor[j]=floor[j];PR.floor0[j]=floor[j]}}
+function chSet(j){const a=chis();if(a[j]||sol[j]||OBJ[j])return;chb().set(j,floor[j]);a[j]=1;for(const k of[j,j-1,j+1,j-W,j+W])if(k>=0&&k<N)chShade(k)}
+function chiselPt(X,Y){const pts=[[X,Y]],b=PNT.mir&&PNT.box;if(b&&X>=b[0]&&X<b[2]&&Y>=b[1]&&Y<b[3]){const mx=b[0]+b[2]-1-X,my=b[1]+b[3]-1-Y;if(PNT.mx)pts.push([mx,Y]);if(PNT.my)pts.push([X,my]);if(PNT.mx&&PNT.my)pts.push([mx,my])}
+ for(const[px,py]of pts)for(let v=0;v<PNT.size;v++)for(let u=0;u<PNT.size;u++){const x=px+u,y=py+v;if(x>=0&&y>=0&&x<W&&y<H)chSet(y*W+x)}}
 function chiselLine(x,y){const p=PNT.last||[x,y],n=Math.max(1,Math.ceil(Math.hypot(x-p[0],y-p[1])*2));for(let i=0;i<=n;i++)chiselPt(Math.floor(p[0]+(x-p[0])*i/n),Math.floor(p[1]+(y-p[1])*i/n));PNT.last=[x,y];ds0Need=true;solDirty=true}
-function chApply(){const a=CHM[curMap];if(!a||a.length!==N)return;for(let j=0;j<N;j++)if(a[j]&&!sol[j]&&!OBJ[j])floor[j]=mul(floor[j],.45)}
+function chApply(){const a=CHM[curMap];if(!a||a.length!==N)return;const m=CHB[curMap]=new Map();for(let j=0;j<N;j++)if(a[j]){if(sol[j]||OBJ[j])a[j]=0;else m.set(j,floor[j])}for(const j of m.keys())chShade(j)}
 {const b0=build;build=function(){b0();if(curMap==='vault'&&!CHM.vault)vaultRose();else chApply()}}
 // the Aurum hall's floor star, cut with the chisel: one quarter drawn inside a 6 by 5 tile mirror box
-function vaultRose(){const keep={...PNT};Object.assign(PNT,{mir:true,mx:true,my:true,size:1,box:[192,368,288,448]});const R=40;
+function vaultRose(){delete CHB.vault;const keep={...PNT};Object.assign(PNT,{mir:true,mx:true,my:true,size:1,box:[192,368,288,448]});const R=40;
  for(let Y=368;Y<408;Y++)for(let X=192;X<240;X++){const dx=X-239.5,dy=Y-407.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3);if(r<3||r>=st*.55&&r<st-.8||r>R*.82+.7&&r<R-.7)chiselPt(X,Y)}
  Object.assign(PNT,{mir:keep.mir,mx:keep.mx,my:keep.my,size:keep.size,box:keep.box})}
 // the map on screen was built before this file ran
 if(curMap==='vault'&&!CHM.vault){vaultRose();snapPR();ds0Need=true;solDirty=true}{const r0=refinish;refinish=function(){r0();chApply();snapPR()}}
-{const r0=reset;reset=function(){delete CHM[curMap];PU.length=0;r0()}}
+{const r0=reset;reset=function(){delete CHM[curMap];delete CHB[curMap];PU.length=0;r0()}}
 function paintDown(x,y){if(PNT.k==='chisel'&&PNT.mir&&(!PNT.box||x<PNT.box[0]||y<PNT.box[1]||x>=PNT.box[2]||y>=PNT.box[3])){const cx=x/T|0,cy=y/T|0;PNT.drag=[cx,cy];PNT.box=[cx*T,cy*T,cx*T+T,cy*T+T];return}
  puPush();PDN=true;PNT.last=null;PNT.t=0;if(PNT.k==='chisel')chiselLine(x,y);else if(PNT.k!=='cond')daub(x,y)}
 VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='paint'||UI.drop||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e);paintDown(x|0,y|0)},true);
@@ -210,7 +213,7 @@ function drawSigns(){SL.innerHTML='';for(const s of SIGNS[curMap]||[]){const m=m
 // ui overlays drawn after each frame
 const OVL=[];{const r0=render;render=function(){r0();for(const f of OVL)f()}}
 OVL.push(()=>{if(sgS!==S||sgM!==curMap)drawSigns()});
-{const s0=spawnMap;spawnMap=function(d){s0(d);if(d.ch&&d.CW===CW){const a=chis();for(const j of d.ch)if(!a[j]&&!sol[j]&&!OBJ[j]){a[j]=1;floor[j]=mul(floor[j],.45)}}if(d.signs)SIGNS[curMap]=d.signs.map(s=>({...s}));if(d.owner)OWN[curMap]=d.owner;sgM=''}}
+{const s0=spawnMap;spawnMap=function(d){s0(d);if(d.ch&&d.CW===CW)for(const j of d.ch)chSet(j);if(d.signs)SIGNS[curMap]=d.signs.map(s=>({...s}));if(d.owner)OWN[curMap]=d.owner;sgM=''}}
 function signCtx(){const L=mk('div','ulist');for(const[k,[n,c]]of Object.entries(SMAT)){const r=mk('div','urow'+(UI.smat===k?' on':''));const sw=mk('span','swd');sw.style.background=c;r.append(sw,mk('span','n',n));r.onclick=()=>{UI.smat=k;LS.set('bs.smat',k);signCtx();sgP()};L.append(r)}SNX.innerHTML='';SNX.append(L)}
 const SNX=mk('div','snx');ZC.append(SNX);const SGP=mk('div','sgn sgp');SL.append(SGP);function sgP(){SGP.innerHTML='';SGP.dataset.m='';SGP.append(plate(UI.smat))}
 // signs sit on cell centres; placing one puffs dust like a laid tile

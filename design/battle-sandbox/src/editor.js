@@ -19,7 +19,7 @@ function pickFile(f){const i=document.createElement('input');i.type='file';i.acc
 
 // textures
 const TNAME={grass:'Grass',dirt:'Dirt',sky:'Sky',sill:'Sill',msill:'Marble sill',crop:'Wheat',berm:'Earth bank',rail:'Fence',bush:'Hedge'};
-for(const k in WPIECE)TNAME[k]=WPIECE[k][2];TNAME.hedge='Hedge';for(const k in MCHEST)TNAME[k]=MCHEST[k][1];
+for(const k in WPIECE)TNAME[k]=WPIECE[k][2];TNAME.hedge='Hedge';for(const k in MCHEST)TNAME[k]=MCHEST[k][1];for(const k in MTABLE)TNAME[k]=MTABLE[k][1];
 const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w,cd]=c;return memb(el,mat).n+' · '+(varsOf(el,mat)[v]||v)+(w?' wall':'')+(cd?' · '+CONDN[cd]:'')};
 const tName=k=>MODS.tex[k]?MODS.tex[k].name:catName(k)||TNAME[k]||k;
 const TS=32,enc=a=>{let s='';for(const v of a)s+=(v<16?'0':'')+v.toString(16);return s},dec=s=>{const a=new Uint8ClampedArray(s.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(s.substr(i*2,2),16);return a};
@@ -82,7 +82,7 @@ const ATL=(()=>{const rows=EORDER.map(el=>{const E=ELEM[el],mats=Object.keys(E.m
 MAPSZ.atelier=[ATL.CW,ATL.CH];TITLE.atelier='Fluoria · The Atelier';
 NBM.atelier=()=>{const g=Array.from({length:ATL.CH},(_,y)=>Array.from({length:ATL.CW},(_,x)=>x===0||y===0||x===ATL.CW-1||y===ATL.CH-1?'stone.grey.block.w':'stone.lime.paving'));
  ATL.rows.forEach((r,i)=>{const y0=2+i*4;let x=2;r.mats.forEach((m,mi)=>{const vs=r.vars[mi];vs.forEach((v,j)=>{const b=r.el.toLowerCase()+'.'+m+'.'+v;g[y0][x+j]=b+'.w';g[y0+1][x+j]=b;g[y0+2][x+j]=b});x+=vs.length+1})});
- let fx=2,fy=ATL.CH-6;for(const[k,n]of[...Object.keys(WPIECE).filter(k=>!RETIRED.has(k)).map(k=>[k,/table|desk/.test(WPIECE[k][1])?2:1]),...Object.keys(MCHEST).map(k=>[k,1])]){if(fx+n>ATL.CW-2){fx=2;fy+=2}if(fy>ATL.CH-2)break;for(let i=0;i<n;i++)g[fy][fx+i]=k;fx+=n+1}
+ let fx=2,fy=ATL.CH-6;for(const[k,n]of[...Object.keys(WPIECE).filter(k=>!RETIRED.has(k)).map(k=>[k,/table|desk/.test(WPIECE[k][1])?2:1]),...Object.keys(MCHEST).map(k=>[k,1]),...Object.keys(MTABLE).map(k=>[k,2])]){if(fx+n>ATL.CW-2){fx=2;fy+=2}if(fy>ATL.CH-2)break;for(let i=0;i<n;i++)g[fy][fx+i]=k;fx+=n+1}
  const dy=2+4,dx=ATL.rows[1].w+3;for(let x=dx;x<dx+Object.keys(DOORK).length*2+1&&x<ATL.CW-1;x++)g[dy][x]=(x-dx)%2?'stone.lime.paving':'stone.grey.block.w';paintAll((cx,cy)=>g[cy][cx])};
 NUM.atelier=()=>{const dy=2+4,dx=ATL.rows[1].w+3;Object.keys(DOORK).forEach((k,i)=>{const cx=dx+1+i*2;if(cx<ATL.CW-1)mkDoor(k,cx*T,dy*T+T/2+4,0)});const t=U('Curator',null,'civ',2,1.5,0,null,'Clerk')};
 ENVSET.atelier='out';
