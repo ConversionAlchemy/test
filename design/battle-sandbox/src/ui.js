@@ -417,7 +417,7 @@ VIEW.addEventListener('contextmenu',e=>{if(EM||!inBoard(e))return;const[x,y]=toB
 let SCAR=null;const SCEL=mk('div','carry');SCEL.style.cssText='position:fixed;pointer-events:none;z-index:999;display:none;align-items:flex-end;gap:2px;font:12px monospace;color:#f4e6b0;text-shadow:0 1px 2px #000';document.body.append(SCEL);
 function carryShow(){if(!SCAR||SCAR.n<=0){SCAR=null;SCEL.style.display='none';return}SCEL.innerHTML='';SCEL.append(hic('gold',SCAR.n),mk('b',null,String(SCAR.n)));SCEL.style.display='flex';lastHud='';hbK='';stK=''}
 window.addEventListener('pointermove',e=>{if(SCAR){SCEL.style.left=e.clientX+8+'px';SCEL.style.top=e.clientY+4+'px'}});
-const lift=(n,from)=>{const t=Math.floor(n/2);if(t<1){NOPE();return 0}SCAR={n:t,from};carryShow();sfx('flick');return t};
+const lift=(n,from)=>{const t=Math.floor(n/2);if(t<1){NOPE();return 0}SCAR={n:t,from};carryShow();storeSnd('gold');return t};
 function splitAt(X,Y){const p=bodies.find(b=>b.type==='weapon'&&b.kind==='gold'&&Math.abs(b.x-X)<=7&&Math.abs(b.y-Y)<=7);if(p){const t=lift(p.amt,{x:p.x,y:p.y});if(t){p.amt-=t;if(p.amt<=0)remove(p)}return true}
  const c=containerAt(X,Y);if(c&&c.table){const i=tCell(c,X,Y),q=c.inv[i];if(q&&q.k==='gold'){const t=lift(q.n,{c,i});if(t){q.n-=t;if(q.n<=0)c.inv[i]=null}return true}}return false}
 function splitInv(q){for(const o of bodies){const i=o.inv?o.inv.indexOf(q):-1;if(i<0)continue;const t=lift(q.n,{c:o,i});if(t){q.n-=t;if(q.n<=0){o.inv[i]=null;if(o.si===i){o.held=null;o.si=-1}}}return}}
