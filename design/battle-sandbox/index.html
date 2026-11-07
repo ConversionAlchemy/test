@@ -240,7 +240,7 @@ const regionD=(X,Y,cx,cy)=>{const kid=q=>q&&q.replace(/~\d$/,''),me=kid(LINK(cx,
 const POLT=new Set();const NODK=new Set(['bush']),RUG=new Set();
 // materials: a family shares its properties and three patterns; each member adds its colour, one special pattern, and any property it changes
 const ELEM={
- Earth:{p:{cls:'grass',hp:2,nowall:1},vars:{plain:'Plain',worn:'Worn'},mats:{grass:{n:'Grass'},dirt:{n:'Soil',cls:'soil',hp:3}},old:{wheat:{n:'Wheat',cls:'soil'},hedge:{n:'Hedge'}}},
+ Earth:{p:{cls:'grass',hp:2,nowall:1},vars:{plain:'Plain',worn:'Worn'},mats:{grass:{n:'Grass'},dirt:{n:'Soil',cls:'soil',hp:3,age:'trodden',nov:['worn']}},old:{wheat:{n:'Wheat',cls:'soil'},hedge:{n:'Hedge'}}},
  Stone:{p:{cls:'stone',hp:3,tarn:[96,94,80],moss:[78,100,52],age:'moss'},vars:{block:'Block',quarter:'Quartered',slabs:'Slabs'},mats:{grey:{n:'Greystone',c:[124,119,111],sp:'rubble'},gran:{n:'Highland granite',c:[146,132,128],hp:4,tarn:[108,100,94],moss:[150,156,118],age:'lichen',speck:1,sp:'crazy'},
   aur:{n:'Astian marble',c:[222,220,214],cls:'marble',hp:4,tarn:[196,180,146],moss:0,age:'staining',shine:28,vein:[255,255,252],sp:'chequer'},gold:{n:'Aurumstone',c:[200,170,100],tarn:[128,104,62],moss:0,fade:.25,age:'grime',vein:[252,234,168],sp:'lozenge'},night:{n:'Umbrastone',c:[35,28,46],cls:'marble',hp:5,tarn:[78,68,92],moss:0,fade:.5,age:'dulling',shine:40,vein:'flow',jc:[96,82,150],as:{block:'knapped',slabs:'mirror'},sp:'vent',cut:1}},
   old:{lime:{n:'Limestone',c:[208,204,194],sp:'herring'},sand:{n:'Sandstone',c:[172,154,122],hp:2,sp:'crazy'},ver:{n:'Verdant marble',c:[92,124,110],cls:'marble',tarn:[150,150,124],moss:0,hp:4,shine:28,sp:'quatre'}}},
@@ -251,7 +251,7 @@ const ELEM={
 const SPN={diamond:'Diamond weave',trellis:'Vine trellis',medal:'Lozenge medallion',wave:'Wave meander',rosette:'Rosette',basket:'Basketweave',rubble:'Cobble',crazy:'Crazy paving',herring:'Herringbone',gvein:'Gold vein',mvein:'Gold vein',chequer:'Imperial chequer',knapped:'Knapped',sheen:'Rainbow sheen',mirror:'Mirror glass',treadplate:'Tread plate',fluted:'Fluted',coffer:'Coffered',coffer2:'Coffered ceiling',mosaic:'Solari mosaic',vent:'Glow panel',lozenge:'Aurum lozenge',wvein:'White vein',medallion:'Medallion',quatre:'Quatrefoil',stars:'Starfield',rough:'Rough sawn',deck:'Ship deck',chevron:'Chevron',parquet:'Versailles',marq:'Marquetry',louvre:'Vents',grate:'Grating',filigree:'Sunburst',engraved:'Engraved',runes:'Runed'};
 // retired members stay drawable so older maps still load
 const memb=(el,mat)=>ELEM[el].mats[mat]||(ELEM[el].old||{})[mat],mprop=(el,mat)=>({...ELEM[el].p,...memb(el,mat)});
-const varsOf=(el,mat)=>{const M=memb(el,mat),o={...ELEM[el].vars};if(M.sp)o[M.sp]=SPN[M.sp];for(const a of[].concat(M.alt||[]))o[a]=SPN[a];return o};
+const varsOf=(el,mat)=>{const M=memb(el,mat),o={...ELEM[el].vars};for(const v of M.nov||[])delete o[v];if(M.sp)o[M.sp]=SPN[M.sp];for(const a of[].concat(M.alt||[]))o[a]=SPN[a];return o};
 // retired patterns stay drawable so older maps still load
 const OLDV={Stone:['gvein','stars','quartero','flags','medallion','paving','key','setts','ashlar','basket','rosette','lattice','checker','band','sectile'],Wood:['deck','logs','pegged','basket','brick','inlay','fret'],Metal:['sheet','quarter','slabs','coffer','coffer2','smooth','grate','filigree','engraved','hammer','tread','grille','scale','veined']};
 const CATN={};
@@ -424,6 +424,10 @@ const AGE={
    if(fbm(X/6,Y/6,sd+7)>1.1-a*.5-t*.1)o=mx(o,DP,.4);
    if(M.craze&&a>.4&&Math.abs(vn(X/3,Y/3,sd+9)-.5)<.035)o=sc(o,.84);
    if(a>.25&&hh(X>>2,Y,sd+2)>.93-.08*t*sf)o=lt?mx(o,[150,132,112],.35):sc(o,1.1);else if(hh(X,Y,sd+3)>.99-.012*t*sf)o=sc(o,.78);return o}},
+ // soil wear: it darkens and packs down, trodden paths smooth out the light grit, dark stains and clods spread as it gets worse
+ Earth:(el,mat,t)=>{const sd=ageSd(el,mat),DK=sc(SOIL,.58);return(k,X,Y)=>{let o=sc(k,1-.14*t);const L=(o[0]+o[1]+o[2])/3,a=ageA(X,Y,sd,t);
+  if(a>0){o=mx(o,DK,a*.5);if(L>(SOIL[0]+SOIL[1]+SOIL[2])/3*1.08)o=mx(o,sc(SOIL,.9),a*.8)}
+  const p=fbm(X/18,Y/5,sd+5);if(p>1.05-t*.42)o=mx(o,sc(o,.84),.6);if(hh(X,Y,sd+3)>.985-.03*t)o=sc(o,.66);if(t>.5&&hh(X>>1,Y>>1,sd+4)>.992-.01*t)o=mx(o,[58,44,30],.7);return o}},
  // cloth wear, kept subtle: patches fade and the weave shows through the pile, with dust and scuffs; Ruined wears a few small holes (edges fray in the rug border pass)
  Cloth:(el,mat,t)=>{const c=memb(el,mat).c,L=(c[0]+c[1]+c[2])/3,F=sc(mx(c,[L,L,L],.35),1.18),sd=ageSd(el,mat);
   return(k,X,Y)=>{const a=ageA(X,Y,sd,t);if(a<=0)return k;
@@ -432,7 +436,7 @@ const AGEC={},ageOf=(el,mat,cd,w)=>{if(!AGE[el]||!(cd<5))return null;const q=el+
 for(const k in MCHEST)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MCHEST[k][0],X,Y);KIND[n]='floor'}
 // a metal table's top (its rim and bevel come with the other furniture, in regions)
 for(const k in MTABLE)for(let c=1;c<=5;c++){const n=c<5?k+'~'+c:k;TEX[n]=(X,Y)=>metalOf(MTABLE[k][0],X,Y);KIND[n]='floor'}
-for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e])continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(POLT.has(k))POLT.add(n)}}
+for(const k of Object.keys(CATN)){const[e,mat,v,w]=CATN[k];if(!AGE[e]||e==='Earth'&&mat!=='dirt')continue;const f=TEX[k];for(let c=1;c<=4;c++){const n=k+'~'+c,A=ageOf(e,mat,c,w);TEX[n]=(X,Y,cx,cy)=>{const q=f(X,Y,cx,cy);return q&&A(q,X,Y,()=>{const r=regionD(X,Y,cx,cy);return Math.min(r[0],r[1],r[2],r[3])})};KIND[n]=KIND[k];CATN[n]=[e,mat,v,w,c];if(NODK.has(k))NODK.add(n);if(RUG.has(k))RUG.add(n);if(POLT.has(k))POLT.add(n)}}
 // wooden furniture: each piece is [wood, shape, name], drawn as its wood's polished face; rim, bevel and inlay are drawn per piece, as on polished floors
 const WSHAPE={table:'table',desk:'desk',chest:'chest',seat:'chair'},WOLD={'oak.table':'table','oak.chest':'chest','oak.seat':'seat','mahog.desk':'desk','ebony.desk':'edesk','pine.table':'ptable','pine.chest':'pchest','pine.seat':'pseat','teak.table':'ttable','teak.chest':'tchest','teak.seat':'tseat'},WPIECE={};
 for(const m of Object.keys(ELEM.Wood.mats))for(const sh in WSHAPE)WPIECE[WOLD[m+'.'+sh]||sh+'.'+m]=[m,sh,memb('Wood',m).n+' '+WSHAPE[sh]];
@@ -447,7 +451,7 @@ const OLDK={marble:'stone.aur.block',dmarble:'stone.aur.chequer',omarble:'stone.
  planks:'wood.oak.planks',pplanks:'wood.pine.planks',dplanks:'wood.teak.planks',wood:'wood.oak.boards.w',dwood:'wood.teak.boards.w',ewood:'wood.ebony.boards.w',metal:'metal.steel.panel.w',mpanel:'metal.steel.panel.w',mplate:'metal.steel.rivet.w',iron:'metal.iron.rivet.w',brass:'metal.brass.rivet.w',mfloor:'metal.steel.rivet',gfloor:'metal.gold.panel',
  books:'chest',rack:'chest',wagon:'chest',shelf:'schest',
  carpet:'cloth.crimson.diamond',gcarpet:'cloth.verdant.diamond',pcarpet:'cloth.purple.diamond',crop:'earth.wheat.plain',berm:'earth.dirt.plain.w',bush:'earth.hedge.plain.w'};
-const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];let r=n&&!n.startsWith('earth.')?n+s:k;r=r.replace(/^(wood\.\w+)\.boards/,'$1.planks').replace(/^cloth\.(\w+)\.plain/,'cloth.$1.border').replace(/^cloth\.(verdant|purple)\.diamond/,(a,m)=>'cloth.'+m+'.'+(m==='verdant'?'trellis':'medal'));{const m=/^(.*?)(~\d)?$/.exec(r);if(typeof DESK2T!=='undefined'&&DESK2T[m[1]])r=DESK2T[m[1]]+(m[2]||'')}return r.replace(/^metal\.(\w+)\.rivet/,'metal.$1.panel')};// riveted plate retired: old maps get panels
+const modK=k=>{if(!k)return k;const s='HNS'.includes(k.slice(-1))&&OLDK[k.slice(0,-1)]?k.slice(-1):'',b=s?k.slice(0,-1):k,n=OLDK[b];let r=n&&!n.startsWith('earth.')?n+s:k;r=r.replace(/^(wood\.\w+)\.boards/,'$1.planks').replace(/^cloth\.(\w+)\.plain/,'cloth.$1.border').replace(/^cloth\.(verdant|purple)\.diamond/,(a,m)=>'cloth.'+m+'.'+(m==='verdant'?'trellis':'medal'));{const m=/^(.*?)(~\d)?$/.exec(r);if(typeof DESK2T!=='undefined'&&DESK2T[m[1]])r=DESK2T[m[1]]+(m[2]||'')}return r.replace(/^metal\.(\w+)\.rivet/,'metal.$1.panel').replace(/^earth\.dirt\.worn(~\d)?$/,'earth.dirt.plain~3')};// riveted plate retired: old maps get panels
 // a door's floor: each half carries on the floor of the cell beside it; a neighbouring doorway counts as wall line, so double doors work (the sill shows only where a side has none)
 for(const k of['sill','msill']){const f=TEX[k];TEX[k]=(X,Y,cx,cy)=>{const at=(x,y)=>LINK(x,y),fl=q=>q&&TEX[q]&&KIND[q]!=='wall'&&!WPIECE[baseK(q)]&&!MCHEST[baseK(q)]&&!MTABLE[baseK(q)]&&q!=='sill'&&q!=='msill'?q:null,wl=q=>KIND[q]==='wall'||q==='sill'||q==='msill',hz=!(wl(at(cx,cy-1))&&wl(at(cx,cy+1))),lo=((hz?Y:X)&15)<8,dx=hz?0:lo?-1:1,dy=hz?lo?-1:1:0,q=fl(at(cx+dx,cy+dy));return q?TEX[q](X+dx*T,Y+dy*T,cx+dx,cy+dy):f(X,Y,cx,cy)}}
 TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null;return bushT(X,Y)};KIND.hedge='floor';
