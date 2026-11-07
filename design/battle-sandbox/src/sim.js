@@ -122,6 +122,7 @@ function container(cx,cy,items,name){const k=OM[cy]&&OM[cy][cx];if(!k)return nul
 // tables and desks are item containers: one slot per tile, shown lying on the top; weapons put on a table just lie on it
 const isTbl=k=>{const w=wshape(k||'');return w==='table'||w==='desk'};
 function onTop(it,cx,cy){const w=weapon(it.k,cx*T+4+Math.random()*8,cy*T+4+Math.random()*8,Math.random()*6.283);if(it.ammo!==undefined){w.ammo=it.ammo;w.res=it.res}}
+const tCell=(c,X,Y)=>c.cells?c.cells.findIndex(q=>q[0]===(X/T|0)&&q[1]===(Y/T|0)):-1,goldIn=o=>(o.inv||[]).reduce((a,q)=>a+(q&&q.k==='gold'?q.n:0),0);
 function tAdd(c,it,pref=-1){if(!isItem(it.k))return false;const n=c.cells.length;while(c.inv.length<n)c.inv.push(null);
  if(it.k==='gold'){const order=[pref,...c.inv.keys()].filter(i=>i>=0);for(const i of order){const q=c.inv[i];if(q&&q.k==='gold'&&q.n<SOLMAX){const t=Math.min(SOLMAX-q.n,it.n);q.n+=t;it.n-=t;if(it.n<=0)return true}}
   for(const i of order)if(!c.inv[i]){const t=Math.min(SOLMAX,it.n);c.inv[i]={k:'gold',n:t};it.n-=t;if(it.n<=0)return true}return false}
@@ -391,7 +392,7 @@ function cFit(c,k){const e={k},r=cPack(c,e);return r?r.get(e):null}
 function cAt(c,k,X,Y,skip){if(skip&&c.inv.includes(skip))return{gx:skip.gx,gy:skip.gy,r:skip.r,sl:skip.sl};return cFit(c,k)}
 // chests take weapons, grenades and ammo; desks take gold, notes and keys
 const ITEMK=new Set(['gold','note']),isItem=k=>ITEMK.has(k)||isKey(k),cOK=(c,k)=>c.table?isItem(k):c.chest?!isItem(k):true;
-function cAdd(c,it){if(c.table)return tAdd(c,it);if(!cOK(c,it.k))return false;c.inv=c.inv||[];if(it.k==='gold'){for(const m of c.inv)if(m&&m.k==='gold'&&m.n<SOLMAX){const t=Math.min(SOLMAX-m.n,it.n);m.n+=t;it.n-=t;if(it.n<=0)return true}if(it.n>SOLMAX){const rest={...it,n:it.n-SOLMAX};it={...it,n:SOLMAX};if(!cAdd(c,rest))cSpill(c,rest)}}const q={...it,n:it.k==='gold'?it.n:1};delete q.mode;delete q.sl;const r=cPack(c,q);if(!r)return false;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);for(const[z,p]of r)Object.assign(z,p,{v:9});c._sig=cSig(c);return true}
+function cAdd(c,it,X,Y){if(c.table)return tAdd(c,it,X!==undefined?tCell(c,X,Y):-1);if(!cOK(c,it.k))return false;c.inv=c.inv||[];if(it.k==='gold'){for(const m of c.inv)if(m&&m.k==='gold'&&m.n<SOLMAX){const t=Math.min(SOLMAX-m.n,it.n);m.n+=t;it.n-=t;if(it.n<=0)return true}if(it.n>SOLMAX){const rest={...it,n:it.n-SOLMAX};it={...it,n:SOLMAX};if(!cAdd(c,rest))cSpill(c,rest)}}const q={...it,n:it.k==='gold'?it.n:1};delete q.mode;delete q.sl;const r=cPack(c,q);if(!r)return false;const i=c.inv.indexOf(null);if(i>=0)c.inv[i]=q;else c.inv.push(q);for(const[z,p]of r)Object.assign(z,p,{v:9});c._sig=cSig(c);return true}
 function cFill(c,items){if(c.table){c.inv=Array(c.cells.length).fill(null);for(const it of items||[])if(it){const one={...it};if(!tAdd(c,one))cSpill(c,one)}return}c.inv=[];for(const it of items||[]){if(!it)continue;const n=it.k==='gold'||it.k==='note'?1:it.n||1;for(let i=0;i<n;i++){const one={...it};if(one.k!=='gold')one.n=1;delete one.gx;delete one.gy;delete one.r;if(!cAdd(c,one))cSpill(c,one)}}}
 const cFitsAll=(c,items)=>{const t={x:c.x,y:c.y,long:c.long,box:c.box,cells:c.cells,inv:[]};for(const it of items)for(let i=0;i<(it.k==='gold'||it.k==='note'?1:it.n||1);i++)if(!cAdd(t,{...it,n:it.k==='gold'?it.n:1}))return false;return true};
 function spillAt(c){const b=c.box||[c.x-6,c.y-6,c.x+6,c.y+6],cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2,free=(x,y)=>{for(let v=-3;v<=3;v++)for(let u=-3;u<=3;u++){const X=Math.round(x+u),Y=Math.round(y+v);if(X<1||Y<1||X>=W-1||Y>=H-1||sol[Y*W+X]||OBJ[Y*W+X])return false}return true};
@@ -418,7 +419,7 @@ const canStore=(c,k)=>{if(!c)return false;cNorm(c);return k==='gold'&&c.inv.some
 function sdrOk(){const q=SDR.c.inv[SDR.i];if(!q||!mouse.in)return false;const X=Math.round(mouse.x),Y=Math.round(mouse.y),tk=bodyAt(X,Y,4,null,o=>o.type==='token'&&o.status!=='dead');if(tk)return tk!==SDR.c;const c=dropBox();if(c===SDR.c)return !!cAt(c,q.k,mouse.x,mouse.y,q);return c?canStore(c,q.k):false}
 const NOPE=()=>US.none();
 const METK=new Set(['musket','blunder','pistol','spear','sspear','rod','pgun','grenade','bomb','gold','rbox','cell']);function storeSnd(k){if(mute||!gest)return;SVOL=.4;try{SFX.drop()}catch(e){}SVOL=.25;if(METK.has(k))try{SFX.clink()}catch(e){}SVOL=1};
-function storeHit(X,Y){for(const c of storesShown()){cNorm(c);const g=cGeo(c);for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q)continue;const[w,h]=cRect(q),x=g.ox+q.gx*g.cs,y=g.oy+q.gy*g.cs;if(X>=x&&Y>=y&&X<x+w*g.cs&&Y<y+h*g.cs)return{c,i}}}return null}
+function storeHit(X,Y){{const c=containerAt(X,Y);if(c&&c.table){const i=tCell(c,X,Y);if(i>=0&&c.inv[i])return{c,i}}}for(const c of storesShown()){if(c.table)continue;cNorm(c);const g=cGeo(c);for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q)continue;const[w,h]=cRect(q),x=g.ox+q.gx*g.cs,y=g.oy+q.gy*g.cs;if(X>=x&&Y>=y&&X<x+w*g.cs&&Y<y+h*g.cs)return{c,i}}}return null}
 function drawHoled(sh){for(const c of bodies){if(!c.holed||!c.inv||sh.includes(c))continue;const g=cGeo(c),cx=Math.round(c.x),cy=Math.round(c.y),gone=c.box?j=>!OBJ[j]:(X,Y)=>!c.set.has(K(X-cx,Y-cy));
   for(const q of c.inv){if(!q||q.gx===undefined)continue;const bx=g.ox+q.gx,by=g.oy+q.gy;for(const[a,b,col]of itemPix(q.k,q.r)){const X=bx+a,Y=by+b;if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(c.box?gone(j):gone(X,Y))out[j]=col}}}}
 function drawStores(){drawTables();drawHoled(storesShown().filter(c=>!c.table));const hit=!SDR&&!drag&&mouse.in&&UI.tool==='hand'?storeHit(Math.round(mouse.x),Math.round(mouse.y)):null;for(const c of storesShown()){if(c.table)continue;cNorm(c);const g=cGeo(c),open=!c.box&&c.open;
@@ -1224,8 +1225,8 @@ let lastHud='';
 let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
 function moveItem(from,i,to,X,Y){const q=from.inv&&from.inv[i];if(!q||!to.inv)return;const one=q.k==='note'?{...q}:{k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}
  if(to.type==='token'){if(addItem(to,one)){if((q.n-=one.taken??one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k])q.ammo=CAP[q.k];sfx('flick');return true}NOPE();return false}
- cNorm(to);if(!cAdd(to,one,X,Y)){NOPE();return false}
- if((q.n-=one.n)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k]){q.ammo=CAP[q.k]}
+ cNorm(to);const g0=q.k==='gold'?goldIn(to):0,n0=one.n,ok=cAdd(to,one,X,Y),mv=q.k==='gold'?goldIn(to)-g0:ok?n0:0;if(!mv){NOPE();return false}
+ if((q.n-=q.k==='gold'?mv:1)<=0){from.inv[i]=null;if(from.si===i){from.held=null;from.si=-1;from.hc=null}}else if(CAP[q.k]){q.ammo=CAP[q.k]}
  storeSnd(q.k);return true}
 function hud(){for(const b of bodies)if(b.direct&&!sel.has(b)){b.direct=false;b.holdT=tick+60}if(openCrate&&!bodies.includes(openCrate))openCrate=null;const tk=[...sel].find(o=>o.type==='token');if(tk)autoOff(tk)}
 const CROWNI='<svg viewBox="0 0 16 16" shape-rendering="crispEdges"><path fill="currentColor" d="M7 2h2v2h1v2h1v2h1v2h1v2h1v2H2v-2h1v-2h1V8h1V6h1V4h1z"/></svg>';
