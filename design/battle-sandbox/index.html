@@ -3132,7 +3132,7 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
  {const vt=tilePix('metal.steel.louvre.w',0,0);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const i=(y*16+x)*4;Rf(XST+x,R0+IH-16+y,vtone(mat,rgb(vt[i],vt[i+1],vt[i+2])))}}
  v.base=base;v.roofL=roof;v.src=src;v.smap=smap}
 
-function carrier(mat,x,y,ang,nat){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',mat:DOORK[mat||'steel'][1],nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,offT:999,acc:0,alp:0,hov:new Set(),puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);return v}
+function carrier(mat,x,y,ang,nat,liv){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',mat:DOORK[mat||'steel'][1],nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,offT:999,acc:0,alp:0,hov:new Set(),puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);if(liv)vLivery(v,liv,.55+Math.random()*.45);return v}
 // its doors are the game's own doors, riding on the hull: rear double doors part to the sides, the cockpit door slides into the bulkhead
 const VIGN=21;
 const VDOORS=[[VC.L-9,VC.CY-16,Math.PI/2],[VC.L,VC.CY+15,-Math.PI/2],[VC.XP-1,VC.CY-8,Math.PI/2]];
@@ -3192,7 +3192,7 @@ function vDraw(top){for(const v of VEH){if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!=
 function vOver(v){const LW=VC.LW;if(!v.LD||v.LD.length!==LW*VC.H)v.LD=new Uint32Array(LW*VC.H);else for(const i of v.ldI||[])v.LD[i]=0;const used=[],put=(x,y,c)=>{if(x<0||y<0||x>=LW||y>=VC.H)return;const i=y*LW+x;v.LD[i]=c|0xff000000;used.push(i)};
  for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d))continue;const{ax,ay,a}=d.vdoor,sl=Math.round(Math.min(1,Math.abs(d.ang)/1.4)*((d.len||16)-3)),cells=new Map();
   for(const q of d.px){if(d.set.get(K(q[0],q[1]))!==q)continue;const dx=q[8]-sl,dy=q[9],x=a>0?ax-dy:ax+dy,y=a>0?ay+dx:ay-dx;cells.set(K(x,y),q)}
-  for(const[k,q]of cells){const x=Math.floor(k/1024)-512,y=k%1024-512,r=!cells.has(K(x+1,y))||!cells.has(K(x,y+1)),l=!cells.has(K(x-1,y))||!cells.has(K(x,y-1));let c0=q[3]<q[6]?mul(q[2],.6+.4*q[3]/q[6]):q[2];if(q[5]>.01)c0=mix(c0,glow(q[5]),Math.min(1,q[5]*1.6));put(x,y,r?mul(c0,.5):l?mul(c0,.8):c0)}}
+  for(const[k,q]of cells){const x=Math.floor(k/1024)-512,y=k%1024-512,r=!cells.has(K(x+1,y))||!cells.has(K(x,y+1)),l=!cells.has(K(x-1,y))||!cells.has(K(x,y-1));const c0=pcol(d,q);put(x,y,r?mul(c0,.5):l?mul(c0,.8):c0)}}
  for(const t of v.px)if(t[5]>.01&&t.s&&t[7]!=='x'){if(t[5]*.6>(t.s.tm||0)+.08){t.s.tm=t[5]*.6;v.dirty=1}const q=t.s,c0=q[3]<q[6]||t[3]<q[6]?mul(q[2],.6+.4*Math.min(q[3],t[3])/q[6]):q[2];put(q[8],q[9],mix(c0,glow(t[5]),Math.min(1,t[5]*1.6)))}
  const g=v.glow||0;if(g>.01)for(const q of v.src)if(q[7]==='e'&&!q.dead){const c=q[2],br=(c&255)+(c>>8&255)>300;put(q[8],q[9],mix(c,br?rgb(255,250,255):rgb(206,150,255),Math.min(.85,g*(br?.9:.6))))}
  v.ldI=used}
@@ -3234,8 +3234,8 @@ function vMist(v){{const lt=v.on&&tick-v.onT>=VIGN,gt=lt?Math.min(1,.4+.6*Math.m
  if(v.fuse&&tick%2===0){const[gx,gy]=vL2W(v,VC.XST+8,VC.RC[2]);v.puffs.push({x:gx,y:gy,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:2,gr:.18,a:.55,c:rgb(34,32,34),sd:Math.random()*99|0,R:14})}
  vSide(v);if(v.dead&&tick-v.burnT<420&&tick%3===0){const[hx,hy]=vL2W(v,v.hole[0]+(Math.random()-.5)*16,v.hole[1]+(Math.random()-.5)*12),f=1-(tick-v.burnT)/420;v.puffs.push({x:hx,y:hy,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2-.05,r:3,gr:.22,a:.6*f,c:rgb(30,28,28),sd:Math.random()*99|0,R:22,out:1});if(Math.random()<f*.6)emberPatch(hx,hy,3,4)}
  for(const p of v.puffs){p.x+=p.vx;p.y+=p.vy;p.r+=p.gr;p.a*=.992;if(p.out){p.vx*=.95;p.vy*=.95}if(p.r>p.R*.7)p.a*=.95}v.puffs=v.puffs.filter(p=>p.r<p.R&&p.a>.02)}
-// track marks: the tread pattern pressed into the ground at half a scorch's darkness, only while moving
-function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);for(const w of['T','B']){const y0=w==='T'?0:VC.H-VC.TR,ph=Math.floor(v.ph[w==='T'?0:1]);for(const x of[4,5,6,7,8,VC.L-9,VC.L-8,VC.L-7,VC.L-6,VC.L-5])for(const t of[1,3]){const[gx,gy]=vL2W(v,x+.5,y0+t+.5),X=Math.floor(gx/2),Y=Math.floor(gy/2);if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X,lk=((x-ph)%4+4)%4<2;BURN[q]=Math.max(BURN[q],(lk?.36:.24)*k*(.85+.15*hh(X,Y,9)))}}fxDirty=true}
+// track marks: the tread pattern pressed faintly into the ground, only while moving
+function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);for(const w of['T','B']){const y0=w==='T'?0:VC.H-VC.TR,ph=Math.floor(v.ph[w==='T'?0:1]);for(const x of[4,5,6,7,8,VC.L-9,VC.L-8,VC.L-7,VC.L-6,VC.L-5])for(const t of[1,3]){const[gx,gy]=vL2W(v,x+.5,y0+t+.5),X=Math.floor(gx/2),Y=Math.floor(gy/2);if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X,lk=((x-ph)%4+4)%4<2;BURN[q]=Math.max(BURN[q],(lk?.144:.096)*k*(.85+.15*hh(X,Y,9)))}}fxDirty=true}
 
 // driving: slow to start, slow to stop, slow to turn; the tracks run with the ground and counter-run to pivot
 function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%3===0)vAI();for(const v of VEH){const dv=vDriver(v);if(v.seats[0]&&!dv)v.seats[0]=null;
@@ -3271,12 +3271,33 @@ function vMove(v){const n={x:v.x-Math.cos(v.ang)*v.sp,y:v.y-Math.sin(v.ang)*v.sp
 function vPin(v){v.seats.forEach((t,i)=>{if(!t)return;const[x,y]=vSit(i),[gx,gy]=vL2W(v,x,y);t.x=gx;t.y=gy;t.vx=t.vy=0;t.ang=v.ang+VSEATS[i][2];t.vseat=v;t.crouch=false})}
 function vRefresh(v){v.dirty=1;vUnmark(v);vOrient(v);vMark(v);vDoorPose(v);NAVD=true}
 // hedges give under the tracks: the carrier rides over them, and a hedge it has wholly passed over is a step more trampled
-const vHK=(cx,cy)=>{const k=OM[cy]&&OM[cy][cx]||'';return/^hedge(~\d)?$/.test(k)?k:null};
-const vHedge=(X,Y)=>!!vHK(X>>4,Y>>4);
+const vHK=(cx,cy)=>OM[cy]&&OM[cy][cx]||null;
+const vHedge=(X,Y)=>!!vHK(X>>4,Y>>4)&&!sol[Y*W+X];
 function vHedges(v){const now=new Set(),R=80,cx0=Math.max(0,(v.x-R)>>4),cx1=Math.min(CW-1,(v.x+R)>>4),cy0=Math.max(0,(v.y-R)>>4),cy1=Math.min(CH-1,(v.y+R)>>4);
  for(let cy=cy0;cy<=cy1;cy++)for(let cx=cx0;cx<=cx1;cx++){const k=vHK(cx,cy);if(!k)continue;let n=0;for(let j=0;j<4;j++)for(let i=0;i<4;i++){const[lx,ly]=vW2L(v,cx*T+2+i*4,cy*T+2+j*4);if(lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H)n++}
-  const id=cy*CW+cx;if(n>0)now.add(id);if(n>8&&!v.hov.has(id)){const m=k==='hedge'?3:Math.max(1,+k.slice(6)-2),nk='hedge~'+m,f=fmat(nk);OM[cy][cx]=nk;for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[nk](X,Y,cx,cy);OBJ[j]=c?f:0;if(c)OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]))}sfx('rustle');v.hov.add(id)}}
+  const id=cy*CW+cx;if(n>0)now.add(id);if(n>8&&!v.hov.has(id)&&!/^hedge(~\d)?$/.test(k)){const e=objEl(k);if(e){wearObj(cx,cy,18/softOf(e[0],e[1]));sfx(e[0]==='Metal'?'clank':'crack')}v.hov.add(id)}
+  else if(n>8&&!v.hov.has(id)){const m=k==='hedge'?3:Math.max(1,+k.slice(6)-2),nk='hedge~'+m,f=fmat(nk);OM[cy][cx]=nk;for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[nk](X,Y,cx,cy);OBJ[j]=c?f:0;if(c)OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]))}sfx('rustle');v.hov.add(id)}}
  for(const c of [...v.hov])if(!now.has(c))v.hov.delete(c)}
+
+// liveries: soft paint laid into the roof metal, keeping its grain, worn by cond (1 fresh); a stencil font for hull numbers
+const VFONT={0:'111101101101111',1:'010110010010111',2:'111001111100111',3:'111001111001111',4:'101101111001001',5:'111100111001111',6:'111100111101111',7:'111001010010010',8:'111101111101111',9:'111101111001111',Z:'111001010100111',F:'111100110100100',C:'111100100100111',R:'110101110101101'};
+const VLIV={'Z28':[{t:'text',s:'Z28',c:[236,232,220]}],
+ 'F12':[{t:'bands',c:[214,120,58]},{t:'text',s:'F12',c:[240,236,226]}],
+ 'F07':[{t:'bands',c:[214,120,58],wear:.35},{t:'text',s:'F07',c:[240,236,226],a:.45}],
+ 'C01':[{t:'stripe',c:[150,52,52],h:8,edge:[200,170,96]},{t:'text',s:'C01',c:[236,232,220]}],
+ 'C02':[{t:'pin',c:[196,170,110]},{t:'text',s:'C02',c:[196,170,110],a:.45}],
+ 'R19':[{t:'bands',c:[196,72,64],a:.45},{t:'stripe',c:[236,232,224],h:4,a:.5},{t:'text',s:'R19',c:[196,72,64],x:62,a:.6}]};
+function vLivery(v,id,cond=1){const L=VLIV[id];if(!L)return;v.liv=[id,cond];const{X0,R0,IL,IH,LW}=VC,Rf=v.roofL,mid=R0+IH/2,rear=X0+IL-18,wr=(1-cond)*.45,fade=.7+.3*cond,
+  bare=(x,y)=>x>=VC.XST-1&&x<=VC.XST+16&&y>=R0+IH-17||[VC.RC[0],VC.RC[2]].some(hy=>Math.hypot(x-X0-8,y-hy)<4.2),
+  set=(x,y,p,a,w=0,k=1)=>{const i=y*LW+x,c=Rf[i];if(!c||bare(x,y)||hh(x>>1,y>>1,61)<Math.max(w,wr*k))return;Rf[i]=mix(c&0xffffff,p,a*fade*(.85+.3*hh(x,y,57)))|0xff000000},
+  band=(y0,y1,p,a,w)=>{for(let y=y0;y<y1;y++)for(let x=X0;x<X0+IL;x++)set(x,y,p,a,w)};
+ for(const d of L){const c=rgb(...d.c);
+  if(d.t==='text'){const k=2,w=d.s.length*4*k-k,x0=Math.round((d.x??rear)-w/2),y0=Math.round(mid-5*k/2);[...d.s].forEach((ch,n)=>{const g=VFONT[ch];for(let r=0;r<5;r++)for(let q=0;q<3;q++)if(g[r*3+q]==='1')for(let j=0;j<k;j++)for(let i=0;i<k;i++){const x=x0+n*4*k+q*k+i,y=y0+r*k+j;if((i+j)%3===2&&hh(x,y,33)>.7)continue;set(x,y,c,d.a||.55,0,.35)}})}
+  else if(d.t==='bands'){const h=Math.round(IH*.25);band(R0,R0+h,c,d.a||.5,d.wear);band(R0+IH-h,R0+IH,c,d.a||.5,d.wear)}
+  else if(d.t==='stripe'){const h=d.h,y0=Math.round(mid-h/2),y1=Math.round(mid+h/2);band(y0,y1,c,d.a||.45);if(d.edge){const e=rgb(...d.edge);band(y0-1,y0,e,.4);band(y1,y1+1,e,.4)}}
+  else if(d.t==='pin'){const k=4,x0=X0+k,x1=X0+IL-1-k,y0=R0+k,y1=R0+IH-1-k;for(const y of[y0,y1])for(let x=x0+6;x<=x1-6;x++)set(x,y,c,.55);for(const y of[y0+2,y1-2])for(let x=x0+9;x<=x1-9;x+=2)set(x,y,c,.3);
+   for(const[cx,cy,sx,sy]of[[x0+6,y0+6,-1,-1],[x1-6,y0+6,1,-1],[x0+6,y1-6,-1,1],[x1-6,y1-6,1,1]])for(let t=0;t<9.5;t+=.08){const r=6-t*.55;if(r>.6)set(Math.round(cx+sx*Math.abs(Math.cos(t))*r*(t<Math.PI/2?1:Math.sign(Math.cos(t)))),Math.round(cy+sy*Math.sin(t)*r),c,.55)}}}
+ v.dirty=1}
 
 // boarding and leaving: units walk set waypoints through the rear doors to a seat, or out behind the carrier
 function vFree(v,role){const res=new Set(bodies.filter(t=>t.vwalk&&t.vwalk.v===v).map(t=>t.vwalk.i));for(let i=0;i<VSEATS.length;i++)if(!v.seats[i]&&!res.has(i)&&(role?VSEATS[i][3]===role:VSEATS[i][3]==='p'))return i;return -1}
@@ -3412,9 +3433,9 @@ NBM.yard=()=>{UND=Array.from({length:28},()=>Array(44).fill('grass'));paintAll((
  if(cx>=37&&cx<=38&&(cy>=4&&cy<=7||cy>=20&&cy<=23))return'stone.grey.block.w';
  if(cx===27&&cy>=10&&cy<=17||cx===32&&(cy>=3&&cy<=8||cy>=19&&cy<=24)||cy===24&&cx>=5&&cx<=14)return'hedge';
  if(cy>=12&&cy<=15)return'dirt';return'grass'})};
-NUM.yard=()=>{const v=carrier('steel',15*T,14*T,0,'Imperium');const g=[U('Legate Varro','Imperium','civ',0,0,0,'pistol','Officer'),U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer')];vSeatNow(v,g[0],0);vSeatNow(v,g[1],1);
+NUM.yard=()=>{const v=carrier('steel',15*T,14*T,0,'Imperium','R19');const g=[U('Legate Varro','Imperium','civ',0,0,0,'pistol','Officer'),U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer')];vSeatNow(v,g[0],0);vSeatNow(v,g[1],1);
  ['Brask','Coll','Dunn','Ivo','Hale','Marl'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<2?'guard':'rifle',0,0,0),2+i));
- carrier('iron',15*T,6*T,0,'Imperium');
+ carrier('iron',15*T,6*T,0,'Imperium','F12');
  U('Ser Davin','Imperium','civ',27.5,6,Math.PI,'pistol','Officer');['Orrin','Pell','Wat','Ned'].forEach((n,i)=>U(n,'Imperium',i<1?'guard':'rifle',25.5+(i%2)*1.6,3.6+(i>>1)*1.6,Math.PI,i<1?'rod':undefined));
  for(const t of bodies)if(t.type==='token')t.auto=false};
 // the circuit: a rounded loop of road for driving corners, hedge chicanes and stone blocks inside, an inspection stand of officers and
@@ -3430,7 +3451,7 @@ NBM.circuit=()=>{UND=Array.from({length:48},()=>Array(64).fill('grass'));const r
   if((cx===27||cx===37)&&cy>=14&&cy<=15||cx===48&&cy>=22&&cy<=23)return'stone.grey.block.w';
   return'grass'})};
 NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
- carrier('iron',41*T,39*T,P,'Imperium');carrier('iron',47*T,39*T,P,'Imperium');const v=carrier('steel',53*T,39*T,P,'Imperium');
+ carrier('iron',41*T,39*T,P,'Imperium','F07');carrier('iron',47*T,39*T,P,'Imperium','Z28');const v=carrier('steel',53*T,39*T,P,'Imperium','C01');
  vSeatNow(v,U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer'),1);['Brask','Coll','Dunn','Ivo','Hale','Marl','Rook','Tobin'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<3?'guard':'rifle',0,0,0),2+i));
  U('Legate Varro','Imperium','civ',56.6,44,A,'pistol','Officer');
  // the inspection line along the stand's front, facing the circuit
