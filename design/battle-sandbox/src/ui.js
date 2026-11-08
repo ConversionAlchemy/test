@@ -154,7 +154,7 @@ function armDrop(k){UI.drop=UI.drop===k?null:k;UI.place=false;GHO.style.display=
 VIEW.addEventListener('pointerdown',e=>{if(panKey||!UI.drop||e.button||!inBoard(e))return;const[x,y]=toBoard(e);e.stopPropagation();e.preventDefault();
  if(UI.drop==='tile'){const cx=x/T|0,cy=y/T|0,d=bodies.find(o=>o.type==='slab'&&!o.free&&slabCell(o)===cy*CW+cx);
   // a door under the dropper picks that door; otherwise the tile, switching to its tab
-  if(d){const k=d.dk||(d.umbra?'umbra':d.gold?'gold':d.mat===3?'steel':'wood');UI.erase=false;UI.tt='door';UI.tile={t:'door',k:'door:'+k};edBrush={...UI.tile};tilerCtx()}
+  if(d){const k=d.dk||(d.umbra?'umbra':d.gold?'gold':hcl(d.mat).metal?'steel':'wood');UI.erase=false;UI.tt='door';UI.tile={t:'door',k:'door:'+k};edBrush={...UI.tile};tilerCtx()}
   else{const s=srcNow(),k=s[cy]&&s[cy][cx];if(k)setTile(k)}armDrop('tile');return}
  if(UI.place){$('tpr').dispatchEvent(new PointerEvent('pointerdown',{clientX:e.clientX,clientY:e.clientY,bubbles:true}));return}
  const b=bodyAt(x|0,y|0,6,null,o=>o.type==='token');if(!b)return;syncMarker(b);UI.st='units';spawnCtx();UI.place=true;GHO.getContext('2d').drawImage(tp,0,0);GHO.style.display='block'},true);
@@ -383,10 +383,10 @@ function tNode(x,y){const u=bodyAt(x|0,y|0,7,null,o=>o.type==='token'&&o.status!
  if(best)return{x:best.x,y:best.y,aj:best.iy*W+best.ix};if(WMAT[k])return null;return{x:cx*T+T/2,y:cy*T+T/2,aj:-1}}
 VIEW.addEventListener('pointerdown',e=>{if(panKey||UI.tool!=='teth'||e.button||!inBoard(e))return;e.stopPropagation();e.preventDefault();const[x,y]=toBoard(e),n=tNode(x,y);if(!n)return;
  if(!TQ.a){TQ.a=n;TQ.lastL=0;sfx('flick');return}const a=TQ.a,u=a.u||n.u,w=a.u?n:a;if(!u||w.u||clearTo(a,n.x,n.y).hit)return;TQ.a=null;
- const d=Math.hypot(u.x-w.x,u.y-w.y);u.tether={kind:TQ.kind,x:w.x,y:w.y,aj:w.aj,s0:w.aj>=0?shp[w.aj]:0,len:Math.max(10,Math.min(REACH,d))+2,hp:TETH[TQ.kind].hp};sfx(TQ.kind==='chain'?'chink':'twang');lastHud=''},true);
+ const d=Math.hypot(u.x-w.x,u.y-w.y);u.tether={kind:TQ.kind,x:w.x,y:w.y,aj:w.aj,s0:w.aj>=0?shp[w.aj]:0,len:Math.max(10,Math.min(REACH,d))+2,hp:TETH[TQ.kind].hp};sfx(TQ.kind==='chain'?snd('metal','drag'):'twang');lastHud=''},true);
 window.addEventListener('pointermove',e=>{if(UI.tool!=='teth')return;const[x,y]=toBoard(e);TQ.hov=inBoard(e)?tNode(x,y):null;TQ.cx=x;TQ.cy=y;const a=TQ.a;if(!a)return;
  if(a.u){const d=Math.hypot(x-a.u.x,y-a.u.y);if(d>REACH){const tx=x-(x-a.u.x)/d*REACH,ty=y-(y-a.u.y)/d*REACH;if(!sol[(ty|0)*W+(tx|0)]){a.u.x=tx;a.u.y=ty;a.u.vx=a.u.vy=0}}a.x=a.u.x;a.y=a.u.y}
- const L=Math.min(REACH,Math.hypot(x-a.x,y-a.y)),t=performance.now();if(Math.abs(L-TQ.lastL)>5&&t-TQ.lastT>90){TQ.lastL=L;TQ.lastT=t;sfx(TQ.kind==='chain'?'chink':'creak')}});
+ const L=Math.min(REACH,Math.hypot(x-a.x,y-a.y)),t=performance.now();if(Math.abs(L-TQ.lastL)>5&&t-TQ.lastT>90){TQ.lastL=L;TQ.lastT=t;sfx(TQ.kind==='chain'?snd('metal','drag'):'creak')}});
 window.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.tool!=='teth'||UI.pop)return;e.stopImmediatePropagation();if(TQ.a)TQ.a=null;else pickTool('hand')},true);
 OVL.push(()=>{if(UI.tool!=='teth')return;const a=TQ.a;ctx.save();
  if(a){let ex=TQ.cx,ey=TQ.cy;const d=Math.hypot(ex-a.x,ey-a.y);if(d>REACH&&!a.u){ex=a.x+(ex-a.x)/d*REACH;ey=a.y+(ey-a.y)/d*REACH}const sn=TQ.hov&&(!!TQ.hov.u!==!!a.u)&&!clearTo(a,TQ.hov.x,TQ.hov.y).hit;if(sn){ex=TQ.hov.x;ey=TQ.hov.y}else{const c=clearTo(a,ex,ey);ex=c.x;ey=c.y}

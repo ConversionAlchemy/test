@@ -179,10 +179,10 @@ function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%
   vPin(v);vMist(v);vWalkers(v);if(v.fuse&&--v.fuse===0)vBlow(v)}
  vPrompt();if(tick%2===0)vSound()}
 function vMove(v){const n={x:v.x-Math.cos(v.ang)*v.sp,y:v.y-Math.sin(v.ang)*v.sp,ang:v.ang+v.w};
- const tryPose=P=>{const o=vOrient(v,P),bx=Math.round(P.x),by=Math.round(P.y),cells=new Set();for(const p of[...o.px,...o.tk]){const X=bx+p[0],Y=by+p[1];if(X<1||Y<1||X>=W-1||Y>=H-1)return null;const j=Y*W+X;if((sol[j]||OBJ[j])&&!vHedge(X,Y)||slabG[j]&&slabG[j]!==v.id&&!v.dids.has(slabG[j])){const sb=slabG[j]&&byId(slabG[j]);hitM=sol[j]===3||!!sb&&(sb.veh||sb.mat===3);return null}cells.add(j)}return{px:o.px,tk:o.tk,cells}};let hitM=false;
+ const tryPose=P=>{const o=vOrient(v,P),bx=Math.round(P.x),by=Math.round(P.y),cells=new Set();for(const p of[...o.px,...o.tk]){const X=bx+p[0],Y=by+p[1];if(X<1||Y<1||X>=W-1||Y>=H-1)return null;const j=Y*W+X;if((sol[j]||OBJ[j])&&!vHedge(X,Y)||slabG[j]&&slabG[j]!==v.id&&!v.dids.has(slabG[j])){const sb=slabG[j]&&byId(slabG[j]);hitM=sb&&sb.veh?hitCls('metal'):sb?sb.mat:sol[j]||2;return null}cells.add(j)}return{px:o.px,tk:o.tk,cells}};let hitM=0;
  let P=n,r=tryPose(n);if(!r&&v.w){P={x:n.x,y:n.y,ang:v.ang};r=tryPose(P);if(r)v.w=0}if(!r&&v.sp){P={x:v.x,y:v.y,ang:n.ang};r=tryPose(P);if(r)v.sp=0}
  // a bump: metal rings like any metal contact, anything else thuds; no damage at these speeds
- if(!r){if((Math.abs(v.sp)>.05||Math.abs(v.w)>.0008)&&tick-(v.bumpT||0)>24){v.bumpT=tick;if(hitM){sfx('chink');sfx('clank')}else sfx('thunk')}v.sp=0;v.w=0;v.acc=0;v.alp=0;return}
+ if(!r){if((Math.abs(v.sp)>.05||Math.abs(v.w)>.0008)&&tick-(v.bumpT||0)>24){v.bumpT=tick;sfx(hcl(hitM).drag);if(hcl(hitM).metal)sfx('clank')}v.sp=0;v.w=0;v.acc=0;v.alp=0;return}
  // units outside in the way are shoved; one that can't give stops the carrier
  const carried=bodies.filter(b=>(b.type==='token'||b.type==='weapon'||b.vdoor&&b.fallen)&&!inDrag(b)&&(v.seats.includes(b)||(()=>{const[lx,ly]=vW2L(v,b.x,b.y);return vInside(v,lx,ly)||(b.stuck||b.wedged||b.att)&&b.type==='weapon'&&lx>=-6&&ly>=-6&&lx<VC.L+6&&ly<VC.H+6})()));
  for(const b of bodies){if(b.type!=='weapon'||carried.includes(b)||b.stuck||inDrag(b)||Math.abs(b.x-P.x)>90||Math.abs(b.y-P.y)>90)continue;const[lx,ly]=vW2L(P,b.x,b.y);if(lx<-2||ly<-2||lx>VC.L+2||ly>VC.H+2)continue;const dy=ly<VC.PY?-1:1,[nx,ny]=vL2W(P,lx,dy<0?-4:VC.H+4);b.x=nx;b.y=ny;b.vx=b.vy=0}
@@ -200,8 +200,8 @@ const vHK=(cx,cy)=>OM[cy]&&OM[cy][cx]||null;
 const vHedge=(X,Y)=>!!vHK(X>>4,Y>>4)&&!sol[Y*W+X];
 function vHedges(v){const now=new Set(),R=80,cx0=Math.max(0,(v.x-R)>>4),cx1=Math.min(CW-1,(v.x+R)>>4),cy0=Math.max(0,(v.y-R)>>4),cy1=Math.min(CH-1,(v.y+R)>>4);
  for(let cy=cy0;cy<=cy1;cy++)for(let cx=cx0;cx<=cx1;cx++){const k=vHK(cx,cy);if(!k)continue;let n=0;for(let j=0;j<4;j++)for(let i=0;i<4;i++){const[lx,ly]=vW2L(v,cx*T+2+i*4,cy*T+2+j*4);if(lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H)n++}
-  const id=cy*CW+cx;if(n>0)now.add(id);if(n>8&&!v.hov.has(id)&&!/^hedge(~\d)?$/.test(k)){const e=objEl(k);if(e){wearObj(cx,cy,18/softOf(e[0],e[1]));sfx(e[0]==='Metal'?'clank':'crack')}v.hov.add(id)}
-  else if(n>8&&!v.hov.has(id)){const m=k==='hedge'?3:Math.max(1,+k.slice(6)-2),nk='hedge~'+m,f=fmat(nk);OM[cy][cx]=nk;for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[nk](X,Y,cx,cy);OBJ[j]=c?f:0;if(c)OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]))}sfx('rustle');v.hov.add(id)}}
+  const id=cy*CW+cx;if(n>0)now.add(id);if(n>8&&!v.hov.has(id)&&!/^hedge(~\d)?$/.test(k)){const e=objEl(k);if(e){wearObj(cx,cy,18/softOf(e[0],e[1]));sfx(hcl(matInfo(e[0],e[1]).n).crush)}v.hov.add(id)}
+  else if(n>8&&!v.hov.has(id)){const m=k==='hedge'?3:Math.max(1,+k.slice(6)-2),nk='hedge~'+m,f=fmat(nk);OM[cy][cx]=nk;for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[nk](X,Y,cx,cy);OBJ[j]=c?f:0;if(c)OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]))}sfx(snd('foliage','crush'));v.hov.add(id)}}
  for(const c of [...v.hov])if(!now.has(c))v.hov.delete(c)}
 
 // the roof plates wear with the hull beneath them (scars, temper, chipped armour), plus their own blast wear, soot and dents
