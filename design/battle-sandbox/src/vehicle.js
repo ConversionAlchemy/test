@@ -139,9 +139,11 @@ function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==
 // the roof hides the crew unless a selected unit is aboard (V switches back to the roof)
 // a point under a carrier's roof while the roof is shown: light there doesn't reach the outside
 function vRoofed(x,y){for(const v of VEH){if(Math.abs(x-v.x)>VC.L*.6||Math.abs(y-v.y)>VC.L*.6||!vRoof(v))continue;const[lx,ly]=vW2L(v,x,y);if(lx>=0&&ly>=VC.TR&&lx<VC.L&&ly<VC.H-VC.TR)return true}return false}
-function vRoof(v){for(const t of sel)if(t.type==='token'&&vHas(v,t)&&v.ext)return true;return vAltOver(v)}
-// carriers show their insides; the roof shows only with Alt held and the cursor over the carrier (to lob onto it), or from a seat with V
-function vAltOver(v){if(!LOBK)return false;if(v.pkT===tick)return v.pk;v.pkT=tick;const[lx,ly]=vW2L(v,mouse.x,mouse.y);return v.pk=lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H}
+// roof by default. Inside: a selected unit aboard sees the interior (V switches to the roof). With no unit selected, hovering a crewed
+// carrier shows its interior. Alt over a carrier always shows the roof, to lob onto it
+function vRoof(v){const ov=vCur(v);if(LOBK&&ov)return true;let any=false;for(const t of sel)if(t.type==='token'){any=true;if(vHas(v,t))return!!v.ext}
+ return any||!ov||!bodies.some(t=>t.type==='token'&&t.status!=='dead'&&vHas(v,t))}
+function vCur(v){if(v.pkT===tick)return v.pk;v.pkT=tick;const[lx,ly]=vW2L(v,mouse.x,mouse.y);return v.pk=lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H}
 // V from a seat: switch between seeing the interior and the roof
 var VBRK=false;
 function vKeyBrake(down){const t=[...sel].find(b=>b.type==='token'&&b.vseat);if(!t||t.vseat.seats[0]!==t){VBRK=false;return false}VBRK=down;return true}

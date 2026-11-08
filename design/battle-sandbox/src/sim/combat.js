@@ -118,10 +118,10 @@ let LOBK=false,ROOFV=null;const LOBT={grenade:1,bomb:1,sbomb:1};
 const lobRange=(b,inf)=>inf.range*(THR[b.unit]||.7)/.8;
 function lobAim(b,x,y,inf){const d=Math.hypot(x-b.x,y-b.y)||1,R=lobRange(b,inf),k=Math.min(1,R/d);return[b.x+(x-b.x)*k,b.y+(y-b.y)*k]}
 function lobStart(p,b,x,y,inf){const[tx,ty]=lobAim(b,x,y,inf),d=Math.hypot(tx-p.x,ty-p.y),e=d*inf.spread*1.4;
- const X=tx+gauss()*e,Y=ty+gauss()*e;p.lob={x0:p.x,y0:p.y,x1:X,y1:Y,t:0,T:Math.max(14,d/3.4|0),h:Math.min(34,6+d*.16)};p.vx=p.vy=0;p.ghost=true}
-function lobStep(b){const L=b.lob;if(L.roof){const v=L.roof.v;if(!VEH.includes(v)||v.dead){b.lob=null;b.ghost=!!solidHits(b,0,0);return}const[x,y]=vL2W(v,L.roof.lx,L.roof.ly);b.x=x;b.y=y;b.z=0;return}
- L.t++;const u=Math.min(1,L.t/L.T);b.x=L.x0+(L.x1-L.x0)*u;b.y=L.y0+(L.y1-L.y0)*u;b.z=4*L.h*u*(1-u);b.mv=6;if((L.t&3)===0&&b.kind!=='bomb')reshape(b,(b.ang||0)+.9);if(u<1)return;
- b.z=0;const X=Math.round(b.x),Y=Math.round(b.y);
+ const X=tx+gauss()*e,Y=ty+gauss()*e;p.lob={x0:p.x,y0:p.y,x1:X,y1:Y,t:0,T:Math.max(14,d/3.4|0)};p.vx=p.vy=0;p.ghost=true}
+function lobStep(b){const L=b.lob;if(L.roof){const v=L.roof.v;if(!VEH.includes(v)||v.dead){b.lob=null;b.ghost=!!solidHits(b,0,0);return}const[x,y]=vL2W(v,L.roof.lx,L.roof.ly);b.x=x;b.y=y;return}
+ L.t++;const u=Math.min(1,L.t/L.T);b.x=L.x0+(L.x1-L.x0)*u;b.y=L.y0+(L.y1-L.y0)*u;b.mv=6;if(u<1)return;
+ const X=Math.round(b.x),Y=Math.round(b.y);
  for(const v of VEH){if(v.dead)continue;const[lx,ly]=vW2L(v,b.x,b.y);if(lx<0||ly<0||lx>=VC.LW||ly>=VC.H)continue;vRW(v);if(!v.roofL[(ly|0)*VC.LW+(lx|0)])continue;L.roof={v,lx,ly};sfx(snd('metal','knock'));return}
  b.lob=null;const blk=(x,y)=>x<1||y<1||x>=W-1||y>=H-1||sol[y*W+x]||slabG[y*W+x];
  let skid=1;if(blk(X,Y)||solidHits(b,0,0)){skid=0;let best=null;for(let r=1;r<26&&!best;r++)for(let a=0;a<24;a++){const x=Math.round(X+Math.cos(a/24*6.283)*r),y=Math.round(Y+Math.sin(a/24*6.283)*r);if(blk(x,y))continue;b.x=x;b.y=y;if(!solidHits(b,0,0)){best=[x,y];break}}if(!best){b.x=X;b.y=Y}}
