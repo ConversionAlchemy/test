@@ -93,7 +93,7 @@ const vSeatOf=t=>{for(const v of VEH){const i=v.seats.indexOf(t);if(i>=0)return[
 // drawing: the floor layer under units, the roof and mist over them; supersampled 2x2 when turned
 function vBake(v){for(const t of v.px)if(t.s&&t[3]<t.s[3])t.s[3]=t[3];const n=VC.LW*VC.H;v.bk=(v.bk||0)+1;v.L0=new Uint32Array(n);v.L1=new Uint32Array(n);v.L2=new Uint32Array(n);v.trk=[];
  for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx,q=v.smap.get(K(lx,ly));if(q&&!q.dead&&(q[7]==='T'||q[7]==='B'))v.trk.push(i,lx,ly,q[7]);const a=vFloorPx(v,lx,ly),r=vRoofPx(v,lx,ly,true),w=vRoofPx(v,lx,ly,false);v.L0[i]=a?a|0xff000000:0;v.L1[i]=r?r|0xff000000:0;v.L2[i]=w?w|0xff000000:0}v.dirty=0;v.fz=v.fuse?(tick>>2)%2:0}
-function vDraw(top){for(const v of VEH){if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!==v.fz)vBake(v);
+function vDraw(top){for(const v of VEH){if(offView(v.x,v.y,VC.L))continue;if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!==v.fz)vBake(v);
   if(!top){const t=v.trk;for(let k=0;k<t.length;k+=4){const c=vTrack(v,t[k+1],t[k+2],t[k+3]);v.L0[t[k]]=v.dead?vChar(c,t[k+1],t[k+2],v)|0xff000000:c|0xff000000}}
   if(!top)vOver(v);const LD=top?null:v.LD,L=top?(vRoof(v)?v.L1:v.L2):v.L0,c=Math.cos(v.ang),s=Math.sin(v.ang),LW=VC.LW,LH=VC.H;
   // the sampled footprint and its shadow are kept until the pose, the bake, the tracks or the overlay change

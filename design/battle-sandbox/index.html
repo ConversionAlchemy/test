@@ -1783,9 +1783,9 @@ function shine(c,X,Y,k){const a=shY[0]*Y+shY[1],v=SHX[X]*Math.cos(a)+SHC[X]*Math
 const unseen=b=>fogOn()&&(b.fogH||!!b.att&&!!(byId(b.att.id)||{}).fogH);
 function streaks(){for(const b of bodies){if(b.type!=='weapon'||!WP[b.kind]||!WP[b.kind].bullet||unseen(b))continue;const s=Math.hypot(b.vx,b.vy);if(s<4)continue;const L=Math.min(40,s*.9),ux=b.vx/s,uy=b.vy/s,c=b.kind==='arc'?plasC(b.hue||0):rgb(255,236,180);for(let i=1;i<L;i++){const X=Math.round(b.x-ux*i),Y=Math.round(b.y-uy*i);if(X<0||Y<0||X>=W||Y>=H||sol[Y*W+X])break;out[Y*W+X]=mix(out[Y*W+X],c,.8*(1-i/L))}}}
 // a token's pixel colours only change when it turns, changes look or kit, or takes damage or heat, so they're kept between frames
-function tokCache(b,spr){let h=0;for(const p of b.px)h=h*31+p[3]*7+p[5]*997|0;const k=b.ang+'|'+lookOf(b)+'|'+b.unit+'|'+b.nat+'|'+b.si+'|'+(b.held&&b.held.kind)+'|'+!!b.guard+'|'+b.px.length+'|'+h;
+function tokCache(b,spr){let h=0;for(const p of b.px)h=h*31+p[3]*7+p[5]*997|0;const k=b.ang+'|'+lookOf(b)+'|'+b.unit+'|'+b.nat+'|'+b.si+'|'+(b.held&&b.held.kind)+'|'+!!b.guard+'|'+b.px.length+'|'+h+'|'+(b.wear&&b.wear.v);
  let c=b._tc;if(c&&c.k===k&&c.px===b.px)return c;c=b._tc={k,px:b.px,col:b.px.map(p=>pcol(b,p)),shn:spr?b.px.map(p=>{const a=sprAt(b,p);return a?a[1]:0}):null,vis:spr?new Set(b.px.filter(p=>sprAt(b,p)).map(p=>K(p[0],p[1]))):null};return c}
-function drawBody(b,lift){if(b.hidden||unseen(b))return;if(b.kind==='arc'){const s=Math.hypot(b.vx,b.vy)||1,wd=b.big?1:0;(b.blue?q=>q.map(swb):q=>q)((h=>[rgb(246,242,252),plasC(h),mul(plasC(h+.2),.85),mul(plasC(h+.4),.7),mul(plasC(h+.6),.55)])(b.hue||0)).slice(0,b.big?5:4).forEach((c,i)=>{for(let o=-wd;o<=wd;o++){const X=Math.round(b.x-b.vx/s*i-b.vy/s*o),Y=Math.round(b.y-b.vy/s*i+b.vx/s*o);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=o?mul(c,.8):c}});return}if(WP[b.kind]&&WP[b.kind].bullet&&!WP[b.kind].rod)return;const bx=Math.round(b.x),by=Math.round(b.y),st=b.status,dyn=b.type!=='weapon',hl=sel.has(b)?1.25:b===hover?1.12:1;if(b.type==='token'&&b.unit==='shock'&&b.nat==='Goldbank'&&!lookOf(b))drawCape(b,lift);
+function drawBody(b,lift){if(offView(b.x,b.y,40))return;if(b.hidden||unseen(b))return;if(b.kind==='arc'){const s=Math.hypot(b.vx,b.vy)||1,wd=b.big?1:0;(b.blue?q=>q.map(swb):q=>q)((h=>[rgb(246,242,252),plasC(h),mul(plasC(h+.2),.85),mul(plasC(h+.4),.7),mul(plasC(h+.6),.55)])(b.hue||0)).slice(0,b.big?5:4).forEach((c,i)=>{for(let o=-wd;o<=wd;o++){const X=Math.round(b.x-b.vx/s*i-b.vy/s*o),Y=Math.round(b.y-b.vy/s*i+b.vx/s*o);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=o?mul(c,.8):c}});return}if(WP[b.kind]&&WP[b.kind].bullet&&!WP[b.kind].rod)return;const bx=Math.round(b.x),by=Math.round(b.y),st=b.status,dyn=b.type!=='weapon',hl=sel.has(b)?1.25:b===hover?1.12:1;if(b.type==='token'&&b.unit==='shock'&&b.nat==='Goldbank'&&!lookOf(b))drawCape(b,lift);
  const sh=lift?[3,4]:b.stuck||b.fallen||st==='dead'?null:[1,2];
  const spr=b.type==='token'&&!!sprG(lookOf(b)),TC=b.type==='token'?tokCache(b,spr):null,vis=spr?TC.vis:null;
  if(sh)for(const p of b.px){const X=bx+p[0]+sh[0],Y=by+p[1]+sh[1];if(spr&&!vis.has(K(p[0],p[1])))continue;if(X<0||Y<0||X>=W||Y>=H||(spr?vis:b.set).has(K(p[0]+sh[0],p[1]+sh[1]))||sol[Y*W+X])continue;out[Y*W+X]=mul(out[Y*W+X],.62)}
@@ -1821,7 +1821,7 @@ function glowC(c,h,X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4],e=CATN[k]?CATN[k][0]:
 let FLC=null,FLK='',FLR=0,SHL=new Set(),shBuilt=false,SOLL=null,SOLN=0;
 function floorPx(X,Y,j,hlC,sh){let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>W&&OBJ[j-W-1])c=mul(c,.66);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(sh&&SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);if(sh){const fh=FH[(Y>>1)*BW+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y)}const k=SH[j];if(k)c=mul(c,k===1?.66:.82);return c}
 function floorRows(y0,y1,hlC){if(y0===0&&y1===H)SHL=new Set();for(let Y=y0;Y<y1;Y++)for(let X=0,j=Y*W;X<W;X++,j++){if(sol[j])continue;if(SHN[j]){SHL.add(j);continue}FLC[j]=floorPx(X,Y,j,hlC,false)}}
-function render(){
+function render(){VIEWR=VWH&&S?[Math.max(0,Math.floor(-cam.x/S)),Math.max(0,Math.floor(-cam.y/S)),Math.min(W,Math.ceil((VWH[0]-cam.x)/S)),Math.min(H,Math.ceil((VWH[1]-cam.y)/S))]:null;
  if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick;shBuilt=true;SOLL=null}
  sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);
  // the ground is composed into a cache: rebuilt whole when scorch, walls, hover or map change, otherwise a slice of rows a frame catches slower edits
@@ -1857,7 +1857,7 @@ function render(){
  if(cellDrag&&moveSel){const k=(mouse.y/T|0)*CW+(mouse.x/T|0);if(moveSel.cells.has(k)){const cx=k%CW,cy=k/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++)if(x===1||y===1||x===T-2||y===T-2)out[(cy*T+y)*W+cx*T+x]=rgb(242,239,230)}}
  ordDraw();exitFade();
  {const ch=!panKey&&!pan&&mouse.in&&!drag&&armed().length>0;if(ch)crosshair();const into=drag&&drag.b.type==='weapon'&&(bodyAt(Math.round(mouse.x),Math.round(mouse.y),2,drag.b,o=>o.type==='token'&&o.status!=='dead')||PICK.has(drag.b.kind)&&!drag.b.fuse&&canStore(dropBox(),drag.b.kind))||SDR&&sdrOk();const cc=pan||drag||SDR?CUR[into?'in':'carry']:panKey?CUR.grab:ch?'none':hover||hoverC?CUR.grab:CUR.arrow;if(cv.style.cursor!==cc)cv.style.cursor=cc;}
- ctx.putImageData(img,0,0);
+ if(VIEWR&&VIEWR[2]>VIEWR[0]&&VIEWR[3]>VIEWR[1])ctx.putImageData(img,0,0,VIEWR[0],VIEWR[1],VIEWR[2]-VIEWR[0],VIEWR[3]-VIEWR[1]);else ctx.putImageData(img,0,0);
  for(const e of document.querySelectorAll('#sm .xlab')){const x=(EXITS[curMap]||[])[+e.dataset.i];if(x){e.style.left=x.lx*S+'px';e.style.top=x.ly*S+'px'}}
  for(const b of bodies){if(b.mv>0)b.mv--;if(b.lab){b.lab.style.left=(Math.round(b.x)+.5)*S+'px';b.lab.style.top=(Math.round(b.y)+10)*S+'px';b.lab.style.color=natLabel(b);b.lab.style.zIndex=b.status==='dead'?0:1;{const vc=VIS[(Math.round(b.y)>>1)*BW+(Math.round(b.x)>>1)],hid=fogOn()&&(teamOf(b)!==aiMe&&(b.fogH||!vc)||b.status==='dead'&&!vc);b.lab.style.display=hid?'none':''}dbar(b,S);sayTick(b,S);{let c=b.lab.querySelector('.ld');if(b.leader&&b.status!=='dead'){if(!c){c=document.createElement('span');c.className='ld';c.innerHTML=CROWNI;b.lab.prepend(c)}}else if(c)c.remove()}}}
  stage.style.transform=shake>0?`translate(${(Math.random()-.5)*shake}px,${(Math.random()-.5)*shake}px)`:'';if(shake>0)shake--}
@@ -1987,9 +1987,11 @@ function dropSlot(b,i){const q=b.inv&&b.inv[i];if(!q)return;if(q.rd===true){cons
 {const st=document.createElement('style');st.textContent='div#sm{border:0;min-height:100vh;display:flex;flex-direction:column}#sm div.main{grid-template-columns:minmax(0,1fr) 344px;flex:1;min-height:0}#sm div.view{background:#000;position:relative;overflow:hidden;padding:0;border-right:1px solid #000}#sm div.stage{position:absolute}#sm div.side{max-height:none;background:#0a0a0a}#sm div.stage{box-shadow:0 0 0 1px #000}';document.head.appendChild(st)}
 let cam={x:0,y:0},camInit=true,pan=null,panKey=false;
 function fit(){const v=$('stage').parentElement,used=document.querySelector('#sm header').offsetHeight+$('bar').offsetHeight+$('hint').offsetHeight;v.style.height=Math.max(320,window.innerHeight-used)+'px';{const sd=document.querySelector('#sm .side');sd.style.height=v.style.height;sd.style.maxHeight=v.style.height;sd.style.overflowY='auto'}const aw=v.clientWidth-56,ah=v.clientHeight-56;let k=Math.min(aw/W,ah/H);k=k>=3?Math.floor(k):k>=2?Math.floor(k*4)/4:2.5;S=k;stage.style.width=W*S+'px';stage.style.height=H*S+'px';cv.style.width=W*S+'px';cv.style.height=H*S+'px';applyCam()}
-var CAMF=false;// following a driven unit: no edge clamp, the map's surround is black anyway
+var CAMF=false,VIEWR=null,VWH=null;// VIEWR: the board rect on screen, from the viewport size kept by applyCam
+const offView=(x,y,m)=>VIEWR&&(x<VIEWR[0]-m||y<VIEWR[1]-m||x>VIEWR[2]+m||y>VIEWR[3]+m);
+// following a driven unit: no edge clamp, the map's surround is black anyway
 function applyCam(){const v=$('stage').parentElement,vw=v.clientWidth,vh=v.clientHeight,sw=W*S,sh=H*S;if(camInit){cam.x=curMap==="range"?0:(vw-sw)/2;cam.y=curMap==="range"?0:vh-sh-28;camInit=false}
- const cx=CAMF?cam.x:sw+56<=vw?(vw-sw)/2:Math.min(28,Math.max(vw-sw-28,cam.x)),cy=CAMF?cam.y:sh+56<=vh?(vh-sh)/2:Math.min(28,Math.max(vh-sh-28,cam.y));cam.x=cx;cam.y=cy;stage.style.left=cx+'px';stage.style.top=cy+'px'}
+ const cx=CAMF?cam.x:sw+56<=vw?(vw-sw)/2:Math.min(28,Math.max(vw-sw-28,cam.x)),cy=CAMF?cam.y:sh+56<=vh?(vh-sh)/2:Math.min(28,Math.max(vh-sh-28,cam.y));cam.x=cx;cam.y=cy;stage.style.left=cx+'px';stage.style.top=cy+'px';VWH=[vw,vh]}
 window.addEventListener('resize',fit);setTimeout(fit,0);setTimeout(fit,400);
 let AMB=1;let LR=new Float32Array(NB),LG=new Float32Array(NB),LB=new Float32Array(NB),LT=new Float32Array(NB);let tls=[];
 function flash(x,y,r,g,b,i,rad,d){if(BLU&&b>=r&&b>g)[r,g]=[g,r];tls.push({x,y,r,g,b,i,rad,d})}
@@ -2000,7 +2002,7 @@ function lightPass(){if(PBX){const[x0,y0,x1,y1]=PBX;for(let Y=y0;Y<=y1;Y++){cons
  for(let i=0;i<NB;i++){const v=Math.max(FX.fire[i],TF[i],FH[i]*.6);if(v>.05){const f=Math.min(1.2,v)*1.7*(.85+.15*Math.sin(tick*.3+i));LR[i]+=f;LG[i]+=f*.5;LB[i]+=f*.16;any=true;lbx(i%BW,i/BW|0)}}
  for(const p of parts){const c=p.c,l=(c&255)+(c>>8&255)+(c>>16&255);if(l<420)continue;let k=p.life!==undefined?1:p.em!==undefined?p.em/p.em0:0;if(k<=0)continue;const q=(p.y>>1)*BW+(p.x>>1);if(q<0||q>=NB)continue;lbx(p.x>>1,p.y>>1);k*=1.1;LR[q]+=(c&255)/255*k;LG[q]+=(c>>8&255)/255*k;LB[q]+=(c>>16&255)/255*k;any=true}
  for(const z of zaps){addL(z.x1,z.y1,z.b?.45:.75,z.b?.75:.45,1,.8);any=true}
- const pul=.85+.15*Math.sin(tick*.12);for(const b of bodies){if(unseen(b))continue;if(b.kind==='arc'){addL(b.x,b.y,.62,.66,1,1.6);any=true}else if(b.kind==='sspear'&&!b.spent){const[x,y]=spearTip(b);addL(x,y,.62,.66,1,b.timer>0?.6+.7*(1-b.timer/b.timer0):b.fizz>0?.3+.4*b.fizz/150:.9*pul,2);any=true}
+ const pul=.85+.15*Math.sin(tick*.12);for(const b of bodies){if(unseen(b))continue;if(b.kind==='arc'){addL(b.x,b.y,.62,.66,1,1.6);any=true}else if(b.kind==='sspear'&&!b.spent&&!(b.att&&!(b.timer>0)&&!(b.fizz>0))){const[x,y]=spearTip(b);addL(x,y,.62,.66,1,b.timer>0?.6+.7*(1-b.timer/b.timer0):b.fizz>0?.3+.4*b.fizz/150:.9*pul,2);any=true}
   else if(b.type==='token'&&b.held&&b.held.k==='rod'&&(b.held.heat||0)>.15&&b.status!=='dead'){const t=tipOf(b),h=b.held.heat;addL(t[0],t[1],1,.6+Math.min(.35,h*.3),.28+Math.max(0,h-.7)*.6,h*1.3,1.5+h);any=true}
   else if(b.type==='token'&&b.held&&b.held.k==='sspear'&&!b.held.spent&&b.status!=='dead'){const t=tipOf(b),h=b.held.heat||0;addL(t[0],t[1],.62,.66,1,pul*.7+h*1.3,2+h*1.5);any=true}
   if(b.kind==='rodp'&&b.glw>.05){addL(b.x,b.y,1,.6,.28,b.glw*1.3,2);any=true}if(b.surge>0){addL(b.x,b.y,.5,.75,1,(1-b.surge/240)*2,4);any=true}if(b.burn>.04){addL(b.x,b.y,1,.6,.25,b.burn*.8,3);any=true}}
@@ -2948,6 +2950,9 @@ function cleanTick(){for(let i=VP.length-1;i>=0;i--){const p=VP[i],dx=mouse.x-p.
   for(let Y=Math.floor(my-R);Y<=my+R;Y++)for(let X=Math.floor(mx-R);X<=mx+R;X++){if(X<0||Y<0||X>=W||Y>=H||Math.hypot(X-mx,Y-my)>R)continue;const j=Y*W+X;{const q=(Y>>1)*BW+(X>>1);if(FH[q]>0||WH[j]>0){if(FH[q]>.02||WH[j]>.02)fire++;FH[q]=0;WH[j]=0;did=true;fxDirty=true}}if(sol[j]||PR.sol[j])continue;
    if(!SCH[j]){}else if(OBJ[j]&&PR.OBJ[j]){if(OBJC[j]!==PR.OBJC[j]){OBJC[j]=chDiff(OBJC[j],PR.OBJC[j])<10?PR.OBJC[j]:mix(OBJC[j],PR.OBJC[j],.3);did=true}}else if(!OBJ[j]&&!DMG[j]&&floor[j]!==PR.floor[j]){floor[j]=chDiff(floor[j],PR.floor[j])<10?PR.floor[j]:mix(floor[j],PR.floor[j],.3);if(floor[j]===PR.floor[j]){GT[j]=PR.GT[j];SCH[j]=0}did=true}
    const q=(Y>>1)*BW+(X>>1);if(FX.fire[q]>.02||TF[q]>.02)fire++;if(FX.fire[q]>0||FX.smoke[q]>0||TF[q]>0){FX.fire[q]=0;TF[q]=0;FX.smoke[q]*=.5;did=true;fxDirty=true}if(FX.blood[q]>0||BURN[q]>0){FX.blood[q]*=.55;BURN[q]*=.55;if(FX.blood[q]<.03)FX.blood[q]=0;if(BURN[q]<.03)BURN[q]=0;did=true;fxDirty=true}}
+  // carriers lose their soot under it, troops the soot on their armour
+  for(const v of VEH){if(Math.hypot(v.x-mx,v.y-my)>VC.L*.6+R)continue;vRoofAt(v,mx,my,R+2,i=>{if(v.rs[i]>0){v.rs[i]=v.rs[i]<.04?0:v.rs[i]*.55;did=true}})}
+  for(const b of bodies){const ms=b.wear&&b.wear.marks;if(!ms||Math.hypot(b.x-mx,b.y-my)>R+8)continue;for(const m of ms.soot)if(m[3]>0){m[3]=m[3]<.06?0:m[3]*.55;did=true}b.wear.v=(b.wear.v||0)+1}
   if(fire)douse(mx,my,R,fire);scrub();if(!did){squeak();return}const c0=Math.floor((mx-R)/T),c1=Math.floor((mx+R)/T),r0=Math.floor((my-R)/T),r1=Math.floor((my+R)/T);
   for(let cy=r0;cy<=r1;cy++)for(let cx=c0;cx<=c1;cx++){if(cx<0||cy<0||cx>=CW||cy>=CH)continue;const id=cy*CW+cx;if(stainBad(cx,cy))CL.dirty.add(id);else if(CL.dirty.has(id)){CL.dirty.delete(id);squeak(true);sparkle(cx,cy,5)}}}}
 function cleanDown(k,e){const[x,y]=toBoard(e);if(k==='wand'){CL={k,cells:[],seen:new Set()};wandAdd(x/T|0,y/T|0);return}CL={k,lx:-99,ly:-99,dirty:new Set()};if(k==='vac')vacOn()}
@@ -3199,7 +3204,7 @@ const vSeatOf=t=>{for(const v of VEH){const i=v.seats.indexOf(t);if(i>=0)return[
 // drawing: the floor layer under units, the roof and mist over them; supersampled 2x2 when turned
 function vBake(v){for(const t of v.px)if(t.s&&t[3]<t.s[3])t.s[3]=t[3];const n=VC.LW*VC.H;v.bk=(v.bk||0)+1;v.L0=new Uint32Array(n);v.L1=new Uint32Array(n);v.L2=new Uint32Array(n);v.trk=[];
  for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx,q=v.smap.get(K(lx,ly));if(q&&!q.dead&&(q[7]==='T'||q[7]==='B'))v.trk.push(i,lx,ly,q[7]);const a=vFloorPx(v,lx,ly),r=vRoofPx(v,lx,ly,true),w=vRoofPx(v,lx,ly,false);v.L0[i]=a?a|0xff000000:0;v.L1[i]=r?r|0xff000000:0;v.L2[i]=w?w|0xff000000:0}v.dirty=0;v.fz=v.fuse?(tick>>2)%2:0}
-function vDraw(top){for(const v of VEH){if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!==v.fz)vBake(v);
+function vDraw(top){for(const v of VEH){if(offView(v.x,v.y,VC.L))continue;if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!==v.fz)vBake(v);
   if(!top){const t=v.trk;for(let k=0;k<t.length;k+=4){const c=vTrack(v,t[k+1],t[k+2],t[k+3]);v.L0[t[k]]=v.dead?vChar(c,t[k+1],t[k+2],v)|0xff000000:c|0xff000000}}
   if(!top)vOver(v);const LD=top?null:v.LD,L=top?(vRoof(v)?v.L1:v.L2):v.L0,c=Math.cos(v.ang),s=Math.sin(v.ang),LW=VC.LW,LH=VC.H;
   // the sampled footprint and its shadow are kept until the pose, the bake, the tracks or the overlay change
