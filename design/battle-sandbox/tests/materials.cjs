@@ -5,7 +5,7 @@ const fs=require('fs'),path=require('path'),SRC=path.join(__dirname,'../src');
 const RULES=[['class number',/(?:sol\[[^\]]*\]|\.mat\b|\bmx\b|\bpm\b|\bm\b)\s*[!=]==\s*[1-4]\b/g],['element branch',/[!=]==\s*'(?:Stone|Wood|Metal|Cloth|Earth)'|'(?:Stone|Wood|Metal|Cloth|Earth)'\s*[!=]==/g],['surface sound',/'(?:stonehit|woodhit|mhit|rustle|rico|ricos|chink)'/g]];
 const SKIP=new Set(['materials.js','sounds.js','space.js','tiles.js','countmap.js']);
 const ALLOW={// file:function rule → phase
- 'sim.js:heatMark class number':3,'sim.js:arcHit class number':3,
+ 'sim.js:arcHit class number':3,
  'sim.js:slabPix class number':5,'sim.js:barricade class number':5,
  'sim.js:scorchT element branch':3,'sim.js:glowC element branch':3,'sim.js:crater element branch':3,'sim.js:blastWear element branch':3,
  'sim.js:blastSoft element branch':3,'sim.js:explode element branch':3,'sim.js:ladL element branch':3,
