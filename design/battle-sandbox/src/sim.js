@@ -1713,6 +1713,7 @@ window.addEventListener('pointerup',e=>{holdFire=false;if(pan){pan=null;return}i
  if(sp>1.4){if(sp>max){vx*=max/sp;vy*=max/sp}sfx('whoosh');b.vx=vx;b.vy=vy;b.thrown=true;if(b.type==='weapon')reshape(b,Math.atan2(vy,vx))}});
 window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase();if(k===' '){if(![...sel].some(o=>o.direct))panKey=true;e.preventDefault();return}
  if(k==='z'){if(!e.repeat)toggleSlow();return}
+ if(k==='x'){if(!e.repeat)vKeyX();return}
  if(k==='v'){if(!e.repeat&&vKeyV())return;if(!e.repeat)lookGive([...sel].filter(canOrder),mouse.x,mouse.y,e.shiftKey);return}
  if(k==='shift'){if(!e.repeat)dash();return}
  if(k==='c'){if(!e.repeat)for(const b of sel)if(b.type==='token'&&b.status==='free'){b.crouch=true;b.pc=true}return}

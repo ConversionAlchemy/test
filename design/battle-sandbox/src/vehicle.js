@@ -71,13 +71,21 @@ function vUnmark(v){const bx=Math.round(v.x),by=Math.round(v.y);for(const p of v
 // a hit pixel gives its damage back to the hull's own pixel; the core going breaks the engine
 function vSettle(v){for(const t of v.px){if(!t.s)continue;if(t[3]<t.s[3])t.s[3]=t[3];if(!v.set.has(K(t[0],t[1]))){t.s.dead=1;if(t.e)vBreach(v)}}v.px=v.px.filter(p=>!p.s.dead);mkSet(v);v.dirty=1}
 function vBreach(v){if(v.fuse||v.dead)return;v.fuse=150;sfx('sizzle');sfx('crack');vCharge(v)}
-// a breached core winds up: a whine climbing in pitch with a quickening tremolo, crackling as it goes
-function vCharge(v){if(!AC||mute||!gest)return;const me=[...sel].find(b=>b.type==='token'),d=me?Math.hypot(me.x-v.x,me.y-v.y):120,vol=.5*Math.min(1,70/(d+40)),t=AC.currentTime+.02,D=150/60;
- const o=AC.createOscillator(),o2=AC.createOscillator(),g=AC.createGain(),tr=AC.createGain(),lf=AC.createOscillator(),lg=AC.createGain(),f=AC.createBiquadFilter();o.type='sawtooth';o2.type='square';f.type='bandpass';f.Q.value=2;
- o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(1900,t+D);o2.frequency.setValueAtTime(143,t);o2.frequency.exponentialRampToValueAtTime(1920,t+D);f.frequency.setValueAtTime(400,t);f.frequency.exponentialRampToValueAtTime(3600,t+D);
- lf.frequency.setValueAtTime(5,t);lf.frequency.exponentialRampToValueAtTime(34,t+D);lg.gain.value=.45;tr.gain.value=.55;lf.connect(lg).connect(tr.gain);
- g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol*.6,t+.4);g.gain.exponentialRampToValueAtTime(vol,t+D-.05);g.gain.exponentialRampToValueAtTime(.0001,t+D+.05);
- o.connect(f);o2.connect(f);f.connect(tr).connect(g).connect(MS);for(const x of[o,o2,lf]){x.start(t);x.stop(t+D+.1)}}
+// recorded clips decoded once
+const VCLIP={};function vClip(k){if(VCLIP[k])return VCLIP[k];const s=atob(SND64[k][0]),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);const dv=new DataView(u.buffer),n=(u.length-44)/2,b=AC.createBuffer(1,n,dv.getUint32(24,true)),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=dv.getInt16(44+i*2,true)/32768;return VCLIP[k]=b}
+// a breached core winds up: the turning drive drone climbing slowly then faster to an octave up, a second drone a shade off beating against it,
+// and the fat recorded rumble swelling underneath, all held to the blast
+function vCharge(v){if(!AC||mute||!gest)return;const me=[...sel].find(b=>b.type==='token'),d=me?Math.hypot(me.x-v.x,me.y-v.y):120,vol=.8*Math.min(1,70/(d+40)),t=AC.currentTime+.02,D=150/60,ac=AC,dst=MS,g=x=>{const n=ac.createGain();n.gain.value=x;return n};
+ const ss=g(.5),sd=ac.createOscillator(),sg=g(.5);sd.frequency.value=13.1;sd.connect(sg).connect(ss.gain);const dg=g(0);ss.connect(dg).connect(dst);const wv=vEngWave(ac,VENG.drive);
+ const pts=40,curve=new Float32Array(pts);for(let i=0;i<pts;i++){const u=i/(pts-1);curve[i]=13.65*Math.pow(2,u*u)}
+ const mk=(det,amp)=>{const o=ac.createOscillator();o.setPeriodicWave(wv);o.frequency.setValueCurveAtTime(curve.map(f=>f*det),t,D);const k=g(amp);o.connect(k).connect(ss);o.start(t);o.stop(t+D+.1);return k};
+ mk(1,1);const b=mk(1.012,0);b.gain.setValueAtTime(0,t);b.gain.linearRampToValueAtTime(.7,t+D);
+ dg.gain.setValueAtTime(.0001,t);dg.gain.exponentialRampToValueAtTime(vol*.35,t+.3);dg.gain.exponentialRampToValueAtTime(vol*.85,t+D);dg.gain.setValueAtTime(vol*.85,t+D);dg.gain.exponentialRampToValueAtTime(.0001,t+D+.08);sd.start(t);sd.stop(t+D+.1);
+ const rb=ac.createBufferSource();rb.buffer=vClip('vcore');rb.playbackRate.setValueAtTime(1,t);rb.playbackRate.linearRampToValueAtTime(1.12,t+D);const rg=g(0);rb.connect(rg).connect(dst);rg.gain.setValueAtTime(.0001,t);rg.gain.exponentialRampToValueAtTime(vol*.25,t+.3);rg.gain.exponentialRampToValueAtTime(vol*.8,t+D);rg.gain.setValueAtTime(vol*.8,t+D);rg.gain.exponentialRampToValueAtTime(.0001,t+D+.08);rb.start(t);rb.stop(t+D+.1)}
+// the alarm bell: the recorded bell's ring looped a touch lower, easing in and out
+function vBell(ac,dst){const s=ac.createBufferSource();s.buffer=vClip('vbell');s.loop=true;s.playbackRate.value=.9*.96;const out=ac.createGain();out.gain.value=.0001;const sh=ac.createWaveShaper(),cv=new Float32Array(1024);for(let i=0;i<1024;i++){const x=i/511.5-1;cv[i]=Math.tanh(x*1.6)/Math.tanh(1.6)}sh.curve=cv;s.connect(out).connect(sh).connect(dst);s.start();
+ const go=(on,T)=>{const t=ac.currentTime,p=s.playbackRate;p.cancelScheduledValues(t);p.setValueAtTime(p.value,t);p.setTargetAtTime(on?.9:.9*.94,t,T/3);out.gain.cancelScheduledValues(t);out.gain.setValueAtTime(Math.max(.0001,out.gain.value),t);out.gain.setTargetAtTime(on?.85:0,t,T/3.5)};
+ return{on(){go(true,1)},off(){go(false,1.4)},stop(){try{s.stop(ac.currentTime+1.6)}catch(e){}}}}
 const vInside=(v,lx,ly)=>lx>=VC.X0-1&&lx<VC.X0+VC.IL+1&&ly>=VC.R0-1&&ly<VC.R0+VC.IH+1;
 const vAt=(X,Y)=>VEH.find(v=>{const[lx,ly]=vW2L(v,X+.5,Y+.5);return lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H});
 const vSeatOf=t=>{for(const v of VEH){const i=v.seats.indexOf(t);if(i>=0)return[v,i]}return null};
@@ -121,6 +129,7 @@ function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==
 // the roof hides the crew unless a selected unit is aboard (V switches back to the roof)
 function vRoof(v){for(const t of sel)if(t.type==='token'&&vHas(v,t))return!!v.ext;return true}
 // V from a seat: switch between seeing the interior and the roof
+function vKeyX(){const t=[...sel].find(b=>b.type==='token'&&b.vseat);if(!t||t.vseat.seats[0]!==t||t.vseat.dead)return false;t.vseat.bell=!t.vseat.bell;sfx('flick');return true}
 function vKeyV(){const t=[...sel].find(b=>b.type==='token'&&b.vseat);if(!t)return false;t.vseat.ext=!t.vseat.ext;sfx('flick');return true}
 function vHas(v,t){if(v.seats.includes(t))return true;const[lx,ly]=vW2L(v,t.x,t.y);return vInside(v,lx,ly)}
 
@@ -206,7 +215,7 @@ function vLabels(){for(const v of VEH){if(!vRoof(v))continue;for(const t of bodi
 
 // the engine goes: a short fuse of sparks and smoke, then a heavy blast; the hull is left a burnt shell
 // the core goes: a torn hole with smooth lobes and a bright bent lip; round it the metal is tempered straw to blue and aged, fading out
-function vBlow(v){const ex=VC.XST+8,ey=VC.RC[2]+.5,[gx,gy]=vL2W(v,ex,ey),RH=19;v.dead=true;v.on=0;v.sp=v.w=0;v.burnT=tick;v.hole=[ex,ey];for(const t of v.seats)if(t){t.vseat=null}v.seats.fill(null);
+function vBlow(v){v.bell=false;const ex=VC.XST+8,ey=VC.RC[2]+.5,[gx,gy]=vL2W(v,ex,ey),RH=19;v.dead=true;v.on=0;v.sp=v.w=0;v.burnT=tick;v.hole=[ex,ey];for(const t of v.seats)if(t){t.vseat=null}v.seats.fill(null);
  const sd=Math.random()*999|0,ox=(Math.random()-.5)*6,oy=(Math.random()-.5)*4,lobe=k=>hh(k,0,sd),N=7,rag=(x,y)=>{const a=(Math.atan2(y-ey-oy,x-ex-ox)/6.283+.5)*N,i=Math.floor(a),f=a-i,u=f*f*(3-2*f),sm=lobe(i%N)*(1-u)+lobe((i+1)%N)*u;return RH*(.6+.6*sm)+hh(x>>1,y>>1,sd)*1.2},
   edge=(x,y)=>Math.hypot(x-ex-ox,y-ey-oy)-rag(x,y);
  for(const q of v.src){const e=edge(q[8],q[9]);if(q[7]==='e'||e<0){q.dead=1;continue}if(e<1.5)q.lip=1;q.tm=Math.max(q.tm||0,Math.min(.85,.9*(1-e/16)));q.wr=Math.max(q.wr||0,4.4*Math.max(0,1-e/24))}
@@ -277,10 +286,11 @@ function vShutdown(ac,dst){const t=ac.currentTime+.02;vClick(ac,dst,t,2700,.4);v
 
 // each running carrier has its own engine voice, placed by distance and side from the listener, muffled through walls and from inside
 const VSND=new Map();
-function vSound(){const ok=AC&&!mute&&gest;for(const[id,s]of VSND){const v=VEH.find(q=>q.id===id);if(!ok||!v||v.dead||!v.on&&s.e.st.up<.01&&tick-s.offT>200){s.e.stop();setTimeout(()=>{try{s.g.disconnect()}catch(e){}},600);VSND.delete(id)}}if(!ok)return;
+function vSound(){const ok=AC&&!mute&&gest;for(const[id,s]of VSND){const v=VEH.find(q=>q.id===id);if(!ok||!v||v.dead||!v.on&&s.e.st.up<.01&&tick-s.offT>200){s.e.stop();if(s.bell){s.bell.off();s.bell.stop()}setTimeout(()=>{try{s.g.disconnect()}catch(e){}},1800);VSND.delete(id)}}if(!ok)return;
  const me=[...sel].find(b=>b.type==='token'),vw=$('stage').parentElement,lx=me?me.x:(vw.clientWidth/2-cam.x)/S,ly=me?me.y:(vw.clientHeight/2-cam.y)/S;
  for(const v of VEH){if(v.dead)continue;let s=VSND.get(v.id);if(!s){if(!v.on)continue;const g=AC.createGain(),p=AC.createStereoPanner(),f=AC.createBiquadFilter();f.type='lowpass';g.gain.value=0;g.connect(p).connect(f).connect(MS);s={g,p,f,e:vEngine(AC,g),on:1};VSND.set(v.id,s);if(tick-v.onT<VIGN)vIgnite(AC,g)}
   if(s.on&&!v.on){s.on=0;s.offT=tick;vShutdown(AC,s.g)}else if(!s.on&&v.on){s.on=1;vIgnite(AC,s.g)}
+  const bw=!!(v.bell&&v.on&&!v.dead);if(bw!==!!s.bellOn){if(!s.bell)s.bell=vBell(AC,s.g);s.bellOn=bw;bw?s.bell.on():s.bell.off()}
   const d=Math.hypot(v.x-lx,v.y-ly),inn=me&&vHas(v,me),los=inn||losClear(lx,ly,v.x,v.y),t=AC.currentTime;s.e.st.on=v.on&&tick-v.onT>=VIGN?1:0;s.e.st.load=Math.min(1,Math.abs(v.sp)/.378);s.e.st.turn=Math.max(Math.min(1,Math.abs(v.w)/.0028),v.tin?.55:0);s.e.st.near=Math.max(0,1-d/160);
   s.g.gain.setTargetAtTime(.75*Math.min(1,70/(d+40)),t,.1);s.p.pan.setTargetAtTime(inn?0:Math.max(-.7,Math.min(.7,(v.x-lx)/220)),t,.1);s.f.frequency.setTargetAtTime(inn?1400:los?7000:900,t,.15);s.e.frame(2/60)}}
 
@@ -295,7 +305,7 @@ function vMenu(v,e){closeMenu();const r=$('sm').getBoundingClientRect();menu=doc
 var VHB=null,VHK='';
 function vHints(){const t=sel.size===1&&[...sel][0],on=t&&t.type==='token'&&t.direct&&t.status==='free'&&!EM;let L=[];
  if(on){const s=vSeatOf(t),h=t.held,gun=h&&CAP[h.k],thr=h&&(h.k==='grenade'||h.k==='bomb');
-  if(s&&s[1]===0)L=[['W S','drive'],['A D','turn'],['V','view'],['G','ignition off']];
+  if(s&&s[1]===0)L=[['W S','drive'],['A D','turn'],['X',s[0].bell?'alarm off':'alarm on'],['V','view'],['G','ignition off']];
   else if(s)L=[['V','view'],['G','get up']];
   else{L=[['WASD','move'],['Shift','dash'],['C','crouch']];{const n=vNearSeat(t);if(n)L.push(['G',n[1]===0?'ignition on':'sit'])}
    if(gun)L.push(['Hold','fire'],['R','reload'],['Q','sheathe']);else if(thr)L.push(['Hold','throw'],['Q','sheathe']);else if(h)L.push(['Hold','attack'],['Q','sheathe']);else if(t.inv&&t.inv.some(Boolean))L.push(['Q','draw']);
