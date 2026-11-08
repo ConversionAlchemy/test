@@ -3271,7 +3271,7 @@ function vHedges(v){const now=new Set(),R=80,cx0=Math.max(0,(v.x-R)>>4),cx1=Math
 
 // boarding and leaving: units walk set waypoints through the rear doors to a seat, or out behind the carrier
 function vFree(v,role){const res=new Set(bodies.filter(t=>t.vwalk&&t.vwalk.v===v).map(t=>t.vwalk.i));for(let i=0;i<VSEATS.length;i++)if(!v.seats[i]&&!res.has(i)&&(role?VSEATS[i][3]===role:VSEATS[i][3]==='p'))return i;return -1}
-function vBoard(v,t,i){if(i===undefined)i=vFree(v);if(i<0)return false;const[sx]=VSEATS[i],front=i<2,path=[[VC.L+14,VC.CY],[VC.L-14,VC.CY]];if(front)path.push([VC.XP+12,VC.CY],[VC.XP-6,VC.CY],[12.5,VC.CY]);else path.push([sx+.5,VC.CY]);path.push(vSit(i));t.vwalk={v,i,path,k:0,T:0,o:tick};t.ord=null;return true}
+function vBoard(v,t,i){if(i===undefined){i=vFree(v);if(i<0)i=[1,0].find(k=>!v.seats[k]&&!bodies.some(o=>o.vwalk&&o.vwalk.v===v&&o.vwalk.i===k))??-1}if(i<0)return false;const[sx]=VSEATS[i],front=i<2,path=[[VC.L+14,VC.CY],[VC.L-14,VC.CY]];if(front)path.push([VC.XP+12,VC.CY],[VC.XP-6,VC.CY],[12.5,VC.CY]);else path.push([sx+.5,VC.CY]);path.push(vSit(i));t.vwalk={v,i,path,k:0,T:0,o:tick};t.ord=null;return true}
 function vSeatNow(v,t,i){v.seats[i]=t;t.vseat=v;t.vwalk=null;t.ord=null;t.mw=null;t.glide=null;if(t.held){t.psi=t.si;t.si=-1;t.held=null;t.hc=null}vPin(v);if(i===0)v.offT=0;sfx('flick')}
 function vStand(v,t,out){const i=v.seats.indexOf(t);if(i<0)return;if(sel.has(t))v.ext=false;v.seats[i]=null;t.vseat=null;const front=i<2,sx=VSEATS[i][0]+.5;
  if(out){const path=front?[[12.5,VC.CY],[VC.XP-6,VC.CY],[VC.XP+12,VC.CY]]:[[sx,VC.CY]];const sp=v.seats.filter(Boolean).length+bodies.filter(o=>o.vwalk&&o.vwalk.v===v).length,side=sp%2?1:-1;path.push([VC.L-14,VC.CY],[VC.L+18,VC.CY],[VC.L+30+Math.random()*16,VC.CY+side*(10+Math.random()*26)]);t.vwalk={v,i:-1,path,k:0,T:0,o:tick*100-sx};return}
@@ -3281,7 +3281,7 @@ function vUnload(v){v.seats.forEach((t,i)=>{if(t&&i>1)vStand(v,t,true)})}
 function vWalkers(v){const ws=bodies.filter(t=>t.vwalk&&t.vwalk.v===v).sort((a,b)=>a.vwalk.o-b.vwalk.o);for(const t of ws){const w=t.vwalk;if(w.go)continue;const[ax,ay]=vL2W(v,...w.path[0]);if(ws.every(o=>!o.vwalk.go||o.vwalk.k>=1&&Math.hypot(o.x-ax,o.y-ay)>=18))w.go=true;else break}
  for(const t of ws){const w=t.vwalk;if(!w||!w.go)continue;if(t.status!=='free'){t.vwalk=null;continue}const[lx,ly]=w.path[w.k],[gx,gy]=vL2W(v,lx,ly);moveToward(t,t.x+Math.max(-.8,Math.min(.8,gx-t.x)),t.y+Math.max(-.8,Math.min(.8,gy-t.y)));t.mv=6;turnTo(t,Math.atan2(gy-t.y,gx-t.x));
   if(Math.hypot(gx-t.x,gy-t.y)<1.6){w.k++;w.T=0;if(w.k>=w.path.length){t.vwalk=null;if(w.i>=0&&!v.seats[w.i])vSeatNow(v,t,w.i)}}else if(++w.T>240){t.vwalk=null;if(w.i>=0&&t.vstage)t.vboard=v}}
- for(const t of bodies)if(t.vboard===v&&!t.vwalk){const[gx,gy]=vL2W(v,...t.vstage);if(Math.hypot(gx-t.x,gy-t.y)<14){t.vboard=null;t.ord=null;if(!vBoard(v,t))say(t,'No room',true)}else if(!t.ord&&tick%30===0)ordGive([t],gx,gy)}}
+ for(const t of bodies)if(t.vboard===v&&!t.vwalk){const[gx,gy]=vL2W(v,...t.vstage);if(Math.hypot(gx-t.x,gy-t.y)<20){t.vboard=null;t.ord=null;if(!vBoard(v,t))say(t,'No room',true)}else if(!t.ord&&tick%30===0)ordGive([t],gx,gy)}}
 // boarders wait at their own spot behind the carrier, clear of the doorway, until the aisle is free
 function vSendAboard(v,g){let j=0;for(const t of g){if(t.type!=='token'||t.status!=='free'||vSeatOf(t))continue;const r=j>>1,sd=j%2?1:-1;j++;t.vstage=[VC.L+26+(r>>1)*16,VC.CY+sd*(20+(r%2)*16)];const[gx,gy]=vL2W(v,...t.vstage);t.vboard=v;t.direct=false;ordGive([t],gx,gy)}}
 
@@ -3421,9 +3421,9 @@ NBM.circuit=()=>{UND=Array.from({length:48},()=>Array(64).fill('grass'));const r
   if((cx===27||cx===37)&&cy>=14&&cy<=15||cx===48&&cy>=22&&cy<=23)return'stone.grey.block.w';
   return'grass'})};
 NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
- carrier('iron',41*T,41.5*T,P,'Imperium');carrier('iron',47*T,41.5*T,P,'Imperium');const v=carrier('steel',53*T,41.5*T,P,'Imperium');
+ carrier('iron',41*T,39*T,P,'Imperium');carrier('iron',47*T,39*T,P,'Imperium');const v=carrier('steel',53*T,39*T,P,'Imperium');
  vSeatNow(v,U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer'),1);['Brask','Coll','Dunn','Ivo','Hale','Marl','Rook','Tobin'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<3?'guard':'rifle',0,0,0),2+i));
- U('Legate Varro','Imperium','civ',55.6,38,A,'pistol','Officer');
+ U('Legate Varro','Imperium','civ',56.6,44,A,'pistol','Officer');
  // the inspection line along the stand's front, facing the circuit
  [['Lord Castor','Imperial Noble'],['Lady Ysolde','Imperial Noble'],['Lord Aemon','Imperial Noble'],['Overseer Malcor','Overseer'],['Legate Thane','Officer'],['Tribune Corvin','Officer'],['Ser Davin','Officer']].forEach(([n,l],i)=>U(n,'Imperium','civ',17.5+i*2.2,39.2,A,l==='Officer'?'pistol':null,l));
  ['Pell','Wat','Ned','Orrin'].forEach((n,i)=>U(n,'Imperium',i===3?'guard':'rifle',18.5+i*4,43.5,A,i===3?'rod':undefined));
