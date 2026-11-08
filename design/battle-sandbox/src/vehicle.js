@@ -109,7 +109,9 @@ function vDraw(top){for(const v of VEH){if(offView(v.x,v.y,VC.L))continue;if(!v.
    if(!n)continue;M[(Y-by)*mw+X-bx]=1;D.J.push(Y*W+X);D.C.push(rgb(r/n|0,g/n|0,b/n|0));D.A.push(n/ns)}
   if(!top)for(let Y=by;Y<=ey;Y++)for(let X=bx;X<=ex;X++){const i=(Y-by)*mw+X-bx;if(M[i]||sol[Y*W+X])continue;const m=(x,y)=>x>=0&&y>=0&&M[y*mw+x],x=X-bx,y=Y-by;
    const k=m(x-1,y)||m(x,y-1)?.62:m(x-2,y)||m(x,y-2)||m(x-1,y-1)?.74:m(x-3,y)||m(x,y-3)||m(x-2,y-1)||m(x-1,y-2)?.87:0;if(k){D.SJ.push(Y*W+X);D.SK.push(k)}}}
-  for(let i=0;i<D.J.length;i++){const j=D.J[i],a=D.A[i];out[j]=a===1?D.C[i]:mix(out[j],D.C[i],a)}
+  // roofs draw dimmed: the roof lights up under the cursor with Alt held (to lob onto it) and for a unit aboard looking out
+  const dim=top&&L===v.L1&&!(LOBK&&vCur(v))&&![...sel].some(t=>t.type==='token'&&vHas(v,t));
+  for(let i=0;i<D.J.length;i++){const j=D.J[i],a=D.A[i],cc=dim?mul(D.C[i],.6):D.C[i];out[j]=a===1?cc:mix(out[j],cc,a)}
   for(let i=0;i<D.SJ.length;i++){const j=D.SJ[i];out[j]=mul(out[j],D.SK[i])}
   if(!top){vGlow(v);for(const b of bodies)if((b.stuck&&!b.att||b.fallen)&&b.type!=='slab'&&vNear(v,b))drawBody(b)}
   if(top)vPuffs(v,L===v.L1)}}
