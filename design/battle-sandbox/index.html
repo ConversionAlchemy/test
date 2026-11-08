@@ -733,7 +733,7 @@ let HALFF='dirt';
 function paintCell0(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;key=modK(key);map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(undAt(cx,cy)||HALFF,cx,cy):null,m=WMAT[bk]||0,hpK=CATN[bk]?mprop(CATN[bk][0],CATN[bk][1]).hp:(MAT[m]||{}).hp,gk=CATN[bk]&&CATN[bk][0]==='Stone'&&CATN[bk][1]==='gold'?1:0,ud=m&&undAt(cx,cy)?tilePix(undAt(cx,cy),cx,cy):null;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&(hv==='H'?x>=T/2:hv==='N'?y>=T/2:y<T/2),c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=NODK.has(bk)?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
-let curMap='yard',VEH=[],VOB=null;
+let curMap='circuit',VEH=[],VOB=null;
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
 function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
@@ -3132,7 +3132,7 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
  {const vt=tilePix('metal.steel.louvre.w',0,0);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const i=(y*16+x)*4;Rf(XST+x,R0+IH-16+y,vtone(mat,rgb(vt[i],vt[i+1],vt[i+2])))}}
  v.base=base;v.roofL=roof;v.src=src;v.smap=smap}
 
-function carrier(mat,x,y,ang,nat){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',mat:DOORK[mat||'steel'][1],nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,acc:0,alp:0,hov:new Set(),offT:0,puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);return v}
+function carrier(mat,x,y,ang,nat){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',mat:DOORK[mat||'steel'][1],nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,offT:999,acc:0,alp:0,hov:new Set(),puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);return v}
 // its doors are the game's own doors, riding on the hull: rear double doors part to the sides, the cockpit door slides into the bulkhead
 const VIGN=21;
 const VDOORS=[[VC.L-9,VC.CY-16,Math.PI/2],[VC.L,VC.CY+15,-Math.PI/2],[VC.XP-1,VC.CY-8,Math.PI/2]];
@@ -3408,8 +3408,31 @@ NUM.yard=()=>{const v=carrier('steel',15*T,14*T,0,'Imperium');const g=[U('Legate
  carrier('iron',15*T,6*T,0,'Imperium');
  U('Ser Davin','Imperium','civ',27.5,6,Math.PI,'pistol','Officer');['Orrin','Pell','Wat','Ned'].forEach((n,i)=>U(n,'Imperium',i<1?'guard':'rifle',25.5+(i%2)*1.6,3.6+(i>>1)*1.6,Math.PI,i<1?'rod':undefined));
  for(const t of bodies)if(t.type==='token')t.auto=false};
+// the circuit: a rounded loop of road for driving corners, hedge chicanes and stone blocks inside, an inspection stand of officers and
+// nobles on the south side, perimeter guards, and a parking apron beside the stand: two iron carriers parked empty and a steel one crewed bar its driver
+MAPSZ.circuit=[64,48];TITLE.circuit='Fluoria · Carrier circuit';ENVSET.circuit='out';
+NBM.circuit=()=>{UND=Array.from({length:48},()=>Array(64).fill('grass'));const rr=(x,y,x0,y0,x1,y1,r)=>{const cx=Math.max(x0+r,Math.min(x1-r,x)),cy=Math.max(y0+r,Math.min(y1-r,y));return Math.hypot(x-cx,y-cy)<=r};
+ paintAll((cx,cy)=>{if(cx===0||cy===0||cx===63||cy===47)return'stone.grey.block.w';const x=cx+.5,y=cy+.5;
+  if(rr(x,y,4,3,60,34,8)&&!rr(x,y,9,8,55,29,4))return'dirt';
+  if(cx>=36&&cx<=58&&cy>=36&&cy<=46)return cy===36||cx===36||cx===58||cy===46?'stone.grey.block':'stone.grey.slabs';
+  if(cx>=16&&cx<=32&&cy>=38&&cy<=45)return'stone.grey.quarter';
+  if(cy>=34&&cy<=35&&cx>=40&&cx<=54)return'dirt';
+  if(cx===22&&cy>=11&&cy<=18||cx===32&&cy>=19&&cy<=26||cx===42&&cy>=11&&cy<=18)return'hedge';
+  if((cx===27||cx===37)&&cy>=14&&cy<=15||cx===48&&cy>=22&&cy<=23)return'stone.grey.block.w';
+  return'grass'})};
+NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
+ carrier('iron',41*T,41.5*T,P,'Imperium');carrier('iron',47*T,41.5*T,P,'Imperium');const v=carrier('steel',53*T,41.5*T,P,'Imperium');
+ vSeatNow(v,U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer'),1);['Brask','Coll','Dunn','Ivo','Hale','Marl','Rook','Tobin'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<3?'guard':'rifle',0,0,0),2+i));
+ U('Legate Varro','Imperium','civ',55.6,38,A,'pistol','Officer');
+ // the inspection line along the stand's front, facing the circuit
+ [['Lord Castor','Imperial Noble'],['Lady Ysolde','Imperial Noble'],['Lord Aemon','Imperial Noble'],['Overseer Malcor','Overseer'],['Legate Thane','Officer'],['Tribune Corvin','Officer'],['Ser Davin','Officer']].forEach(([n,l],i)=>U(n,'Imperium','civ',17.5+i*2.2,39.2,A,l==='Officer'?'pistol':null,l));
+ ['Pell','Wat','Ned','Orrin'].forEach((n,i)=>U(n,'Imperium',i===3?'guard':'rifle',18.5+i*4,43.5,A,i===3?'rod':undefined));
+ // perimeter guards at the corners and midpoints of the wall
+ [[2,2,P/2],[61,2,P*1.5],[2,45,-P/2],[61,45,-P*1.5],[32,1.6,P],[2,24,0],[61,24,Math.PI]].forEach(([x,y,a],i)=>U(['Garth','Hale','Jory','Kell','Lorn','Marl','Quill'][i]+' of the Watch','Imperium','guard',x+.5,y+.5,a));
+ for(const t of bodies)if(t.type==='token')t.auto=false};
+{const o=document.createElement('option');o.value='circuit';o.textContent='Fluoria carrier circuit';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['circuit','Fluoria carrier circuit']);ms.value=curMap}}
 {const o=document.createElement('option');o.value='yard';o.textContent='Fluoria carrier yard';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['yard','Fluoria carrier yard']);ms.value=curMap}}
-if(curMap==='yard'){CW=-1;reset()}
+if(curMap==='yard'||curMap==='circuit'){CW=-1;reset()}
 
 // save games: every visited map's pixels as changes from a fresh build, plus the whole body graph
 const GSK=['SH','GOLD','floor','sol','shp','scol','crk','slabG','GT','SHN','DS','NOD','OBJ','OBJC','SCH','DMG','TF','SF','SS','ST','BURN','FV','SV','DV','TMP','WH','fxLow','fxTop','fxA','HZ','OPEN','LR','LG','LB','LT'];
