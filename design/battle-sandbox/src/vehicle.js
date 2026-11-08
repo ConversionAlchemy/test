@@ -369,7 +369,7 @@ function vHints(){const t=sel.size===1&&[...sel][0],on=t&&t.type==='token'&&t.di
    if(gun)L.push(['Hold','fire'],['R','reload'],['Q','sheathe']);else if(thr)L.push(['Hold','throw'],['Q','sheathe']);else if(h)L.push(['Hold','attack'],['Q','sheathe']);else if(t.inv&&t.inv.some(Boolean))L.push(['Q','draw']);
    if(t.inv&&t.inv.some(Boolean))L.push(['1–4','weapons']);if(h&&!vNearSeat(t))L.push(['G','drop'])}
   L.push(['E','release '+t.name])}
- else if(!EM){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free');if(ts.length>1)L=[['Q',ts.some(b=>b.held)?'sheathe all':'draw all'],['T','form up'],['H',ts.some(b=>b.hf)?'face back':'face cursor'],['E','control all']]}
+ else if(!EM){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free');if(ts.length>1)L=[['Q',ts.some(b=>b.held)?'sheathe all':'draw all'],['T','form up'],['H',ts.some(b=>b.hf)?ts.some(b=>b.formA!=null)?'face formation':'face back':'face cursor'],['E','control all']]}
  const k=L.map(x=>x.join(':')).join('|');if(k===VHK)return;VHK=k;
  if(!VHB){VHB=document.createElement('div');VHB.className='khint';stage.parentElement.appendChild(VHB)}
  VHB.innerHTML='';VHB.style.display=L.length?'':'none';for(const[a,b]of L){const i=document.createElement('span');const c=document.createElement('b');c.textContent=a;i.append(c,' '+b);VHB.append(i)}}

@@ -1298,7 +1298,7 @@ let SQN=0;function formUp(){const ts=[...sel].filter(b=>b.type==='token'&&b.stat
  const rows=[];for(let i=0;i<sq.length;i+=3)rows.push(sq.slice(i,i+3));const cols=n=>n<=4?n:Math.ceil(n/2),wid=s=>(cols(s.length)-1)*G,lines=[];
  rows.forEach((row,ri)=>{const w=row.reduce((a,s)=>a+wid(s),0)+GAP*(row.length-1);let u=-w/2;for(const s of row){const c=cols(s.length);s.forEach((b,i)=>lines.push([b,u+(i%c)*G,ri*(G+2.5*T)+(i/c|0)*G]));u+=wid(s)+GAP}});
  const depth=Math.max(...lines.map(l=>l[2]));SQN++;sq.forEach((s,i)=>s.forEach(b=>b.sq=SQN*100+i));
- for(const[b,u,v]of lines){const ox=b.x,oy=b.y,d=v-depth/2;b.x=Math.round(cx+rx*u-fx*d);b.y=Math.round(cy+ry*u-fy*d);if(b.x<4||b.y<4||b.x>W-4||b.y>H-4||solidHits(b,0,0)){b.x=ox;b.y=oy}b.ord=null;b.mw=null;b.glide=null;b.vx=b.vy=0;b.face0=b.ang;b.hf=false;turnNow(b,A)}sfx('clank')}
+ for(const[b,u,v]of lines){const ox=b.x,oy=b.y,d=v-depth/2;b.x=Math.round(cx+rx*u-fx*d);b.y=Math.round(cy+ry*u-fy*d);if(b.x<4||b.y<4||b.x>W-4||b.y>H-4||solidHits(b,0,0)){b.x=ox;b.y=oy}b.ord=null;b.mw=null;b.glide=null;b.vx=b.vy=0;b.face0=b.ang;b.formA=A;b.hf=false;turnNow(b,A)}sfx('clank')}
 function turnTo(b,a,now){if(now||b.type!=='token'||b.status!=='free')return turnNow(b,a);b.faceT=a}
 function turnTick(){goldSnap();for(const b of bodies){if(b.faceT==null)continue;if(b.type==='weapon'){const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang));if(Math.abs(d)<=.14){if(Math.abs(d)>.01)reshape(b,b.faceT);b.faceT=null}else reshape(b,b.ang+Math.sign(d)*.14);continue}if(b.status!=='free'){b.faceT=null;continue}const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang)),r=(TURN[b.unit]||.14)*(b.crouch?.7:1);if(Math.abs(d)<=r){turnNow(b,b.faceT);b.faceT=null}else turnNow(b,b.ang+Math.sign(d)*r)}}
 const facing=(b,x,y)=>Math.hypot(x-b.x,y-b.y)<28||Math.abs(Math.atan2(Math.sin(Math.atan2(y-b.y,x-b.x)-b.ang),Math.cos(Math.atan2(y-b.y,x-b.x)-b.ang)))<.35;
@@ -1815,7 +1815,7 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k==='g'){if(vKeyG())return;for(const b of sel)if(b.type==='token'&&b.held)dropHeld(b);return}
  if(k==='t'){formUp();return}
  // H toggles the group between facing the cursor once and facing back the way they were
- if(k==='h'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat),back=ts.some(b=>b.hf);for(const b of ts){if(back){if(b.face0!=null)turnTo(b,b.face0);b.hf=false}else{b.face0=b.ang;b.hf=true;turnTo(b,Math.atan2(mouse.y-b.y,mouse.x-b.x))}}if(ts.length)sfx('flick');return}
+ if(k==='h'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat),back=ts.some(b=>b.hf);for(const b of ts){if(back){const a=b.formA??b.face0;if(a!=null)turnTo(b,a);b.hf=false}else{b.face0=b.ang;b.hf=true;turnTo(b,Math.atan2(mouse.y-b.y,mouse.x-b.x))}}if(ts.length)sfx('flick');return}
  if(k==='f'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}
  if(k==='delete'||k==='backspace'){for(const b of [...sel])remove(b);e.preventDefault()}});
 window.addEventListener('keyup',e=>{if(e.key==='Shift')VBRK=false;if(e.key.toLowerCase()==='c')for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}if(e.key===' ')panKey=false;keys.delete(e.key.toLowerCase())});
