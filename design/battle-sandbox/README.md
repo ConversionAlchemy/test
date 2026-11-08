@@ -4,7 +4,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 
 - `src/head.html`: markup and styles.
 - `src/tiles.js`: 16px tile textures and palettes.
-- `src/sim.js`: the simulation (physics, damage, weapons, doors, fire, lighting, sound, UI).
+- `src/sim/`: the simulation, joined in this order by `build.sh` into one script: `core` (canvas, colour and sound helpers, tiles), `world` (building a map: regions, furniture, chests, tethers, edges), `wear` (wear and heat), `maps` (test maps, switching), `stores` (crates and chests), `towns` (the town maps), `units` (nations, sprites, tokens, kits, weapons, slabs), `combat` (damage, blasts, blades, shots, lances, armour), `render` (effects and drawing), `control` (aiming, firing, moving, doors, hud, camera, lights, inventory), `ai` (fire spread, AI, sight, orders) and `loop` (fog, the update loop, input, menus). They share one scope, so a name defined in one file is visible in the next.
 - `src/editor.js`: map and texture editing, mods.
 - `src/ui.js`: the screen: corner clock, tool panel, popups, hotbar.
 

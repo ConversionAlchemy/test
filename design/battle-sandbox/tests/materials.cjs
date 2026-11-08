@@ -8,7 +8,8 @@ const ALLOW={// file:function rule → reason
  'editor.js:legacyDoor class number':'old saves'};
 const fnAt=(s,i)=>{let n='-';for(const m of s.slice(0,i).matchAll(/function\s+(\w+)|(?:const|let)\s+(\w+)\s*=\s*(?:\([^)]*\)|\w+)\s*=>/g))n=m[1]||m[2];return n};
 let bad=0;const seen=new Set();
-for(const f of fs.readdirSync(SRC).filter(f=>f.endsWith('.js')&&!SKIP.has(f))){const s=fs.readFileSync(path.join(SRC,f),'utf8');
+const files=fs.readdirSync(SRC,{recursive:true}).filter(f=>f.endsWith('.js')&&!SKIP.has(path.basename(f)));
+for(const f of files){const s=fs.readFileSync(path.join(SRC,f),'utf8');
  for(const[name,re]of RULES)for(const m of s.matchAll(re)){const key=`${f}:${fnAt(s,m.index)} ${name}`;seen.add(key);if(ALLOW[key])continue;bad++;
   const ln=s.slice(0,m.index).split('\n').length;console.log(`${f}:${ln} ${name}: …${s.slice(Math.max(0,m.index-60),m.index+40).replace(/\n/g,' ')}…`)}}
 for(const k of Object.keys(ALLOW))if(!seen.has(k))console.log(`gone, take it off ALLOW: ${k}`);

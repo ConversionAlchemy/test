@@ -215,7 +215,6 @@ const GRASS=[73,107,49],GLITE=[100,137,62],GDRY=[136,140,79],GDARK=[52,80,38],SO
 function grassT(X,Y){const m=fbm(X/16,Y/16,70);let c=mx(GRASS,GLITE,Math.min(1,Math.max(0,m-.42)*1.8));const dry=fbm(X/26,Y/26,73);if(dry>.6)c=mx(c,GDRY,(dry-.6)*1.6);
  const tf=vn(X/2.3,Y/1.3,71);if(tf>.68)c=mx(c,GDARK,Math.min(1,(tf-.68)*3.2));else if(tf<.2)c=sc(c,1.08);const t=hh(X,Y,72);if(t>.985)c=mx(c,GDRY,.7);return c}
 function soilT(X,Y){const f=fbm(X/9,Y/9,80);let c=sc(SOIL,.86+f*.26);const t=hh(X,Y,81);if(t>.988)c=[146,124,94];else if(t<.03)c=sc(c,.72);else if(vn(X/3,Y/3,82)>.8)c=sc(c,.92);return c}
-function foundT(X,Y){let c=stoneT(X,Y,[72,68,62],9);const g=hh(X,Y,99);if(g>.9)c=sc(c,1.25);else if(g<.12)c=sc(c,.7);return c}
 const MAHOG=[96,44,30];
 const cE=(X,Y,cx,cy)=>{const x=X-cx*T,y=Y-cy*T;return[x,y,Math.min(x,y,T-1-x,T-1-y)]};
 function sillT(X,Y,cx,cy,m){const[x,y,e]=cE(X,Y,cx,cy);let c=m?mx(stoneT(X,Y,[236,234,228],11),[250,249,245],.4):stoneT(X,Y,[176,170,158],14);if(e===2)c=m?mx(c,[214,176,96],.6):sc(c,.82);else if(e===3)c=sc(c,1.04);return c}
@@ -714,6 +713,7 @@ function grid(n,sp,cond=4){const S=P[sp.alt?TAG[n].alt+(sp.dv!=null&&TAG[TAG[n].
 const lvl=(n,sp)=>{const T=TAG[n]||{};return sp&&sp.good?4:T.lvl||4};
 return{SPR,TAG,CLS,MET,LV,FACTIONS,UNITS,nm,has:n=>!!SPR[n]&&!!TAG[n],spawn,grid,stats,lvl}})();
 (()=>{
+// setup: canvas and pixel layers, colour helpers, sound basics, tiles and their materials
 const $=id=>document.getElementById(id);
 let S=2,EM=null,TOPS=false,OUTD=false;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/2,N=W*H,NB=BW*BH;
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
@@ -775,6 +775,7 @@ let HALFF='dirt';
 function paintCell0(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;key=modK(key);map[cy][cx]=key;const hv=key.length>1&&'HNS'.includes(key.slice(-1))&&WMAT[key.slice(0,-1)]?key.slice(-1):'',half=!!hv,bk=half?key.slice(0,-1):key,d=tilePix(bk,cx,cy),g=half?tilePix(undAt(cx,cy)||HALFF,cx,cy):null,m=WMAT[bk]||0,hpK=CATN[bk]?mprop(CATN[bk][0],CATN[bk][1]).hp:(MAT[m]||{}).hp,gk=CATN[bk]&&mprop(CATN[bk][0],CATN[bk][1]).gild?1:0,ud=m&&undAt(cx,cy)?tilePix(undAt(cx,cy),cx,cy):null;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const i=(y*T+x)*4,X=cx*T+x,Y=cy*T+y,j=Y*W+X,hf=half&&(hv==='H'?x>=T/2:hv==='N'?y>=T/2:y<T/2),c=hf?rgb(g[i],g[i+1],g[i+2]):rgb(d[i],d[i+1],d[i+2]);crk[j]=0;SHN[j]=hf?0:SHINE[bk]||0;NOD[j]=NODK.has(bk)?1:0;
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
+// building a map: regions, borders, furniture, tables, chests, tethers, sills, edges
 let curMap='circuit',VEH=[],VOB=null;
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
 function build(){UND=[];REP.clear();TW.clear();HT.clear();MKC.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
@@ -933,6 +934,7 @@ const ladL=k=>{if(k==='grass')return 0;if(k==='dirt')return 4;const c=CATN[k];if
 function earthWear(cx,cy,x,y,R,top,L0){const so=Math.min(1.2,softOf('Earth','grass')),Rm=R*(.55+.45*so),st=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?0:(1-d)*top*so+.15},to=(X,Y)=>{const s=st(X,Y);if(s<=0)return L0;const r=hh(X,Y,93);return Math.min(8,Math.max(L0+Math.floor(s/2+r),Math.floor(s*1.2+r)))};
  const Lc=to(cx*T+8,cy*T+8);if(Lc>L0)map[cy][cx]=ladK(Lc);
  for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const L=to(X,Y);if(L<=L0)continue;const q=TEX[ladK(L)](X,Y,cx,cy);if(!q)continue;floor[j]=rgb(cl(q[0]),cl(q[1]),cl(q[2]));if(PR)PR.floor[j]=floor[j]}}
+// wear and heat on walls, furniture and floors (one store, see README Materials), craters
 function blastWear(x,y,s){vBlastWear(x,y,s);uBlast(x,y,s);BRY0=Math.min(BRY0,y-4*T);BRY1=Math.max(BRY1,y+4*T);const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
  for(let cy=Math.max(0,(y-R*2.6)/T|0);cy<=Math.min(CH-1,(y+R*2.6)/T|0);cy++)for(let cx=Math.max(0,(x-R*2.6)/T|0);cx<=Math.min(CW-1,(x+R*2.6)/T|0);cx++){const k=map[cy][cx],c=CATN[k],ok=OM[cy]&&OM[cy][cx],oe=ok&&objEl(ok);if(oe){const so=softOf(oe[0],oe[1]),bl=clsB(oe[0],oe[1]),Rm=R*1.3*(bl.reach||1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearObj(cx,cy,(1-d/Rm)*top*(bl.wear||26))}
   if(c&&c[3]&&AGE[c[0]]){const so=softOf(c[0],c[1]),bl=clsB(c[0],c[1]),Rm=R*1.3*(bl.reach||1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearWall(cx,cy,(1-d/Rm)*top*(bl.wear||26));continue}if(OM[cy]&&OM[cy][cx])continue;{const L0=ladL(k);if(L0>=0){earthWear(cx,cy,x,y,R,top,L0);continue}}if(!c||c[3]||!AGE[c[0]])continue;
@@ -1008,6 +1010,7 @@ function crater(x,y,s){const r=6.5*s,rr=s>1.5?.85:.7;for(let Y=Math.floor(y-r*2)
   else if(q<1.35){if(hh(X,Y,94)<(1.35-q)/.35*1.3)c=sc(so,1.02+hh(X,Y,95)*.08)}
   else if(hh(X,Y,96)<(2-q)*.22&&parts.length<1500){const k=sc(so,.8+hh(X,Y,97)*.2);parts.push({x:X,y:Y,vx:0,vy:0,c:rgb(cl(k[0]),cl(k[1]),cl(k[2]))})}
   if(!c)continue;const n=rgb(cl(c[0]),cl(c[1]),cl(c[2])),o=floor[j],lum=v=>(v&255)+(v>>8&255)+(v>>16&255);floor[j]=GT[j]===2&&q<1&&lum(o)<lum(n)?o:n;GT[j]=2;DMG[j]=1}}
+// test maps and switching between maps
 // counting house: library and board rooms over a pillared gallery; guard post, armoury, ledger office and strongroom below
 const CO=4;
 function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.block.w'));
@@ -1134,6 +1137,7 @@ function unitsAir(){const face=(t,a)=>{t.ang=a;return t},E=0,Wd=Math.PI;
  container(16,7,[{k:'gold',n:100}]);container(20,12,[{k:'gold',n:100}]);for(const y of [132,164]){const d=barricade(2,232,y);d.rot=1;orient(d)}}
 function overboard(){for(const b of [...bodies]){if(b.type==='weapon'&&WP[b.kind].bullet||inDrag(b)||Math.hypot(b.vx,b.vy)>1.5&&b.type!=='token')continue;const r=map[b.y/T|0],k=r&&r[b.x/T|0];if(k!=='sky')continue;
  if(b.type==='token'&&b.held)dropHeld(b);dab(SF,b.x,b.y,.4,2);sfx('whoosh');remove(b)}}
+// crates, chests and their contents
 function crate(x,y,items,long){items=(items||[]).filter(Boolean);const c=weapon('crate',x,y,0);if(long===undefined)long=!cFitsAll(c,items);c.name='Crate';if(long){c.long=true;c.px=shape('lcrate',0);mkSet(c)}c.si=-1;cFill(c,items);return c}
 // storage is space: items keep their real size and lie wherever their outline fits, turned if needed
 const FTC={bomb:[10,10]},foot=k=>{if(FTC[k])return FTC[k];if(!WP[k]||k==='gold')return FTC[k]=[7,7];let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of shape(k,0)){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}return FTC[k]=[x1-x0+1,y1-y0+1]};
@@ -1200,6 +1204,7 @@ function drawStores(){drawTables();drawHoled(storesShown().filter(c=>!c.table));
   if(c.box||!open)for(let y=0;y<g.gh*g.cs;y++)for(let x=0;x<g.gw*g.cs;x++){if(!g.ok(x/g.cs|0,y/g.cs|0))continue;const X=g.ox+x,Y=g.oy+y;if(X<0||Y<0||X>=W||Y>=H)continue;out[Y*W+X]=mul(out[Y*W+X],.3)}
   for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q||SDR&&SDR.c===c&&SDR.i===i)continue;const[w,h]=cRect(q),ip=itemPix(q.k,q.r),bx=g.ox+q.gx*g.cs,by=g.oy+q.gy*g.cs;for(const[a,b]of ip){const gx=q.gx+a+1,gy=q.gy+b+1;if(gx<g.gw&&gy<g.gh&&g.ok(gx,gy))out[(g.oy+gy)*W+g.ox+gx]=mul(out[(g.oy+gy)*W+g.ox+gx],.5)}const hv=hit&&hit.c===c&&hit.i===i;for(const[a,b,col]of ip){const X=bx+a,Y=by+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=hv?mix(col,rgb(255,255,255),.22):col}if(GLOWK.has(q.k))for(const[a,b,col]of ip){if((col>>16&255)<200||(col&255)<150)continue;for(let v=-2;v<=2;v++)for(let u=-2;u<=2;u++){const d=Math.hypot(u,v);if(!d||d>2.5)continue;const X=bx+a+u,Y=by+b+v;if(X>=0&&Y>=0&&X<W&&Y<H&&!ip.some(p=>p[0]===a+u&&p[1]===b+v))out[Y*W+X]=mix(out[Y*W+X],rgb(214,140,255),.32*(1-d/3))}}}}
  if(SDR){const q=SDR.c.inv[SDR.i];if(q){const db=dropBox(),sn=db&&!cT(db)&&!db.table&&!bodyAt(Math.round(mouse.x),Math.round(mouse.y),4,null,o=>o.type==='token'&&o.status!=='dead')&&cAt(db,q.k,mouse.x,mouse.y,q),sg=sn&&cGeo(db),r=sn?sn.r:q.r,[w,h]=sn?(r?[...foot(q.k)].reverse():foot(q.k)):cRect(q);for(const[a,b,col]of itemPix(q.k,r)){const X=(sn?sg.ox+sn.gx:Math.round(mouse.x-w/2))+a,Y=(sn?sg.oy+sn.gy:Math.round(mouse.y-h/2))+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}}
+// painting a map; the bank, council, road, alley and stock maps
 // mini maps for each side: one room or stretch, opening onto the void or a corridor
 const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true};
 // doorways draw from both neighbours, so they are redrawn once the whole map is laid
@@ -1270,6 +1275,7 @@ function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone.grey.b
   paintCell(cx,cy,k)}
  for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);fxDirty=true}
 
+// units and nations: sprites, tokens, kits, weapons, slabs and doors
 // units and nations
 const NAT={Neutral:null,Pirates:'#8a5a2b',Goldbank:'#c9a227',Havenport:'#2f5fa8',Imperium:'#b03a2a',Sanctis:'#8e5cc0',Portsbridge:'#c98a4a','Great Keys':'#3fa39a',Thaselore:'#7d4fa0',Holverland:'#3e8e5a',Reapers:'#5b6b3a'};
 const UNITS={civ:{n:'Civilian',arm:0,cost:1,sp:2},home:{n:'Base',arm:1,ac:rgb(118,80,48),leather:1,cost:2,sp:1.5,w:'musket',pips:1},rifle:{n:'Riflemen',arm:1,ac:rgb(150,154,162),cost:3,sp:1.15,w:'musket',pips:2},guard:{n:'Heavy',arm:2,ac:rgb(186,192,202),cost:7,sp:.8,w:'musket',pips:3,rivet:1},shock:{n:'Shocktroopers',arm:3,ac:rgb(92,96,104),cost:9,sp:1.3,w:'spear',mark:'bar',seg:1},cmd:{n:'Commandos',arm:1,front:1,ac:rgb(46,48,52),cost:3,sp:.65,w:'blunder',mark:'x',dark:1}};
@@ -1277,7 +1283,7 @@ const SPR={"Overseer":"411211322db6dcceed222223|...................../..........
 const LOOK={Imperium:{civ:'Imperial Clerk',home:'Conscript',rifle:'Musketeer',guard:'Praetorian',shock:'Shocktrooper',cmd:'Commando'},Goldbank:{civ:'Clerk',home:'Watchman',rifle:'Stockman',guard:'Aurum Guard',shock:'Aurum Knight',cmd:'Gilded Hand'},Reapers:{civ:'Thug',home:'Thug',rifle:'Cutthroat',guard:'Raider',shock:'Blademaster',cmd:'Ravager'},Havenport:{civ:'Dockhand',home:'Harbour Watch',rifle:'Marine',guard:'Harbour Guard',shock:'Harbour Guard',cmd:'Smuggler'},Portsbridge:{civ:'Director',home:'Police Officer',rifle:'Enforcement Officer',guard:'Company Guard',shock:'Company Guard',cmd:'Enforcement Officer'},'Great Keys':{civ:'Ironkey Guildmember',home:'Ironkey Militia',rifle:'Keys Watchman',guard:'Gatekeeper',shock:'Gatekeeper',cmd:'Keys Watchman'},Sanctis:{civ:'Sanctis Noble',home:'Sanctis Guard',rifle:'Sanctis Guard',guard:"Emperor's Guard",shock:"Emperor's Guard",cmd:'Spy'},'':{civ:'Peasant'}};
 const ALIAS={Hierarch:'Sanctis Noble',Acolyte:'Spymaster',Reaper:'Ravager',Eternal:"Emperor's Guard",'Company Ironside':'Company Guard','Company Rifles':'Enforcement Officer',Factor:'Director','Key Warden':'Ironkey Militia','Keys Rifles':'Keys Watchman',Burgher:'Ironkey Guildmember','Imperial Striped Guard':'Conscript',Fisher:'Sailor'};
 const SIDE={Pirates:'Reapers'},SPRD={};
-const lookOf=b=>{const l=b.look&&(ALIAS[b.look]||b.look);return l&&(WARD.has(l)||SPR[l])?l:(LOOK[SIDE[b.nat]||b.nat||'']||{})[b.unit]||null};const lookOf0=b=>(LOOK[SIDE[b.nat]||b.nat||'']||{})[b.unit]||null;
+const lookOf=b=>{const l=b.look&&(ALIAS[b.look]||b.look);return l&&(WARD.has(l)||SPR[l])?l:(LOOK[SIDE[b.nat]||b.nat||'']||{})[b.unit]||null};
 function sprG(n){if(!n)return null;if(WARD.has(n))return'ward';if(!SPR[n])return null;if(SPRD[n])return SPRD[n];const[p,r]=SPR[n].split('|'),pal=p.match(/.../g).map(h=>[parseInt(h[0],16)*17,parseInt(h[1],16)*17,parseInt(h[2],16)*17]),g=r.split('/').map(row=>[...row].map(ch=>{if(ch==='.')return null;const pi=ch>='a'?ch.charCodeAt(0)-97:ch.charCodeAt(0)-39,q=pal[pi],l=(q[0]+q[1]+q[2])/3,st=Math.max(...q)-Math.min(...q);return[rgb(...q),st<40&&l>100||q[0]>q[1]&&q[1]>q[2]&&l>120&&q[0]-q[2]>60,pi]}));return SPRD[n]=g}
 // sprites face up; sample the frame turned to the token's facing
 const NHUE=[[28,.42,.95],[38,.45,1],[18,.4,.9],[48,.38,1.02],[0,0,.92],[24,.3,.75],[34,.22,1.08],[12,.32,.85]];
@@ -1433,6 +1439,7 @@ function pushSlabs(b,h,sx,sy){const ids=new Set();for(const[X,Y]of h){if(X<0||Y<
  if(!ds.every(d=>slabFits(d,ids))){for(const d of ds){d.x-=sx;d.y-=sy;remark(d,true)}return false}
  for(const d of ds)remark(d,true);b.pushT=tick;b.pushM=Math.max(...ds.map(d=>(d.len||16)>16?3:hcl(d.mat).mass));if(tick%12===0)sfx(ds.map(d=>hcl(d.mat)).reduce((a,m)=>m.mass>a.mass?m:a,hcl(2)).drag);return true}
 const stage=$('stage');
+// damage: pixels, cuts, blasts, blades, arcs, shots, lances, armour
 function mkLabel(b){const l=b.lab=document.createElement('div');l.className='lab';l.textContent=b.name;l.oncontextmenu=e=>{e.preventDefault();openMenu(b,e)};l.onpointerdown=e=>{if(e.button===0){e.stopPropagation();if([...sel].some(o=>o.direct)){boardDown(e);return}clickBody(b,e.ctrlKey||e.metaKey)}};stage.appendChild(l)}
 function remove(b){if(b.snd){b.snd.stop();b.snd=null}bodies=bodies.filter(o=>o!==b);if(b.lab)b.lab.remove();if(drag&&drag.b===b)drag=null;sel.delete(b);if(hover===b)hover=null}
 
@@ -1833,6 +1840,7 @@ function cool(){for(const b of [...bodies,...VEH]){if(b.type==='weapon'||b.cold&
 
 // effects
 const FXC={b0:hx('#5a0a0e'),b1:hx('#76121a'),b2:hx('#8e161c'),b3:hx('#b8343a'),f:['#c86a26','#a8541e','#d8782a','#eea036','#f7c654','#ffe08a','#fff6c8'].map(hx)};
+// effects and drawing: fire, smoke, bodies, floors, the frame
 let tick=0,fxActive=false;
 function diffuse(a,keep){const q=(1-keep)/4;for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const i=Y*BW+X;TMP[i]=a[i]*keep+((X>0?a[i-1]:a[i])+(X<BW-1?a[i+1]:a[i])+(Y>0?a[i-BW]:a[i])+(Y<BH-1?a[i+BW]:a[i]))*q}a.set(TMP)}
 function openMap(){for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const j=Y*2*W+X*2;OPEN[Y*BW+X]=(!sol[j]&&!slabG[j])?1:0}}
@@ -1958,6 +1966,7 @@ function crosshair(){const ar=armed();if(!ar.length)return;const b0=ar[0],inf=sr
  const hot=inf.heat&&(slot(b0)||{}).heat||0,fr=charge?(inf.heat?Math.min(1,hot):Math.min(1,(performance.now()-charge.t)/charge.need)):0,shd=(x,y,on)=>{if(x>=0&&y>=0&&x<W&&y<H)out[y*W+x]=on?mix(out[y*W+x],rgb(255,255,255),.5):mul(out[y*W+x],.55)},dirs=inf.throw?[[1,-1],[1,1],[-1,1],[-1,-1]]:[[0,-1],[1,0],[0,1],[-1,0]],len=inf.throw?3:4;
  dirs.forEach(([ax,ay],ai)=>{for(let i=g;i<g+len;i++){const x=X+ax*i,y=Y+ay*i,seg=ai*4+Math.floor((i-g)*4/len);const on=(i-g+1)/len<=fr+.001&&fr>0;shd(x+1,y,on);shd(x,y+1,on);put(x,y,on?rgb(0,0,0):col)}});
  const c0=fr>0;shd(X+1,Y,c0);shd(X,Y+1,c0);put(X,Y,c0?rgb(0,0,0):col);if(dry)for(const[a,q]of[[0,0],[1,1],[-1,-1],[1,-1],[-1,1]])put(X+a,Y+q,rgb(224,83,63))}
+// aiming, firing, moving, doors, dashing, hud, camera, lights, inventory
 // aiming
 function srcInfo(b){if(!b||!bodies.includes(b))return null;const gnd=b.type==='weapon'&&!b.att&&!b.wedged&&!b.hidden&&WP[b.kind];
  if(b.type==='token'&&b.held&&b.status==='free'||gnd){const k=gnd?b.kind:b.held.k,w=WP[k],sp=gnd?1:UNITS[b.unit].sp;if(!w||!w.gun&&!w.melee&&!/^(grenade|bomb|sbomb)$/.test(k))return null;
@@ -2156,6 +2165,7 @@ function autoPick(){for(const t of bodies){if(t.type!=='token'||!t.inv)continue;
   // any chest or crate you stand by keeps you stocked: ammo, grenades and heavy grenades; an open one also hands over what else you can carry
   for(const c of bodies){if(c.kind!=='crate'||Math.hypot(c.x-t.x,c.y-t.y)>20)continue;if(c.open){let tk=false;for(let i=0;i<c.inv.length&&!tk;i++){const q=c.inv[i];if(!q||q.k==='note')continue;const one=q.k==='note'?{...q}:{k:q.k,n:q.k==='gold'?q.n:1,rd:q.rd};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.res||0}if(mayTake(t,q.k)&&addItem(t,one)){if(typeof q.rd==='number'&&one.taken!==undefined&&one.taken<q.rd){q.rd-=one.taken}else q.n-=q.k==='gold'?one.taken??one.n:1;if(q.n<=0)c.inv[i]=null;sfx('flick');tk=true}}if(tk)continue}
    for(let i=0;i<c.inv.length;i++){const q=c.inv[i];if(!q)continue;const g=Object.keys(BOX).find(k=>BOX[k]===q.k);if(g&&needRes(t,g)){const mv=q.rd===true?poolAdd(t,q.k,Math.min(q.n,RCAP(g))):addRes(t,g,RCAP(g))?1:0;if(mv){sfx('reload');if((q.n-=q.rd===true?mv:1)<=0)c.inv[i]=null;break}}if((q.k==='grenade'||q.k==='bomb')&&addItem(t,{k:q.k,n:1})){sfx('reload');if(--q.n<=0)c.inv[i]=null;break}if(strip(t,q.k,q.ammo??CAP[q.k],q.res)){if(--q.n<=0)c.inv[i]=null;break}}}}}
+// fire spread; AI: navigation, rooms, sight and hearing, orders, sharing
 const inZone=(b,p)=>{if(b.fa===undefined||b.fw>=3.1&&b.fd>=8)return true;const r2=p[0]*p[0]+p[1]*p[1],d=8.3-b.fd;if(r2<d*d)return false;if(b.fw>=3.1)return true;const a=Math.atan2(p[1],p[0]);return Math.abs(Math.atan2(Math.sin(a-b.fa),Math.cos(a-b.fa)))<=b.fw};
 function ignite(b,a,w,d){if(!(b.burn>.05)||b.fa===undefined){b.fa=a;b.fw=w;b.fd=d}else{b.fw=Math.min(3.15,b.fw+.008);b.fd=Math.min(8.3,b.fd+.008)}}
 function fireTick(){for(const b of [...bodies]){if((b.type!=='token'&&b.type!=='part')||!bodies.includes(b))continue;
@@ -2180,7 +2190,7 @@ const isDoor=o=>o.type==='slab'&&!o.free&&!o.fallen;let DL=[];const doorsNow=()=
 const onDoor=(o,x,y)=>o.dt?o.dt.has((y/T|0)*CW+(x/T|0)):Math.abs(o.x-x)<12&&Math.abs(o.y-y)<12;
 const carriesKey=(b,o)=>{const k=doorKey(o);return!!k&&!!b&&!!b.inv&&b.inv.some(z=>z&&z.k===k)};
 const hasKey=(o,tm,b)=>{if(b)return carriesKey(b,o);if(!tm)return false;return bodies.some(t=>t.type==='token'&&t.status==='free'&&teamOf(t)===tm&&carriesKey(t,o))};
-const hasKey0=(o,tm)=>{if(!tm)return false;const k=o.keys||o.pair&&o.pair.keys;if(k)return k===tm;try{return MAPOWN()===tm}catch(e){return false}};
+
 // navigation: one map for routes and rooms. Every 4px node (tile centres among them) knows its distance in pixels to the nearest wall, furniture or map edge; open door leaves only make a route dearer, since bodies push them; a body fits where that is at least NCL. Rebuilt soon after the space changes
 const G=4,NCL=8;let NV=null,NC=null,NLF=null,NCOMP=null,GW=0,GH=0,NAVD=true,NAVV=0;
 function navBuild(){GW=W/G|0;GH=H/G|0;const n=GW*GH,D=new Float32Array(N);
@@ -2198,7 +2208,7 @@ const nodeAt=(x,y)=>{const gx=Math.round(x/G),gy=Math.round(y/G);return gx>=0&&g
 const wOpen=(x,y)=>{navEnsure();const n=nodeAt(x,y);return n>=0&&NV[n]===1};
 // nearest walkable node to a point, within a few nodes
 function navNear(x,y,blk=m=>!NV[m],R=5){const gx=Math.round(x/G),gy=Math.round(y/G);let best=-1,bd=1e9;for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const X=gx+i,Y=gy+j;if(X<0||Y<0||X>=GW||Y>=GH)continue;const m=Y*GW+X;if(blk(m))continue;const d=i*i+j*j;if(d<bd){bd=d;best=m}}return best}
-const navLine=(x0,y0,x1,y1)=>{const L=Math.hypot(x1-x0,y1-y0);for(let i=0;i<=L;i+=2){const m=nodeAt(x0+(x1-x0)*i/L,y0+(y1-y0)*i/L);if(m<0||!NV[m])return false}return true};
+
 // the most open node close by: where a unit caught on a corner should slide to
 function navOpen(x,y){navEnsure();const gx=Math.round(x/G),gy=Math.round(y/G);let best=-1,bs=-1e9;for(let j=-2;j<=2;j++)for(let i=-2;i<=2;i++){const X=gx+i,Y=gy+j;if(X<0||Y<0||X>=GW||Y>=GH)continue;const m=Y*GW+X;if(!NV[m])continue;const sc=Math.min(NC[m],12)-Math.hypot(X*G-x,Y*G-y)*.4;if(sc>bs){bs=sc;best=m}}return best}
 const compAt=(x,y)=>{navEnsure();const n=navNear(x,y);return n<0?-1:NCOMP[n]};
@@ -2428,6 +2438,7 @@ function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB)
  // soft edge: blur the view mask a few cells; while only moving units change it, every other frame
  if(!same){if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VD[q];blurMask(VF);if(fSel){for(let q=0;q<NB;q++)VSF[q]=VS[q]?1:0;blurMask(VSF)}}
  for(const o of bodies)if(o.type==='token')o.fogH=relOf(FT,teamOf(o))!=='self'&&relOf(FT,teamOf(o))!=='ally'&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>Math.hypot(o.x-b.x,o.y-b.y)<FOVR*.88&&losClear(b.x,b.y,o.x,o.y,!!b.crouch,!!o.crouch)))}
+// sight and fog, the update loop, mouse and keys, menus, the unit panel
 // your side's sight, Door Kickers style: all round, stopped dead by walls and closed doors, full bright to about half range then fading to black
 const FOVR=320;let VD=new Float32Array(1);
 function sight360(b,f){const low=!!b.crouch,n=Math.ceil(6.283*FOVR/2.5),fade=r=>{const t=(r-FOVR*.5)/(FOVR*.5);return t<=0?1:1-t*t*(3-2*t)};
@@ -2600,7 +2611,7 @@ function preview(){const[l,un]=fsel(),g=tp.getContext('2d'),id=g.createImageData
 let pTone=Math.random()*NHUE.length|0;function rollTone(){let n;do n=Math.random()*NHUE.length|0;while(n===pTone);pTone=n;preview()}
 {const dc=$('dice'),g=dc.getContext('2d');g.fillStyle='#d8d4c8';g.fillRect(0,0,9,9);g.fillStyle='#262626';for(const[x,y]of[[1,1],[6,1],[3.5,3.5],[1,6],[6,6]]){g.fillRect(Math.round(x),Math.round(y),2,2)}dc.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();rollTone()})}
 const diceVis=()=>{$('dice').style.display=fnatv()?'none':''};
-let mkSynced=null;
+
 function syncMarker(b){const f=SIDE[b.nat]||b.nat||'Neutrals';if(!ROSTER[f])return;fnat.value=f;fillTypes();diceVis();const R=ROSTER[f],l=lookOf(b)||b.look;let i=R.findIndex(e=>e[0]===l&&e[1]===b.unit);if(i<0)i=R.findIndex(e=>e[0]===l);if(i<0)i=R.findIndex(e=>e[1]===b.unit);if(i>=0){fu.value=i;setArms()}
  const w=b.inv&&b.inv[0]&&b.inv[0].k;fw.value=w&&[...fw.options].some(o=>o.value===w)?w:'';$('fn').value=b.name;if(!b.nat)pTone=(b.tone??((b.id||0)*5+3))%NHUE.length;preview()}
 fu.onchange=setArms;fw.onchange=preview;fillTypes();fnat.onchange=()=>{fillTypes();diceVis()};diceVis();
@@ -3047,7 +3058,7 @@ let sqT=0;function squeak(force){const n=performance.now();if(!force&&n-sqT<230)
 let hsT=0;function douse(x,y,R,n){for(let i=0;i<Math.min(8,2+n);i++)DUST.push({x:x+(Math.random()-.5)*R*1.6,y:y+(Math.random()-.5)*R*1.6,vx:(Math.random()-.5)*.15,vy:-.25-Math.random()*.3,g:0,c:rgb(236,240,244),l:0,L:30+Math.random()*25,d:0,z:2+(Math.random()*2|0),a:.45});
  const t=performance.now();if(mute||!gest||t-hsT<110)return;hsT=t;try{noise(.32+Math.random()*.2,4200+Math.random()*1500,.5,.07,'highpass');noise(.18,2200,1.2,.04,'bandpass')}catch(e){}}
 let scrT=0;function scrub(){const t=performance.now();if(t-scrT<140)return;scrT=t;sample('water',.5)}
-let chT=0;function chime(p){if(mute||!gest)return;try{tone(1180*p,.28,.02);tone(1770*p,.22,.012);tone(2360*p,.16,.006);noise(.05,6000,1,.015,'highpass')}catch(e){}}
+function chime(p){if(mute||!gest)return;try{tone(1180*p,.28,.02);tone(1770*p,.22,.012);tone(2360*p,.16,.006);noise(.05,6000,1,.015,'highpass')}catch(e){}}
 let VAC=null;function vacOn(){if(VAC||mute||!gest)return;try{const a=au(),len=a.sampleRate|0,buf=a.createBuffer(1,len,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;const n=a.createBufferSource();n.buffer=buf;n.loop=true;const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=420;const o=a.createOscillator();o.type='sawtooth';o.frequency.value=92;const of=a.createBiquadFilter();of.type='lowpass';of.frequency.value=260;const g=a.createGain();g.gain.value=0;g.gain.linearRampToValueAtTime(.06,a.currentTime+.15);const og=a.createGain();og.gain.value=.25;n.connect(f).connect(g);o.connect(of).connect(og).connect(g);g.connect(MS);n.start();o.start();VAC={g,f,o,n}}catch(e){}}
 function vacOff(){if(!VAC)return;const v=VAC;VAC=null;try{const t=AC.currentTime;v.g.gain.cancelScheduledValues(t);v.g.gain.setValueAtTime(v.g.gain.value,t);v.g.gain.linearRampToValueAtTime(0,t+.15);v.n.stop(t+.2);v.o.stop(t+.2)}catch(e){}}
 const clR=()=>CL&&CL.k==='vac'?7+CLSZ.vac*4:4+CLSZ.sponge*3;
