@@ -143,7 +143,9 @@ function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==
 function vRoofed(x,y){for(const v of VEH){if(Math.abs(x-v.x)>VC.L*.6||Math.abs(y-v.y)>VC.L*.6||!vRoof(v))continue;const[lx,ly]=vW2L(v,x,y);if(lx>=0&&ly>=VC.TR&&lx<VC.L&&ly<VC.H-VC.TR)return true}return false}
 // roof by default. Inside: a selected unit aboard sees the interior (V switches to the roof while the cursor is off the carrier). With no unit selected, hovering a crewed
 // carrier shows its interior. Alt over a carrier always shows the roof, to lob onto it
-function vRoof(v){const ov=vCur(v);if(LOBK&&ov)return true;let any=false;for(const t of sel)if(t.type==='token'){any=true;if(vHas(v,t))return!!v.ext&&!ov}
+// a driver under control is driving: map clicks do nothing and the cursor counts as off the carrier, so V alone sets the view
+const vDriving=()=>{for(const t of sel)if(t.type==='token'&&t.direct&&t.vseat&&t.vseat.seats[0]===t)return t.vseat;return null};
+function vRoof(v){const ov=vDriving()!==v&&vCur(v);if(LOBK&&ov)return true;let any=false;for(const t of sel)if(t.type==='token'){any=true;if(vHas(v,t))return!!v.ext&&!ov}
  return any||!ov||!bodies.some(t=>t.type==='token'&&t.status!=='dead'&&vHas(v,t))}
 function vCur(v){if(v.pkT===tick)return v.pk;v.pkT=tick;const[lx,ly]=vW2L(v,mouse.x,mouse.y);return v.pk=lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H}
 // V from a seat: switch between seeing the interior and the roof

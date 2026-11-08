@@ -46,7 +46,7 @@ function clickBody(b,add){if(b.status==='dead')return;if(b.hidden){openCrate=ope
  if(!add)sel.clear();if(add&&sel.has(b))sel.delete(b);else sel.add(b);sfx('flick')}
 let lastW=null;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-const boardDown=e=>{au();closeMenu();if(panKey||e.button===1){pan={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};cv.setPointerCapture(e.pointerId);e.preventDefault();return}const[x,y]=toBoard(e),X=x|0,Y=y|0;
+const boardDown=e=>{au();closeMenu();if(panKey||e.button===1){pan={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};cv.setPointerCapture(e.pointerId);e.preventDefault();return}if(vDriving())return;const[x,y]=toBoard(e),X=x|0,Y=y|0;
  if(e.button===2){const b=bodyAt(X,Y,1)||bodyAt(X,Y,1,null,o=>o.type==='token'&&o.status==='dead');{const vv=!b&&vAt(X,Y);if(vv&&!vv.dead){const g=[...sel].filter(o=>canOrder(o)&&!vHas(vv,o));if(g.length){vSendAboard(vv,g);sfx('flick')}else vMenu(vv,e);return}}if(!b&&[...sel].some(canOrder)){ordGive([...sel].filter(canOrder),x,y);return}if(b)openMenu(b,e);else if(![...sel].some(o=>o.direct)){sel.clear();moveSel=null;charge=null}return}
  cv.setPointerCapture(e.pointerId);
  {
