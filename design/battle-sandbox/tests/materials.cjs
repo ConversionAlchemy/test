@@ -4,13 +4,7 @@
 const fs=require('fs'),path=require('path'),SRC=path.join(__dirname,'../src');
 const RULES=[['class number',/(?:sol\[[^\]]*\]|\.mat\b|\bmx\b|\bpm\b|\bm\b)\s*[!=]==\s*[1-4]\b/g],['element branch',/[!=]==\s*'(?:Stone|Wood|Metal|Cloth|Earth)'|'(?:Stone|Wood|Metal|Cloth|Earth)'\s*[!=]==/g],['surface sound',/'(?:stonehit|woodhit|mhit|rustle|rico|ricos|chink)'/g]];
 const SKIP=new Set(['materials.js','sounds.js','space.js','tiles.js','countmap.js']);
-const ALLOW={// file:function rule → phase
- 'sim.js:arcHit class number':3,
- 'sim.js:slabPix class number':5,'sim.js:barricade class number':5,
-
- 'sim.js:ladL element branch':3,
- 'sim.js:boards element branch':5,'sim.js:paintCell0 element branch':5,'editor.js:baseRec element branch':5,'editor.js:slabCell element branch':5,
- 'editor.js:cracks element branch':5,'editor.js:R element branch':5,'editor.js:relink element branch':5,
+const ALLOW={// file:function rule → reason
  'editor.js:legacyDoor class number':'old saves'};
 const fnAt=(s,i)=>{let n='-';for(const m of s.slice(0,i).matchAll(/function\s+(\w+)|(?:const|let)\s+(\w+)\s*=\s*(?:\([^)]*\)|\w+)\s*=>/g))n=m[1]||m[2];return n};
 let bad=0;const seen=new Set();
