@@ -219,9 +219,9 @@ function earthWear(cx,cy,x,y,R,top,L0){const so=Math.min(1.2,softOf('Earth','gra
  const Lc=to(cx*T+8,cy*T+8);if(Lc>L0)map[cy][cx]=ladK(Lc);
  for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const L=to(X,Y);if(L<=L0)continue;const q=TEX[ladK(L)](X,Y,cx,cy);if(!q)continue;floor[j]=rgb(cl(q[0]),cl(q[1]),cl(q[2]));if(PR)PR.floor[j]=floor[j]}}
 function blastWear(x,y,s){vBlastWear(x,y,s);uBlast(x,y,s);BRY0=Math.min(BRY0,y-4*T);BRY1=Math.max(BRY1,y+4*T);const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
- for(let cy=Math.max(0,(y-R*2.6)/T|0);cy<=Math.min(CH-1,(y+R*2.6)/T|0);cy++)for(let cx=Math.max(0,(x-R*2.6)/T|0);cx<=Math.min(CW-1,(x+R*2.6)/T|0);cx++){const k=map[cy][cx],c=CATN[k],ok=OM[cy]&&OM[cy][cx],oe=ok&&objEl(ok);if(oe){const so=softOf(oe[0],oe[1]),wd=oe[0]==='Wood',Rm=R*1.3*(wd?1.6:1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearObj(cx,cy,(1-d/Rm)*top*(wd?40:26))}
-  if(c&&c[3]&&AGE[c[0]]){const so=softOf(c[0],c[1]),wd=c[0]==='Wood',Rm=R*1.3*(wd?1.6:1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearWall(cx,cy,(1-d/Rm)*top*(wd?40:26));continue}if(OM[cy]&&OM[cy][cx])continue;{const L0=ladL(k);if(L0>=0){earthWear(cx,cy,x,y,R,top,L0);continue}}if(!c||c[3]||!AGE[c[0]])continue;
-  const c0=c[4]||5,so=softOf(c[0],c[1]),wf=c[0]==='Wood',Rm=R*(c[0]==='Cloth'?1.6:wf?1.5:1)*(.55+.45*Math.min(1.2,so)),lv=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?c0:Math.max(1,Math.min(c0,5-Math.round((wf?Math.pow(1-d,.9)*1.15:1-d)*top*Math.min(1.2,so)+.3)))};
+ for(let cy=Math.max(0,(y-R*2.6)/T|0);cy<=Math.min(CH-1,(y+R*2.6)/T|0);cy++)for(let cx=Math.max(0,(x-R*2.6)/T|0);cx<=Math.min(CW-1,(x+R*2.6)/T|0);cx++){const k=map[cy][cx],c=CATN[k],ok=OM[cy]&&OM[cy][cx],oe=ok&&objEl(ok);if(oe){const so=softOf(oe[0],oe[1]),bl=clsB(oe[0],oe[1]),Rm=R*1.3*(bl.reach||1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearObj(cx,cy,(1-d/Rm)*top*(bl.wear||26))}
+  if(c&&c[3]&&AGE[c[0]]){const so=softOf(c[0],c[1]),bl=clsB(c[0],c[1]),Rm=R*1.3*(bl.reach||1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearWall(cx,cy,(1-d/Rm)*top*(bl.wear||26));continue}if(OM[cy]&&OM[cy][cx])continue;{const L0=ladL(k);if(L0>=0){earthWear(cx,cy,x,y,R,top,L0);continue}}if(!c||c[3]||!AGE[c[0]])continue;
+  const c0=c[4]||5,so=softOf(c[0],c[1]),bl=clsB(c[0],c[1]),wf=bl.crater==='planks',Rm=R*(bl.floor||1)*(.55+.45*Math.min(1.2,so)),lv=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?c0:Math.max(1,Math.min(c0,5-Math.round((wf?Math.pow(1-d,.9)*1.15:1-d)*top*Math.min(1.2,so)+.3)))};
   const cc=lv(cx*T+8,cy*T+8);if(cc<c0)map[cy][cx]=baseK(k)+'~'+cc;
   for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const p=lv(X,Y);if(p>=c0)continue;const ak=c[0]+c[1]+p,A=AC[ak]||(AC[ak]=ageOf(c[0],c[1],p)),q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9);floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]));if(PR)PR.floor[j]=floor[j]}}edgeMask()}
 // walls lose condition as they're shot, chipped and blasted: each cell keeps a tally, every step of it wears one condition, softer materials faster; its wall neighbours take a share
@@ -255,6 +255,8 @@ function heatTint(c,cls,a,X=0,Y=0){const H=(CLS[cls]||CLS.stone).heat,o0=[c&255,
  if(H.hole&&a>H.hole)o=a<H.hole+.05?[190,92,40]:[14,11,10];
  return rgb(cl(o[0]),cl(o[1]),cl(o[2]))}
 function temperF(a){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0,f0]=TEMPER[i-1],[p1,f1]=TEMPER[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0)));return f0.map((v,k)=>v+(f1[k]-v)*u)}
+// a material's blast entry
+const clsB=(el,mat)=>(CLS[mprop(el,mat).cls]||CLS.stone).blast;
 // the material class of the surface showing at a pixel: wall, furniture or floor
 function clsAt(X,Y){const j=Y*W+X,cy=Y>>4,cx=X>>4;if(!sol[j]){const ok=OBJ[j]&&OM[cy]&&OM[cy][cx];if(ok){const e=objEl(ok);return e?mprop(e[0],e[1]).cls:/hedge/.test(ok)?'foliage':matK(ok)}const g=GT[j];if(g===1)return'grass';if(g===2)return'soil'}return matK(map[cy]&&map[cy][cx])}
 // heat marks every surface by its class's heat ramp; HTM keeps each pixel's heat, HTB its cold colour and which layer it was
@@ -270,18 +272,18 @@ const untemper=(c,a)=>{const f=temperF(a),f0=temperF(0);return rgb(cl((c&255)*f0
 // a blast breaks a built floor by its material: stone and marble through to soil with a chipped edge and hairline cracks, wood broken through to soil inside a rim of splintered board ends, cloth burnt through, metal dented with a bright lip; how far follows toughness
 // what lies under a carpet: the cell's underlay, else plain boards
 const UPX=new Map();function under(X,Y){const cx=X>>4,cy=Y>>4,id=cy*CW+cx;let d=UPX.get(id);if(!d||d.m!==curMap){d=tilePix(undAt(cx,cy)||'wood.oak.planks',cx,cy);d.m=curMap;UPX.set(id,d)}const i=((Y&15)*T+(X&15))*4;return rgb(d[i],d[i+1],d[i+2])}
-const blastSoft=(x,y)=>{const c=CATN[map[Math.round(y)>>4]&&map[Math.round(y)>>4][Math.round(x)>>4]];return c&&c[0]!=='Metal'?Math.max(1,Math.min(1.6,softOf(c[0],c[1])*1.05)):1};
+const blastSoft=(x,y)=>{const c=CATN[map[Math.round(y)>>4]&&map[Math.round(y)>>4][Math.round(x)>>4]];return c&&!clsB(c[0],c[1]).firm?Math.max(1,Math.min(1.6,softOf(c[0],c[1])*1.05)):1};
 function crater(x,y,s){const r=6.5*s,rr=s>1.5?.85:.7;for(let Y=Math.floor(y-r*2);Y<=y+r*2;Y++)for(let X=Math.floor(x-r*2);X<=x+r*2;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j])continue;
   const dx=X-x,dy=Y-y,e=r*(.78+.44*fbm(X/4,Y/4,93)),q=Math.hypot(dx,dy)/e;if(q>=2)continue;
-  if(GT[j]!==1&&GT[j]!==2){const mk=map[Y>>4][X>>4];if(mk==='sky')continue;const f0=floor[j],cc=CATN[mk],fam=cc?cc[0]:'Stone',P=cc?mprop(cc[0],cc[1]):{hp:3},so=cc?softOf(cc[0],cc[1]):1,old=DMG[j];
-   if(fam==='Metal'){// metal dents: a darkened dish with a bright torn lip; a heavy blast tears soft metal through
+  if(GT[j]!==1&&GT[j]!==2){const mk=map[Y>>4][X>>4];if(mk==='sky')continue;const f0=floor[j],cc=CATN[mk],cr=cc?clsB(cc[0],cc[1]).crater||'chips':'chips',P=cc?mprop(cc[0],cc[1]):{hp:3},so=cc?softOf(cc[0],cc[1]):1,old=DMG[j];
+   if(cr==='dent'){// metal dents: a darkened dish with a bright torn lip; a heavy blast tears soft metal through
     const qd=q/(rr*1.3*so);if(qd<1){floor[j]=s>1.5&&P.hp<=5&&qd<.4?rgb(...sc(soilT(X,Y),.5).map(cl)):mul(floor[j],old?.94:.5+.4*qd)}else if(qd<1.2&&hh(X,Y,99)>.35)floor[j]=mul(floor[j],1.22)}
-   else{const wd=fam==='Wood',cl0=fam==='Cloth',qw=q,rw=cl0?rr*2.6:rr*so;
+   else{const wd=cr==='planks',cl0=cr==='cloth',qw=q,rw=cl0?rr*2.6:rr*so;
     if(qw<rw){if(old)floor[j]=mul(floor[j],.94);else if(wd){const e2=qw/rw;if(e2<.78){const f=sc(soilT(X,Y),.6+.35*e2);floor[j]=rgb(cl(f[0]),cl(f[1]),cl(f[2]))}else floor[j]=hh(X>>2,Y,98)>.6?mul(floor[j],.5):rgb(cl(30+18*e2),cl(22+12*e2),cl(16+8*e2))}
      else if(cl0){const ed=qw/rw;if(ed<.62){const u=under(X,Y);floor[j]=ed>.5&&hh(X,Y,98)>.5?rgb(36,28,24):mul(u,ed>.45?.6:.82)}else floor[j]=hh(X,Y,98)>.55?mul(floor[j],.4):rgb(cl(36+20*ed),cl(28+10*ed),24)}
      else{const f=sc(soilT(X,Y),.62+.3*qw/rw),g=hh(X>>1,Y>>1,98);floor[j]=g>.86&&qw>rw*.4?mul(floor[j],.62):rgb(cl(f[0]),cl(f[1]),cl(f[2]))}GT[j]=3;SHN[j]=0}
     else if(qw<rw*(cl0?1.6:1.25)&&!old&&hh(X,Y,99)>(cl0?.3:.45)){floor[j]=mul(floor[j],cl0?.6+.25*hh(X,Y,97):.5);SHN[j]=0}
-    else if(qw<rw*1.9&&!old&&fam!=='Cloth'&&(wd?Math.abs(vn(X/9,Y*1.6,95)-.5)<.04:Math.abs(vn(X/2.5,Y/2.5,95)-.5)<.07))floor[j]=mul(floor[j],.72)}
+    else if(qw<rw*1.9&&!old&&!cl0&&(wd?Math.abs(vn(X/9,Y*1.6,95)-.5)<.04:Math.abs(vn(X/2.5,Y/2.5,95)-.5)<.07))floor[j]=mul(floor[j],.72)}
    if(floor[j]!==f0)DMG[j]=1;continue}const so=soilT(X,Y);let c=null;
   if(q<1){const lit=(-dx*.6-dy*.8)/e;const k=(.6+.32*q)*(1-lit*.16*(1-q))*(q<.45?.85:1);c=sc(so,k*(GT[j]===2?.92:1))}
   else if(q<1.35){if(hh(X,Y,94)<(1.35-q)/.35*1.3)c=sc(so,1.02+hh(X,Y,95)*.08)}
@@ -824,13 +826,13 @@ function restore(b){b.px=tokPixels(b);mkSet(b);b.status='free';b.coreHit=false;b
 function shockBurst(b){if(!bodies.includes(b))return;remove(b);const x=b.x,y=b.y,dud=Math.random()<.1,s=dud?.3+Math.random()*.2:.6+Math.random()*.7;sfx('crack');sfx('zap');BLU=true;arcBlast(x,y,dud?1:1+s*1.5);for(let i=0;i<(dud?6:16);i++)spark(x,y,i%2?plasC(Math.random()):rgb(240,226,255),0,0,dud?1.5:3,8+(Math.random()*10|0));BLU=false;if(!dud)explode(x,y,s);else for(const q of [...bodies])if(q.type==='token'&&Math.hypot(q.x-x,q.y-y)<10)cut(q,Math.round(x),Math.round(y),2,true,3)}
 function detonate(b){remove(b);explode(b.x,b.y,b.kind==='bomb'?1.95:1.3)}
 let alarm=false;function raiseAlarm(){if(alarm)return;alarm=true;setTimeout(()=>{for(const t of bodies)if(t.type==='token'&&t.status==='free'&&!t.held&&t.psi>=0&&t.inv&&t.inv[t.psi])selectSlot(t,t.psi)},250)}
-function explode(x,y,s=1){raiseAlarm();hear(x,y,520*s,null,'boom');SND&&SND.at(s>1.5?'bomb':'grenade',x,y);flash(x,y,1,.62,.25,2.2*s,9*s,.9);shake=10*s;carve(x,y,6.5*s,3+(s>1?1:0),0,0);blastWear(x,y,s);crater(x,y,s);heatMark(x,y,15*s,.45*s);{const c=CATN[map[Math.round(y)>>4]&&map[Math.round(y)>>4][Math.round(x)>>4]];if(c&&c[0]==='Cloth'){emberPatch(x,y,16,9*s);dab(TF,x,y,.7*s,4)}}wreck(x,y,s);for(const c of bodies.filter(o=>o.kind==='crate'&&!o.hidden&&o.inv&&Math.hypot(o.x-x,o.y-y)<14*s))cShot(c,Math.round(c.x),Math.round(c.y),20,null);scorchRays(x,y,s*blastSoft(x,y));blastTethers(x,y,s);lockBlast(x,y,12*s);const R=30*s,F=26*s;
+function explode(x,y,s=1){raiseAlarm();hear(x,y,520*s,null,'boom');SND&&SND.at(s>1.5?'bomb':'grenade',x,y);flash(x,y,1,.62,.25,2.2*s,9*s,.9);shake=10*s;carve(x,y,6.5*s,3+(s>1?1:0),0,0);blastWear(x,y,s);crater(x,y,s);heatMark(x,y,15*s,.45*s);{const c=CATN[map[Math.round(y)>>4]&&map[Math.round(y)>>4][Math.round(x)>>4]];if(c&&clsB(c[0],c[1]).ignite){emberPatch(x,y,16,9*s);dab(TF,x,y,.7*s,4)}}wreck(x,y,s);for(const c of bodies.filter(o=>o.kind==='crate'&&!o.hidden&&o.inv&&Math.hypot(o.x-x,o.y-y)<14*s))cShot(c,Math.round(c.x),Math.round(c.y),20,null);scorchRays(x,y,s*blastSoft(x,y));blastTethers(x,y,s);lockBlast(x,y,12*s);const R=30*s,F=26*s;
  for(const o of [...bodies]){if(!bodies.includes(o))continue;const dx=o.x-x,dy=o.y-y,d=Math.hypot(dx,dy);if(d>R)continue;
   if(o.kind==='grenade'||o.kind==='bomb'){if(!o.fuse)o.fuse=4+(Math.random()*8|0);continue}if(o.type==='slab'&&!o.fallen){blastSlab(o,x,y,s);continue}
   if(o.type==='token'||o.type==='part'){if(d<28*s){const k=1-d/(28*s);for(let i=0;i<Math.round(13*s*k)+3;i++){const tx=o.x+(Math.random()-.5)*12,ty=o.y+(Math.random()-.5)*12,dd=Math.hypot(tx-x,ty-y)||1,ux=(tx-x)/dd,uy=(ty-y)/dd,b0=Math.max(0,dd-12);pierce(o,x+ux*b0,y+uy*b0,ux,uy,8+20*k,.7)}if(d<10*s)cut(o,Math.round(o.x),Math.round(o.y),3+4*k,true,4);dab(FX.blood,o.x,o.y,.3+.6*k,3);settle(o)}}
   if(!bodies.includes(o)||o.type==='slab'||o.hidden)continue;const f=(F-Math.min(d,F))*.45/(o.mass||1);o.vx+=dx/(d||1)*f;o.vy+=dy/(d||1)*f;o.stuck=false;o.ghost=!!solidHits(o,0,0)}
  // steel barely crumbles: 40% of the grit on metal floors
- const mtl=(CATN[map[Math.round(y)>>4]&&map[Math.round(y)>>4][Math.round(x)>>4]]||[])[0]==='Metal'?.4:1;
+ const mtl=clsB(...(CATN[map[Math.round(y)>>4]&&map[Math.round(y)>>4][Math.round(x)>>4]]||['Stone','grey'])).firm?.4:1;
  for(let i=0;i<70*s*mtl;i++)spark(x,y,Math.random()<.5?rgb(40,36,34):rgb(90,80,70),0,0,4*s,undefined,s>1.5?.35:.15);
  // bombs always leave fire; a grenade does 40% of the time, in a tighter patch
  if(s>1.5)for(let i=0;i<5*s;i++){const a=Math.random()*6.283,rr=4+Math.random()*12*s;dab(TF,x+Math.cos(a)*rr,y+Math.sin(a)*rr,1.4+Math.random()*.9,2+(Math.random()*2|0))}
@@ -1182,7 +1184,7 @@ function scorchC(c,a,X,Y){a=Math.min(1,a);const t=scorchT(X,Y);if(t===SCT.Wood)a
  let f;if(t==='temper'){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0,f0]=TEMPER[i-1],[p1,f1]=TEMPER[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0)));f=f0.map((v,k)=>v+(f1[k]-v)*u)}else f=t.map(v=>1-a*(1-v));
  return rgb(cl((c&255)*f[0]),cl((c>>8&255)*f[1]),cl((c>>16&255)*f[2]))}
 // fresh blast heat glows and cools: metal brightest, wood embers flicker, stone a dull red
-function glowC(c,h,X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4],e=CATN[k]?CATN[k][0]:'Stone',g=e==='Metal'?1:e==='Wood'?.8*(.8+.4*hh(X>>1,Y>>1,tick>>3)):e==='Cloth'?.75:.5;return heatCol(h*g,c)}
+function glowC(c,h,X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4],B=CATN[k]?clsB(CATN[k][0],CATN[k][1]):CLS.stone.blast,g=B.glow*(B.flick?.8+.4*hh(X>>1,Y>>1,tick>>3):1);return heatCol(h*g,c)}
 let BRY0=1e9,BRY1=-1;const bDirty=q=>{const y=(q/BW|0)*2;if(y-3<BRY0)BRY0=y-3;if(y+5>BRY1)BRY1=y+5};let FLC=null,FLK='',FLR=0,SHL=new Set(),shBuilt=false,SOLL=null,SOLN=0;
 function floorPx(X,Y,j,hlC,sh){let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>W&&OBJ[j-W-1])c=mul(c,.66);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(sh&&SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);if(sh){const fh=FH[(Y>>1)*BW+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y)}const k=SH[j];if(k)c=mul(c,k===1?.66:.82);return c}
 function floorRows(y0,y1,hlC){if(y0===0&&y1===H)SHL=new Set();for(let Y=y0;Y<y1;Y++)for(let X=0,j=Y*W;X<W;X++,j++){if(sol[j])continue;if(SHN[j]){SHL.add(j);continue}FLC[j]=floorPx(X,Y,j,hlC,false)}}

@@ -1,18 +1,21 @@
 // The material table. ELEM (tiles.js) holds every material by element (Earth, Stone, Wood, Metal, Cloth), each with its look, strength and wear;
 // CLS below is what a class of materials shares in play: its hit class, sounds and the debris it throws. Every surface (wall, floor, furniture,
 // door, carrier hull, armour) names a material, and asks here how it behaves rather than deciding for itself. See README, "Materials".
+// blast: how a blast treats it. glow and flick: how bright fresh heat glows and whether it flickers; reach and wear: how far a
+// blast wears walls and furniture of it and how hard; floor: how far it wears floors; crater: the floor crater style (chips,
+// planks, dent, cloth); ignite: a blast sets it alight; firm: it does not soften the blast's reach
 // heat: how the class marks under heat, as stops [heat, colour, mix] from cold to hottest (approved in the lab); metal uses the temper
 // colours instead. spall, craze, glaze, ember, hole: extra marks past that heat; grain, soft, fade: char follows the grain, the edge fades
 // out, the stops scale the fabric's own faded colour (as it ages) rather than replace it
 const CLS={
- stone:{n:1,step:'stone',hit:'stonehit',debris:'chips',heat:{s:[[0,[0,0,0],0],[.18,[214,206,192],.18],[.42,[96,88,80],.38],[.68,[52,48,46],.62],[.9,[28,27,27],.8]],spall:.6}},
- marble:{n:1,step:'marble',hit:'stonehit',debris:'chips',heat:{s:[[0,[0,0,0],0],[.2,[226,206,150],.22],[.45,[200,184,150],.3],[.7,[232,230,222],.32],[.9,[244,243,238],.46]],craze:.6}},
- soil:{n:1,step:'dirt',hit:'stonehit',debris:'dust',heat:{s:[[0,[0,0,0],0],[.25,[64,48,34],.3],[.6,[38,30,24],.6],[.9,[30,30,36],.75]],glaze:.82}},
- grass:{n:2,step:'grass',hit:'woodhit',debris:'dust',heat:{s:[[0,[0,0,0],0],[.18,[160,150,62],.45],[.42,[120,92,48],.62],[.7,[72,58,40],.85],[.9,[32,28,24],.9]]}},
- wood:{n:2,step:'wood',hit:'woodhit',debris:'splinters',heat:{s:[[0,[0,0,0],0],[.22,[178,120,62],.2],[.46,[104,60,32],.48],[.7,[52,34,22],.68],[.92,[34,24,18],.8]],grain:1,ember:.82,soft:1}},
- metal:{n:3,step:'metal',hit:'mhit',debris:'sparks',heat:{temper:[[0,[1,1,1]],[.14,[1.02,.94,.78]],[.3,[.82,.66,.56]],[.46,[.56,.56,.7]],[.66,[.32,.33,.39]],[.9,[.15,.15,.17]]],max:.85}},
- cloth:{n:2,step:'carpet',hit:'woodhit',debris:'lint',heat:{s:[[0,[1,1,1],0],[.12,[1,1,1],.85],[.4,[1,1,1],1],[.7,[.66,.66,.66],1],[.86,[.42,.42,.42],1]],hole:.88,fade:1,soft:1}},
- foliage:{n:4,step:'grass',hit:'rustle',debris:'leaves',heat:{s:[[0,[0,0,0],0],[.25,[150,130,50],.5],[.6,[90,64,34],.75],[.9,[30,24,20],.9]]}}};
+ stone:{n:1,step:'stone',hit:'stonehit',debris:'chips',heat:{s:[[0,[0,0,0],0],[.18,[214,206,192],.18],[.42,[96,88,80],.38],[.68,[52,48,46],.62],[.9,[28,27,27],.8]],spall:.6},blast:{glow:.5}},
+ marble:{n:1,step:'marble',hit:'stonehit',debris:'chips',heat:{s:[[0,[0,0,0],0],[.2,[226,206,150],.22],[.45,[200,184,150],.3],[.7,[232,230,222],.32],[.9,[244,243,238],.46]],craze:.6},blast:{glow:.5}},
+ soil:{n:1,step:'dirt',hit:'stonehit',debris:'dust',heat:{s:[[0,[0,0,0],0],[.25,[64,48,34],.3],[.6,[38,30,24],.6],[.9,[30,30,36],.75]],glaze:.82},blast:{glow:.5}},
+ grass:{n:2,step:'grass',hit:'woodhit',debris:'dust',heat:{s:[[0,[0,0,0],0],[.18,[160,150,62],.45],[.42,[120,92,48],.62],[.7,[72,58,40],.85],[.9,[32,28,24],.9]]},blast:{glow:.5}},
+ wood:{n:2,step:'wood',hit:'woodhit',debris:'splinters',heat:{s:[[0,[0,0,0],0],[.22,[178,120,62],.2],[.46,[104,60,32],.48],[.7,[52,34,22],.68],[.92,[34,24,18],.8]],grain:1,ember:.82,soft:1},blast:{glow:.8,flick:1,reach:1.6,wear:40,floor:1.5,crater:'planks'}},
+ metal:{n:3,step:'metal',hit:'mhit',debris:'sparks',heat:{temper:[[0,[1,1,1]],[.14,[1.02,.94,.78]],[.3,[.82,.66,.56]],[.46,[.56,.56,.7]],[.66,[.32,.33,.39]],[.9,[.15,.15,.17]]],max:.85},blast:{glow:1,crater:'dent',firm:1}},
+ cloth:{n:2,step:'carpet',hit:'woodhit',debris:'lint',heat:{s:[[0,[1,1,1],0],[.12,[1,1,1],.85],[.4,[1,1,1],1],[.7,[.66,.66,.66],1],[.86,[.42,.42,.42],1]],hole:.88,fade:1,soft:1},blast:{glow:.75,floor:1.6,crater:'cloth',ignite:1}},
+ foliage:{n:4,step:'grass',hit:'rustle',debris:'leaves',heat:{s:[[0,[0,0,0],0],[.25,[150,130,50],.5],[.6,[90,64,34],.75],[.9,[30,24,20],.9]]},blast:{glow:.5}}};
 // what each hit class does in play. hp, f (friction), weld; its sounds when shot (hit), struck or lodged in (knock), glanced off (glance),
 // dragged (drag) and crushed (crush); the debris and chip colour it throws; metal (sparks, heats, turns blades), deflect (shots glance),
 // hard (shots bite only a pixel or two), lock (doors of it lock), mass when pushed; carve, blade, pen, dig, rod, rodWear, rodE, obj tune
