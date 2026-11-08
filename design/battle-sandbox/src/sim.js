@@ -1256,7 +1256,7 @@ let SQN=0;function formUp(){const ts=[...sel].filter(b=>b.type==='token'&&b.stat
  const rows=[];for(let i=0;i<sq.length;i+=3)rows.push(sq.slice(i,i+3));const cols=n=>n<=4?n:Math.ceil(n/2),wid=s=>(cols(s.length)-1)*G,lines=[];
  rows.forEach((row,ri)=>{const w=row.reduce((a,s)=>a+wid(s),0)+GAP*(row.length-1);let u=-w/2;for(const s of row){const c=cols(s.length);s.forEach((b,i)=>lines.push([b,u+(i%c)*G,ri*(G+2.5*T)+(i/c|0)*G]));u+=wid(s)+GAP}});
  const depth=Math.max(...lines.map(l=>l[2]));SQN++;sq.forEach((s,i)=>s.forEach(b=>b.sq=SQN*100+i));
- for(const[b,u,v]of lines){const ox=b.x,oy=b.y,d=v-depth/2;b.x=cx+rx*u-fx*d;b.y=cy+ry*u-fy*d;if(b.x<4||b.y<4||b.x>W-4||b.y>H-4||solidHits(b,0,0)){b.x=ox;b.y=oy}b.ord=null;b.mw=null;b.glide=null;b.vx=b.vy=0;b.face0=b.ang;turnNow(b,A)}sfx('clank')}
+ for(const[b,u,v]of lines){const ox=b.x,oy=b.y,d=v-depth/2;b.x=cx+rx*u-fx*d;b.y=cy+ry*u-fy*d;if(b.x<4||b.y<4||b.x>W-4||b.y>H-4||solidHits(b,0,0)){b.x=ox;b.y=oy}b.ord=null;b.mw=null;b.glide=null;b.vx=b.vy=0;b.face0=b.ang;b.hf=false;turnNow(b,A)}sfx('clank')}
 function turnTo(b,a,now){if(now||b.type!=='token'||b.status!=='free')return turnNow(b,a);b.faceT=a}
 function turnTick(){goldSnap();for(const b of bodies){if(b.faceT==null)continue;if(b.type==='weapon'){const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang));if(Math.abs(d)<=.14){if(Math.abs(d)>.01)reshape(b,b.faceT);b.faceT=null}else reshape(b,b.ang+Math.sign(d)*.14);continue}if(b.status!=='free'){b.faceT=null;continue}const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang)),r=(TURN[b.unit]||.14)*(b.crouch?.7:1);if(Math.abs(d)<=r){turnNow(b,b.faceT);b.faceT=null}else turnNow(b,b.ang+Math.sign(d)*r)}}
 const facing=(b,x,y)=>Math.hypot(x-b.x,y-b.y)<28||Math.abs(Math.atan2(Math.sin(Math.atan2(y-b.y,x-b.x)-b.ang),Math.cos(Math.atan2(y-b.y,x-b.x)-b.ang)))<.35;
@@ -1654,16 +1654,16 @@ function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB)
  const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===FT&&b.status!=='dead');
  if(VS.length!==NB){VS=new Uint8Array(NB);VSF=new Float32Array(NB)}fSel=me.some(b=>sel.has(b));
  if(VD.length!==NB)VD=new Float32Array(NB);
- // units standing still keep their sight in a cache; selected and moving units cast rays every frame. A changed cache is rebuilt a few units a frame, the old one standing in meanwhile
+ // units standing still keep their sight in a cache; moving units cast rays every frame. A changed cache is rebuilt a few units a frame, the old one standing in meanwhile
  const env=solT+'|'+bodies.reduce((h,o)=>o.type==='slab'?h+o.x*7+o.y*13+(o.ang||0)*101|0:h,0)+'|'+VEH.map(v=>v.x+','+v.y+','+v.ang).join(';'),sk=b=>(b.x|0)+','+(b.y|0)+','+!!b.crouch+','+(b.vseat?b.vseat.id:0);
  for(const b of me){const k=sk(b);if(k!==b._sk){b._mvT=b._sk===undefined?-99:tick;b._sk=k}}
- const isLive=b=>{const l=sel.has(b)||b.direct||tick-(b._mvT||0)<20;if(l)b._lvT=tick;return l},still=me.filter(b=>!isLive(b)),ck=FT+'|'+env+'|'+still.map(b=>b.id+':'+b._sk).join(';');
- if(SVC.d.length!==NB)SVC={k:'',d:new Float32Array(NB),i:new Uint8Array(NB),ids:new Set()};
- if(SVC.k!==ck&&!SVB)SVB={k:ck,d:new Float32Array(NB),i:new Uint8Array(NB),ids:new Set(still.map(b=>b._sk+'#'+b.id)),q:still.slice()};
- if(SVB){const t0=performance.now();while(SVB.q.length&&performance.now()-t0<(SVC.k?6:12)){const b=SVB.q.pop();if(bodies.includes(b))sight360(b,(q,v)=>{SVB.i[q]=1;if(v>SVB.d[q])SVB.d[q]=v})}if(!SVB.q.length){SVC=SVB;SVB=null}}
+ const isLive=b=>{const l=tick-(b._mvT||0)<20;if(l)b._lvT=tick;return l},still=me.filter(b=>!isLive(b)),ck=FT+'|'+env+'|'+still.map(b=>b.id+':'+b._sk+(sel.has(b)?'s':'')).join(';');
+ if(SVC.d.length!==NB)SVC={k:'',d:new Float32Array(NB),i:new Uint8Array(NB),s:new Uint8Array(NB),ids:new Set()};
+ if(SVC.k!==ck&&!SVB)SVB={k:ck,d:new Float32Array(NB),i:new Uint8Array(NB),s:new Uint8Array(NB),ids:new Set(still.map(b=>b._sk+'#'+b.id)),q:still.slice()};
+ if(SVB){const t0=performance.now();while(SVB.q.length&&performance.now()-t0<(SVC.k?6:12)){const b=SVB.q.pop(),sb=sel.has(b);if(bodies.includes(b))sight360(b,(q,v)=>{SVB.i[q]=1;if(v>SVB.d[q])SVB.d[q]=v;if(sb)SVB.s[q]=1})}if(!SVB.q.length){SVC=SVB;SVB=null}}
  const live=me.filter(b=>isLive(b)||!SVC.ids.has(b._sk+'#'+b.id)&&tick-(b._lvT??-1e9)<600),lk=live.map(b=>b.id).join(),same=VF.length===NB&&SVC.k===SVC.done&&(!live.length&&!SVC.live||lk===SVC.lk&&tick%2);SVC.done=SVC.k;SVC.live=live.length;SVC.lk=lk;
  if(!same){
- VIS.set(SVC.i);VD.set(SVC.d);VS.fill(0);for(const b of live){const sb=sel.has(b);sight360(b,(q,v)=>{VIS[q]=1;if(v>VD[q])VD[q]=v;if(sb)VS[q]=1})}
+ VIS.set(SVC.i);VD.set(SVC.d);VS.set(SVC.s);for(const b of live){const sb=sel.has(b);sight360(b,(q,v)=>{VIS[q]=1;if(v>VD[q])VD[q]=v;if(sb)VS[q]=1})}
  for(let y=1;y<BH-1;y++)for(let x=1;x<BW-1;x++){const q=y*BW+x;if(!VIS[q]&&(VIS[q-1]&1&&VIS[q+1]&1||VIS[q-BW]&1&&VIS[q+BW]&1)){VIS[q]=2;VD[q]=Math.max(Math.min(VD[q-1],VD[q+1]),Math.min(VD[q-BW],VD[q+BW]))}}
  }for(let q=0;q<NB;q++)if(VIS[q])SEEN[q]=tick;
  // soft edge: blur the view mask a few cells; while only moving units change it, every other frame
@@ -1759,20 +1759,20 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k==='z'){if(!e.repeat)toggleSlow();return}
  if(k==='x'){if(!e.repeat)vKeyX();return}
  if(k==='v'){if(!e.repeat&&vKeyV())return;if(!e.repeat)lookGive([...sel].filter(canOrder),mouse.x,mouse.y,e.shiftKey);return}
- if(k==='shift'){if(vKeyBrake(true))return;if(!e.repeat)dash();return}
+ if(k==='shift'){if(vKeyBrake(true))return;const ts=[...sel].filter(b=>b.type==='token');if(!e.repeat&&ts.length===1&&ts[0].direct)dash();return}
  if(k==='c'){if(!e.repeat)for(const b of sel)if(b.type==='token'&&b.status==='free'){b.crouch=true;b.pc=true}return}
  if((k==='q'||k==='e')&&[...sel].some(o=>o.type==='slab'&&o.free)){keys.add(k);e.preventDefault();return}
  // Q over a group: if any weapon is out, all are put away; otherwise all are drawn
  if(k==='q'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&b.inv),out=ts.some(b=>b.held);for(const b of ts){if(out){if(b.held){b.psi=b.si;b.si=-1;b.held=null;b.hc=null}}else if(b.psi>=0&&b.inv[b.psi])selectSlot(b,b.psi)}sfx('flick');return}
  if(k==='e'&&[...sel].some(b=>b.type==='token'&&b.status==='free'&&(!aiOn||teamOf(b)===aiMe))){const on=![...sel].some(b=>b.direct);for(const b of sel)if(b.type==='token'){if(on)b.face0=b.ang;else if(b.face0!=null&&sel.size>1)turnTo(b,b.face0);b.direct=on;b.ord=null}sfx('flick');return}
  if(k==='escape'||k==='e'){sel.clear();openCrate=null;moveSel=null;charge=null;box=null;closeMenu();return}
- if(k==='a'&&(e.ctrlKey||e.metaKey)){const[x0,y0,x1,y1]=VIEWR||[0,0,W,H];sel.clear();for(const b of bodies)if(b.type==='token'&&b.status==='free'&&!b.vseat&&b.x>=x0&&b.x<x1&&b.y>=y0&&b.y<y1)sel.add(b);e.preventDefault();return}
  if(k.length===1&&'wasd'.includes(k)){keys.add(k);e.preventDefault();return}
  if(k==='r'){for(const b of sel){const h=b.type==='token'&&b.status!=='free'?null:slot(b);if(h&&CAP[h.k]&&h.ammo<CAP[h.k])reload(b)}return}
  if(k>='1'&&k<='4'){for(const b of sel)if(b.type==='token'&&b.status==='free'&&b.inv)selectSlot(b,+k-1);return}
  if(k==='g'){if(vKeyG())return;for(const b of sel)if(b.type==='token'&&b.held)dropHeld(b);return}
  if(k==='t'){formUp();return}
- if(k==='h'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat);for(const b of ts){if(e.shiftKey){if(b.face0!=null)turnTo(b,b.face0)}else{b.face0=b.ang;turnTo(b,Math.atan2(mouse.y-b.y,mouse.x-b.x))}}if(ts.length)sfx('flick');return}
+ // H toggles the group between facing the cursor once and facing back the way they were
+ if(k==='h'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat),back=ts.some(b=>b.hf);for(const b of ts){if(back){if(b.face0!=null)turnTo(b,b.face0);b.hf=false}else{b.face0=b.ang;b.hf=true;turnTo(b,Math.atan2(mouse.y-b.y,mouse.x-b.x))}}if(ts.length)sfx('flick');return}
  if(k==='f'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}
  if(k==='delete'||k==='backspace'){for(const b of [...sel])remove(b);e.preventDefault()}});
 window.addEventListener('keyup',e=>{if(e.key==='Shift')VBRK=false;if(e.key.toLowerCase()==='c')for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}if(e.key===' ')panKey=false;keys.delete(e.key.toLowerCase())});
