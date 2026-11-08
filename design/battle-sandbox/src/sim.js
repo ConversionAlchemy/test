@@ -1715,7 +1715,7 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k==='z'){if(!e.repeat)toggleSlow();return}
  if(k==='x'){if(!e.repeat)vKeyX();return}
  if(k==='v'){if(!e.repeat&&vKeyV())return;if(!e.repeat)lookGive([...sel].filter(canOrder),mouse.x,mouse.y,e.shiftKey);return}
- if(k==='shift'){if(!e.repeat)dash();return}
+ if(k==='shift'){if(vKeyBrake(true))return;if(!e.repeat)dash();return}
  if(k==='c'){if(!e.repeat)for(const b of sel)if(b.type==='token'&&b.status==='free'){b.crouch=true;b.pc=true}return}
  if((k==='q'||k==='e')&&[...sel].some(o=>o.type==='slab'&&o.free)){keys.add(k);e.preventDefault();return}
  if(k==='q'){for(const b of sel){if(b.type!=='token'||b.status!=='free'||!b.inv)continue;if(b.held){b.psi=b.si;b.si=-1;b.held=null;b.hc=null}else if(b.psi>=0&&b.inv[b.psi])selectSlot(b,b.psi)}sfx('flick');return}
@@ -1728,8 +1728,8 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k==='t'){sfx('flick');return}
  if(k==='f'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}
  if(k==='delete'||k==='backspace'){for(const b of [...sel])remove(b);e.preventDefault()}});
-window.addEventListener('keyup',e=>{if(e.key.toLowerCase()==='c')for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}if(e.key===' ')panKey=false;keys.delete(e.key.toLowerCase())});
-window.addEventListener('blur',()=>{keys.clear();panKey=false;for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}});
+window.addEventListener('keyup',e=>{if(e.key==='Shift')VBRK=false;if(e.key.toLowerCase()==='c')for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}if(e.key===' ')panKey=false;keys.delete(e.key.toLowerCase())});
+window.addEventListener('blur',()=>{keys.clear();VBRK=false;panKey=false;for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}});
 
 // menu
 let menu=null;function closeMenu(){if(menu){menu.remove();menu=null}}

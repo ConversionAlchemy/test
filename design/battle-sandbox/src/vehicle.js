@@ -129,6 +129,9 @@ function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==
 // the roof hides the crew unless a selected unit is aboard (V switches back to the roof)
 function vRoof(v){for(const t of sel)if(t.type==='token'&&vHas(v,t))return!!v.ext;return true}
 // V from a seat: switch between seeing the interior and the roof
+var VBRK=false;
+function vKeyBrake(down){const t=[...sel].find(b=>b.type==='token'&&b.vseat);if(!t||t.vseat.seats[0]!==t){VBRK=false;return false}VBRK=down;return true}
+function vBrakeHiss(v){const s=VSND.get(v.id);if(!s||!AC)return;vHiss(AC,s.g,AC.currentTime+.01,.7,5200,2600,.16*Math.min(1,Math.abs(v.sp)/.3+.4),.03)}
 function vKeyX(){const t=[...sel].find(b=>b.type==='token'&&b.vseat);if(!t||t.vseat.seats[0]!==t||t.vseat.dead)return false;t.vseat.bell=!t.vseat.bell;sfx('flick');return true}
 function vKeyV(){const t=[...sel].find(b=>b.type==='token'&&b.vseat);if(!t)return false;t.vseat.ext=!t.vseat.ext;sfx('flick');return true}
 function vHas(v,t){if(v.seats.includes(t))return true;const[lx,ly]=vW2L(v,t.x,t.y);return vInside(v,lx,ly)}
@@ -156,7 +159,9 @@ function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%
   let thr=0,turn=0;v.tin=0;if(v.on&&tick-v.onT>=VIGN+30){if(dv.direct&&sel.has(dv)){thr=(keys.has('w')?1:0)-(keys.has('s')?1:0);turn=(keys.has('d')?1:0)-(keys.has('a')?1:0)}else if(v.ai){thr=v.ai.thr;turn=v.ai.turn}}
   v.tin=Math.abs(turn);
   // speed and turn ease in: the push itself builds up before it reaches full strength
-  const ts=thr>0?.378:thr<0?-.198:0,am=.004*(thr?1:1.6),aT=Math.max(-am,Math.min(am,(ts-v.sp)*.08));v.acc+=Math.max(-.00015,Math.min(.00015,aT-v.acc));v.sp+=v.acc;if(Math.abs(v.sp)<.0015&&!thr&&Math.abs(v.acc)<.0003){v.sp=0;v.acc=0}
+  // off the throttle it coasts, slowed only by the tracks; Shift brakes hard with a hiss of air
+  const brk=v.on&&dv&&dv.direct&&sel.has(dv)&&VBRK;if(brk&&!v.brk&&Math.abs(v.sp)>.05)vBrakeHiss(v);v.brk=brk;
+  const ts=thr>0?.378:thr<0?-.198:0,am=brk?.012:thr?.004:.0022,aT=brk||!thr?Math.max(-am,Math.min(am,-v.sp*(brk?.3:.06))):Math.max(-am,Math.min(am,(ts-v.sp)*.08));v.acc+=Math.max(-(brk?.002:.00015),Math.min(brk?.002:.00015,aT-v.acc));v.sp+=v.acc;if(Math.abs(v.sp)<.0015&&!thr&&Math.abs(v.acc)<.0003){v.sp=0;v.acc=0}
   const tw=turn*.0028,wm=.000175*(turn?1:1.6),wT=Math.max(-wm,Math.min(wm,(tw-v.w)*.06));v.alp+=Math.max(-.000006,Math.min(.000006,wT-v.alp));v.w+=v.alp;if(Math.abs(v.w)<.00015&&!turn&&Math.abs(v.alp)<.00002){v.w=0;v.alp=0}
   if(v.sp||v.w)vMove(v);
   v.ph[0]+=v.sp-v.w*VC.PY;v.ph[1]+=v.sp+v.w*VC.PY;
@@ -305,7 +310,7 @@ function vMenu(v,e){closeMenu();const r=$('sm').getBoundingClientRect();menu=doc
 var VHB=null,VHK='';
 function vHints(){const t=sel.size===1&&[...sel][0],on=t&&t.type==='token'&&t.direct&&t.status==='free'&&!EM;let L=[];
  if(on){const s=vSeatOf(t),h=t.held,gun=h&&CAP[h.k],thr=h&&(h.k==='grenade'||h.k==='bomb');
-  if(s&&s[1]===0)L=[['W S','drive'],['A D','turn'],['X',s[0].bell?'alarm off':'alarm on'],['V','view'],['G','ignition off']];
+  if(s&&s[1]===0)L=[['W S','drive'],['A D','turn'],['Shift','brake'],['X',s[0].bell?'alarm off':'alarm on'],['V','view'],['G','ignition off']];
   else if(s)L=[['V','view'],['G','get up']];
   else{L=[['WASD','move'],['Shift','dash'],['C','crouch']];{const n=vNearSeat(t);if(n)L.push(['G',n[1]===0?'ignition on':'sit'])}
    if(gun)L.push(['Hold','fire'],['R','reload'],['Q','sheathe']);else if(thr)L.push(['Hold','throw'],['Q','sheathe']);else if(h)L.push(['Hold','attack'],['Q','sheathe']);else if(t.inv&&t.inv.some(Boolean))L.push(['Q','draw']);
