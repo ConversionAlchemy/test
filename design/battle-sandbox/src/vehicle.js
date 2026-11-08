@@ -282,12 +282,13 @@ function vWalkers(v){const ws=bodies.filter(t=>t.vwalk&&t.vwalk.v===v).sort((a,b
 function vSendAboard(v,g){let j=0;for(const t of g){if(t.type!=='token'||t.status!=='free'||vSeatOf(t))continue;const r=j>>1,sd=j%2?1:-1;j++;t.vstage=[VC.L+26+(r>>1)*16,VC.CY+sd*(20+(r%2)*16)];const[gx,gy]=vL2W(v,...t.vstage);t.vboard=v;t.direct=false;ordGive([t],gx,gy)}}
 
 // G: take or leave a seat; the driver's seat drives
-function vNearSeat(t){for(const v of VEH){if(v.dead)continue;const[lx,ly]=vW2L(v,t.x,t.y);let best=-1,bd=18;if(!vInside(v,lx,ly))continue;for(let i=0;i<VSEATS.length;i++){if(v.seats[i])continue;const[x,y]=vSit(i),d=Math.hypot(lx-x,ly-y);if(d<bd){bd=d;best=i}}if(best>=0)return[v,best]}return null}
+// the seat G takes: a free one within reach, the one the unit faces winning over a nearer one behind it
+function vNearSeat(t){for(const v of VEH){if(v.dead)continue;const[lx,ly]=vW2L(v,t.x,t.y);let best=-1,bs=1e9;if(!vInside(v,lx,ly)&&Math.hypot(...(([a,b])=>[lx-a,ly-b])(vSit(0)))>=18)continue;for(let i=0;i<VSEATS.length;i++){if(v.seats[i])continue;const[x,y]=vSit(i),d=Math.hypot(lx-x,ly-y);if(d>=18)continue;const[wx,wy]=vL2W(v,x,y),f=Math.cos(Math.atan2(wy-t.y,wx-t.x)-t.ang),sc=d-7*f;if(sc<bs){bs=sc;best=i}}if(best>=0)return[v,best]}return null}
 function vKeyG(){const t=[...sel].find(b=>b.type==='token'&&b.direct&&b.status==='free');if(!t)return false;const s=vSeatOf(t);if(s){vStand(s[0],t,false);sfx('flick');return true}const n=vNearSeat(t);if(!n)return false;vSeatNow(n[0],t,n[1]);return true}
 var VGP=null;function vPrompt(){const t=[...sel].find(b=>b.type==='token'&&b.direct&&b.status==='free'&&!vSeatOf(b));let at=null;
- if(t)for(const v of VEH){if(v.dead||v.seats[0])continue;const[x,y]=vSit(0),[lx,ly]=vW2L(v,t.x,t.y);if(Math.hypot(lx-x,ly-y)<18){at=vL2W(v,x,y);break}}
+ let drv=false;if(t){const n=vNearSeat(t);if(n){at=vL2W(n[0],...vSit(n[1]));drv=n[1]===0}}
  if(!at){if(VGP)VGP.style.display='none';return}if(!VGP){VGP=document.createElement('div');VGP.className='vkey';VGP.textContent='G'}if(!VGP.parentNode)stage.appendChild(VGP);
- VGP.style.display='';VGP.style.left=(at[0]*S)+'px';VGP.style.top=((at[1]-9)*S)+'px'}
+ VGP.classList.toggle('drv',drv);VGP.style.display='';VGP.style.left=(at[0]*S)+'px';VGP.style.top=((at[1]-9)*S)+'px'}
 function vLabels(){for(const v of VEH){if(!vRoof(v))continue;for(const t of bodies)if(t.lab&&t.type==='token'&&vHas(v,t))t.lab.style.display='none'}}
 
 // the engine goes: a short fuse of sparks and smoke, then a heavy blast; the hull is left a burnt shell
@@ -346,7 +347,7 @@ function vEngine(ac,out){const T=()=>ac.currentTime,o=(t,f)=>{const x=ac.createO
   sh.frequency.setTargetAtTime(12.6*rpm,t,.05);fire.frequency.setTargetAtTime(63*rpm,t,.05);mv.frequency.setTargetAtTime(25.2*rpm,t,.05);dr.frequency.setTargetAtTime(13.65*(.9+.2*st.lv),t,.08);sd.frequency.setTargetAtTime(13.1*(.9+.2*st.lv),t,.08);
   const so=st.solo,mB=so&&so!=='engine'?0:1,mD=so&&so!=='drive'?0:1,mR=so&&so!=='rat'?0:1;bus.gain.setTargetAtTime(mB*.9*Math.pow(st.up,1.5),t,.06);cltG.gain.setTargetAtTime(mB*.05*Math.pow(st.up,2)*(1+.6*st.lv),t,.08);lopeG.gain.setTargetAtTime(.07*(1-st.lv),t,.1);chug.frequency.setTargetAtTime(6*rpm,t,.08);shG.gain.setTargetAtTime(.5*(1-.5*st.lv),t,.1);
   mvG.gain.setTargetAtTime(.32*st.lv,t,.1);gritG.gain.setTargetAtTime(.05*st.lv,t,.1);tone.frequency.setTargetAtTime(1100+900*st.lv,t,.1);rumG.gain.setTargetAtTime(.3+.25*st.lv,t,.1);
-  drG.gain.setTargetAtTime(mD*(so==='drive'?.5:.22)*st.tv*st.up,t,.04);rat.gain.setTargetAtTime(mR*(so==='rat'?.7:.35)*st.tv*st.up*(st.near??1),t,.03);
+  drG.gain.setTargetAtTime(mD*(so==='drive'?.5:.22)*st.tv*st.up,t,.04);rat.gain.setTargetAtTime(mR*(so==='rat'?.7:.49)*st.tv*st.up*(st.near??1),t,.03);
   if(st.tv>.08&&st.up>.5){const iv=.095/(.6+.6*st.tv);if(nextT<t)nextT=t+.02;while(nextT<t+.12){tick(nextT);nextT+=iv*(.85+Math.random()*.3)}}}
  return{st,frame,stop(){for(const n of[bus,drG,rat,cltG])n.gain.setTargetAtTime(0,T(),.05);for(const x of[sh,lope,fire,mv,chug,dr,sd])x.stop(T()+.4);for(const x of[nz,rum,grit,clt])x.stop(T()+.4)}}}
 
