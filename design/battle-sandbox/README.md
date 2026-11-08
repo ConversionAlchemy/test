@@ -30,6 +30,10 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | R | Reload from spare ammo |
 | T | Lancer: switch between firing bolts and throwing |
 | Q | Sheathe or draw; over a group, if any weapon is out all are put away, otherwise all are drawn |
+| T | Form up: the selected units snap into squads of up to 8 (4 across, 2 deep) by kind, side by side, three to a row, centred where they stood |
+| H | Face the cursor once; Shift+H turns them back to where they faced before |
+| Ctrl/Cmd+A | Select every unit in view |
+| Double-click | Select a unit's squad from the last form-up, or its kind close by |
 | E / Esc | Deselect |
 | F / G | Switch hand / drop |
 | Space + drag, middle drag | Pan the camera on big maps |

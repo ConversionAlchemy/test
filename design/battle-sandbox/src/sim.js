@@ -1250,6 +1250,13 @@ function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=
   if(sx&&tryStep(b,sx,0))moved=true;if(sy&&tryStep(b,0,sy))moved=true;if(!moved)break}
  if(b.ghost&&!solidHits(b,0,0))b.ghost=false;return Math.hypot(b.x-x0,b.y-y0)}
 const TURN={civ:.18,home:.17,rifle:.16,guard:.12,shock:.1,cmd:.26};
+// form up: the selected units snap into squads of up to 8, 4 across and 2 deep, by kind, side by side with a gap and three squads to a row, centred where they stood and facing the way most of them faced
+let SQN=0;function formUp(){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat&&!b.vwalk);if(ts.length<2)return;const cx=ts.reduce((a,b)=>a+b.x,0)/ts.length,cy=ts.reduce((a,b)=>a+b.y,0)/ts.length,A=Math.atan2(ts.reduce((a,b)=>a+Math.sin(b.ang),0),ts.reduce((a,b)=>a+Math.cos(b.ang),0)),fx=Math.cos(A),fy=Math.sin(A),rx=-fy,ry=fx,G=1.3*T,GAP=2.2*T;
+ const kinds=[];for(const b of ts){let k=kinds.find(q=>q.u===b.unit);if(!k)kinds.push(k={u:b.unit,m:[]});k.m.push(b)}const sq=[];for(const k of kinds){k.m.sort((a,b)=>(a.x*rx+a.y*ry)-(b.x*rx+b.y*ry));for(let i=0;i<k.m.length;i+=8)sq.push(k.m.slice(i,i+8))}
+ const rows=[];for(let i=0;i<sq.length;i+=3)rows.push(sq.slice(i,i+3));const cols=n=>n<=4?n:Math.ceil(n/2),wid=s=>(cols(s.length)-1)*G,lines=[];
+ rows.forEach((row,ri)=>{const w=row.reduce((a,s)=>a+wid(s),0)+GAP*(row.length-1);let u=-w/2;for(const s of row){const c=cols(s.length);s.forEach((b,i)=>lines.push([b,u+(i%c)*G,ri*(G+2.5*T)+(i/c|0)*G]));u+=wid(s)+GAP}});
+ const depth=Math.max(...lines.map(l=>l[2]));SQN++;sq.forEach((s,i)=>s.forEach(b=>b.sq=SQN*100+i));
+ for(const[b,u,v]of lines){const ox=b.x,oy=b.y,d=v-depth/2;b.x=cx+rx*u-fx*d;b.y=cy+ry*u-fy*d;if(b.x<4||b.y<4||b.x>W-4||b.y>H-4||solidHits(b,0,0)){b.x=ox;b.y=oy}b.ord=null;b.mw=null;b.glide=null;b.vx=b.vy=0;b.face0=b.ang;turnNow(b,A)}sfx('clank')}
 function turnTo(b,a,now){if(now||b.type!=='token'||b.status!=='free')return turnNow(b,a);b.faceT=a}
 function turnTick(){goldSnap();for(const b of bodies){if(b.faceT==null)continue;if(b.type==='weapon'){const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang));if(Math.abs(d)<=.14){if(Math.abs(d)>.01)reshape(b,b.faceT);b.faceT=null}else reshape(b,b.ang+Math.sign(d)*.14);continue}if(b.status!=='free'){b.faceT=null;continue}const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang)),r=(TURN[b.unit]||.14)*(b.crouch?.7:1);if(Math.abs(d)<=r){turnNow(b,b.faceT);b.faceT=null}else turnNow(b,b.ang+Math.sign(d)*r)}}
 const facing=(b,x,y)=>Math.hypot(x-b.x,y-b.y)<28||Math.abs(Math.atan2(Math.sin(Math.atan2(y-b.y,x-b.x)-b.ang),Math.cos(Math.atan2(y-b.y,x-b.x)-b.ang)))<.35;
@@ -1757,13 +1764,15 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if((k==='q'||k==='e')&&[...sel].some(o=>o.type==='slab'&&o.free)){keys.add(k);e.preventDefault();return}
  // Q over a group: if any weapon is out, all are put away; otherwise all are drawn
  if(k==='q'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&b.inv),out=ts.some(b=>b.held);for(const b of ts){if(out){if(b.held){b.psi=b.si;b.si=-1;b.held=null;b.hc=null}}else if(b.psi>=0&&b.inv[b.psi])selectSlot(b,b.psi)}sfx('flick');return}
- if(k==='e'&&[...sel].some(b=>b.type==='token'&&b.status==='free'&&(!aiOn||teamOf(b)===aiMe))){const on=![...sel].some(b=>b.direct);for(const b of sel)if(b.type==='token'){b.direct=on;b.ord=null}sfx('flick');return}
+ if(k==='e'&&[...sel].some(b=>b.type==='token'&&b.status==='free'&&(!aiOn||teamOf(b)===aiMe))){const on=![...sel].some(b=>b.direct);for(const b of sel)if(b.type==='token'){if(on)b.face0=b.ang;else if(b.face0!=null&&sel.size>1)turnTo(b,b.face0);b.direct=on;b.ord=null}sfx('flick');return}
  if(k==='escape'||k==='e'){sel.clear();openCrate=null;moveSel=null;charge=null;box=null;closeMenu();return}
+ if(k==='a'&&(e.ctrlKey||e.metaKey)){const[x0,y0,x1,y1]=VIEWR||[0,0,W,H];sel.clear();for(const b of bodies)if(b.type==='token'&&b.status==='free'&&!b.vseat&&b.x>=x0&&b.x<x1&&b.y>=y0&&b.y<y1)sel.add(b);e.preventDefault();return}
  if(k.length===1&&'wasd'.includes(k)){keys.add(k);e.preventDefault();return}
  if(k==='r'){for(const b of sel){const h=b.type==='token'&&b.status!=='free'?null:slot(b);if(h&&CAP[h.k]&&h.ammo<CAP[h.k])reload(b)}return}
  if(k>='1'&&k<='4'){for(const b of sel)if(b.type==='token'&&b.status==='free'&&b.inv)selectSlot(b,+k-1);return}
  if(k==='g'){if(vKeyG())return;for(const b of sel)if(b.type==='token'&&b.held)dropHeld(b);return}
- if(k==='t'){sfx('flick');return}
+ if(k==='t'){formUp();return}
+ if(k==='h'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat);for(const b of ts){if(e.shiftKey){if(b.face0!=null)turnTo(b,b.face0)}else{b.face0=b.ang;turnTo(b,Math.atan2(mouse.y-b.y,mouse.x-b.x))}}if(ts.length)sfx('flick');return}
  if(k==='f'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}
  if(k==='delete'||k==='backspace'){for(const b of [...sel])remove(b);e.preventDefault()}});
 window.addEventListener('keyup',e=>{if(e.key==='Shift')VBRK=false;if(e.key.toLowerCase()==='c')for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}if(e.key===' ')panKey=false;keys.delete(e.key.toLowerCase())});

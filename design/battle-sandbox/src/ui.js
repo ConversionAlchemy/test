@@ -449,7 +449,7 @@ window.addEventListener('pointerup',e=>{if(SPD){SPD=null;return}if(!SDR)return;c
 // units are only controlled with Command: other tools drop control, and clicking a unit switches back
 const freeCtl=e=>{if(panKey||UI.tool==='hand'||UI.drop||UI.place||e.button||!inBoard(e))return;const[x,y]=toBoard(e),b=bodyAt(x|0,y|0,1);if(b&&b.type==='token'&&b.status!=='dead'){pickTool('hand');return}if(!EM){e.stopImmediatePropagation();e.preventDefault()}};
 cv.addEventListener('pointerdown',freeCtl,true);stage.parentElement.addEventListener('pointerdown',e=>{if(e.target===stage.parentElement||e.target===stage)freeCtl(e)},true);
-window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;if(/^[wasdqecrv1-4]$/i.test(e.key)||e.key==='Shift')e.stopImmediatePropagation()},true);
+window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;if(/^[wasdqecrvth1-4]$/i.test(e.key)||e.key==='Shift')e.stopImmediatePropagation()},true);
 // space: tap to run or pause time, hold for slow-mo while held (space + drag still pans)
 {let SP=null;const typing=e=>/INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
  window.addEventListener('keydown',e=>{if(e.code!=='Space'||e.repeat||typing(e)||SP)return;SP={t:performance.now(),pan:false,slow:false};SP.h=setTimeout(()=>{if(SP&&!SP.pan&&!slowMo){window.toggleSlow();SP.slow=true}},250)});
@@ -458,4 +458,7 @@ window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTARE
  window.addEventListener('blur',()=>{if(SP&&SP.slow&&slowMo)window.toggleSlow();SP=null})}
 sigil();sgP();pickTool(UT.some(t=>t[0]===UI.tool)?UI.tool:'hand');syncCorner();
 objMat();
+// double-click a unit: its squad from the last form-up, or units of its kind close by
+VIEW.addEventListener('dblclick',e=>{if(UI.tool!=='hand'||EM||!inBoard(e))return;const[x,y]=toBoard(e),b=bodyAt(x|0,y|0,4,null,o=>o.type==='token'&&o.status==='free');if(!b)return;sel.clear();for(const o of bodies)if(o.type==='token'&&o.status==='free'&&!o.vseat&&(b.sq?o.sq===b.sq:o.unit===b.unit&&teamOf(o)===teamOf(b)&&Math.hypot(o.x-b.x,o.y-b.y)<6*T))sel.add(o)});
 })();
+
