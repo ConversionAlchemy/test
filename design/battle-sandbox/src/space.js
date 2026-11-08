@@ -33,7 +33,7 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
   g.gain.setValueAtTime(0,t);g.gain.exponentialRampToValueAtTime(vol*2.6,t+dur*.48);g.gain.exponentialRampToValueAtTime(.001,t+dur);lfo.frequency.value=R(45,80);lg.gain.value=.35;am.gain.value=.65;lfo.connect(lg).connect(am.gain);s.connect(f).connect(am).connect(g).connect(p);lfo.start(t);lfo.stop(t+dur+.05);s.start(t,R(0,1));s.stop(t+dur+.05)}
  // debris: one piece lands (a clang with the blast itself, a wood knock or a stony thud, louder from a bomb), with smaller bits and grit under it on wood and stone
  function knock(t,v,d){layer(t,{type:'bandpass',f:R(500,900),q:1.2,vol:v*.8,att:.001,dur:R(.008,.02),dst:d});for(let k=0;k<4;k++)layer(t+R(0,.03),{type:'bandpass',f:R(2500,6500),q:1.6,vol:v*R(.15,.4),att:.0005,dur:R(.003,.01),dst:d})}
- function debris(t,big,fl){const d=AC.createGain();d.gain.value=.55*(fl==='metal'?.45:fl==='wood'?.5:1.7);d.connect(OUT);
+ function debris(t,big,fl){const d=AC.createGain();d.gain.value=.55*({metal:.45,wood:.5,cloth:.3}[fl]||1.7);d.connect(OUT);
   const u=t+R(.15,.4),k=big?1.8:1;if(fl==='metal'){const m=AC.createGain();m.gain.value=d.gain.value*1.3*OUT.gain.value;m.connect(AC.destination);clip(t-(big?.45:.3),'mb',.45*k,R(.85,1.15),m,R(4000,7000));return} // past the compressor, which the blast would otherwise duck it under
   if(fl==='wood')clip(u,'w',.5*k,R(.85,1.1),d);else{layer(u,{type:'lowpass',f:R(220,320),vol:.5*k,att:.002,dur:.06,dst:d});knock(u,.35*k,d)}
   const piece=(at,v,r)=>fl==='wood'?clip(at,'w',v*.3,r,d):knock(at,v,d);
@@ -73,7 +73,7 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
   for(let s=0;s<NB;s++){if(!OPEN[s]||RG[s]>=0)continue;const id=RGS.length;let h=0,e=0;q[e++]=s;RG[s]=id;while(h<e){const i=q[h++],X=i%BW;for(const n of[X>0?i-1:-1,X<BW-1?i+1:-1,i-BW,i+BW])if(n>=0&&n<NB&&OPEN[n]&&RG[n]<0){RG[n]=id;q[e++]=n}}RGS.push(e)}}
  function regAt(x,y){const X=x>>1,Y=y>>1;for(let r=0;r<6;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const a=X+dx,b=Y+dy;if(a<0||b<0||a>=BW||b>=BH)continue;const g=RG[b*BW+a];if(g>=0)return g}return -1}
  function spaceAt(x,y){if(OUTD)return'out';regions();const g=regAt(x,y),e=ear(),h=regAt(e.x,e.y);if(g>=0&&h>=0&&g!==h)return'next';const tiles=g>=0?RGS[g]/64:0;return tiles<90?'room':tiles<260?'large':'hall'}
- const floorAt=(x,y)=>{const k=map[y>>4]&&map[y>>4][x>>4],c=CATN[k];return!c?'stone':c[0]==='Wood'?'wood':c[0]==='Metal'?'metal':'stone'};
+ const floorAt=(x,y)=>x<0||y<0||x>=W||y>=H?'stone':(CLS[clsAt(x,y,1)]||CLS.stone).rubble;
  const VQ=[],GUNK={musket:1,blunder:1,pistol:1,rod:1,pgun:1};
  // a volley: at most six shots voiced in any 150 ms, the rest are covered by them
  function at(k,x,y){if(mute||!gest)return;spr();const n=performance.now();if(last[k]&&n-last[k]<45)return;if(GUNK[k]){while(VQ.length&&n-VQ[0]>150)VQ.shift();if(VQ.length>=6)return;VQ.push(n)}last[k]=n;try{const s=x===undefined?'room':spaceAt(Math.round(x),Math.round(y));setup(s,k!=='pistol',k==='pistol'||k==='musket'||k==='blunder',GAIN[k]||1);PLAY[k](x===undefined?'stone':floorAt(Math.round(x),Math.round(y)))}catch(e){}}

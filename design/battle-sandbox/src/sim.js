@@ -262,7 +262,7 @@ function temperF(a){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0
 // a material's blast entry
 const clsB=(el,mat)=>(CLS[mprop(el,mat).cls]||CLS.stone).blast;
 // the material class of the surface showing at a pixel: wall, furniture or floor
-function clsAt(X,Y){const j=Y*W+X,cy=Y>>4,cx=X>>4;if(!sol[j]){const ok=OBJ[j]&&OM[cy]&&OM[cy][cx];if(ok){const e=objEl(ok);return e?mprop(e[0],e[1]).cls:/hedge/.test(ok)?'foliage':mkC(ok)}const g=GT[j];if(g===1)return'grass';if(g===2)return'soil'}return mkC(map[cy]&&map[cy][cx])}
+function clsAt(X,Y,flo){const j=Y*W+X,cy=Y>>4,cx=X>>4;if(!sol[j]){const ok=!flo&&OBJ[j]&&OM[cy]&&OM[cy][cx];if(ok){const e=objEl(ok);return e?mprop(e[0],e[1]).cls:/hedge/.test(ok)?'foliage':mkC(ok)}const g=GT[j];if(g===1)return'grass';if(g===2)return'soil';if(g===3)return'stone'}return mkC(map[cy]&&map[cy][cx])}
 // matK per tile key, cached; cleared when maps or custom textures change
 const MKC=new Map(),mkC=k=>{let v=MKC.get(k);if(v===undefined){v=matK(k);MKC.set(k,v)}return v};
 // heat marks every surface by its class's heat ramp, over the pixel's cold colour (HT)
@@ -271,7 +271,8 @@ function heatMark(x,y,r,k){vHeatMark(x,y,r,k);let fl=0;for(let Y=Math.floor(y-r)
   const L=sol[j]?1:OBJ[j]?2:3,arr=L===1?scol:L===2?OBJC:floor;let h=HT.get(j);if(!h||h[1]!==L)HT.set(j,h=[0,L,arr[j]]);if(a<=h[0])continue;
   h[0]=a;arr[j]=heatTint(h[2],cls,a,X,Y);if(L>1)fl=1}
  const c0=clsAt(Math.round(x),Math.round(y)),Hc=(CLS[c0]||CLS.stone).heat;if(Hc.craze&&k>Hc.craze)for(let n=0;n<4;n++){let X=x,Y=y,ang=n*1.6+hh(x|0,y|0,5)*6;for(let s=0;s<r*.7;s++){ang+=(hh(n+(x|0),s+(y|0),7)-.5)*.9;X+=Math.cos(ang);Y+=Math.sin(ang);const jx=X|0,jy=Y|0;if(jx<0||jy<0||jx>=W||jy>=H)break;const q=jy*W+jx;if(sol[q])scol[q]=mul(scol[q],.86);else{floor[q]=mul(floor[q],.86);fl=1}}}
- solDirty=true;if(fl){BRY0=Math.min(BRY0,y-r-3);BRY1=Math.max(BRY1,y+r+5)}}
+ solDirty=true;if(fl){BRY0=Math.min(BRY0,y-r-3);BRY1=Math.max(BRY1,y+r+5)}
+ const X0=Math.round(x),Y0=Math.round(y);if(X0>=0&&Y0>=0&&X0<W&&Y0<H){const ig=(CLS[clsAt(X0,Y0)]||CLS.stone).heat.ignite;if(ig&&k*.95>=ig&&TF[(Y0>>1)*BW+(X0>>1)]<.3){emberPatch(x,y,4+r|0,r*.5);dab(TF,x,y,.3+.5*k,Math.max(2,r*.3|0))}}}
 // a blast breaks a built floor by its material: stone and marble through to soil with a chipped edge and hairline cracks, wood broken through to soil inside a rim of splintered board ends, cloth burnt through, metal dented with a bright lip; how far follows toughness
 // what lies under a carpet: the cell's underlay, else plain boards
 const UPX=new Map();function under(X,Y){const cx=X>>4,cy=Y>>4,id=cy*CW+cx;let d=UPX.get(id);if(!d||d.m!==curMap){d=tilePix(undAt(cx,cy)||'wood.oak.planks',cx,cy);d.m=curMap;UPX.set(id,d)}const i=((Y&15)*T+(X&15))*4;return rgb(d[i],d[i+1],d[i+2])}
@@ -1335,8 +1336,7 @@ function wasd(){slabTurn();let dx=(keys.has('d')?1:0)-(keys.has('a')?1:0),dy=(ke
  for(const b of sel){if(b.type!=='token'||b.status==='dead'||inDrag(b)||b.pinned||cmdMode(b)||b.vseat||b.vwalk)continue;const u=UNITS[b.unit],hv=b.held&&(b.held.k==='rod'||b.held.k==='prod'),el=b.unit==='guard'||b.unit==='shock'||b.unit==='cmd',sp=.85*(1-u.arm*.07)*(!hv?1:b.unit==='civ'?(charge?.3:.55):el?(charge?.6:.92):(charge?.42:.8))*(b.pushT>=tick-2?(u.arm<=1?[.75,.45,.3]:[.85,.7,.55])[(b.pushM||1)-1]:1);b.glide=null;const cr=b.crouch?.4:1,md=moveToward(b,b.x+dx*sp*cr,b.y+dy*sp*cr);if(md>.1){moved=Math.max(moved,md);b.mv=6;arm=Math.max(arm,u.arm);gx=b.x;gy=b.y}}
  for(const b of sel)if(b.type==='weapon'&&srcInfo(b)&&!inDrag(b)&&Math.hypot(b.vx,b.vy)<1){moveToward(b,b.x+dx*.85,b.y+dy*.85);b.stuck=false}
  if(moved){stepAcc+=moved;if(stepAcc>=28+Math.random()*3){stepAcc=0;sfx('st_'+groundEl(gx,gy));if(arm)sfx('jingle')}}}
-const STEP=Object.fromEntries(Object.entries(CLS).map(([k,c])=>[k,c.step]));
-function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return k&&k.endsWith('H')&&WMAT[k.slice(0,-1)]?'dirt':STEP[matK(k)]}
+function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const k=map[Y/T|0][X/T|0];return k&&k.endsWith('H')&&WMAT[k.slice(0,-1)]&&!GT[Y*W+X]?'dirt':(CLS[clsAt(X,Y,1)]||CLS.stone).step}
 let lastHud='';
 let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
 function moveItem(from,i,to,X,Y){const q=from.inv&&from.inv[i];if(!q||!to.inv)return;const one=q.k==='note'?{...q}:{k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.__b?0:q.res||0}if(q.rd===true){one.rd=q.n;one.n=1}

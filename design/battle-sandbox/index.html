@@ -480,6 +480,8 @@ for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];KIND[o]=KIND[n]}
 // The material table. ELEM (tiles.js) holds every material by element (Earth, Stone, Wood, Metal, Cloth), each with its look, strength and wear;
 // CLS below is what a class of materials shares in play: its hit class, sounds and the debris it throws. Every surface (wall, floor, furniture,
 // door, carrier hull, armour) names a material, and asks here how it behaves rather than deciding for itself. See README, "Materials".
+// place: the editor's sound for laying it; rubble: how blast debris sounds on it; dust: puffs the editor raises (count, colour, life,
+// clean: no lingering haze). heat.ignite: heat past this starts a fire
 // blast: how a blast treats it. glow and flick: how bright fresh heat glows and whether it flickers; reach and wear: how far a
 // blast wears walls and furniture of it and how hard; floor: how far it wears floors; crater: the floor crater style (chips,
 // planks, dent, cloth); ignite: a blast sets it alight; firm: it does not soften the blast's reach
@@ -487,14 +489,14 @@ for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];KIND[o]=KIND[n]}
 // colours instead. spall, craze, glaze, ember, hole: extra marks past that heat; grain, soft, fade: char follows the grain, the edge fades
 // out, the stops scale the fabric's own faded colour (as it ages) rather than replace it
 const CLS={
- stone:{n:1,step:'stone',hit:'stonehit',debris:'chips',heat:{s:[[0,[0,0,0],0],[.18,[214,206,192],.18],[.42,[96,88,80],.38],[.68,[52,48,46],.62],[.9,[28,27,27],.8]],spall:.6},blast:{glow:.5}},
- marble:{n:1,step:'marble',hit:'stonehit',debris:'chips',heat:{s:[[0,[0,0,0],0],[.2,[226,206,150],.22],[.45,[200,184,150],.3],[.7,[232,230,222],.32],[.9,[244,243,238],.46]],craze:.6},blast:{glow:.5}},
- soil:{n:1,step:'dirt',hit:'stonehit',debris:'dust',heat:{s:[[0,[0,0,0],0],[.25,[64,48,34],.3],[.6,[38,30,24],.6],[.9,[30,30,36],.75]],glaze:.82},blast:{glow:.5}},
- grass:{n:2,step:'grass',hit:'woodhit',debris:'dust',heat:{s:[[0,[0,0,0],0],[.18,[160,150,62],.45],[.42,[120,92,48],.62],[.7,[72,58,40],.85],[.9,[32,28,24],.9]]},blast:{glow:.5}},
- wood:{n:2,step:'wood',hit:'woodhit',debris:'splinters',heat:{s:[[0,[0,0,0],0],[.22,[178,120,62],.2],[.46,[104,60,32],.48],[.7,[52,34,22],.68],[.92,[34,24,18],.8]],grain:1,ember:.82,soft:1},blast:{glow:.8,flick:1,reach:1.6,wear:40,floor:1.5,crater:'planks'}},
- metal:{n:3,step:'metal',hit:'mhit',debris:'sparks',heat:{temper:[[0,[1,1,1]],[.14,[1.02,.94,.78]],[.3,[.82,.66,.56]],[.46,[.56,.56,.7]],[.66,[.32,.33,.39]],[.9,[.15,.15,.17]]],max:.85},blast:{glow:1,crater:'dent',firm:1}},
- cloth:{n:2,step:'carpet',hit:'woodhit',debris:'lint',heat:{s:[[0,[1,1,1],0],[.12,[1,1,1],.85],[.4,[1,1,1],1],[.7,[.66,.66,.66],1],[.86,[.42,.42,.42],1]],hole:.88,fade:1,soft:1},blast:{glow:.75,floor:1.6,crater:'cloth',ignite:1}},
- foliage:{n:4,step:'grass',hit:'rustle',debris:'leaves',heat:{s:[[0,[0,0,0],0],[.25,[150,130,50],.5],[.6,[90,64,34],.75],[.9,[30,24,20],.9]]},blast:{glow:.5}}};
+ stone:{n:1,step:'stone',hit:'stonehit',debris:'chips',heat:{s:[[0,[0,0,0],0],[.18,[214,206,192],.18],[.42,[96,88,80],.38],[.68,[52,48,46],.62],[.9,[28,27,27],.8]],spall:.6},blast:{glow:.5},place:'stone',rubble:'stone',dust:{n:8}},
+ marble:{n:1,step:'marble',hit:'stonehit',debris:'chips',heat:{s:[[0,[0,0,0],0],[.2,[226,206,150],.22],[.45,[200,184,150],.3],[.7,[232,230,222],.32],[.9,[244,243,238],.46]],craze:.6},blast:{glow:.5},place:'tile',rubble:'stone',dust:{n:8}},
+ soil:{n:1,step:'dirt',hit:'stonehit',debris:'dust',heat:{s:[[0,[0,0,0],0],[.25,[64,48,34],.3],[.6,[38,30,24],.6],[.9,[30,30,36],.75]],glaze:.82},blast:{glow:.5},place:'soft',rubble:'stone',dust:{n:8}},
+ grass:{n:2,step:'grass',hit:'woodhit',debris:'dust',heat:{ignite:0.75,s:[[0,[0,0,0],0],[.18,[160,150,62],.45],[.42,[120,92,48],.62],[.7,[72,58,40],.85],[.9,[32,28,24],.9]]},blast:{glow:.5},place:'soft',rubble:'stone',dust:{n:8}},
+ wood:{n:2,step:'wood',hit:'woodhit',debris:'splinters',heat:{ignite:0.7,s:[[0,[0,0,0],0],[.22,[178,120,62],.2],[.46,[104,60,32],.48],[.7,[52,34,22],.68],[.92,[34,24,18],.8]],grain:1,ember:.82,soft:1},blast:{glow:.8,flick:1,reach:1.6,wear:40,floor:1.5,crater:'planks'},place:'wood',rubble:'wood',dust:{n:8}},
+ metal:{n:3,step:'metal',hit:'mhit',debris:'sparks',heat:{temper:[[0,[1,1,1]],[.14,[1.02,.94,.78]],[.3,[.82,.66,.56]],[.46,[.56,.56,.7]],[.66,[.32,.33,.39]],[.9,[.15,.15,.17]]],max:.85},blast:{glow:1,crater:'dent',firm:1},place:'metal',rubble:'metal',dust:{n:3,c:[240,244,246],life:10,clean:1}},
+ cloth:{n:2,step:'carpet',hit:'woodhit',debris:'lint',heat:{ignite:0.55,s:[[0,[1,1,1],0],[.12,[1,1,1],.85],[.4,[1,1,1],1],[.7,[.66,.66,.66],1],[.86,[.42,.42,.42],1]],hole:.88,fade:1,soft:1},blast:{glow:.75,floor:1.6,crater:'cloth',ignite:1},place:'cloth',rubble:'cloth',dust:{n:5}},
+ foliage:{n:4,step:'grass',hit:'rustle',debris:'leaves',heat:{ignite:0.6,s:[[0,[0,0,0],0],[.25,[150,130,50],.5],[.6,[90,64,34],.75],[.9,[30,24,20],.9]]},blast:{glow:.5},place:'soft',rubble:'stone',dust:{n:8}}};
 // what each hit class does in play. hp, f (friction), weld; its sounds when shot (hit), struck or lodged in (knock), glanced off (glance),
 // dragged (drag) and crushed (crush); the debris and chip colour it throws; metal (sparks, heats, turns blades), deflect (shots glance),
 // hard (shots bite only a pixel or two), lock (doors of it lock), mass when pushed; carve, blade, pen, dig, rod, rodWear, rodE, obj tune
@@ -973,7 +975,7 @@ function temperF(a){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0
 // a material's blast entry
 const clsB=(el,mat)=>(CLS[mprop(el,mat).cls]||CLS.stone).blast;
 // the material class of the surface showing at a pixel: wall, furniture or floor
-function clsAt(X,Y){const j=Y*W+X,cy=Y>>4,cx=X>>4;if(!sol[j]){const ok=OBJ[j]&&OM[cy]&&OM[cy][cx];if(ok){const e=objEl(ok);return e?mprop(e[0],e[1]).cls:/hedge/.test(ok)?'foliage':mkC(ok)}const g=GT[j];if(g===1)return'grass';if(g===2)return'soil'}return mkC(map[cy]&&map[cy][cx])}
+function clsAt(X,Y,flo){const j=Y*W+X,cy=Y>>4,cx=X>>4;if(!sol[j]){const ok=!flo&&OBJ[j]&&OM[cy]&&OM[cy][cx];if(ok){const e=objEl(ok);return e?mprop(e[0],e[1]).cls:/hedge/.test(ok)?'foliage':mkC(ok)}const g=GT[j];if(g===1)return'grass';if(g===2)return'soil';if(g===3)return'stone'}return mkC(map[cy]&&map[cy][cx])}
 // matK per tile key, cached; cleared when maps or custom textures change
 const MKC=new Map(),mkC=k=>{let v=MKC.get(k);if(v===undefined){v=matK(k);MKC.set(k,v)}return v};
 // heat marks every surface by its class's heat ramp, over the pixel's cold colour (HT)
@@ -982,7 +984,8 @@ function heatMark(x,y,r,k){vHeatMark(x,y,r,k);let fl=0;for(let Y=Math.floor(y-r)
   const L=sol[j]?1:OBJ[j]?2:3,arr=L===1?scol:L===2?OBJC:floor;let h=HT.get(j);if(!h||h[1]!==L)HT.set(j,h=[0,L,arr[j]]);if(a<=h[0])continue;
   h[0]=a;arr[j]=heatTint(h[2],cls,a,X,Y);if(L>1)fl=1}
  const c0=clsAt(Math.round(x),Math.round(y)),Hc=(CLS[c0]||CLS.stone).heat;if(Hc.craze&&k>Hc.craze)for(let n=0;n<4;n++){let X=x,Y=y,ang=n*1.6+hh(x|0,y|0,5)*6;for(let s=0;s<r*.7;s++){ang+=(hh(n+(x|0),s+(y|0),7)-.5)*.9;X+=Math.cos(ang);Y+=Math.sin(ang);const jx=X|0,jy=Y|0;if(jx<0||jy<0||jx>=W||jy>=H)break;const q=jy*W+jx;if(sol[q])scol[q]=mul(scol[q],.86);else{floor[q]=mul(floor[q],.86);fl=1}}}
- solDirty=true;if(fl){BRY0=Math.min(BRY0,y-r-3);BRY1=Math.max(BRY1,y+r+5)}}
+ solDirty=true;if(fl){BRY0=Math.min(BRY0,y-r-3);BRY1=Math.max(BRY1,y+r+5)}
+ const X0=Math.round(x),Y0=Math.round(y);if(X0>=0&&Y0>=0&&X0<W&&Y0<H){const ig=(CLS[clsAt(X0,Y0)]||CLS.stone).heat.ignite;if(ig&&k*.95>=ig&&TF[(Y0>>1)*BW+(X0>>1)]<.3){emberPatch(x,y,4+r|0,r*.5);dab(TF,x,y,.3+.5*k,Math.max(2,r*.3|0))}}}
 // a blast breaks a built floor by its material: stone and marble through to soil with a chipped edge and hairline cracks, wood broken through to soil inside a rim of splintered board ends, cloth burnt through, metal dented with a bright lip; how far follows toughness
 // what lies under a carpet: the cell's underlay, else plain boards
 const UPX=new Map();function under(X,Y){const cx=X>>4,cy=Y>>4,id=cy*CW+cx;let d=UPX.get(id);if(!d||d.m!==curMap){d=tilePix(undAt(cx,cy)||'wood.oak.planks',cx,cy);d.m=curMap;UPX.set(id,d)}const i=((Y&15)*T+(X&15))*4;return rgb(d[i],d[i+1],d[i+2])}
@@ -2046,8 +2049,7 @@ function wasd(){slabTurn();let dx=(keys.has('d')?1:0)-(keys.has('a')?1:0),dy=(ke
  for(const b of sel){if(b.type!=='token'||b.status==='dead'||inDrag(b)||b.pinned||cmdMode(b)||b.vseat||b.vwalk)continue;const u=UNITS[b.unit],hv=b.held&&(b.held.k==='rod'||b.held.k==='prod'),el=b.unit==='guard'||b.unit==='shock'||b.unit==='cmd',sp=.85*(1-u.arm*.07)*(!hv?1:b.unit==='civ'?(charge?.3:.55):el?(charge?.6:.92):(charge?.42:.8))*(b.pushT>=tick-2?(u.arm<=1?[.75,.45,.3]:[.85,.7,.55])[(b.pushM||1)-1]:1);b.glide=null;const cr=b.crouch?.4:1,md=moveToward(b,b.x+dx*sp*cr,b.y+dy*sp*cr);if(md>.1){moved=Math.max(moved,md);b.mv=6;arm=Math.max(arm,u.arm);gx=b.x;gy=b.y}}
  for(const b of sel)if(b.type==='weapon'&&srcInfo(b)&&!inDrag(b)&&Math.hypot(b.vx,b.vy)<1){moveToward(b,b.x+dx*.85,b.y+dy*.85);b.stuck=false}
  if(moved){stepAcc+=moved;if(stepAcc>=28+Math.random()*3){stepAcc=0;sfx('st_'+groundEl(gx,gy));if(arm)sfx('jingle')}}}
-const STEP=Object.fromEntries(Object.entries(CLS).map(([k,c])=>[k,c.step]));
-function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return k&&k.endsWith('H')&&WMAT[k.slice(0,-1)]?'dirt':STEP[matK(k)]}
+function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const k=map[Y/T|0][X/T|0];return k&&k.endsWith('H')&&WMAT[k.slice(0,-1)]&&!GT[Y*W+X]?'dirt':(CLS[clsAt(X,Y,1)]||CLS.stone).step}
 let lastHud='';
 let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
 function moveItem(from,i,to,X,Y){const q=from.inv&&from.inv[i];if(!q||!to.inv)return;const one=q.k==='note'?{...q}:{k:q.k,n:q.k==='gold'?q.n:1};if(CAP[q.k]){one.ammo=q.ammo??CAP[q.k];one.res=q.__b?0:q.res||0}if(q.rd===true){one.rd=q.n;one.n=1}
@@ -2662,7 +2664,7 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
   g.gain.setValueAtTime(0,t);g.gain.exponentialRampToValueAtTime(vol*2.6,t+dur*.48);g.gain.exponentialRampToValueAtTime(.001,t+dur);lfo.frequency.value=R(45,80);lg.gain.value=.35;am.gain.value=.65;lfo.connect(lg).connect(am.gain);s.connect(f).connect(am).connect(g).connect(p);lfo.start(t);lfo.stop(t+dur+.05);s.start(t,R(0,1));s.stop(t+dur+.05)}
  // debris: one piece lands (a clang with the blast itself, a wood knock or a stony thud, louder from a bomb), with smaller bits and grit under it on wood and stone
  function knock(t,v,d){layer(t,{type:'bandpass',f:R(500,900),q:1.2,vol:v*.8,att:.001,dur:R(.008,.02),dst:d});for(let k=0;k<4;k++)layer(t+R(0,.03),{type:'bandpass',f:R(2500,6500),q:1.6,vol:v*R(.15,.4),att:.0005,dur:R(.003,.01),dst:d})}
- function debris(t,big,fl){const d=AC.createGain();d.gain.value=.55*(fl==='metal'?.45:fl==='wood'?.5:1.7);d.connect(OUT);
+ function debris(t,big,fl){const d=AC.createGain();d.gain.value=.55*({metal:.45,wood:.5,cloth:.3}[fl]||1.7);d.connect(OUT);
   const u=t+R(.15,.4),k=big?1.8:1;if(fl==='metal'){const m=AC.createGain();m.gain.value=d.gain.value*1.3*OUT.gain.value;m.connect(AC.destination);clip(t-(big?.45:.3),'mb',.45*k,R(.85,1.15),m,R(4000,7000));return} // past the compressor, which the blast would otherwise duck it under
   if(fl==='wood')clip(u,'w',.5*k,R(.85,1.1),d);else{layer(u,{type:'lowpass',f:R(220,320),vol:.5*k,att:.002,dur:.06,dst:d});knock(u,.35*k,d)}
   const piece=(at,v,r)=>fl==='wood'?clip(at,'w',v*.3,r,d):knock(at,v,d);
@@ -2702,7 +2704,7 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
   for(let s=0;s<NB;s++){if(!OPEN[s]||RG[s]>=0)continue;const id=RGS.length;let h=0,e=0;q[e++]=s;RG[s]=id;while(h<e){const i=q[h++],X=i%BW;for(const n of[X>0?i-1:-1,X<BW-1?i+1:-1,i-BW,i+BW])if(n>=0&&n<NB&&OPEN[n]&&RG[n]<0){RG[n]=id;q[e++]=n}}RGS.push(e)}}
  function regAt(x,y){const X=x>>1,Y=y>>1;for(let r=0;r<6;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const a=X+dx,b=Y+dy;if(a<0||b<0||a>=BW||b>=BH)continue;const g=RG[b*BW+a];if(g>=0)return g}return -1}
  function spaceAt(x,y){if(OUTD)return'out';regions();const g=regAt(x,y),e=ear(),h=regAt(e.x,e.y);if(g>=0&&h>=0&&g!==h)return'next';const tiles=g>=0?RGS[g]/64:0;return tiles<90?'room':tiles<260?'large':'hall'}
- const floorAt=(x,y)=>{const k=map[y>>4]&&map[y>>4][x>>4],c=CATN[k];return!c?'stone':c[0]==='Wood'?'wood':c[0]==='Metal'?'metal':'stone'};
+ const floorAt=(x,y)=>x<0||y<0||x>=W||y>=H?'stone':(CLS[clsAt(x,y,1)]||CLS.stone).rubble;
  const VQ=[],GUNK={musket:1,blunder:1,pistol:1,rod:1,pgun:1};
  // a volley: at most six shots voiced in any 150 ms, the rest are covered by them
  function at(k,x,y){if(mute||!gest)return;spr();const n=performance.now();if(last[k]&&n-last[k]<45)return;if(GUNK[k]){while(VQ.length&&n-VQ[0]>150)VQ.shift();if(VQ.length>=6)return;VQ.push(n)}last[k]=n;try{const s=x===undefined?'room':spaceAt(Math.round(x),Math.round(y));setup(s,k!=='pistol',k==='pistol'||k==='musket'||k==='blunder',GAIN[k]||1);PLAY[k](x===undefined?'stone':floorAt(Math.round(x),Math.round(y)))}catch(e){}}
@@ -2861,10 +2863,11 @@ function setMode(m){if(m===EM)return;const was=EM;if(was==='asset')aeStash();EM=
 {const u0=update;update=function(){if(!EM)return u0();if(EM!=='asset'){u0();dustTick();plopTick();edPan();cleanTick();wandTick();return}tick++;if(drag)dragStep();if(tick%6===0)hud();doors();dustTick();plopTick();edPan();cleanTick();wandTick()}}
 // placing tiles: a soft puff from the tile's own colours and a quiet sound for its material
 const DUST=[];
-function matOf(k){const m=matK(k);return m==='marble'?'tile':m==='grass'||m==='soil'?'soft':m==='wood'&&furnK(k)?'furn':m}
-function puff(cx,cy,k,delay=0){if(DUST.length>600)return;const m=matOf(k),n=m==='metal'?3:m==='cloth'?5:8;for(let i=0;i<n;i++){const x=cx*T+2+Math.random()*12,y=cy*T+2+Math.random()*12,j=(y|0)*W+(x|0);let c=sol[j]?scol[j]:OBJ[j]?OBJC[j]:floor[j];c=m==='metal'?rgb(240,244,246):mix(c,rgb(255,250,240),.5);const a=Math.random()*6.283,s=.12+Math.random()*.3,wall=WMAT[rootOf(k)];
- DUST.push({x,y,vx:Math.cos(a)*s,vy:wall?.1+Math.random()*.2:Math.sin(a)*s-.12,g:wall?.025:0,c,l:0,L:(m==='metal'?10:22)+Math.random()*16,d:delay,z:1,a:.9})}
- if(m!=='metal')for(let i=0;i<3;i++){const a=Math.random()*6.283,j=(cy*T+8)*W+cx*T+8;DUST.push({x:cx*T+5+Math.random()*6,y:cy*T+5+Math.random()*6,vx:Math.cos(a)*.18,vy:Math.sin(a)*.18-.05,g:0,c:mix(sol[j]?scol[j]:floor[j],rgb(255,250,240),.6),l:0,L:26+Math.random()*10,d:delay,z:3,a:.3})}}
+function matOf(k){const m=matK(k),p=(CLS[m]||CLS.stone).place;return p==='wood'&&furnK(k)?'furn':p}
+const dustOf=k=>(CLS[matK(k)]||CLS.stone).dust;
+function puff(cx,cy,k,delay=0){if(DUST.length>600)return;const D=dustOf(k),n=D.n;for(let i=0;i<n;i++){const x=cx*T+2+Math.random()*12,y=cy*T+2+Math.random()*12,j=(y|0)*W+(x|0);let c=sol[j]?scol[j]:OBJ[j]?OBJC[j]:floor[j];c=D.c?rgb(...D.c):mix(c,rgb(255,250,240),.5);const a=Math.random()*6.283,s=.12+Math.random()*.3,wall=WMAT[rootOf(k)];
+ DUST.push({x,y,vx:Math.cos(a)*s,vy:wall?.1+Math.random()*.2:Math.sin(a)*s-.12,g:wall?.025:0,c,l:0,L:(D.life||22)+Math.random()*16,d:delay,z:1,a:.9})}
+ if(!D.clean)for(let i=0;i<3;i++){const a=Math.random()*6.283,j=(cy*T+8)*W+cx*T+8;DUST.push({x:cx*T+5+Math.random()*6,y:cy*T+5+Math.random()*6,vx:Math.cos(a)*.18,vy:Math.sin(a)*.18-.05,g:0,c:mix(sol[j]?scol[j]:floor[j],rgb(255,250,240),.6),l:0,L:26+Math.random()*10,d:delay,z:3,a:.3})}}
 function dustTick(){for(const d of DUST){if(d.d>0){d.d--;continue}d.x+=d.vx;d.y+=d.vy;d.vy+=d.g;d.vx*=.93;if(!d.g)d.vy*=.93;d.l++}for(let i=DUST.length-1;i>=0;i--)if(DUST[i].l>DUST[i].L)DUST.splice(i,1)}
 let sndT=0,sndRun=0;
 // sounds follow the in-game hits for each material, softened; heavy walls add a low muffled thud
@@ -2945,7 +2948,7 @@ function mkDoor(k0,x,y,rot,th=8){const k=baseK(k0),d=slab(DOORK[k][1],x,y,rot,16
 function doorIcon(k,full){const s=slabPix(DOORK[k][1],16,full?16:8);for(const q of s){const c=q[2];if(k==='umbra')q[2]=umbraC(c);else if(k==='gold'||k==='iron'||k==='brass')q[2]=toneC(k,c);else if(ELEM.Wood.mats[k]){const x=q[8],y=q[9],e=Math.min(x,15-x,y+(full?16:8),-1-y),w=woodT(x+93,y,memb('Wood',k).c,13);q[2]=rgb(cl(w[0]),cl(w[1]),cl(w[2]))}doorMarks(q,16,full?16:8)}return s.map(q=>[q[8],q[9],q[2]])}
 function clearDoor(cx,cy){let n=0;for(const d of bodies.filter(o=>o.type==='slab'&&!o.free&&slabCell(o)===cy*CW+cx)){if(d.pair)d.pair.pair=null;remove(d);n++}return n}
 function placeDoor(k,cx,cy){const full=k.includes('!');k=k.replace('!','');const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]);clearDoor(cx,cy);const L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
- if(isWallK(s[cy][cx])){s[cy][cx]=floorNear(cx,cy);refinish()}smartDoor(k,cx,cy,full);snapDoors();sills();solDirty=true;puff(cx,cy,k==='iron'||k==='gold'?'iron':'wood');sndT=0;edSnd(k==='iron'||k==='gold'?'metal':'furn',.85)}
+ if(isWallK(s[cy][cx])){s[cy][cx]=floorNear(cx,cy);refinish()}smartDoor(k,cx,cy,full);snapDoors();sills();solDirty=true;const mt=!!ELEM.Metal.mats[k];puff(cx,cy,mt?'iron':'wood');sndT=0;edSnd(mt?'metal':'furn',.85)}
 function edResize(nw,nh){nw=Math.max(6,Math.min(64,nw|0));nh=Math.max(6,Math.min(64,nh|0));if(nw===CW&&nh===CH)return;edPush();const s=srcNow(),f=edFloor(),ns=Array.from({length:nh},(_,y)=>Array.from({length:nw},(_,x)=>s[y]&&s[y][x]||f));
  alloc(nw,nh);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);MAPSZ[curMap]=[nw,nh];edSrc=ns;for(const b of [...bodies])if(b.x<0||b.y<0||b.x>=W||b.y>=H)remove(b);refinish();camInit=true;fit()}
 function edGive(w){if(w.type!=='weapon'||w.hidden)return false;if(w.fuse){const X=Math.round(w.x),Y=Math.round(w.y);if(boxAt(X,Y)||bodyAt(X,Y,3,w,o=>o.kind==='crate'&&!o.hidden))NOPE();return false}const X=Math.round(w.x),Y=Math.round(w.y),tk=bodyAt(X,Y,4,w,o=>o.type==='token'&&o.status!=='dead');

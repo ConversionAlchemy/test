@@ -128,10 +128,11 @@ function setMode(m){if(m===EM)return;const was=EM;if(was==='asset')aeStash();EM=
 {const u0=update;update=function(){if(!EM)return u0();if(EM!=='asset'){u0();dustTick();plopTick();edPan();cleanTick();wandTick();return}tick++;if(drag)dragStep();if(tick%6===0)hud();doors();dustTick();plopTick();edPan();cleanTick();wandTick()}}
 // placing tiles: a soft puff from the tile's own colours and a quiet sound for its material
 const DUST=[];
-function matOf(k){const m=matK(k);return m==='marble'?'tile':m==='grass'||m==='soil'?'soft':m==='wood'&&furnK(k)?'furn':m}
-function puff(cx,cy,k,delay=0){if(DUST.length>600)return;const m=matOf(k),n=m==='metal'?3:m==='cloth'?5:8;for(let i=0;i<n;i++){const x=cx*T+2+Math.random()*12,y=cy*T+2+Math.random()*12,j=(y|0)*W+(x|0);let c=sol[j]?scol[j]:OBJ[j]?OBJC[j]:floor[j];c=m==='metal'?rgb(240,244,246):mix(c,rgb(255,250,240),.5);const a=Math.random()*6.283,s=.12+Math.random()*.3,wall=WMAT[rootOf(k)];
- DUST.push({x,y,vx:Math.cos(a)*s,vy:wall?.1+Math.random()*.2:Math.sin(a)*s-.12,g:wall?.025:0,c,l:0,L:(m==='metal'?10:22)+Math.random()*16,d:delay,z:1,a:.9})}
- if(m!=='metal')for(let i=0;i<3;i++){const a=Math.random()*6.283,j=(cy*T+8)*W+cx*T+8;DUST.push({x:cx*T+5+Math.random()*6,y:cy*T+5+Math.random()*6,vx:Math.cos(a)*.18,vy:Math.sin(a)*.18-.05,g:0,c:mix(sol[j]?scol[j]:floor[j],rgb(255,250,240),.6),l:0,L:26+Math.random()*10,d:delay,z:3,a:.3})}}
+function matOf(k){const m=matK(k),p=(CLS[m]||CLS.stone).place;return p==='wood'&&furnK(k)?'furn':p}
+const dustOf=k=>(CLS[matK(k)]||CLS.stone).dust;
+function puff(cx,cy,k,delay=0){if(DUST.length>600)return;const D=dustOf(k),n=D.n;for(let i=0;i<n;i++){const x=cx*T+2+Math.random()*12,y=cy*T+2+Math.random()*12,j=(y|0)*W+(x|0);let c=sol[j]?scol[j]:OBJ[j]?OBJC[j]:floor[j];c=D.c?rgb(...D.c):mix(c,rgb(255,250,240),.5);const a=Math.random()*6.283,s=.12+Math.random()*.3,wall=WMAT[rootOf(k)];
+ DUST.push({x,y,vx:Math.cos(a)*s,vy:wall?.1+Math.random()*.2:Math.sin(a)*s-.12,g:wall?.025:0,c,l:0,L:(D.life||22)+Math.random()*16,d:delay,z:1,a:.9})}
+ if(!D.clean)for(let i=0;i<3;i++){const a=Math.random()*6.283,j=(cy*T+8)*W+cx*T+8;DUST.push({x:cx*T+5+Math.random()*6,y:cy*T+5+Math.random()*6,vx:Math.cos(a)*.18,vy:Math.sin(a)*.18-.05,g:0,c:mix(sol[j]?scol[j]:floor[j],rgb(255,250,240),.6),l:0,L:26+Math.random()*10,d:delay,z:3,a:.3})}}
 function dustTick(){for(const d of DUST){if(d.d>0){d.d--;continue}d.x+=d.vx;d.y+=d.vy;d.vy+=d.g;d.vx*=.93;if(!d.g)d.vy*=.93;d.l++}for(let i=DUST.length-1;i>=0;i--)if(DUST[i].l>DUST[i].L)DUST.splice(i,1)}
 let sndT=0,sndRun=0;
 // sounds follow the in-game hits for each material, softened; heavy walls add a low muffled thud
@@ -212,7 +213,7 @@ function mkDoor(k0,x,y,rot,th=8){const k=baseK(k0),d=slab(DOORK[k][1],x,y,rot,16
 function doorIcon(k,full){const s=slabPix(DOORK[k][1],16,full?16:8);for(const q of s){const c=q[2];if(k==='umbra')q[2]=umbraC(c);else if(k==='gold'||k==='iron'||k==='brass')q[2]=toneC(k,c);else if(ELEM.Wood.mats[k]){const x=q[8],y=q[9],e=Math.min(x,15-x,y+(full?16:8),-1-y),w=woodT(x+93,y,memb('Wood',k).c,13);q[2]=rgb(cl(w[0]),cl(w[1]),cl(w[2]))}doorMarks(q,16,full?16:8)}return s.map(q=>[q[8],q[9],q[2]])}
 function clearDoor(cx,cy){let n=0;for(const d of bodies.filter(o=>o.type==='slab'&&!o.free&&slabCell(o)===cy*CW+cx)){if(d.pair)d.pair.pair=null;remove(d);n++}return n}
 function placeDoor(k,cx,cy){const full=k.includes('!');k=k.replace('!','');const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]);clearDoor(cx,cy);const L=w(cx-1,cy),R=w(cx+1,cy),U=w(cx,cy-1),D=w(cx,cy+1),hz=L&&R||!(U&&D)&&(L||R);
- if(isWallK(s[cy][cx])){s[cy][cx]=floorNear(cx,cy);refinish()}smartDoor(k,cx,cy,full);snapDoors();sills();solDirty=true;puff(cx,cy,k==='iron'||k==='gold'?'iron':'wood');sndT=0;edSnd(k==='iron'||k==='gold'?'metal':'furn',.85)}
+ if(isWallK(s[cy][cx])){s[cy][cx]=floorNear(cx,cy);refinish()}smartDoor(k,cx,cy,full);snapDoors();sills();solDirty=true;const mt=!!ELEM.Metal.mats[k];puff(cx,cy,mt?'iron':'wood');sndT=0;edSnd(mt?'metal':'furn',.85)}
 function edResize(nw,nh){nw=Math.max(6,Math.min(64,nw|0));nh=Math.max(6,Math.min(64,nh|0));if(nw===CW&&nh===CH)return;edPush();const s=srcNow(),f=edFloor(),ns=Array.from({length:nh},(_,y)=>Array.from({length:nw},(_,x)=>s[y]&&s[y][x]||f));
  alloc(nw,nh);LR=new Float32Array(NB);LG=new Float32Array(NB);LB=new Float32Array(NB);LT=new Float32Array(NB);MAPSZ[curMap]=[nw,nh];edSrc=ns;for(const b of [...bodies])if(b.x<0||b.y<0||b.x>=W||b.y>=H)remove(b);refinish();camInit=true;fit()}
 function edGive(w){if(w.type!=='weapon'||w.hidden)return false;if(w.fuse){const X=Math.round(w.x),Y=Math.round(w.y);if(boxAt(X,Y)||bodyAt(X,Y,3,w,o=>o.kind==='crate'&&!o.hidden))NOPE();return false}const X=Math.round(w.x),Y=Math.round(w.y),tk=bodyAt(X,Y,4,w,o=>o.type==='token'&&o.status!=='dead');
