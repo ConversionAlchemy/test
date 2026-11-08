@@ -30,7 +30,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | R | Reload from spare ammo |
 | Q | Sheathe or draw; over a group, if any weapon is out all are put away, otherwise all are drawn |
 | T | Form up: the selected units snap into squads of up to 8 (4 across, 2 deep) by kind, side by side, three to a row, centred where they stood |
-| Alt + click | Lob a grenade or bomb. A unit under control holding one always shows a throw guide (50% white fading to grey, edged dark): without Alt, the ground throw's path with its bounces off walls, fading with distance; holding Alt, a straight line to the aim (stopping at the thrower's range) ending in a ring as wide as the throw's scatter; it arcs over walls and people, lands near the cursor (closer for better throwers), stays on a carrier roof and bursts there sparing the crew, and drops off a wall top to the nearest floor |
+| Alt + click | Lob a grenade or bomb at the cursor (no aim guide): it arcs over walls and people and lands near the cursor, a little off with distance and less so for better throwers. Holding Alt shows a carrier's roof under the cursor, crewed or not. It stays on a carrier roof and bursts there sparing the crew, and drops off a wall top to the nearest floor. |
 | H | Toggle a group between facing the cursor and facing their formation's direction (from T), or back the way they were if never formed up |
 | Double-click | Select a unit's squad from the last form-up, or its kind close by |
 | E / Esc | Deselect |

@@ -111,7 +111,8 @@ function rearm(b){if(b.type!=='token')return;while(b.inv.length<6)b.inv.push(nul
 function restore(b){b.px=tokPixels(b);mkSet(b);b.status='free';b.coreHit=false;b.stuck=false;b.vx=b.vy=0;for(const o of bodies.filter(o=>o.parent===b.id||(o.att&&o.att.id===b.id)))remove(o)}
 // shock bomb: radius varies; one in ten only fizzes
 function shockBurst(b){if(!bodies.includes(b))return;remove(b);const x=b.x,y=b.y,dud=Math.random()<.1,s=dud?.3+Math.random()*.2:.6+Math.random()*.7;sfx('crack');sfx('zap');BLU=true;arcBlast(x,y,dud?1:1+s*1.5);for(let i=0;i<(dud?6:16);i++)spark(x,y,i%2?plasC(Math.random()):rgb(240,226,255),0,0,dud?1.5:3,8+(Math.random()*10|0));BLU=false;if(!dud)explode(x,y,s);else for(const q of [...bodies])if(q.type==='token'&&Math.hypot(q.x-x,q.y-y)<10)cut(q,Math.round(x),Math.round(y),2,true,3)}
-// the lob (hold Alt, click): a grenade or bomb arcs over walls and people to the aim point, a little off with distance, and lands
+// the lob (hold Alt, click; no aim guide, the cursor is the aim): a grenade or bomb arcs over walls and people to the aim point, a little
+// off with distance (less for better throwers), and lands
 // there: on a carrier roof it stays on the roof and bursts there (crew inside are spared); on a wall top it drops to the nearest floor
 let LOBK=false,ROOFV=null;const LOBT={grenade:1,bomb:1,sbomb:1};
 const lobRange=(b,inf)=>inf.range*(THR[b.unit]||.7)/.8;
