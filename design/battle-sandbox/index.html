@@ -1470,6 +1470,8 @@ function pcol(b,p){const c=pcol0(b,p);return c&&b.wear&&b.type==='token'?uWear(b
 // worn armour, in the unit's own frame so marks turn with it: aged metal, scuffs, dents, heat and soot, chips off the rim. age runs 0 fresh to 3 battleworn and grows with use;
 // hits dent, blasts soot and heat, fire scorches, all through the armour's metal in the material table. Some veterans go bare-headed
 const uMetal=b=>(UNITS[b.unit]||{}).metal||'steel';
+// a metal's shine from the material table, by name
+const MSH=new Map(),metShine=m=>{let v=MSH.get(m);if(v===undefined){v=ELEM.Metal.mats[m]?mprop('Metal',m).shine||60:70;MSH.set(m,v)}return v};
 function uMarks(b){const W=b.wear||(b.wear={lv:0,seed:b.id*13});if(W.age==null)W.age=W.lv||0;if(!W.marks){const lv=W.lv||0;let z=(W.seed||0)*9301+49297;const r=()=>(z=(z*9301+49297)%233280)/233280,pt=k=>[(r()-.5)*10,(r()-.5)*10,k];
   W.marks={dents:Array.from({length:[0,0,1,2][lv]},()=>pt(2.5+r())),heat:Array.from({length:[0,0,r()<.5?1:0,2][lv]},()=>[...pt(2.5+r()*1.5),.45+r()*.4]),soot:Array.from({length:[0,0,1,3][lv]},()=>[...pt(3+r()*2),.5+r()*.25])}}return W}
 // a mark at a world point on the unit, kept to a handful of each kind (the oldest goes)
@@ -1774,7 +1776,7 @@ function hitBodies(b,s){const bx=Math.round(b.x),by=Math.round(b.y);
    if(b.kind==='sspear'&&b.live){lancerHit(b,o);return true}
    if(w.bullet||w.sharp){if(b.hit&&b.hit.has(o.id))continue;(b.hit||(b.hit=new Set())).add(o.id);
     const dx=b.vx/(s||1),dy=b.vy/(s||1),tip=w.tip||0;let E=w.bullet?b.E:(b.kind==='spear'||b.kind==='sspear'?s*.5:b.kind==='sword'?s*.4:(b.E||s*.22));const fo=w.bullet?fall(b):1;E*=fo*(b.ep||1);
-    const pm=o.kind==='crate'?(o.metal?metalCls('iron'):2):o.type==='token'?(metalAt(o,b.x+dx*tip,b.y+dy*tip,dx,dy)?metalCls(o.armour||'steel'):0):o.mat||0,pM=pm?hcl(pm):null;
+    const pm=o.kind==='crate'?(o.metal?metalCls('iron'):2):o.type==='token'?(metalAt(o,b.x+dx*tip,b.y+dy*tip,dx,dy)?metalCls(uMetal(o)):0):o.mat||0,pM=pm?hcl(pm):null;
     const r=pierce(o,b.x+dx*tip,b.y+dy*tip,dx,dy,E,b.ap||w.ap||1);if(pM&&pM.metal&&r.blood&&b.kind!=='arc')b.kind==='pel'?sfxP(pM.hit,.4):sfx(pM.hit);if(pM&&(pM.metal||!r.blood)&&b.kind!=='arc')hitParts(r.x,r.y,pm,dx,dy,b.kind==='pel'?.25:b.kind==='pball'?.4:.55);
     if(o.kind==='crate'){sfx(pM.metal?'ping':pM.knock);cShot(o,Math.round(r.x),Math.round(r.y),1.5,b)}else if(r.blood){dab(FX.blood,r.x,r.y,.6+r.removed*.05,3);b.kind==='pel'?sfxP('squish'):sfx('squish')}else if(w.bullet&&b.kind!=='arc'){if(o.type==='token'&&!(pM&&pM.metal))(b.kind==='pel'?sfxP('thunk',.4):sfx('thunk'));else{const k=(pM||hcl(2)).hit;b.kind==='pel'?sfxP(k,o.type==='token'?.4:undefined):sfx(k)}}else sfx(b.kind==='spear'||b.kind==='sspear'?'wedge':'clink');
     o.vx+=dx*.5*b.mass/o.mass;o.vy+=dy*.5*b.mass/o.mass;
@@ -1871,7 +1873,7 @@ function drawBody(b,lift){if(offView(b.x,b.y,40))return;if(b.hidden||unseen(b))r
  const spr=b.type==='token'&&!!sprG(lookOf(b)),TC=b.type==='token'?tokCache(b,spr):null,vis=spr?TC.vis:null;
  if(sh)for(const p of b.px){const X=bx+p[0]+sh[0],Y=by+p[1]+sh[1];if(spr&&!vis.has(K(p[0],p[1])))continue;if(X<0||Y<0||X>=W||Y>=H||(spr?vis:b.set).has(K(p[0]+sh[0],p[1]+sh[1]))||sol[Y*W+X])continue;out[Y*W+X]=mul(out[Y*W+X],.62)}
  for(let i=0;i<b.px.length;i++){const p=b.px[i],X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H||b.type==='slab'&&sol[Y*W+X])continue;let c=TC?TC.col[i]:pcol(b,p);if(c===0)continue;if(b.crouch)c=mul(c,.62);
-  if(spr?TC.shn[i]:p[7]==='m'||p[7]==='a'||b.type==='slab'&&(hcl(b.mat).metal||b.gold))c=shine(c,X,Y,spr?45:UNITS[b.unit]&&UNITS[b.unit].dark?30:70);
+  if(spr?TC.shn[i]:p[7]==='m'||p[7]==='a'||b.type==='slab'&&(hcl(b.mat).metal||b.gold))c=shine(c,X,Y,spr?45:UNITS[b.unit]&&UNITS[b.unit].dark?30:metShine(b.type==='slab'?doorMetal(b)||'steel':uMetal(b)));
   if(dyn&&!spr){const l=!b.set.has(K(p[0]-1,p[1]))||!b.set.has(K(p[0],p[1]-1)),r=!b.set.has(K(p[0]+1,p[1]))||!b.set.has(K(p[0],p[1]+1));if(b.type==='slab'){if(r)c=mul(c,.5);else if(l)c=mul(c,.8);else if(!b.set.has(K(p[0]-2,p[1]))||!b.set.has(K(p[0],p[1]-2)))c=mul(c,1.22);else if(!b.set.has(K(p[0]+2,p[1]))||!b.set.has(K(p[0],p[1]+2)))c=mul(c,.82)}else if(l||r)c=mul(c,.36)}
   if(b.kind==='sspear'&&b.glw>.01){const g=b.glw,f=.5+.5*Math.sin(tick*(.15+g*.9)+p[8]*.35);c=mix(c,g<.6?rgb(150,80,255):mix(rgb(150,80,255),rgb(244,232,255),(g-.6)/.4),Math.min(1,.25+g*1.1)*(.7+.3*f))}
   if(st==='dead'&&!(b.type==='token'&&p[7]==='x'))c=mix(mix(grey(c),rgb(122,120,116),.28),natc(b),.16);else if(st==='captured')c=mul(c,.68);if(b.fallen)c=mul(c,.5);if(hl>1)c=mul(c,hl);out[Y*W+X]=c}
