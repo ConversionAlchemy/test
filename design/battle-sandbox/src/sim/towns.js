@@ -1,6 +1,6 @@
 // painting a map; the bank, council, road, alley and stock maps
 // mini maps for each side: one room or stretch, opening onto the void or a corridor
-const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true};
+const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,TRK,FH])a.fill(0);WH.fill(0);fxDirty=true};
 // doorways draw from both neighbours, so they are redrawn once the whole map is laid
 function resill(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(k==='sill'||k==='msill')paintCell(cx,cy,k)}}
 function paintAll(f){FLC=null;map=Array.from({length:CH},()=>Array(CW).fill('stone'));for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,f(cx,cy));fxClear()}
@@ -67,5 +67,5 @@ function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone.grey.b
   if(cx>=15&&cx<=16&&cy===2)k='table';
   if(cy===10&&cx>11&&cx<CW-1)k=(cx===14||cx===15)?'sill':'stone.grey.block.w';
   paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,TRK,FH])a.fill(0);fxDirty=true}
 

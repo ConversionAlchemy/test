@@ -116,7 +116,9 @@ function vDraw(top){for(const v of VEH){if(offView(v.x,v.y,VC.L))continue;if(!v.
 // overlay in the hull's frame: the door leaves at their slide, with the seams of a door, and the core lit by the engine's power
 function vOver(v){const LW=VC.LW;if(!v.LD||v.LD.length!==LW*VC.H)v.LD=new Uint32Array(LW*VC.H);else for(const i of v.ldI||[])v.LD[i]=0;const used=[],put=(x,y,c)=>{if(x<0||y<0||x>=LW||y>=VC.H)return;const i=y*LW+x;v.LD[i]=c|0xff000000;used.push(i)};
  for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d))continue;const{ax,ay,a}=d.vdoor,sl=Math.round(Math.min(1,Math.abs(d.ang)/1.4)*((d.len||16)-3)),cells=new Map();
-  for(const q of d.px){if(d.set.get(K(q[0],q[1]))!==q)continue;const dx=q[8]-sl,dy=q[9],x=a>0?ax-dy:ax+dy,y=a>0?ay+dx:ay-dx;cells.set(K(x,y),q)}
+  // from the leaf's own pixels (not its turned copy, which skips and doubles pixels off the grid and showed as a checker)
+  const live=new Map();for(const t of d.px)if(t.s&&d.set.get(K(t[0],t[1]))===t)live.set(t.s,t);
+  for(const q of d.src||d.px){if(q.dead)continue;const p=live.get(q)||q,dx=q[8]-sl,dy=q[9],x=a>0?ax-dy:ax+dy,y=a>0?ay+dx:ay-dx;cells.set(K(x,y),p)}
   for(const[k,q]of cells){const x=Math.floor(k/1024)-512,y=k%1024-512,r=!cells.has(K(x+1,y))||!cells.has(K(x,y+1)),l=!cells.has(K(x-1,y))||!cells.has(K(x,y-1));const c0=pcol(d,q);put(x,y,r?mul(c0,.5):l?mul(c0,.8):c0)}}
  for(const t of v.px)if(t[5]>.01&&t.s&&t[7]!=='x'){if(t[5]*.6>(t.s.tm||0)+.08){t.s.tm=t[5]*.6;v.dirty=1}const q=t.s,c0=q[3]<q[6]||t[3]<q[6]?mul(q[2],.6+.4*Math.min(q[3],t[3])/q[6]):q[2];put(q[8],q[9],mix(c0,glow(t[5]),Math.min(1,t[5]*1.6)))}
  const g=v.glow||0;if(g>.01)for(const q of v.src)if(q[7]==='e'&&!q.dead){const c=q[2],br=(c&255)+(c>>8&255)>300;put(q[8],q[9],mix(c,br?rgb(255,250,255):rgb(206,150,255),Math.min(.85,g*(br?.9:.6))))}
@@ -166,7 +168,7 @@ function vMist(v){if(v.on&&tick-v.onT>=VIGN&&tick%900===0)vVentSoot(v,.004);{con
  vSide(v);if(v.dead&&tick-v.burnT<420&&tick%3===0){const[hx,hy]=vL2W(v,v.hole[0]+(Math.random()-.5)*16,v.hole[1]+(Math.random()-.5)*12),f=1-(tick-v.burnT)/420;v.puffs.push({x:hx,y:hy,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2-.05,r:3,gr:.22,a:.6*f,c:rgb(30,28,28),sd:Math.random()*99|0,R:22,out:1});if(Math.random()<f*.6)emberPatch(hx,hy,3,4)}
  for(const p of v.puffs){p.x+=p.vx;p.y+=p.vy;p.r+=p.gr;p.a*=.992;if(p.out){p.vx*=.95;p.vy*=.95}if(p.r>p.R*.7)p.a*=.95}v.puffs=v.puffs.filter(p=>p.r<p.R&&p.a>.02)}
 // track marks: the tread pattern pressed faintly into the ground, only while moving
-function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);for(const w of['T','B']){const y0=w==='T'?0:VC.H-VC.TR,ph=Math.floor(v.ph[w==='T'?0:1]);for(const x of[4,5,6,7,8,VC.L-9,VC.L-8,VC.L-7,VC.L-6,VC.L-5])for(const t of[1,3]){const[gx,gy]=vL2W(v,x+.5,y0+t+.5),X=Math.floor(gx/2),Y=Math.floor(gy/2);if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X,lk=((x-ph)%4+4)%4<2;BURN[q]=Math.max(BURN[q],(lk?.144:.096)*k*(.85+.15*hh(X,Y,9)));bDirty(q)}}fxDirty=true}
+function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);for(const w of['T','B']){const y0=w==='T'?0:VC.H-VC.TR,ph=Math.floor(v.ph[w==='T'?0:1]);for(const x of[4,5,6,7,8,VC.L-9,VC.L-8,VC.L-7,VC.L-6,VC.L-5])for(const t of[1,3]){const[gx,gy]=vL2W(v,x+.5,y0+t+.5),X=Math.floor(gx/2),Y=Math.floor(gy/2);if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X,lk=((x-ph)%4+4)%4<2;TRK[q]=Math.max(TRK[q],(lk?.144:.096)*k*(.85+.15*hh(X,Y,9)));bDirty(q)}}fxDirty=true}
 
 // driving: slow to start, slow to stop, slow to turn; the tracks run with the ground and counter-run to pivot
 function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%3===0)vAI();for(const v of VEH){const dv=vDriver(v);if(v.seats[0]&&!dv)v.seats[0]=null;if(v.chest){const c=byId(v.chest);if(c)vChestPos(v,c)}

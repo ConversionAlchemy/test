@@ -719,12 +719,12 @@ let S=2,EM=null,TOPS=false,OUTD=false;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
 let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),SCH=new Uint8Array(N),OBJC=new Uint32Array(N),DMG=new Uint8Array(N);// DMG: chips and holes blasts leave in the floor, which only the wand repairs
 const FX={blood:new Float32Array(NB),fire:new Float32Array(NB),smoke:new Float32Array(NB)};
-let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),GM=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),FH=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
+let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),GM=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),TRK=new Float32Array(NB),FH=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
 let WH=new Float32Array(N);let whOn=false;
 let fxLow=new Uint32Array(N),fxTop=new Uint32Array(N),fxA=new Uint8Array(N),HZ=new Float32Array(NB),OPEN=new Uint8Array(NB);let hzOn=false;let fxDirty=true;
 function alloc(cw,ch){CW=cw;CH=ch;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
  SH=new Uint8Array(N);solDirty=true;GOLD=new Uint8Array(N);floor=new Uint32Array(N);sol=new Uint8Array(N);shp=new Uint8Array(N);scol=new Uint32Array(N);crk=new Uint8Array(N);slabG=new Int32Array(N);GT=new Uint8Array(N);SHN=new Uint8Array(N);DS=new Uint8Array(N);NOD=new Uint8Array(N);OBJ=new Uint8Array(N);SCH=new Uint8Array(N);OBJC=new Uint32Array(N);DMG=new Uint8Array(N);
- for(const k in FX)FX[k]=new Float32Array(NB);TF=new Float32Array(NB);SF=new Float32Array(NB);SS=new Float32Array(NB);GM=new Float32Array(NB);ST=new Float32Array(NB);BURN=new Float32Array(NB);FH=new Float32Array(NB);FV=new Float32Array(NB);SV=new Float32Array(NB);DV=new Float32Array(NB);TMP=new Float32Array(NB);
+ for(const k in FX)FX[k]=new Float32Array(NB);TF=new Float32Array(NB);SF=new Float32Array(NB);SS=new Float32Array(NB);GM=new Float32Array(NB);ST=new Float32Array(NB);BURN=new Float32Array(NB);TRK=new Float32Array(NB);FH=new Float32Array(NB);FV=new Float32Array(NB);SV=new Float32Array(NB);DV=new Float32Array(NB);TMP=new Float32Array(NB);
  WH=new Float32Array(N);fxLow=new Uint32Array(N);fxTop=new Uint32Array(N);fxA=new Uint8Array(N);HZ=new Float32Array(NB);OPEN=new Uint8Array(NB)}
 const rgb=(r,g,b)=>((255<<24)|(b<<16)|(g<<8)|r)>>>0;
 // plasma is Umbrastone's energy: its light runs through the stone's iridescent palette
@@ -1035,13 +1035,13 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
   if((x===27||x===37)&&y>=14&&y<=24||(y===14||y===24)&&x>=27&&x<=37)return 'metal.iron.rivet.w';
   return 'stone.gold.block.w'};
  HALFF='stone.night.block';for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,F(cx,cy));HALFF='dirt';
- for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,TRK,FH])a.fill(0);WH.fill(0);fxDirty=true}
 const EXITS={vault:[{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392}],count:[{dir:'e',cell:[43,12],to:'vault',arrive:[664,200],label:'The Aurum',lx:640,ly:182},{dir:'w',cell:[0,18],label:'Back alley',lx:2,ly:278}]};
 const STATE={},PEND={};
 function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of document.querySelectorAll('#sm .xlab'))e.remove();
- STATE[curMap]={VEH,rep:[...REP],wear:{tw:[...TW],ht:[...HT]},CW,CH,map,UND,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG,TF,SF,SS,ST,BURN,FH,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
+ STATE[curMap]={VEH,rep:[...REP],wear:{tw:[...TW],ht:[...HT]},CW,CH,map,UND,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG,TF,SF,SS,ST,BURN,TRK,FH,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
 function loadMap(m){const q=STATE[m];delete STATE[m];CW=q.CW;CH=q.CH;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
- ({SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG=new Uint8Array(N),TF,SF,SS,ST,BURN,FH=new Float32Array(NB),FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}=q.a);TW.clear();HT.clear();if(q.wear&&q.wear.tw){for(const[k,v]of q.wear.tw)TW.set(k,v);for(const[k,v]of q.wear.ht)HT.set(k,v)}for(const k in q.FX)FX[k]=q.FX[k];
+ ({SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG=new Uint8Array(N),TF,SF,SS,ST,BURN,TRK=new Float32Array(NB),FH=new Float32Array(NB),FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}=q.a);TW.clear();HT.clear();if(q.wear&&q.wear.tw){for(const[k,v]of q.wear.tw)TW.set(k,v);for(const[k,v]of q.wear.ht)HT.set(k,v)}for(const k in q.FX)FX[k]=q.FX[k];
  map=q.map;UND=q.UND||[];OM=q.OM;DS0=q.DS0;ds0Need=false;alarm=q.alarm;bodies=q.bodies;VEH=q.VEH||[];parts=q.parts;whOn=q.whOn;hzOn=q.hzOn;solDirty=true;fxDirty=true;camInit=true;REP.clear();for(const v of q.rep||[])REP.add(v);edgeMask();setTimeout(fit,0);
  for(const b of bodies)if(b.lab)stage.appendChild(b.lab);arrivals();exitLabels()}
 function goMap(v){if(v===curMap)return;saveMap();curMap=v;const ms=$('msel');if(ms)ms.value=v;$('sm').querySelector('header span').textContent=TITLE[v]||'';sel.clear();openCrate=null;drag=null;charge=null;box=null;moveSel=null;lastHud='';if(STATE[v])loadMap(v);else{camInit=true;CW=-1;reset()}}
@@ -1082,7 +1082,7 @@ function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('grass'));
    if(cx===11&&t!=='door')k=t==='stone2'?'stone.grey.block.w':t;if(cx===12&&t==='stone2')k='stone.grey.block.w'}
   const yi=Math.floor((cx-17)/3),yo=(cx-17)%3<2&&cx>=17;if(yo&&cy>=1&&cy<=2&&Y0[yi])k=Y0[yi];if(yo&&cy>=4&&cy<=5&&W0[yi])k=W0[yi];if(yo&&cy>=7&&cy<=8&&W1[yi])k=W1[yi];
   if(cx>=24&&cx<=38&&cy>=13&&cy<=CH-2&&soil(cx,cy))k='dirt';if(cx===5&&(cy===8||cy===18||cy===21||cy===24))k=cy===18?'chest':'chest';paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,TRK,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
  for(const[n,u,y]of[['Vey','home',40],['Oren','home',72],['Pip','civ',104],['Lask','guard',136],['Hale','rifle',176],['Isk','rifle',256]])token(n,'Imperium',u,56,y,false,n==='Lask'?'rod':null);
  {const w=weapon('rod',92,70,0);w.ammo=3;w.res=15}container(5,8,[{k:'rbox',n:6}]);container(5,18,[{k:'musket',n:4,ammo:12,res:24}]);container(5,21,[{k:'grenade',n:8}]);container(5,24,[{k:'bomb',n:4}]);
@@ -1102,7 +1102,7 @@ function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
   return 'stone.gold.block.w'};
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,cx<=14?F(cx,cy):F(29-cx,cy));for(const cx of [0,1,2])paintCell(cx,25,'stone.aur.block');
  for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){if(map[Y/T|0][X/T|0]!=='metal.gold.panel')continue;const e=(x,y)=>!map[y/T|0]||map[y/T|0][x/T|0]!=='metal.gold.panel';if(e(X+1,Y)||e(X-1,Y)||e(X,Y+1)||e(X,Y-1))floor[Y*W+X]=mul(floor[Y*W+X],.5)}
- for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,TRK,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};slab(3,36,400,1);
  dbl(3,208,128,271,111,0,2,true,32,16);dbl(3,208,316,271,307,0,2,true,32,8);dbl(3,208,508,271,499,0,2,false,32,8);dbl(3,208,620,271,611,0,2,false,32,8);
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
@@ -1126,7 +1126,7 @@ function buildAir(){map=Array.from({length:CH},()=>Array(CW).fill('sky'));
   if(plank(cx,cy))k='wood.oak.planks';if(cx===2&&(cy===6||cy===9)||cy===7&&(cx===16||cx===17)||cx===20&&cy===12)k='chest';
   if(cx===18&&(cy===6||cy===13)||cx>=23&&cx<=24&&cy>=9&&cy<=10)k='rail';
   paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,TRK,FH])a.fill(0);WH.fill(0);fxDirty=true}
 function unitsAir(){const face=(t,a)=>{t.ang=a;return t},E=0,Wd=Math.PI;
  const C=[['Kade','pistol',2],['Vos','pistol',2],['Ash','blunder'],['Rook','blunder'],['Sere','pgun'],['Holt','rod']];
  C.forEach(([n,w,dual],i)=>{const t=face(token(n,'Imperium','cmd',56+(i%2)*28,104+(i>>1)*36,false,w),E);if(dual)addItem(t,{k:'pistol',n:1,ammo:18,res:18})});
@@ -1206,7 +1206,7 @@ function drawStores(){drawTables();drawHoled(storesShown().filter(c=>!c.table));
  if(SDR){const q=SDR.c.inv[SDR.i];if(q){const db=dropBox(),sn=db&&!cT(db)&&!db.table&&!bodyAt(Math.round(mouse.x),Math.round(mouse.y),4,null,o=>o.type==='token'&&o.status!=='dead')&&cAt(db,q.k,mouse.x,mouse.y,q),sg=sn&&cGeo(db),r=sn?sn.r:q.r,[w,h]=sn?(r?[...foot(q.k)].reverse():foot(q.k)):cRect(q);for(const[a,b,col]of itemPix(q.k,r)){const X=(sn?sg.ox+sn.gx:Math.round(mouse.x-w/2))+a,Y=(sn?sg.oy+sn.gy:Math.round(mouse.y-h/2))+b;if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=col}}}}
 // painting a map; the bank, council, road, alley and stock maps
 // mini maps for each side: one room or stretch, opening onto the void or a corridor
-const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);WH.fill(0);fxDirty=true};
+const fxClear=()=>{for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,TRK,FH])a.fill(0);WH.fill(0);fxDirty=true};
 // doorways draw from both neighbours, so they are redrawn once the whole map is laid
 function resill(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(k==='sill'||k==='msill')paintCell(cx,cy,k)}}
 function paintAll(f){FLC=null;map=Array.from({length:CH},()=>Array(CW).fill('stone'));for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,f(cx,cy));fxClear()}
@@ -1273,7 +1273,7 @@ function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone.grey.b
   if(cx>=15&&cx<=16&&cy===2)k='table';
   if(cy===10&&cx>11&&cx<CW-1)k=(cx===14||cx===15)?'sill':'stone.grey.block.w';
   paintCell(cx,cy,k)}
- for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,FH])a.fill(0);fxDirty=true}
+ for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,TRK,FH])a.fill(0);fxDirty=true}
 
 // units and nations: sprites, tokens, kits, weapons, slabs and doors
 // units and nations
@@ -1927,7 +1927,7 @@ function scorchC(c,a,X,Y){return heatTint(c,clsAt(X,Y),Math.min(.95,1-Math.pow(1
 // fresh blast heat glows and cools: metal brightest, wood embers flicker, stone a dull red
 function glowC(c,h,X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4],B=CATN[k]?clsB(CATN[k][0],CATN[k][1]):CLS.stone.blast,g=B.glow*(B.flick?.8+.4*hh(X>>1,Y>>1,tick>>3):1);return heatCol(h*g,c)}
 let BRY0=1e9,BRY1=-1;const bDirty=q=>{const y=(q/BW|0)*2;if(y-3<BRY0)BRY0=y-3;if(y+5>BRY1)BRY1=y+5};let FLC=null,FLK='',FLR=0,SHL=new Set(),shBuilt=false,SOLL=null,SOLN=0;
-function floorPx(X,Y,j,hlC,sh){let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>W&&OBJ[j-W-1])c=mul(c,.66);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(sh&&SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);if(sh){const fh=FH[(Y>>1)*BW+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y)}const k=SH[j];if(k)c=mul(c,k===1?.66:.82);return c}
+function floorPx(X,Y,j,hlC,sh){let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>W&&OBJ[j-W-1])c=mul(c,.66);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(sh&&SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);{const tr=TRK[(Y>>1)*BW+(X>>1)];if(tr>.02)c=mul(c,1-tr*.9)}if(sh){const fh=FH[(Y>>1)*BW+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y)}const k=SH[j];if(k)c=mul(c,k===1?.66:.82);return c}
 function floorRows(y0,y1,hlC){if(y0===0&&y1===H)SHL=new Set();for(let Y=y0;Y<y1;Y++)for(let X=0,j=Y*W;X<W;X++,j++){if(sol[j])continue;if(SHN[j]){SHL.add(j);continue}FLC[j]=floorPx(X,Y,j,hlC,false)}}
 function render(){VIEWR=VWH&&S?[Math.max(0,Math.floor(-cam.x/S)),Math.max(0,Math.floor(-cam.y/S)),Math.min(W,Math.ceil((VWH[0]-cam.x)/S)),Math.min(H,Math.ceil((VWH[1]-cam.y)/S))]:null;
  if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick;shBuilt=true;SOLL=null}
@@ -3061,11 +3061,11 @@ function snapPR(){PR={CW,CH,map:map.map(r=>r.slice()),floor0:floor.slice(),sol:s
 const prOK=()=>PR&&PR.CW===CW&&PR.CH===CH&&PR.floor.length===N;snapPR();
 const chDiff=(a,b)=>Math.abs((a&255)-(b&255))+Math.abs((a>>8&255)-(b>>8&255))+Math.abs((a>>16&255)-(b>>16&255));
 function cellIdx(cx,cy,f){for(let y=0;y<T;y++)for(let x=0;x<T;x++)if(f((cy*T+y)*W+cx*T+x))return true;return false}
-function stainBad(cx,cy){if(!prOK())return false;if(cellIdx(cx,cy,j=>SCH[j]&&!sol[j]&&!PR.sol[j]&&(OBJ[j]?chDiff(OBJC[j],PR.OBJC[j])>14:chDiff(floor[j],PR.floor[j])>14)))return true;for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;if(FX.blood[q]>.04||BURN[q]>.04||FX.fire[q]>.05||TF[q]>.03||FH[q]>.05)return true}return parts.some(p=>p.life===undefined&&(p.x/T|0)===cx&&(p.y/T|0)===cy)}
+function stainBad(cx,cy){if(!prOK())return false;if(cellIdx(cx,cy,j=>SCH[j]&&!sol[j]&&!PR.sol[j]&&(OBJ[j]?chDiff(OBJC[j],PR.OBJC[j])>14:chDiff(floor[j],PR.floor[j])>14)))return true;for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;if(FX.blood[q]>.04||BURN[q]>.04||TRK[q]>.04||FX.fire[q]>.05||TF[q]>.03||FH[q]>.05)return true}return parts.some(p=>p.life===undefined&&(p.x/T|0)===cx&&(p.y/T|0)===cy)}
 function cellBad(cx,cy){const k0=PR&&PR.map&&PR.map[cy]&&PR.map[cy][cx];return prOK()&&(stainBad(cx,cy)||!!k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)||cellIdx(cx,cy,j=>DMG[j]||sol[j]!==PR.sol[j]||shp[j]!==PR.shp[j]||crk[j]!==PR.crk[j]||OBJ[j]!==PR.OBJ[j]))}
 // the wand mends a cell as the map was laid (chips, holes, wear and the tile's condition) and leaves the soot and debris on it for the sponge and vacuum
 function repairCell(cx,cy){TW.delete(twK(1,cy*CW+cx));{const o=TW.get(twK(2,cy*CW+cx));if(o&&o.a)OM[cy][cx]=o.k;TW.delete(twK(2,cy*CW+cx))}const k0=PR.map&&PR.map[cy]&&PR.map[cy][cx];if(k0&&map[cy][cx]!==k0&&baseK(map[cy][cx])===baseK(k0)){map[cy][cx]=k0;if(edSrc&&edSrc[cy])edSrc[cy][cx]=k0}for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;for(const k of['sol','shp','scol','crk','GT','OBJ','OBJC','SHN','GOLD','NOD'])({sol,shp,scol,crk,GT,OBJ,OBJC,SHN,GOLD,NOD})[k][j]=PR[k][j];floor[j]=PR.floor0[j];SCH[j]=0;PR.floor[j]=PR.floor0[j];EDG.delete(j);HT.delete(j);DMG[j]=0}if(CATN[map[cy][cx]])REP.add(cy*CW+cx);edgeMask();
- parts=parts.filter(p=>p.life!==undefined||(p.x/T|0)!==cx||(p.y/T|0)!==cy);for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;FX.blood[q]=0;BURN[q]=0;bDirty(q);FX.fire[q]=0;FX.smoke[q]=0;TF[q]=0;SF[q]=0;SS[q]=0;GM[q]=0;ST[q]=0;FH[q]=0}solDirty=true;fxDirty=true;sparkle(cx,cy,14)}
+ parts=parts.filter(p=>p.life!==undefined||(p.x/T|0)!==cx||(p.y/T|0)!==cy);for(let y=cy*8;y<cy*8+8;y++)for(let x=cx*8;x<cx*8+8;x++){const q=y*BW+x;FX.blood[q]=0;BURN[q]=0;TRK[q]=0;bDirty(q);FX.fire[q]=0;FX.smoke[q]=0;TF[q]=0;SF[q]=0;SS[q]=0;GM[q]=0;ST[q]=0;FH[q]=0}solDirty=true;fxDirty=true;sparkle(cx,cy,14)}
 function sparkle(cx,cy,n){for(let i=0;i<n;i++)SPK.push({x:cx*T+Math.random()*T,y:cy*T+Math.random()*T,vx:(Math.random()-.5)*.12,vy:-.05-Math.random()*.1,h:Math.random()*360,l:0,L:90+Math.random()*90,tw:Math.random()*6})}
 // recorded clips: water squelch while scrubbing, rubber squeaks on clean tiles
 const SBUF={};function sample(n,vol,rate){if(mute||!gest)return;try{const a=au(),go=bufs=>{const b=bufs[Math.random()*bufs.length|0],s=a.createBufferSource(),g=a.createGain();s.buffer=b;s.playbackRate.value=rate||(.92+Math.random()*.16);g.gain.value=vol;s.connect(g).connect(MS);s.start()};
@@ -3089,7 +3089,7 @@ function cleanTick(){for(let i=VP.length-1;i>=0;i--){const p=VP[i],dx=mouse.x-p.
  if(CL.k==='sponge'){if(Math.hypot(mx-CL.lx,my-CL.ly)<1.5||!prOK())return;CL.lx=mx;CL.ly=my;let did=false,fire=0;wetAt(mx,my,R);for(let i=parts.length-1;i>=0;i--){const p=parts[i];if(p.em!==undefined&&Math.hypot(p.x-mx,p.y-my)<R+6){parts.splice(i,1);fire++}}
   for(let Y=Math.floor(my-R);Y<=my+R;Y++)for(let X=Math.floor(mx-R);X<=mx+R;X++){if(X<0||Y<0||X>=W||Y>=H||Math.hypot(X-mx,Y-my)>R)continue;const j=Y*W+X;{const q=(Y>>1)*BW+(X>>1);if(FH[q]>0||WH[j]>0){if(FH[q]>.02||WH[j]>.02)fire++;FH[q]=0;WH[j]=0;did=true;fxDirty=true}}if(sol[j]||PR.sol[j])continue;
    if(!SCH[j]){}else if(OBJ[j]&&PR.OBJ[j]){if(OBJC[j]!==PR.OBJC[j]){OBJC[j]=chDiff(OBJC[j],PR.OBJC[j])<10?PR.OBJC[j]:mix(OBJC[j],PR.OBJC[j],.3);did=true}}else if(!OBJ[j]&&!DMG[j]&&floor[j]!==PR.floor[j]){floor[j]=chDiff(floor[j],PR.floor[j])<10?PR.floor[j]:mix(floor[j],PR.floor[j],.3);if(floor[j]===PR.floor[j]){GT[j]=PR.GT[j];SCH[j]=0}did=true}
-   const q=(Y>>1)*BW+(X>>1);if(FX.fire[q]>.02||TF[q]>.02)fire++;if(FX.fire[q]>0||FX.smoke[q]>0||TF[q]>0){FX.fire[q]=0;TF[q]=0;FX.smoke[q]*=.5;did=true;fxDirty=true}if(FX.blood[q]>0||BURN[q]>0){FX.blood[q]*=.55;BURN[q]*=.55;bDirty(q);if(FX.blood[q]<.03)FX.blood[q]=0;if(BURN[q]<.03)BURN[q]=0;did=true;fxDirty=true}}
+   const q=(Y>>1)*BW+(X>>1);if(FX.fire[q]>.02||TF[q]>.02)fire++;if(FX.fire[q]>0||FX.smoke[q]>0||TF[q]>0){FX.fire[q]=0;TF[q]=0;FX.smoke[q]*=.5;did=true;fxDirty=true}if(FX.blood[q]>0||BURN[q]>0||TRK[q]>0){FX.blood[q]*=.55;BURN[q]*=.55;TRK[q]=TRK[q]<.03?0:TRK[q]*.55;bDirty(q);if(FX.blood[q]<.03)FX.blood[q]=0;if(BURN[q]<.03)BURN[q]=0;did=true;fxDirty=true}}
   // carriers lose their soot under it, troops the soot on their armour
   for(const v of VEH){if(Math.hypot(v.x-mx,v.y-my)>VC.L*.6+R)continue;vRoofAt(v,mx,my,R+2,i=>{if(v.rs[i]>0){v.rs[i]=v.rs[i]<.04?0:v.rs[i]*.55;did=true}})}
   for(const b of bodies){const ms=b.wear&&b.wear.marks;if(!ms||Math.hypot(b.x-mx,b.y-my)>R+8)continue;for(const m of ms.soot)if(m[3]>0){m[3]=m[3]<.06?0:m[3]*.55;did=true}b.wear.v=(b.wear.v||0)+1}
@@ -3367,7 +3367,9 @@ function vDraw(top){for(const v of VEH){if(offView(v.x,v.y,VC.L))continue;if(!v.
 // overlay in the hull's frame: the door leaves at their slide, with the seams of a door, and the core lit by the engine's power
 function vOver(v){const LW=VC.LW;if(!v.LD||v.LD.length!==LW*VC.H)v.LD=new Uint32Array(LW*VC.H);else for(const i of v.ldI||[])v.LD[i]=0;const used=[],put=(x,y,c)=>{if(x<0||y<0||x>=LW||y>=VC.H)return;const i=y*LW+x;v.LD[i]=c|0xff000000;used.push(i)};
  for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d))continue;const{ax,ay,a}=d.vdoor,sl=Math.round(Math.min(1,Math.abs(d.ang)/1.4)*((d.len||16)-3)),cells=new Map();
-  for(const q of d.px){if(d.set.get(K(q[0],q[1]))!==q)continue;const dx=q[8]-sl,dy=q[9],x=a>0?ax-dy:ax+dy,y=a>0?ay+dx:ay-dx;cells.set(K(x,y),q)}
+  // from the leaf's own pixels (not its turned copy, which skips and doubles pixels off the grid and showed as a checker)
+  const live=new Map();for(const t of d.px)if(t.s&&d.set.get(K(t[0],t[1]))===t)live.set(t.s,t);
+  for(const q of d.src||d.px){if(q.dead)continue;const p=live.get(q)||q,dx=q[8]-sl,dy=q[9],x=a>0?ax-dy:ax+dy,y=a>0?ay+dx:ay-dx;cells.set(K(x,y),p)}
   for(const[k,q]of cells){const x=Math.floor(k/1024)-512,y=k%1024-512,r=!cells.has(K(x+1,y))||!cells.has(K(x,y+1)),l=!cells.has(K(x-1,y))||!cells.has(K(x,y-1));const c0=pcol(d,q);put(x,y,r?mul(c0,.5):l?mul(c0,.8):c0)}}
  for(const t of v.px)if(t[5]>.01&&t.s&&t[7]!=='x'){if(t[5]*.6>(t.s.tm||0)+.08){t.s.tm=t[5]*.6;v.dirty=1}const q=t.s,c0=q[3]<q[6]||t[3]<q[6]?mul(q[2],.6+.4*Math.min(q[3],t[3])/q[6]):q[2];put(q[8],q[9],mix(c0,glow(t[5]),Math.min(1,t[5]*1.6)))}
  const g=v.glow||0;if(g>.01)for(const q of v.src)if(q[7]==='e'&&!q.dead){const c=q[2],br=(c&255)+(c>>8&255)>300;put(q[8],q[9],mix(c,br?rgb(255,250,255):rgb(206,150,255),Math.min(.85,g*(br?.9:.6))))}
@@ -3417,7 +3419,7 @@ function vMist(v){if(v.on&&tick-v.onT>=VIGN&&tick%900===0)vVentSoot(v,.004);{con
  vSide(v);if(v.dead&&tick-v.burnT<420&&tick%3===0){const[hx,hy]=vL2W(v,v.hole[0]+(Math.random()-.5)*16,v.hole[1]+(Math.random()-.5)*12),f=1-(tick-v.burnT)/420;v.puffs.push({x:hx,y:hy,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2-.05,r:3,gr:.22,a:.6*f,c:rgb(30,28,28),sd:Math.random()*99|0,R:22,out:1});if(Math.random()<f*.6)emberPatch(hx,hy,3,4)}
  for(const p of v.puffs){p.x+=p.vx;p.y+=p.vy;p.r+=p.gr;p.a*=.992;if(p.out){p.vx*=.95;p.vy*=.95}if(p.r>p.R*.7)p.a*=.95}v.puffs=v.puffs.filter(p=>p.r<p.R&&p.a>.02)}
 // track marks: the tread pattern pressed faintly into the ground, only while moving
-function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);for(const w of['T','B']){const y0=w==='T'?0:VC.H-VC.TR,ph=Math.floor(v.ph[w==='T'?0:1]);for(const x of[4,5,6,7,8,VC.L-9,VC.L-8,VC.L-7,VC.L-6,VC.L-5])for(const t of[1,3]){const[gx,gy]=vL2W(v,x+.5,y0+t+.5),X=Math.floor(gx/2),Y=Math.floor(gy/2);if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X,lk=((x-ph)%4+4)%4<2;BURN[q]=Math.max(BURN[q],(lk?.144:.096)*k*(.85+.15*hh(X,Y,9)));bDirty(q)}}fxDirty=true}
+function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);for(const w of['T','B']){const y0=w==='T'?0:VC.H-VC.TR,ph=Math.floor(v.ph[w==='T'?0:1]);for(const x of[4,5,6,7,8,VC.L-9,VC.L-8,VC.L-7,VC.L-6,VC.L-5])for(const t of[1,3]){const[gx,gy]=vL2W(v,x+.5,y0+t+.5),X=Math.floor(gx/2),Y=Math.floor(gy/2);if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X,lk=((x-ph)%4+4)%4<2;TRK[q]=Math.max(TRK[q],(lk?.144:.096)*k*(.85+.15*hh(X,Y,9)));bDirty(q)}}fxDirty=true}
 
 // driving: slow to start, slow to stop, slow to turn; the tracks run with the ground and counter-run to pivot
 function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%3===0)vAI();for(const v of VEH){const dv=vDriver(v);if(v.seats[0]&&!dv)v.seats[0]=null;if(v.chest){const c=byId(v.chest);if(c)vChestPos(v,c)}
