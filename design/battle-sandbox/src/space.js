@@ -6,10 +6,14 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
   out:{ir:[.6,1.6,3],wet:.08,lp:900,hills:1},next:{ir:[.6,0,2],wet:1.3,lp:1600,muffle:380,gain:.55}};
  const washIR=()=>{if(WIR)return WIR;const a=AC,n=a.sampleRate*5.5|0,b=a.createBuffer(2,n,a.sampleRate);for(let c=0;c<2;c++){const d=b.getChannelData(c);let lp=0;for(let i=0;i<n;i++){const t=i/n,x=(Math.random()*2-1)*Math.exp(-t*2)*(.5+.5*Math.cos(Math.PI*t));lp+=(x-lp)*.5;d[i]=lp*.35}}return WIR=b};
  // 'room' is the game's own half-second room
+ // each space's reverb is built once and shared: a sound adds its own dry and wet sends to it
+ const SCH={};function chain(key,s){let c=SCH[key];if(c&&c.ctx===AC)return c;const a=AC;c=SCH[key]={ctx:a,dry:a.createGain(),rev:a.createGain()};
+  if(s.muffle){const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=s.muffle;f.Q.value=.4;const sh=a.createBiquadFilter();sh.type='lowshelf';sh.frequency.value=150;sh.gain.value=5;c.dry.connect(f).connect(sh).connect(MS)}else c.dry.connect(MS);
+  const cv=a.createConvolver();cv.buffer=ir(...s.ir);const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=s.lp;lp.Q.value=.5;let src=c.rev;if(s.pre){const d=a.createDelay(1);d.delayTime.value=s.pre;c.rev.connect(d);src=d}src.connect(cv).connect(lp).connect(c.dry);
+  for(const[t,g]of s.er||[]){const d=a.createDelay(2),k=a.createGain(),f=a.createBiquadFilter();d.delayTime.value=t;k.gain.value=g;f.type='lowpass';f.frequency.value=2500;c.rev.connect(d).connect(f).connect(k).connect(c.dry)}return c}
  function setup(s0,loud,gun,vol=1){const a=au();sp=s0;OUT=a.createGain();if(s0==='room'){OUT.gain.value=vol;OUT.connect(MS);RVIN=a.createGain();RVIN.connect(RV);WIN=null;return}
-  const s=s0==='out'&&gun?{...SP.out,wet:0,hills:0}:SP[s0];OUT.gain.value=(s.gain||1)*vol;if(s.muffle){const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=s.muffle;f.Q.value=.4;const sh=a.createBiquadFilter();sh.type='lowshelf';sh.frequency.value=150;sh.gain.value=5;OUT.connect(f).connect(sh).connect(MS)}else OUT.connect(MS);
-  RVIN=a.createGain();RVIN.gain.value=s.wet;const cv=a.createConvolver();cv.buffer=ir(...s.ir);const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=s.lp;lp.Q.value=.5;let src=RVIN;if(s.pre){const d=a.createDelay(1);d.delayTime.value=s.pre;RVIN.connect(d);src=d}src.connect(cv).connect(lp).connect(OUT);
-  for(const[t,g]of s.er||[]){const d=a.createDelay(2),k=a.createGain(),f=a.createBiquadFilter();d.delayTime.value=t;k.gain.value=g;f.type='lowpass';f.frequency.value=2500;RVIN.connect(d).connect(f).connect(k).connect(OUT)}
+  const s=s0==='out'&&gun?{...SP.out,wet:0,hills:0}:SP[s0],c=chain(s0+(s0==='out'&&gun?'g':''),s);OUT.gain.value=(s.gain||1)*vol;OUT.connect(c.dry);
+  RVIN=a.createGain();RVIN.gain.value=s.wet*OUT.gain.value;RVIN.connect(c.rev);
   if(s.hills){const t=a.currentTime,cv2=a.createConvolver(),f=a.createBiquadFilter(),hp=a.createBiquadFilter(),k=a.createGain();cv2.buffer=washIR();f.type='lowpass';f.frequency.value=4200;hp.type='highpass';hp.frequency.value=700;hp.Q.value=.5;k.gain.setValueAtTime(0,t);k.gain.linearRampToValueAtTime(0,t+.3);k.gain.linearRampToValueAtTime(loud?.025:.015,t+.7);k.gain.setTargetAtTime(0,t+.8,.9);WIN=a.createGain();OUT.connect(cv2);WIN.connect(cv2);cv2.connect(hp).connect(f).connect(k).connect(MS)}else WIN=null}
  // the game's noise() and tone() play into the current space
  const old=(fn)=>{const b=ABUS,w=AWET;ABUS=OUT;AWET=RVIN;try{fn()}finally{ABUS=b;AWET=w}};
@@ -70,7 +74,9 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
  function regAt(x,y){const X=x>>1,Y=y>>1;for(let r=0;r<6;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const a=X+dx,b=Y+dy;if(a<0||b<0||a>=BW||b>=BH)continue;const g=RG[b*BW+a];if(g>=0)return g}return -1}
  function spaceAt(x,y){if(OUTD)return'out';regions();const g=regAt(x,y),e=ear(),h=regAt(e.x,e.y);if(g>=0&&h>=0&&g!==h)return'next';const tiles=g>=0?RGS[g]/64:0;return tiles<90?'room':tiles<260?'large':'hall'}
  const floorAt=(x,y)=>{const k=map[y>>4]&&map[y>>4][x>>4],c=CATN[k];return!c?'stone':c[0]==='Wood'?'wood':c[0]==='Metal'?'metal':'stone'};
- function at(k,x,y){if(mute||!gest)return;spr();const n=performance.now();if(last[k]&&n-last[k]<45)return;last[k]=n;try{const s=x===undefined?'room':spaceAt(Math.round(x),Math.round(y));setup(s,k!=='pistol',k==='pistol'||k==='musket'||k==='blunder',GAIN[k]||1);PLAY[k](x===undefined?'stone':floorAt(Math.round(x),Math.round(y)))}catch(e){}}
+ const VQ=[],GUNK={musket:1,blunder:1,pistol:1,rod:1,pgun:1};
+ // a volley: at most six shots voiced in any 150 ms, the rest are covered by them
+ function at(k,x,y){if(mute||!gest)return;spr();const n=performance.now();if(last[k]&&n-last[k]<45)return;if(GUNK[k]){while(VQ.length&&n-VQ[0]>150)VQ.shift();if(VQ.length>=6)return;VQ.push(n)}last[k]=n;try{const s=x===undefined?'room':spaceAt(Math.round(x),Math.round(y));setup(s,k!=='pistol',k==='pistol'||k==='musket'||k==='blunder',GAIN[k]||1);PLAY[k](x===undefined?'stone':floorAt(Math.round(x),Math.round(y)))}catch(e){}}
  // balls passing close to the listener snap past; pellets whizz
  let nmT=[];function near(){if(mute||!gest)return;if(AC&&!SBP)spr();const e=ear();for(const b of bodies){if(b.type!=='weapon'||b.nm||b.from===e.id||!(b.kind==='ball'||b.kind==='pball'||b.kind==='pel'))continue;const vx=b.vx,vy=b.vy,v2=vx*vx+vy*vy;if(v2<64)continue;
   const x0=b.x-vx,y0=b.y-vy,t=((e.x-x0)*vx+(e.y-y0)*vy)/v2;if(t<0||t>1)continue;const d=Math.hypot(e.x-x0-vx*t,e.y-y0-vy*t);if(d>48)continue;b.nm=1;

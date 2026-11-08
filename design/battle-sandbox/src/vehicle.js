@@ -135,6 +135,8 @@ function vHeatMark(x,y,r,k){for(const v of VEH){if(Math.hypot(v.x-x,v.y-y)<VC.L*
 const vChar=(c,x,y,v)=>{const h=v&&v.hole,k=h?Math.max(0,1-Math.hypot(x-h[0],y-h[1])/30):1;return k>0?mix(c,rgb(30,26,24),Math.min(.6,(.4+.25*hh(x>>1,y>>1,41))*k)):c};
 function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==='T'?0:1]),e=t===0||t===VC.TR-1,lk=((x-ph)%4+4)%4===0;return e?rgb(30,30,32):lk?rgb(78,78,80):t===2?rgb(56,56,58):rgb(46,46,48)}
 // the roof hides the crew unless a selected unit is aboard (V switches back to the roof)
+// a point under a carrier's roof while the roof is shown: light there doesn't reach the outside
+function vRoofed(x,y){for(const v of VEH){if(Math.abs(x-v.x)>VC.L*.6||Math.abs(y-v.y)>VC.L*.6||!vRoof(v))continue;const[lx,ly]=vW2L(v,x,y);if(lx>=0&&ly>=VC.TR&&lx<VC.L&&ly<VC.H-VC.TR)return true}return false}
 function vRoof(v){for(const t of sel)if(t.type==='token'&&vHas(v,t))return!!v.ext;return true}
 // V from a seat: switch between seeing the interior and the roof
 var VBRK=false;
@@ -158,7 +160,7 @@ function vMist(v){if(v.on&&tick-v.onT>=VIGN&&tick%900===0)vVentSoot(v,.004);{con
  vSide(v);if(v.dead&&tick-v.burnT<420&&tick%3===0){const[hx,hy]=vL2W(v,v.hole[0]+(Math.random()-.5)*16,v.hole[1]+(Math.random()-.5)*12),f=1-(tick-v.burnT)/420;v.puffs.push({x:hx,y:hy,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2-.05,r:3,gr:.22,a:.6*f,c:rgb(30,28,28),sd:Math.random()*99|0,R:22,out:1});if(Math.random()<f*.6)emberPatch(hx,hy,3,4)}
  for(const p of v.puffs){p.x+=p.vx;p.y+=p.vy;p.r+=p.gr;p.a*=.992;if(p.out){p.vx*=.95;p.vy*=.95}if(p.r>p.R*.7)p.a*=.95}v.puffs=v.puffs.filter(p=>p.r<p.R&&p.a>.02)}
 // track marks: the tread pattern pressed faintly into the ground, only while moving
-function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);for(const w of['T','B']){const y0=w==='T'?0:VC.H-VC.TR,ph=Math.floor(v.ph[w==='T'?0:1]);for(const x of[4,5,6,7,8,VC.L-9,VC.L-8,VC.L-7,VC.L-6,VC.L-5])for(const t of[1,3]){const[gx,gy]=vL2W(v,x+.5,y0+t+.5),X=Math.floor(gx/2),Y=Math.floor(gy/2);if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X,lk=((x-ph)%4+4)%4<2;BURN[q]=Math.max(BURN[q],(lk?.144:.096)*k*(.85+.15*hh(X,Y,9)))}}fxDirty=true}
+function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);for(const w of['T','B']){const y0=w==='T'?0:VC.H-VC.TR,ph=Math.floor(v.ph[w==='T'?0:1]);for(const x of[4,5,6,7,8,VC.L-9,VC.L-8,VC.L-7,VC.L-6,VC.L-5])for(const t of[1,3]){const[gx,gy]=vL2W(v,x+.5,y0+t+.5),X=Math.floor(gx/2),Y=Math.floor(gy/2);if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X,lk=((x-ph)%4+4)%4<2;BURN[q]=Math.max(BURN[q],(lk?.144:.096)*k*(.85+.15*hh(X,Y,9)));bDirty(q)}}fxDirty=true}
 
 // driving: slow to start, slow to stop, slow to turn; the tracks run with the ground and counter-run to pivot
 function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%3===0)vAI();for(const v of VEH){const dv=vDriver(v);if(v.seats[0]&&!dv)v.seats[0]=null;if(v.chest){const c=byId(v.chest);if(c)vChestPos(v,c)}

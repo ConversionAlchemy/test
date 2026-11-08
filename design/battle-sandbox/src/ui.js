@@ -169,10 +169,10 @@ function paintCtx(){PCX.innerHTML='';const L=mk('div','ulist');for(const[k,n,c]o
 let PDN=false;
 // undo: each stroke saves what it can change
 const PU=[];function puPush(){const k=PNT.k,e=k==='cond'?{ed:snapEd()}:k==='chisel'?{ch:chis().slice(),cb:new Map(chb()),fl:floor.slice(),pr:prOK()?[PR.floor.slice(),PR.floor0.slice()]:null}:{fx:[FX.blood.slice(),BURN.slice()]};e.map=curMap;PU.push(e);if(PU.length>30)PU.shift()}
-function puUndo(){const e=PU.pop();if(!e||e.map!==curMap)return false;if(e.ed){edSrc=e.ed;if(e.ed.und)UND=e.ed.und.map(r=>r&&r.slice());refinish()}else if(e.ch){CHM[curMap]=e.ch;CHB[curMap]=e.cb;floor.set(e.fl);if(e.pr&&prOK()){PR.floor.set(e.pr[0]);PR.floor0.set(e.pr[1])}}else{FX.blood.set(e.fx[0]);BURN.set(e.fx[1])}ds0Need=true;fxDirty=true;solDirty=true;return true}
+function puUndo(){const e=PU.pop();if(!e||e.map!==curMap)return false;if(e.ed){edSrc=e.ed;if(e.ed.und)UND=e.ed.und.map(r=>r&&r.slice());refinish()}else if(e.ch){CHM[curMap]=e.ch;CHB[curMap]=e.cb;floor.set(e.fl);if(e.pr&&prOK()){PR.floor.set(e.pr[0]);PR.floor0.set(e.pr[1])}}else{FX.blood.set(e.fx[0]);BURN.set(e.fx[1])}BRY0=0;BRY1=H;ds0Need=true;fxDirty=true;solDirty=true;return true}
 function daub(x,y){const R=3+PNT.size*4,a=PNT.size*.12;
  for(let Y=Math.floor((y-R)/2);Y<=(y+R)/2;Y++)for(let X=Math.floor((x-R)/2);X<=(x+R)/2;X++){if(X<0||Y<0||X>=BW||Y>=BH)continue;const d=Math.hypot(X*2+1-x,Y*2+1-y)/R;if(d>1)continue;const q=Y*BW+X,f=a*(1-d*d)*(.6+Math.random()*.8);
-  if(PNT.k==='blood')FX.blood[q]=Math.min(1,FX.blood[q]+f);else BURN[q]=Math.min(1,BURN[q]+f)}
+  if(PNT.k==='blood')FX.blood[q]=Math.min(1,FX.blood[q]+f);else{BURN[q]=Math.min(1,BURN[q]+f);bDirty(q)}}
  ds0Need=true;fxDirty=true}
 // condition: holding on a tile wears it a step at a time, the same steps the Tiler and battle damage use
 function wearAt(x,y){const s=srcNow(),o=PNT.size>1?0:0,cx0=(x/T|0)-(PNT.size>1&&x%T<8?1:0),cy0=(y/T|0)-(PNT.size>1&&y%T<8?1:0);let ch=false;

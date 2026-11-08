@@ -217,7 +217,7 @@ const ladL=k=>{if(k==='grass')return 0;if(k==='dirt')return 4;const c=CATN[k];if
 function earthWear(cx,cy,x,y,R,top,L0){const so=Math.min(1.2,softOf('Earth','grass')),Rm=R*(.55+.45*so),st=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?0:(1-d)*top*so+.15},to=(X,Y)=>{const s=st(X,Y);if(s<=0)return L0;const r=hh(X,Y,93);return Math.min(8,Math.max(L0+Math.floor(s/2+r),Math.floor(s*1.2+r)))};
  const Lc=to(cx*T+8,cy*T+8);if(Lc>L0)map[cy][cx]=ladK(Lc);
  for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const L=to(X,Y);if(L<=L0)continue;const q=TEX[ladK(L)](X,Y,cx,cy);if(!q)continue;floor[j]=rgb(cl(q[0]),cl(q[1]),cl(q[2]));if(PR)PR.floor[j]=floor[j]}}
-function blastWear(x,y,s){vBlastWear(x,y,s);const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
+function blastWear(x,y,s){vBlastWear(x,y,s);uBlast(x,y,s);BRY0=Math.min(BRY0,y-4*T);BRY1=Math.max(BRY1,y+4*T);const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
  for(let cy=Math.max(0,(y-R*2.6)/T|0);cy<=Math.min(CH-1,(y+R*2.6)/T|0);cy++)for(let cx=Math.max(0,(x-R*2.6)/T|0);cx<=Math.min(CW-1,(x+R*2.6)/T|0);cx++){const k=map[cy][cx],c=CATN[k],ok=OM[cy]&&OM[cy][cx],oe=ok&&objEl(ok);if(oe){const so=softOf(oe[0],oe[1]),wd=oe[0]==='Wood',Rm=R*1.3*(wd?1.6:1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearObj(cx,cy,(1-d/Rm)*top*(wd?40:26))}
   if(c&&c[3]&&AGE[c[0]]){const so=softOf(c[0],c[1]),wd=c[0]==='Wood',Rm=R*1.3*(wd?1.6:1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearWall(cx,cy,(1-d/Rm)*top*(wd?40:26));continue}if(OM[cy]&&OM[cy][cx])continue;{const L0=ladL(k);if(L0>=0){earthWear(cx,cy,x,y,R,top,L0);continue}}if(!c||c[3]||!AGE[c[0]])continue;
   const c0=c[4]||5,so=softOf(c[0],c[1]),wf=c[0]==='Wood',Rm=R*(c[0]==='Cloth'?1.6:wf?1.5:1)*(.55+.45*Math.min(1.2,so)),lv=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?c0:Math.max(1,Math.min(c0,5-Math.round((wf?Math.pow(1-d,.9)*1.15:1-d)*top*Math.min(1.2,so)+.3)))};
@@ -723,18 +723,29 @@ function drawCape(b,lift){const a=b.ang||0,c=Math.cos(a),s=Math.sin(a),bx=Math.r
  for(let f=-10;f<=-5;f+=.5)for(let u=-6.5;u<=6.5;u+=.5){const uu=u+sw*(-5-f)/5,X=Math.round(bx+c*f-s*uu)+o,Y=Math.round(by+s*f+c*uu)+o;if(X<0||Y<0||X>=W||Y>=H||b.set.has(K(X-bx-o,Y-by-o)))continue;
   let col=mul(rgb(42,94,62),.8+.2*Math.cos(u*1.4));if(Math.abs(u)>6||f<-9.5)col=mul(col,.6);if(b.status==='dead')col=grey(col);out[Y*W+X]=col}}
 const cape=(ox,oy)=>{const v=vn(ox/2,oy*1.5,77);return mul(rgb(42,94,62),.82+v*.3)};
-function pcol(b,p){const c=pcol0(b,p);return c&&b.wear?uWear(b,p,c):c}
-// worn armour, in the unit's own frame so marks turn with it: aged metal, scuffs, dents, heat and soot, chips off the rim; lv 0 fresh to 3 battleworn; some veterans go bare-headed
-function uWear(b,p,c0){const W=b.wear,lv=W.lv||0,sd=W.seed||0;if(!W.marks){let z=sd*9301+49297;const r=()=>(z=(z*9301+49297)%233280)/233280,pt=k=>[(r()-.5)*10,(r()-.5)*10,k];W.marks={dents:Array.from({length:[0,0,1,2][lv]},()=>pt(2.5+r())),heat:Array.from({length:[0,0,r()<.5?1:0,2][lv]},()=>[...pt(2.5+r()*1.5),.45+r()*.4]),soot:Array.from({length:[0,0,1,3][lv]},()=>[...pt(3+r()*2),.5+r()*.25])}}
+function pcol(b,p){const c=pcol0(b,p);return c&&b.wear&&b.type==='token'?uWear(b,p,c):c}
+// worn armour, in the unit's own frame so marks turn with it: aged metal, scuffs, dents, heat and soot, chips off the rim. age runs 0 fresh to 3 battleworn and grows with use;
+// hits dent, blasts soot and heat, fire scorches, all through the armour's metal in the material table. Some veterans go bare-headed
+const uMetal=b=>(UNITS[b.unit]||{}).metal||'steel';
+function uMarks(b){const W=b.wear||(b.wear={lv:0,seed:b.id*13});if(W.age==null)W.age=W.lv||0;if(!W.marks){const lv=W.lv||0;let z=(W.seed||0)*9301+49297;const r=()=>(z=(z*9301+49297)%233280)/233280,pt=k=>[(r()-.5)*10,(r()-.5)*10,k];
+  W.marks={dents:Array.from({length:[0,0,1,2][lv]},()=>pt(2.5+r())),heat:Array.from({length:[0,0,r()<.5?1:0,2][lv]},()=>[...pt(2.5+r()*1.5),.45+r()*.4]),soot:Array.from({length:[0,0,1,3][lv]},()=>[...pt(3+r()*2),.5+r()*.25])}}return W}
+// a mark at a world point on the unit, kept to a handful of each kind (the oldest goes)
+function uMark(b,kind,X,Y,r,k){if(b.type!=='token')return;const W=uMarks(b),a=b.ang||0,dx=X-b.x,dy=Y-b.y,fa=dx*Math.cos(a)+dy*Math.sin(a),sa=-dx*Math.sin(a)+dy*Math.cos(a),L=W.marks[kind==='dent'?'dents':kind];
+ const near=L.find(m=>Math.hypot(m[0]-fa,m[1]-sa)<r*.7);if(near){if(kind==='dent')near[2]=Math.min(4,near[2]+.4);else near[3]=Math.min(.85,near[3]+k*.5)}else{L.push(kind==='dent'?[fa,sa,r]:[fa,sa,r,k]);if(L.length>8)L.shift()}W.v=(W.v||0)+1}
+// a blast nearby: soot and heat on the side that faced it
+function uBlast(x,y,s){for(const b of bodies){if(b.type!=='token'||b.status==='dead')continue;const d=Math.hypot(b.x-x,b.y-y);if(d>34*s)continue;const a=Math.atan2(y-b.y,x-b.x),k=1-d/(34*s);uMark(b,'soot',b.x+Math.cos(a)*5,b.y+Math.sin(a)*5,3.5+2*k,.35+.4*k);if(d<18*s)uMark(b,'heat',b.x+Math.cos(a)*5,b.y+Math.sin(a)*5,3,.5*k);uMarks(b).age=Math.min(3,b.wear.age+.15*k)}}
+// hard use: distance marched slowly ages the armour
+function uUse(){for(const b of bodies){if(b.type!=='token'||b.status==='dead')continue;const lx=b.ux??b.x,ly=b.uy??b.y;b.ux=b.x;b.uy=b.y;const d=Math.hypot(b.x-lx,b.y-ly);if(d<1)continue;b.uw=(b.uw||0)+d;if(b.uw>3000){b.uw=0;const W=uMarks(b);if(W.age<3){W.age=Math.min(3,W.age+.05);W.v=(W.v||0)+1}}}}
+function uWear(b,p,c0){const W=b.wear,ag=W.age??W.lv??0,lv=Math.floor(ag),sd=W.seed||0;uMarks(b);
  const ox=p[8],oy=p[9],a=b.ang||0,fa=ox*Math.cos(a)+oy*Math.sin(a),sa=-ox*Math.sin(a)+oy*Math.cos(a),d=Math.hypot(ox,oy),u=Math.round(fa),v=Math.round(sa),n=hh(u+40,v+40,sd),n2=hh(u+40>>1,v+40>>1,sd+3);
  if(W.bare&&d<3.6){if(d>2.7&&fa>0||d>3.1)return mul(rgb(198,152,120),fa>0?1:.85);return mul(W.hair||rgb(96,70,52),.75+.4*hh(Math.round(fa*2),v,sd+9))}
- if(lv<1)return c0;if(lv>=3&&d>6.6&&n<.12)return 0;
+ if(lv>=3&&d>6.6&&n<.12)return 0;
  const R=c0&255,G=c0>>8&255,B=c0>>16&255,lum=(R*.3+G*.59+B*.11)/255;let c=c0;
- if(Math.max(R,G,B)-Math.min(R,G,B)<30&&lum>.2){if(n2>[1,.55,.35,.18][lv]){const A=ageOf('Metal','steel',lv>=3?1:lv>=2?2:3);if(A){const q=A([R,G,B],u*3+sd,v*3,()=>9);c=rgb(cl(q[0]),cl(q[1]),cl(q[2]))}}
-  if(lv>=2&&n>.9)c=mix(c,rgb(236,238,242),.35);
+ if(Math.max(R,G,B)-Math.min(R,G,B)<30&&lum>.2){if(ag>.2&&n2>1-ag*.27){const A=ageOf('Metal',uMetal(b),ag>=2.5?1:ag>=1.5?2:3);if(A){const q=A([R,G,B],u*3+sd,v*3,()=>9);c=rgb(cl(q[0]),cl(q[1]),cl(q[2]))}}
+  if(ag>=2&&n>.9)c=mix(c,rgb(236,238,242),.35);
   for(const[dx,dy,r]of W.marks.dents){const e=Math.hypot(fa-dx,sa-dy);if(e<r)c=mul(c,1+.22*((fa-dx)+(sa-dy))/r*(1-e/r))}
   for(const[dx,dy,r,k]of W.marks.heat){const e=Math.hypot(fa-dx,sa-dy)/r;if(e<1){const f=temperF(k*(1-e)),f0=temperF(0);c=rgb(cl((c&255)*f[0]/f0[0]),cl((c>>8&255)*f[1]/f0[1]),cl((c>>16&255)*f[2]/f0[2]))}}}
- else{if(lv>=2&&n2>.55)c=mul(c,.82);if(n>[1,.92,.85,.78][lv])c=mix(c,rgb(150,150,156),.2)}
+ else{if(ag>=2&&n2>.55)c=mul(c,.82);if(n>1-ag*.075-.0001&&ag>.5)c=mix(c,rgb(150,150,156),.2)}
  for(const[dx,dy,r,k]of W.marks.soot){const e=Math.hypot(fa-dx,sa-dy)/r;if(e<1)c=mix(c,rgb(26,24,22),k*(1-e*e)*(.6+.6*n))}
  return lv>=3&&d>5.8&&n<.22?mul(c,.55):c}
 function pcol0(b,p){let c;const r=p[7],ox=p[8],oy=p[9],u=UNITS[b.unit]||UNITS.civ;
@@ -758,6 +769,7 @@ function pcol0(b,p){let c;const r=p[7],ox=p[8],oy=p[9],u=UNITS[b.unit]||UNITS.ci
 // damage
 function cut(o,X,Y,r,blood,pow=1){let n=0,a=0;const R=Math.ceil(r);
  for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){if(Math.hypot(i,j)+(r>1.6?hh(X+i,Y+j,7)*1.1:0)>r)continue;const q=hitPix(o,X+i,Y+j,pow);if(q===2){n++;if(Math.random()<.4)spark(X+i,Y+j,grey(STEEL),0,0,1.4)}else if(q===1)a++}
+ if((n||a)&&o.type==='token')uMark(o,'dent',X,Y,2+Math.min(2,r*.6));
  if(n){if(blood&&o.type!=='slab'){dab(FX.blood,X,Y,Math.min(1.6,.4+n*.08),Math.min(6,2+n*.25|0));sfx('squish')}settle(o)}return{n,a}}
 function split(b){if(b.type==='weapon'||b.type==='slab')return;if(b.px.length<3){remove(b);return}
  const seen=new Set(),comps=[];for(const p of b.px){const k=K(p[0],p[1]);if(seen.has(k))continue;const comp=[],q=[p];seen.add(k);
@@ -803,7 +815,7 @@ function explode(x,y,s=1){raiseAlarm();hear(x,y,520*s,null,'boom');SND&&SND.at(s
   else for(let i=0;i<12;i++){const a=i/12*6.283+Math.random()*.4,rr=10+Math.random()*8;dab(GM,x+Math.cos(a)*rr,y+Math.sin(a)*rr,1.1+Math.random()*.5,4+(Math.random()*2|0))}}}
 // hollow: the blast scours the middle, leaving the char darkest in a ring (size as a share of the radius)
 function scorch(x,y,R,hollow=0){const r=R/2,cx=x/2,cy=y/2,sd=Math.random()*99;for(let j=-Math.ceil(r);j<=r;j++)for(let i=-Math.ceil(r);i<=r;i++){const X=Math.floor(cx+i),Y=Math.floor(cy+j);if(X<0||Y<0||X>=BW||Y>=BH)continue;
-  const d=Math.hypot(i,j),k=Math.floor((Math.atan2(j,i)+Math.PI)/6.2832*44),len=r*(.6+.4*hh(k,0,sd)),core=r*.3,t=Math.min(1,d/Math.max(1,len)),v=(.36*Math.pow(1-t*t*(3-2*t),1.2)+.56*Math.exp(-((d/core)**2)))*(hollow?1-.7*Math.exp(-((d/(r*hollow))**2)):1);if(v<=.02)continue;const q=Y*BW+X;BURN[q]=Math.min(.92,Math.max(BURN[q],v*(.85+.15*hh(X,Y,sd+1))));const h=Math.min(1,R/16)*Math.exp(-((d/(core*1.4))**2));if(h>.05)FH[q]=Math.max(FH[q],h)}fxDirty=true}
+  const d=Math.hypot(i,j),k=Math.floor((Math.atan2(j,i)+Math.PI)/6.2832*44),len=r*(.6+.4*hh(k,0,sd)),core=r*.3,t=Math.min(1,d/Math.max(1,len)),v=(.36*Math.pow(1-t*t*(3-2*t),1.2)+.56*Math.exp(-((d/core)**2)))*(hollow?1-.7*Math.exp(-((d/(r*hollow))**2)):1);if(v<=.02)continue;const q=Y*BW+X;BURN[q]=Math.min(.92,Math.max(BURN[q],v*(.85+.15*hh(X,Y,sd+1))));bDirty(q);const h=Math.min(1,R/16)*Math.exp(-((d/(core*1.4))**2));if(h>.05)FH[q]=Math.max(FH[q],h)}fxDirty=true}
 function embers(x,y,n,blue){for(let i=0;i<n&&parts.length<1500;i++){const a=Math.random()*6.283,s=1+Math.random()*5,c=blue&&Math.random()<.4?rgb(170,220,255):Math.random()<.5?rgb(255,214,120):rgb(255,140,50),e=120+(Math.random()*200|0);parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,c,c0:c,em:e,em0:e})}}
 function shatter(b){sfx('crash');for(let i=0;i<4;i++)dab(TF,b.x+(Math.random()-.5)*14,b.y+(Math.random()-.5)*14,2,4);dab(TF,b.x,b.y,2.6,6);dab(SF,b.x,b.y-4,1.6,9);
  for(let i=0;i<24;i++)spark(b.x,b.y,Math.random()<.5?C.clay:C.clayD,0,0,3);remove(b)}
@@ -936,7 +948,7 @@ function overcharge(b){if(b.type==='weapon'){const t=tipOf(b);if(sel.has(b))char
  for(let i=0;i<(h.ammo||0);i++){const r=weapon('rodp',gx+(Math.random()-.5)*16,gy+(Math.random()-.5)*16,Math.random()*6.283);r.stuck=true;r.glw=1;for(const p of r.px)p[5]=1.2}
  for(let i=0;i<4;i++)cut(b,Math.round(gx+(Math.random()-.5)*5),Math.round(gy+(Math.random()-.5)*5),3.5,true,3);ignite(b,Math.atan2(gy-b.y,gx-b.x),.8,2.5);b.burn=Math.max(b.burn||0,.8);b.vx-=c*3;b.vy-=s*3;
  consume(b);b.hc=null;if(bodies.includes(b))settle(b)}
-function rodTick(){heatTick();for(const b of bodies){if(b.kind==='rodp'){if(b.stuck){if(b.glw>0){b.glw=Math.max(0,b.glw-.0012-b.glw*.004);for(const p of b.px)p[5]=b.glw*1.2;if(Math.random()<b.glw*.3){const X=b.x>>1,Y=b.y>>1;if(X>=0&&Y>=0&&X<BW&&Y<BH){ST[Y*BW+X]+=.8;fxDirty=true}}}}else{{const f=Math.max(.3,1-Math.max(0,(b.dist||0)-90)/360);b.E*=f/(b.fl||1);b.fl=f}rodHeat(b);if(b.glw>.05&&b.lx!==undefined){const L=Math.hypot(b.x-b.lx,b.y-b.ly);for(let i=0;i<=L;i++){const X=(b.lx+(b.x-b.lx)*i/(L||1))/2|0,Y=(b.ly+(b.y-b.ly)*i/(L||1))/2|0;if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X;BURN[q]=Math.min(.75,Math.max(BURN[q],.55*b.glw))}for(let i=0;i<=L;i+=6){const k=Math.max(0,1-((b.dist||0)-L+i)/(HOTD*1.2));if(k>.05)dab(SS,b.lx+(b.x-b.lx)*i/(L||1),b.ly+(b.y-b.ly)*i/(L||1),.4+1.6*k,Math.max(1,Math.round(1+3*k)))}fxDirty=true}b.lx=b.x;b.ly=b.y;if(b.glw>.3&&Math.random()<.6)spark(b.x-b.vx*.3,b.y-b.vy*.3,Math.random()<.5?rgb(255,200,110):rgb(255,140,50),0,0,.5,4)}}
+function rodTick(){heatTick();for(const b of bodies){if(b.kind==='rodp'){if(b.stuck){if(b.glw>0){b.glw=Math.max(0,b.glw-.0012-b.glw*.004);for(const p of b.px)p[5]=b.glw*1.2;if(Math.random()<b.glw*.3){const X=b.x>>1,Y=b.y>>1;if(X>=0&&Y>=0&&X<BW&&Y<BH){ST[Y*BW+X]+=.8;fxDirty=true}}}}else{{const f=Math.max(.3,1-Math.max(0,(b.dist||0)-90)/360);b.E*=f/(b.fl||1);b.fl=f}rodHeat(b);if(b.glw>.05&&b.lx!==undefined){const L=Math.hypot(b.x-b.lx,b.y-b.ly);for(let i=0;i<=L;i++){const X=(b.lx+(b.x-b.lx)*i/(L||1))/2|0,Y=(b.ly+(b.y-b.ly)*i/(L||1))/2|0;if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X;BURN[q]=Math.min(.75,Math.max(BURN[q],.55*b.glw));bDirty(q)}for(let i=0;i<=L;i+=6){const k=Math.max(0,1-((b.dist||0)-L+i)/(HOTD*1.2));if(k>.05)dab(SS,b.lx+(b.x-b.lx)*i/(L||1),b.ly+(b.y-b.ly)*i/(L||1),.4+1.6*k,Math.max(1,Math.round(1+3*k)))}fxDirty=true}b.lx=b.x;b.ly=b.y;if(b.glw>.3&&Math.random()<.6)spark(b.x-b.vx*.3,b.y-b.vy*.3,Math.random()<.5?rgb(255,200,110):rgb(255,140,50),0,0,.5,4)}}
  if(b.knock>0)b.knock--;if(b.pinned){if(!b.stuck)b.pinned=false;else if(b.status!=='dead'&&--b.pinT<=0)unpin(b)}}}
 function rodWall(b,h,axis,mx,cx,cy,dx,dy){const cos=Math.abs(axis?dy:dx);
  if(rodHot(b)&&b.E>0){if(!b.lw||Math.hypot(cx-b.lw[0],cy-b.lw[1])>4){emberPatch(cx-dx*6,cy-dy*6,8,6);debris(cx-dx*2,cy-dy*2,scol[Math.round(cy)*W+Math.round(cx)]||rgb(130,126,118),6,-dx,-dy);scorch(cx-dx*2,cy-dy*2,6);dab(SS,cx-dx*6,cy-dy*6,3,8);dab(ST,cx-dx*4,cy-dy*4,1.6,4)}b.lw=[cx,cy];if(b.wb===undefined)b.wb=(16+Math.round(16*(.2+Math.random()*.2)))*(b.salvo?2:1);
@@ -1074,11 +1086,11 @@ const FXC={b0:hx('#5a0a0e'),b1:hx('#76121a'),b2:hx('#8e161c'),b3:hx('#b8343a'),f
 let tick=0,fxActive=false;
 function diffuse(a,keep){const q=(1-keep)/4;for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const i=Y*BW+X;TMP[i]=a[i]*keep+((X>0?a[i-1]:a[i])+(X<BW-1?a[i+1]:a[i])+(Y>0?a[i-BW]:a[i])+(Y<BH-1?a[i+BW]:a[i]))*q}a.set(TMP)}
 function openMap(){for(let Y=0;Y<BH;Y++)for(let X=0;X<BW;X++){const j=Y*2*W+X*2;OPEN[Y*BW+X]=(!sol[j]&&!slabG[j])?1:0}}
-function room(px,py,amt){openMap();const s=(Math.floor(py)>>1)*BW+(Math.floor(px)>>1);if(s<0||s>=NB||!OPEN[s])return;const R=30,dist=new Int16Array(NB).fill(-1),q=[s];dist[s]=0;let h=0;
- while(h<q.length){const i=q[h++],d=dist[i];HZ[i]=Math.min(.5,HZ[i]+amt*1.6*(1-d/R));if(d>=R)continue;const X=i%BW;for(const n of [X>0?i-1:-1,X<BW-1?i+1:-1,i-BW,i+BW])if(n>=0&&n<NB&&dist[n]<0&&OPEN[n]){dist[n]=d+1;q.push(n)}}hzOn=true}
-function plume(x,y,a,sc){const c=Math.cos(a),s=Math.sin(a),n=sc>.6?10:6;for(let i=0;i<n;i++){const d=i*3.6*(sc>.6?1:.75),j=(Math.random()-.5)*i*1.1;dab(SS,x+c*d-s*j,y+s*d+c*j,(1.9-i*.12)*sc,Math.max(2,Math.round((3+i*.5)*(sc>.6?1:.7))))}dab(SF,x,y,.8,3)}
+let RMD=new Int16Array(0);function room(px,py,amt){openMap();const s=(Math.floor(py)>>1)*BW+(Math.floor(px)>>1);if(s<0||s>=NB||!OPEN[s])return;const R=30;if(RMD.length!==NB)RMD=new Int16Array(NB).fill(-1);const dist=RMD,q=[s];dist[s]=0;let h=0;
+ while(h<q.length){const i=q[h++],d=dist[i];HZ[i]=Math.min(.5,HZ[i]+amt*1.6*(1-d/R));if(d>=R)continue;const X=i%BW;for(const n of [X>0?i-1:-1,X<BW-1?i+1:-1,i-BW,i+BW])if(n>=0&&n<NB&&dist[n]<0&&OPEN[n]){dist[n]=d+1;q.push(n)}}for(const i of q)dist[i]=-1;hzOn=true}
+function plume(x,y,a,sc){const c=Math.cos(a),s=Math.sin(a),n=sc>.6?10:6;for(let i=0;i<n;i++){const d=i*3.6*(sc>.6?1:.75),j=(Math.random()-.5)*i*1.1;dab(SS,x+c*d-s*j,y+s*d+c*j,(1.9-i*.12)*sc*.55,Math.max(2,Math.round((3+i*.5)*(sc>.6?1:.7))))}dab(SF,x,y,.8,3)}
 function fxTick(){let act=false;if(GM.length!==NB)GM=new Float32Array(NB);
- for(let i=0;i<NB;i++){if(TF[i]>0){act=true;if(TF[i]>.3)BURN[i]=Math.min(.75,BURN[i]+.0016);TF[i]=Math.max(0,TF[i]-.0015)}if(SF[i]>0){act=true;SF[i]=Math.max(0,SF[i]-.012)}if(SS[i]>0){act=true;SS[i]=Math.max(0,SS[i]-.00035)}if(GM[i]>0){act=true;GM[i]=Math.max(0,GM[i]-.0018)}if(ST[i]>0){act=true;ST[i]=Math.max(0,ST[i]*.996-.0015)}if(FH[i]>0){act=true;FH[i]=FH[i]>.01?FH[i]*.997-.0001:0}}
+ for(let i=0;i<NB;i++){if(TF[i]>0){act=true;if(TF[i]>.3)BURN[i]=Math.min(.75,BURN[i]+.0016);bDirty(i);TF[i]=Math.max(0,TF[i]-.0015)}if(SF[i]>0){act=true;SF[i]=Math.max(0,SF[i]-.012)}if(SS[i]>0){act=true;SS[i]=SS[i]>1.1?1.1:Math.max(0,SS[i]*.996-.0008)}if(GM[i]>0){act=true;GM[i]=Math.max(0,GM[i]-.0018)}if(ST[i]>0){act=true;ST[i]=Math.max(0,ST[i]*.996-.0015)}if(FH[i]>0){act=true;FH[i]=FH[i]>.01?FH[i]*.997-.0001:0}}
  if(act&&tick%6===0)diffuse(ST,.7);
  if(act&&tick%4===0)diffuse(SF,.6);if(act&&tick%12===0)diffuse(SS,.8);if(act&&tick%8===0)diffuse(GM,.7);fxActive=act;
  if(hzOn){let mx=0;for(let i=0;i<NB;i++){HZ[i]*=.99991;if(HZ[i]>mx)mx=HZ[i]}
@@ -1109,7 +1121,7 @@ function shine(c,X,Y,k){const a=shY[0]*Y+shY[1],v=SHX[X]*Math.cos(a)+SHC[X]*Math
 const unseen=b=>fogOn()&&(b.fogH||!!b.att&&!!(byId(b.att.id)||{}).fogH);
 function streaks(){for(const b of bodies){if(b.type!=='weapon'||!WP[b.kind]||!WP[b.kind].bullet||unseen(b))continue;const s=Math.hypot(b.vx,b.vy);if(s<4)continue;const L=Math.min(40,s*.9),ux=b.vx/s,uy=b.vy/s,c=b.kind==='arc'?plasC(b.hue||0):rgb(255,236,180);for(let i=1;i<L;i++){const X=Math.round(b.x-ux*i),Y=Math.round(b.y-uy*i);if(X<0||Y<0||X>=W||Y>=H||sol[Y*W+X])break;out[Y*W+X]=mix(out[Y*W+X],c,.8*(1-i/L))}}}
 // a token's pixel colours only change when it turns, changes look or kit, or takes damage or heat, so they're kept between frames
-function tokCache(b,spr){let h=0;for(const p of b.px)h=h*31+p[3]*7+p[5]*997|0;const k=b.ang+'|'+lookOf(b)+'|'+b.unit+'|'+b.nat+'|'+b.si+'|'+(b.held&&b.held.kind)+'|'+!!b.guard+'|'+b.px.length+'|'+h+'|'+(b.wear&&b.wear.v);
+function tokCache(b,spr){let h=0;for(const p of b.px)h=h*31+p[3]*7+Math.round(p[5]*12)*997|0;const k=b.ang+'|'+lookOf(b)+'|'+b.unit+'|'+b.nat+'|'+b.si+'|'+(b.held&&b.held.kind)+'|'+!!b.guard+'|'+b.px.length+'|'+h+'|'+(b.wear&&b.wear.v);
  let c=b._tc;if(c&&c.k===k&&c.px===b.px)return c;c=b._tc={k,px:b.px,col:b.px.map(p=>pcol(b,p)),shn:spr?b.px.map(p=>{const a=sprAt(b,p);return a?a[1]:0}):null,vis:spr?new Set(b.px.filter(p=>sprAt(b,p)).map(p=>K(p[0],p[1]))):null};return c}
 function drawBody(b,lift){if(offView(b.x,b.y,40))return;if(b.hidden||unseen(b))return;if(b.kind==='arc'){const s=Math.hypot(b.vx,b.vy)||1,wd=b.big?1:0;(b.blue?q=>q.map(swb):q=>q)((h=>[rgb(246,242,252),plasC(h),mul(plasC(h+.2),.85),mul(plasC(h+.4),.7),mul(plasC(h+.6),.55)])(b.hue||0)).slice(0,b.big?5:4).forEach((c,i)=>{for(let o=-wd;o<=wd;o++){const X=Math.round(b.x-b.vx/s*i-b.vy/s*o),Y=Math.round(b.y-b.vy/s*i+b.vx/s*o);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=o?mul(c,.8):c}});return}if(WP[b.kind]&&WP[b.kind].bullet&&!WP[b.kind].rod)return;const bx=Math.round(b.x),by=Math.round(b.y),st=b.status,dyn=b.type!=='weapon',hl=sel.has(b)?1.25:b===hover?1.12:1;if(b.type==='token'&&b.unit==='shock'&&b.nat==='Goldbank'&&!lookOf(b))drawCape(b,lift);
  const sh=lift?[3,4]:b.stuck||b.fallen||st==='dead'?null:[1,2];
@@ -1144,14 +1156,15 @@ function scorchC(c,a,X,Y){a=Math.min(1,a);const t=scorchT(X,Y);if(t===SCT.Wood)a
  return rgb(cl((c&255)*f[0]),cl((c>>8&255)*f[1]),cl((c>>16&255)*f[2]))}
 // fresh blast heat glows and cools: metal brightest, wood embers flicker, stone a dull red
 function glowC(c,h,X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4],e=CATN[k]?CATN[k][0]:'Stone',g=e==='Metal'?1:e==='Wood'?.8*(.8+.4*hh(X>>1,Y>>1,tick>>3)):e==='Cloth'?.75:.5;return heatCol(h*g,c)}
-let FLC=null,FLK='',FLR=0,SHL=new Set(),shBuilt=false,SOLL=null,SOLN=0;
+let BRY0=1e9,BRY1=-1;const bDirty=q=>{const y=(q/BW|0)*2;if(y-3<BRY0)BRY0=y-3;if(y+5>BRY1)BRY1=y+5};let FLC=null,FLK='',FLR=0,SHL=new Set(),shBuilt=false,SOLL=null,SOLN=0;
 function floorPx(X,Y,j,hlC,sh){let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>W&&OBJ[j-W-1])c=mul(c,.66);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(sh&&SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);if(sh){const fh=FH[(Y>>1)*BW+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y)}const k=SH[j];if(k)c=mul(c,k===1?.66:.82);return c}
 function floorRows(y0,y1,hlC){if(y0===0&&y1===H)SHL=new Set();for(let Y=y0;Y<y1;Y++)for(let X=0,j=Y*W;X<W;X++,j++){if(sol[j])continue;if(SHN[j]){SHL.add(j);continue}FLC[j]=floorPx(X,Y,j,hlC,false)}}
 function render(){VIEWR=VWH&&S?[Math.max(0,Math.floor(-cam.x/S)),Math.max(0,Math.floor(-cam.y/S)),Math.min(W,Math.ceil((VWH[0]-cam.x)/S)),Math.min(H,Math.ceil((VWH[1]-cam.y)/S))]:null;
  if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick;shBuilt=true;SOLL=null}
  sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells&&!c0.vchest)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);
  // the ground is composed into a cache: rebuilt whole when scorch, walls, hover or map change, otherwise a slice of rows a frame catches slower edits
- const fk=curMap+'|'+N+'|'+[...hlC.keys()].join();if(!FLC||FLC.length!==N||fxDirty||FLK!==fk||shBuilt){if(!FLC||FLC.length!==N)FLC=new Uint32Array(N);FLK=fk;shBuilt=false;floorRows(0,H,hlC);FLR=0}else{const n=Math.ceil(H/16);floorRows(FLR,Math.min(H,FLR+n),hlC);FLR=FLR+n>=H?0:FLR+n}
+ const fk=curMap+'|'+N+'|'+[...hlC.keys()].join();if(BRY1>=0&&FLC&&FLC.length===N&&FLK===fk&&!shBuilt){floorRows(Math.max(0,BRY0),Math.min(H,BRY1),hlC);BRY0=1e9;BRY1=-1}
+ if(!FLC||FLC.length!==N||FLK!==fk||shBuilt){BRY0=1e9;BRY1=-1;if(!FLC||FLC.length!==N)FLC=new Uint32Array(N);FLK=fk;shBuilt=false;floorRows(0,H,hlC);FLR=0}else{const n=Math.ceil(H/16);floorRows(FLR,Math.min(H,FLR+n),hlC);FLR=FLR+n>=H?0:FLR+n}
  out.set(FLC);for(const j of SHL){if(sol[j])continue;out[j]=floorPx(j%W,j/W|0,j,hlC,true)}
  for(let q=0;q<NB;q++){const fh=FH[q];if(fh<=.03)continue;const X0=(q%BW)*2,Y0=(q/BW|0)*2;for(let y=Y0;y<Y0+2;y++)for(let x=X0;x<X0+2;x++){const j=y*W+x;if(!sol[j]&&!SHN[j])out[j]=glowC(out[j],fh,x,y)}}
  if(fxDirty||(fxActive&&tick%3===0)||(tick%7===0&&FX.fire.some(v=>v>.3)))buildFx();
@@ -1250,13 +1263,13 @@ function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=
   if(sx&&tryStep(b,sx,0))moved=true;if(sy&&tryStep(b,0,sy))moved=true;if(!moved)break}
  if(b.ghost&&!solidHits(b,0,0))b.ghost=false;return Math.hypot(b.x-x0,b.y-y0)}
 const TURN={civ:.18,home:.17,rifle:.16,guard:.12,shock:.1,cmd:.26};
-// form up: the selected units snap into squads of up to 8, 4 across and 2 deep, by kind, side by side with a gap and three squads to a row, centred where they stood and facing the way most of them faced
-let SQN=0;function formUp(){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat&&!b.vwalk);if(ts.length<2)return;const cx=ts.reduce((a,b)=>a+b.x,0)/ts.length,cy=ts.reduce((a,b)=>a+b.y,0)/ts.length,A=Math.atan2(ts.reduce((a,b)=>a+Math.sin(b.ang),0),ts.reduce((a,b)=>a+Math.cos(b.ang),0)),fx=Math.cos(A),fy=Math.sin(A),rx=-fy,ry=fx,G=1.3*T,GAP=2.2*T;
+// form up: the selected units snap into squads of up to 8, 4 across and 2 deep, by kind, side by side with a gap and three squads to a row, centred where they stood, square to the map, facing the quarter most of them faced
+let SQN=0;function formUp(){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat&&!b.vwalk);if(ts.length<2)return;const cx=ts.reduce((a,b)=>a+b.x,0)/ts.length,cy=ts.reduce((a,b)=>a+b.y,0)/ts.length,A=Math.round(Math.atan2(ts.reduce((a,b)=>a+Math.sin(b.ang),0),ts.reduce((a,b)=>a+Math.cos(b.ang),0))/(Math.PI/2))*Math.PI/2,fx=Math.cos(A),fy=Math.sin(A),rx=-fy,ry=fx,G=1.3*T,GAP=2.2*T;
  const kinds=[];for(const b of ts){let k=kinds.find(q=>q.u===b.unit);if(!k)kinds.push(k={u:b.unit,m:[]});k.m.push(b)}const sq=[];for(const k of kinds){k.m.sort((a,b)=>(a.x*rx+a.y*ry)-(b.x*rx+b.y*ry));for(let i=0;i<k.m.length;i+=8)sq.push(k.m.slice(i,i+8))}
  const rows=[];for(let i=0;i<sq.length;i+=3)rows.push(sq.slice(i,i+3));const cols=n=>n<=4?n:Math.ceil(n/2),wid=s=>(cols(s.length)-1)*G,lines=[];
  rows.forEach((row,ri)=>{const w=row.reduce((a,s)=>a+wid(s),0)+GAP*(row.length-1);let u=-w/2;for(const s of row){const c=cols(s.length);s.forEach((b,i)=>lines.push([b,u+(i%c)*G,ri*(G+2.5*T)+(i/c|0)*G]));u+=wid(s)+GAP}});
  const depth=Math.max(...lines.map(l=>l[2]));SQN++;sq.forEach((s,i)=>s.forEach(b=>b.sq=SQN*100+i));
- for(const[b,u,v]of lines){const ox=b.x,oy=b.y,d=v-depth/2;b.x=cx+rx*u-fx*d;b.y=cy+ry*u-fy*d;if(b.x<4||b.y<4||b.x>W-4||b.y>H-4||solidHits(b,0,0)){b.x=ox;b.y=oy}b.ord=null;b.mw=null;b.glide=null;b.vx=b.vy=0;b.face0=b.ang;b.hf=false;turnNow(b,A)}sfx('clank')}
+ for(const[b,u,v]of lines){const ox=b.x,oy=b.y,d=v-depth/2;b.x=Math.round(cx+rx*u-fx*d);b.y=Math.round(cy+ry*u-fy*d);if(b.x<4||b.y<4||b.x>W-4||b.y>H-4||solidHits(b,0,0)){b.x=ox;b.y=oy}b.ord=null;b.mw=null;b.glide=null;b.vx=b.vy=0;b.face0=b.ang;b.hf=false;turnNow(b,A)}sfx('clank')}
 function turnTo(b,a,now){if(now||b.type!=='token'||b.status!=='free')return turnNow(b,a);b.faceT=a}
 function turnTick(){goldSnap();for(const b of bodies){if(b.faceT==null)continue;if(b.type==='weapon'){const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang));if(Math.abs(d)<=.14){if(Math.abs(d)>.01)reshape(b,b.faceT);b.faceT=null}else reshape(b,b.ang+Math.sign(d)*.14);continue}if(b.status!=='free'){b.faceT=null;continue}const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang)),r=(TURN[b.unit]||.14)*(b.crouch?.7:1);if(Math.abs(d)<=r){turnNow(b,b.faceT);b.faceT=null}else turnNow(b,b.ang+Math.sign(d)*r)}}
 const facing=(b,x,y)=>Math.hypot(x-b.x,y-b.y)<28||Math.abs(Math.atan2(Math.sin(Math.atan2(y-b.y,x-b.x)-b.ang),Math.cos(Math.atan2(y-b.y,x-b.x)-b.ang)))<.35;
@@ -1328,12 +1341,12 @@ function applyCam(){const v=$('stage').parentElement,vw=v.clientWidth,vh=v.clien
 window.addEventListener('resize',fit);setTimeout(fit,0);setTimeout(fit,400);
 let AMB=1;let LR=new Float32Array(NB),LG=new Float32Array(NB),LB=new Float32Array(NB),LT=new Float32Array(NB);let tls=[];
 function flash(x,y,r,g,b,i,rad,d){if(BLU&&b>=r&&b>g)[r,g]=[g,r];tls.push({x,y,r,g,b,i,rad,d})}
-function addL(x,y,r,g,b,i,rad=0){const cx=x/2|0,cy=y/2|0,R=Math.ceil(rad);lbx(cx-R,cy-R);lbx(cx+R,cy+R);for(let j=-R;j<=R;j++)for(let k=-R;k<=R;k++){const X=cx+k,Y=cy+j;if(X<0||Y<0||X>=BW||Y>=BH)continue;const f=rad?1-Math.hypot(k,j)/(rad+1):1;if(f<=0)continue;const q=Y*BW+X;LR[q]+=r*i*f;LG[q]+=g*i*f;LB[q]+=b*i*f}}
+function addL(x,y,r,g,b,i,rad=0){if(VEH.length&&vRoofed(x,y))return;const cx=x/2|0,cy=y/2|0,R=Math.ceil(rad);lbx(cx-R,cy-R);lbx(cx+R,cy+R);for(let j=-R;j<=R;j++)for(let k=-R;k<=R;k++){const X=cx+k,Y=cy+j;if(X<0||Y<0||X>=BW||Y>=BH)continue;const f=rad?1-Math.hypot(k,j)/(rad+1):1;if(f<=0)continue;const q=Y*BW+X;LR[q]+=r*i*f;LG[q]+=g*i*f;LB[q]+=b*i*f}}
 let LBX=[0,0,-1,-1],PBX=null;const lbx=(x,y)=>{if(LBX[2]<0){LBX=[x,y,x,y];return}if(x<LBX[0])LBX[0]=x;if(y<LBX[1])LBX[1]=y;if(x>LBX[2])LBX[2]=x;if(y>LBX[3])LBX[3]=y};
 function blurL(a,x0,y0,x1,y1){for(let p=0;p<3;p++){for(let Y=y0;Y<=y1;Y++){let acc=0;const o=Y*BW;for(let X=x0-2;X<=x1+2;X++){if(X+2<=x1)acc+=a[o+X+2];if(X-3>=x0)acc-=a[o+X-3];if(X>=x0&&X<=x1)LT[o+X]=acc/5}}for(let X=x0;X<=x1;X++){let acc=0;for(let Y=y0-2;Y<=y1+2;Y++){if(Y+2<=y1)acc+=LT[(Y+2)*BW+X];if(Y-3>=y0)acc-=LT[(Y-3)*BW+X];if(Y>=y0&&Y<=y1)a[Y*BW+X]=acc/5}}}}
 function lightPass(){if(PBX){const[x0,y0,x1,y1]=PBX;for(let Y=y0;Y<=y1;Y++){const o=Y*BW;LR.fill(0,o+x0,o+x1+1);LG.fill(0,o+x0,o+x1+1);LB.fill(0,o+x0,o+x1+1)}PBX=null}LBX=[0,0,-1,-1];let any=false;
  for(let i=0;i<NB;i++){const v=Math.max(FX.fire[i],TF[i],FH[i]*.6);if(v>.05){const f=Math.min(1.2,v)*1.7*(.85+.15*Math.sin(tick*.3+i));LR[i]+=f;LG[i]+=f*.5;LB[i]+=f*.16;any=true;lbx(i%BW,i/BW|0)}}
- for(const p of parts){const c=p.c,l=(c&255)+(c>>8&255)+(c>>16&255);if(l<420)continue;let k=p.life!==undefined?1:p.em!==undefined?p.em/p.em0:0;if(k<=0)continue;const q=(p.y>>1)*BW+(p.x>>1);if(q<0||q>=NB)continue;lbx(p.x>>1,p.y>>1);k*=1.1;LR[q]+=(c&255)/255*k;LG[q]+=(c>>8&255)/255*k;LB[q]+=(c>>16&255)/255*k;any=true}
+ let pl=0;for(const p of parts){const c=p.c,l=(c&255)+(c>>8&255)+(c>>16&255);if(l<420)continue;if(++pl>32)break;let k=p.life!==undefined?1:p.em!==undefined?p.em/p.em0:0;if(k<=0)continue;const q=(p.y>>1)*BW+(p.x>>1);if(q<0||q>=NB)continue;lbx(p.x>>1,p.y>>1);k*=1.1;LR[q]+=(c&255)/255*k;LG[q]+=(c>>8&255)/255*k;LB[q]+=(c>>16&255)/255*k;any=true}
  for(const z of zaps){addL(z.x1,z.y1,z.b?.45:.75,z.b?.75:.45,1,.8);any=true}
  const pul=.85+.15*Math.sin(tick*.12);for(const b of bodies){if(unseen(b))continue;if(b.kind==='arc'){addL(b.x,b.y,.62,.66,1,1.6);any=true}else if(b.kind==='sspear'&&!b.spent&&!(b.att&&!(b.timer>0)&&!(b.fizz>0))){const[x,y]=spearTip(b);addL(x,y,.62,.66,1,b.timer>0?.6+.7*(1-b.timer/b.timer0):b.fizz>0?.3+.4*b.fizz/150:.9*pul,2);any=true}
   else if(b.type==='token'&&b.held&&b.held.k==='rod'&&(b.held.heat||0)>.15&&b.status!=='dead'){const t=tipOf(b),h=b.held.heat;addL(t[0],t[1],1,.6+Math.min(.35,h*.3),.28+Math.max(0,h-.7)*.6,h*1.3,1.5+h);any=true}
@@ -1402,7 +1415,7 @@ function ignite(b,a,w,d){if(!(b.burn>.05)||b.fa===undefined){b.fa=a;b.fw=w;b.fd=
 function fireTick(){for(const b of [...bodies]){if((b.type!=='token'&&b.type!=='part')||!bodies.includes(b))continue;
   let v=0,ka=0,kc=0;for(let k=0;k<9;k++){const a=k*.785,r=k===8?0:8,X=Math.round(b.x+Math.cos(a)*r),Y=Math.round(b.y+Math.sin(a)*r);if(X<0||Y<0||X>=W||Y>=H)continue;const q=(Y>>1)*BW+(X>>1),f=Math.max(TF[q],FX.fire[q]);if(k===8)kc=f;else if(f>v){v=f;ka=a}}
   if(kc>.3){ignite(b,ka,.5,1.5);b.fw=Math.min(3.15,b.fw+.03);b.fd=Math.min(8.3,b.fd+.03)}else if(v>.3)ignite(b,ka,.45,1.5);v=Math.max(v,kc);
-  if(v>.3)b.burn=Math.min(1.5,(b.burn||0)+v*.12);
+  if(v>.3){b.burn=Math.min(1.5,(b.burn||0)+v*.12);if(Math.random()<.04)uMark(b,'soot',b.x+Math.cos(ka)*5,b.y+Math.sin(ka)*5,3.5,.3)}
   if(!(b.burn>0))continue;b.burn=Math.max(0,b.burn-.012);if(!b.burn){b.fa=undefined;continue}if(Math.random()<b.burn*.3)dab(SF,b.x,b.y-3,.25,3);
   const u=UNITS[b.unit]||UNITS.civ,bx=Math.round(b.x),by=Math.round(b.y);let hit=false;
   for(let n=0;n<Math.ceil(b.burn*3);n++){let p=null;for(let t=0;t<8&&!p;t++){const c=b.px[(Math.random()*b.px.length)|0];if(c&&inZone(b,c)&&Math.hypot(c[8],c[9])>4.4&&(!b.set.has(K(c[0]+1,c[1]))||!b.set.has(K(c[0]-1,c[1]))||!b.set.has(K(c[0],c[1]+1))||!b.set.has(K(c[0],c[1]-1))))p=c}if(!p)continue;
@@ -1655,7 +1668,7 @@ function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB)
  if(VS.length!==NB){VS=new Uint8Array(NB);VSF=new Float32Array(NB)}fSel=me.some(b=>sel.has(b));
  if(VD.length!==NB)VD=new Float32Array(NB);
  // units standing still keep their sight in a cache; moving units cast rays every frame. A changed cache is rebuilt a few units a frame, the old one standing in meanwhile
- const env=solT+'|'+bodies.reduce((h,o)=>o.type==='slab'?h+o.x*7+o.y*13+(o.ang||0)*101|0:h,0)+'|'+VEH.map(v=>v.x+','+v.y+','+v.ang).join(';'),sk=b=>(b.x|0)+','+(b.y|0)+','+!!b.crouch+','+(b.vseat?b.vseat.id:0);
+ const env=solT+'|'+bodies.reduce((h,o)=>o.type==='slab'?h+o.x*7+o.y*13+(o.ang||0)*101|0:h,0)+'|'+VEH.map(v=>v.x+','+v.y+','+v.ang).join(';'),sk=b=>(b.x>>2)+','+(b.y>>2)+','+!!b.crouch+','+(b.vseat?b.vseat.id:0);
  for(const b of me){const k=sk(b);if(k!==b._sk){b._mvT=b._sk===undefined?-99:tick;b._sk=k}}
  const isLive=b=>{const l=tick-(b._mvT||0)<20;if(l)b._lvT=tick;return l},still=me.filter(b=>!isLive(b)),ck=FT+'|'+env+'|'+still.map(b=>b.id+':'+b._sk+(sel.has(b)?'s':'')).join(';');
  if(SVC.d.length!==NB)SVC={k:'',d:new Float32Array(NB),i:new Uint8Array(NB),s:new Uint8Array(NB),ids:new Set()};
@@ -1689,14 +1702,15 @@ function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||
  const r=m===3?1:m===4?(pel?1.6:2.6):(pel?1:1.6)*(m===1?.7:1);for(let y=Math.floor(Y-r);y<=Y+r;y++)for(let x=Math.floor(X-r);x<=X+r;x++){const q=y*W+x;if(x<0||y<0||x>=W||y>=H||!OBJ[q]||Math.hypot(x-X,y-Y)>r)continue;if(m===3){OBJC[q]=mul(OBJC[q],.72);SHN[q]=0;continue}OBJ[q]=0;SHN[q]=0;floor[q]=mix(floor[q],mul(OBJC[q],.45),.7)}ds0Need=true;{const c=bodies.find(o=>o.hidden&&o.box&&X>=o.box[0]&&X<=o.box[2]&&Y>=o.box[1]&&Y<=o.box[3]);if(c)cShot(c,X,Y,r,b)}
  if(b.inO)return false;b.inO=true;hitFx(X,Y,m,b.vx/s,b.vy/s,pel);b.pen=(b.pen||0)+1;
  if(m!==2||pel||b.pen>2||s<7){remove(b);return true}b.vx*=.6;b.vy*=.6;return false}
-function update(){tick++;SND&&SND.near();SND&&SND.fireTick();for(const b of bodies)if(b.type==='token'&&b.status==='captured')b.ang=-Math.PI/2;// captives face up so their cuffs read
+function update(){tick++;if(tick%60===0)uUse();SND&&SND.near();SND&&SND.fireTick();for(const b of bodies)if(b.type==='token'&&b.status==='captured')b.ang=-Math.PI/2;// captives face up so their cuffs read
  for(const b of bodies)if(b.type==='token'&&(b.matA!==b.ang||b.matN!==lookOf(b)))tokMat(b);if(!aiOn)for(const b of bodies){if(b.ord){ensureRooms();ordTick(b)}else if(b.lookAt)lookTick(b)}if(tick%30===0)leaderTick();turnTick();try{aiTick();}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0){autoPick();keyTick()}for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;b.pull=8;if(heldBlocked(b,0,0)){b.raised=true;b.pull=0;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(!b.raised&&b.pull>0&&tick%3===0){b.pull--;if(heldBlocked(b,0,0))b.pull++}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=i.heat?Math.min(1,.35+(slot(b).heat||0)*.65):pr*pr}}
  if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);if(holdFire&&armed().length&&armed().every(o=>{const i=srcInfo(o);return i&&!i.throw&&!i.heat}))charge={...charge,t:performance.now()};else charge=null}
  for(const b of [...bodies])if(bodies.includes(b))step(b);vTick();tetherTick();if(tick%4===0)exitTick();if(curMap==='air'&&tick%5===0)overboard();stepParts();cool();fxTick()}
 let lastT=performance.now(),acc=0,slowMo=false,holdFire=false;
-function loop(){const now=performance.now();acc+=Math.min(120,now-lastT)*(slowMo?.3:1);lastT=now;let n=0;while(acc>=16.667&&n<6){update();acc-=16.667;n++}if(n)render();requestAnimationFrame(loop)}
+// at most two steps a frame: under load the game slows a touch rather than stalling to catch up
+function loop(){const now=performance.now();acc+=Math.min(120,now-lastT)*(slowMo?.3:1);lastT=now;let n=0;while(acc>=16.667&&n<2){update();acc-=16.667;n++}if(acc>33.3)acc=0;if(n)render();requestAnimationFrame(loop)}
 
 const toBoard=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H]};
 const inBoard=e=>{const r=cv.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<r.right&&e.clientY>=r.top&&e.clientY<r.bottom};
