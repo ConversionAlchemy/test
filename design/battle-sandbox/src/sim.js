@@ -62,7 +62,7 @@ function paintCell0(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;ke
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='circuit',VEH=[],VOB=null;
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
+function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();HTB.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,bk=baseK(k),o=(x,y)=>!L[y]||baseK(L[y][x])!==bk&&!(rug&&OM[y]&&OM[y][x]);
@@ -240,9 +240,33 @@ function wearWall(cx,cy,amt){if(cx<0||cy<0||cx>=CW||cy>=CH)return;const k=map[cy
  const a=WB0.get(id).a,A=ageOf(c[0],c[1],cc,true)||ageOf(c[0],c[1],cc);map[cy][cx]=baseK(k)+'~'+cc;if(!A)return;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X;if(!sol[j])continue;const q=a[y*T+x],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9);scol[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}solDirty=true}
 // very hot hits leave temper colours on metal: straw, bronze, blue at the centre
+const TEMPER=CLS.metal.heat.temper;
+// a class's chip colour, else the surface's own colour c
+const chipC=(n,c)=>{const p=hcl(n).chip;return p?rgb(p[0],p[1],p[2]):c};
+// a colour c of class cls heated to a (0 to 1), from its cold colour; X,Y place the speckled extras
+function heatTint(c,cls,a,X=0,Y=0){const H=(CLS[cls]||CLS.stone).heat,o0=[c&255,c>>8&255,c>>16&255];if(H.temper){const f=temperF(a),f0=temperF(0);return rgb(cl(o0[0]*f[0]/f0[0]),cl(o0[1]*f[1]/f0[1]),cl(o0[2]*f[2]/f0[2]))}
+ const lp=(p,q,u)=>[p[0]+(q[0]-p[0])*u,p[1]+(q[1]-p[1])*u,p[2]+(q[2]-p[2])*u],s=H.s;let i=1;while(i<s.length-1&&a>s[i][0])i++;
+ const[p0,t0,m0]=s[i-1],[p1,t1,m1]=s[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0))),t=lp(t0[0]?t0:t1,t1,u);let m=m0+(m1-m0)*u,o=o0;
+ if(H.grain)m*=.82+.36*hh(X>>1,Y,13);
+ if(H.fade){const L=(o[0]+o[1]+o[2])/3,F=lp(o,[L,L,L],.35).map(v=>Math.min(255,v*1.18));o=lp(o,F.map((v,k)=>v*t[k]),m)}else o=lp(o,t,m);const n=hh(X,Y,29);
+ if(H.spall&&a>H.spall&&n>.9)o=lp(o,o0.map(v=>v*1.12),.9);
+ if(H.glaze&&a>H.glaze&&n>.7)o=lp(o,[150,150,160],.35);
+ if(H.ember&&a>H.ember&&n>.93)o=[222,110,40];
+ if(H.hole&&a>H.hole)o=a<H.hole+.05?[190,92,40]:[14,11,10];
+ return rgb(cl(o[0]),cl(o[1]),cl(o[2]))}
 function temperF(a){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0,f0]=TEMPER[i-1],[p1,f1]=TEMPER[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0)));return f0.map((v,k)=>v+(f1[k]-v)*u)}
-function heatMark(x,y,r,k){vHeatMark(x,y,r,k);for(let Y=Math.floor(y-r);Y<=y+r;Y++)for(let X=Math.floor(x-r);X<=x+r;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(sol[j]!==3)continue;const d=Math.hypot(X-x,Y-y);if(d>r)continue;
-  const a=Math.min(.85,k*(1-d/r)*(.85+.3*hh(X,Y,71))),o=HTM.get(j)||0;if(a<=o)continue;const f1=temperF(a),f0=temperF(o),c=scol[j];scol[j]=rgb(cl((c&255)*f1[0]/f0[0]),cl((c>>8&255)*f1[1]/f0[1]),cl((c>>16&255)*f1[2]/f0[2]));HTM.set(j,a)}solDirty=true}
+// the material class of the surface showing at a pixel: wall, furniture or floor
+function clsAt(X,Y){const j=Y*W+X,cy=Y>>4,cx=X>>4;if(!sol[j]){const ok=OBJ[j]&&OM[cy]&&OM[cy][cx];if(ok){const e=objEl(ok);return e?mprop(e[0],e[1]).cls:/hedge/.test(ok)?'foliage':matK(ok)}const g=GT[j];if(g===1)return'grass';if(g===2)return'soil'}return matK(map[cy]&&map[cy][cx])}
+// heat marks every surface by its class's heat ramp; HTM keeps each pixel's heat, HTB its cold colour and which layer it was
+const HTB=new Map();
+function heatMark(x,y,r,k){vHeatMark(x,y,r,k);let fl=0;for(let Y=Math.floor(y-r);Y<=y+r;Y++)for(let X=Math.floor(x-r);X<=x+r;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X,d=Math.hypot(X-x,Y-y);if(d>r)continue;
+  const cls=clsAt(X,Y),Hh=(CLS[cls]||CLS.stone).heat;let a=Math.min(Hh.max||.95,k*(1-d/r)*(.85+.3*hh(X,Y,71)));if(Hh.soft){const e=Math.min(1,(1-d/r)*(Hh.fade?2.4:1.6));a*=e*e*(3-2*e)}
+  const L=sol[j]?1:OBJ[j]?2:3,arr=L===1?scol:L===2?OBJC:floor;let b=HTB.get(j),o=HTM.get(j)||0;if(!b||b[0]!==L){if(b)o=0;b=[L,o&&Hh.temper?untemper(arr[j],o):arr[j]];HTB.set(j,b)}if(a<=o)continue;
+  arr[j]=heatTint(b[1],cls,a,X,Y);HTM.set(j,a);if(L>1)fl=1}
+ const c0=clsAt(Math.round(x),Math.round(y)),Hc=(CLS[c0]||CLS.stone).heat;if(Hc.craze&&k>Hc.craze)for(let n=0;n<4;n++){let X=x,Y=y,ang=n*1.6+hh(x|0,y|0,5)*6;for(let s=0;s<r*.7;s++){ang+=(hh(n+(x|0),s+(y|0),7)-.5)*.9;X+=Math.cos(ang);Y+=Math.sin(ang);const jx=X|0,jy=Y|0;if(jx<0||jy<0||jx>=W||jy>=H)break;const q=jy*W+jx;if(sol[q])scol[q]=mul(scol[q],.86);else{floor[q]=mul(floor[q],.86);fl=1}}}
+ solDirty=true;if(fl){BRY0=Math.min(BRY0,y-r-3);BRY1=Math.max(BRY1,y+r+5)}}
+// a tempered colour back to its cold colour (saves made before HTB kept it)
+const untemper=(c,a)=>{const f=temperF(a),f0=temperF(0);return rgb(cl((c&255)*f0[0]/f[0]),cl((c>>8&255)*f0[1]/f[1]),cl((c>>16&255)*f0[2]/f[2]))};
 // a blast breaks a built floor by its material: stone and marble through to soil with a chipped edge and hairline cracks, wood broken through to soil inside a rim of splintered board ends, cloth burnt through, metal dented with a bright lip; how far follows toughness
 // what lies under a carpet: the cell's underlay, else plain boards
 const UPX=new Map();function under(X,Y){const cx=X>>4,cy=Y>>4,id=cy*CW+cx;let d=UPX.get(id);if(!d||d.m!==curMap){d=tilePix(undAt(cx,cy)||'wood.oak.planks',cx,cy);d.m=curMap;UPX.set(id,d)}const i=((Y&15)*T+(X&15))*4;return rgb(d[i],d[i+1],d[i+2])}
@@ -291,9 +315,9 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
 const EXITS={vault:[{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392}],count:[{dir:'e',cell:[43,12],to:'vault',arrive:[664,200],label:'The Aurum',lx:640,ly:182},{dir:'w',cell:[0,18],label:'Back alley',lx:2,ly:278}]};
 const STATE={},PEND={};
 function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of document.querySelectorAll('#sm .xlab'))e.remove();
- STATE[curMap]={VEH,rep:[...REP],wear:[[...WWT],[...WB0],[...HTM],[...OWT],[...OB0]],CW,CH,map,UND,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG,TF,SF,SS,ST,BURN,FH,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
+ STATE[curMap]={VEH,rep:[...REP],wear:[[...WWT],[...WB0],[...HTM],[...OWT],[...OB0],[...HTB]],CW,CH,map,UND,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG,TF,SF,SS,ST,BURN,FH,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
 function loadMap(m){const q=STATE[m];delete STATE[m];CW=q.CW;CH=q.CH;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
- ({SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG=new Uint8Array(N),TF,SF,SS,ST,BURN,FH=new Float32Array(NB),FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}=q.a);WWT.clear();WB0.clear();HTM.clear();OWT.clear();OB0.clear();if(q.wear){for(const[k,v]of q.wear[0])WWT.set(k,v);for(const[k,v]of q.wear[1])WB0.set(k,v);for(const[k,v]of q.wear[2])HTM.set(k,v);for(const[k,v]of q.wear[3]||[])OWT.set(k,v);for(const[k,v]of q.wear[4]||[])OB0.set(k,v)}for(const k in q.FX)FX[k]=q.FX[k];
+ ({SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG=new Uint8Array(N),TF,SF,SS,ST,BURN,FH=new Float32Array(NB),FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}=q.a);WWT.clear();WB0.clear();HTM.clear();HTB.clear();OWT.clear();OB0.clear();if(q.wear){for(const[k,v]of q.wear[5]||[])HTB.set(k,v);for(const[k,v]of q.wear[0])WWT.set(k,v);for(const[k,v]of q.wear[1])WB0.set(k,v);for(const[k,v]of q.wear[2])HTM.set(k,v);for(const[k,v]of q.wear[3]||[])OWT.set(k,v);for(const[k,v]of q.wear[4]||[])OB0.set(k,v)}for(const k in q.FX)FX[k]=q.FX[k];
  map=q.map;UND=q.UND||[];OM=q.OM;DS0=q.DS0;ds0Need=false;alarm=q.alarm;bodies=q.bodies;VEH=q.VEH||[];parts=q.parts;whOn=q.whOn;hzOn=q.hzOn;solDirty=true;fxDirty=true;camInit=true;REP.clear();for(const v of q.rep||[])REP.add(v);edgeMask();setTimeout(fit,0);
  for(const b of bodies)if(b.lab)stage.appendChild(b.lab);arrivals();exitLabels()}
 function goMap(v){if(v===curMap)return;saveMap();curMap=v;const ms=$('msel');if(ms)ms.value=v;$('sm').querySelector('header span').textContent=TITLE[v]||'';sel.clear();openCrate=null;drag=null;charge=null;box=null;moveSel=null;lastHud='';if(STATE[v])loadMap(v);else{camInit=true;CW=-1;reset()}}
@@ -747,7 +771,7 @@ function uWear(b,p,c0){const W=b.wear,ag=W.age??W.lv??0,lv=Math.floor(ag),sd=W.s
  if(Math.max(R,G,B)-Math.min(R,G,B)<30&&lum>.2){if(ag>.2&&n2>1-ag*.27){const A=ageOf('Metal',uMetal(b),ag>=2.5?1:ag>=1.5?2:3);if(A){const q=A([R,G,B],u*3+sd,v*3,()=>9);c=rgb(cl(q[0]),cl(q[1]),cl(q[2]))}}
   if(ag>=2&&n>.9)c=mix(c,rgb(236,238,242),.35);
   for(const[dx,dy,r]of W.marks.dents){const e=Math.hypot(fa-dx,sa-dy);if(e<r)c=mul(c,1+.22*((fa-dx)+(sa-dy))/r*(1-e/r))}
-  for(const[dx,dy,r,k]of W.marks.heat){const e=Math.hypot(fa-dx,sa-dy)/r;if(e<1){const f=temperF(k*(1-e)),f0=temperF(0);c=rgb(cl((c&255)*f[0]/f0[0]),cl((c>>8&255)*f[1]/f0[1]),cl((c>>16&255)*f[2]/f0[2]))}}}
+  for(const[dx,dy,r,k]of W.marks.heat){const e=Math.hypot(fa-dx,sa-dy)/r;if(e<1)c=heatTint(c,'metal',k*(1-e))}}
  else{if(ag>=2&&n2>.55)c=mul(c,.82);if(n>1-ag*.075-.0001&&ag>.5)c=mix(c,rgb(150,150,156),.2)}
  for(const[dx,dy,r,k]of W.marks.soot){const e=Math.hypot(fa-dx,sa-dy)/r;if(e<1)c=mix(c,rgb(26,24,22),k*(1-e*e)*(.6+.6*n))}
  return lv>=3&&d>5.8&&n<.22?mul(c,.55):c}
@@ -957,7 +981,7 @@ function rodWall(b,h,axis,mx,cx,cy,dx,dy){const cos=Math.abs(axis?dy:dx);
  if(rodHot(b)&&b.E>0){if(!b.lw||Math.hypot(cx-b.lw[0],cy-b.lw[1])>4){emberPatch(cx-dx*6,cy-dy*6,8,6);debris(cx-dx*2,cy-dy*2,scol[Math.round(cy)*W+Math.round(cx)]||rgb(130,126,118),6,-dx,-dy);scorch(cx-dx*2,cy-dy*2,6);dab(SS,cx-dx*6,cy-dy*6,3,8);dab(ST,cx-dx*4,cy-dy*4,1.6,4)}b.lw=[cx,cy];if(b.wb===undefined)b.wb=(16+Math.round(16*(.2+Math.random()*.2)))*(b.salvo?2:1);
   let hc=0;for(const[X,Y]of h){const m=matAt(X,Y);hc+=hcl(m).rodWear*hpF(X,Y)}if((b.wb-=hc/h.length)<0){emberPatch(cx-dx*6,cy-dy*6,12,8);dab(SS,cx-dx*5,cy-dy*5,3.2,9);dab(ST,cx-dx*3,cy-dy*3,2,5);b.hot=0;b.vx=b.vy=0;b.stuck=true;b.x+=dx*2;b.y+=dy*2;for(let i=0;i<8;i++)spark(cx,cy,Math.random()<.5?rgb(255,226,150):rgb(255,140,50),-dx*2,-dy*2,2,8+(Math.random()*8|0));sfx('sizzle');sfx('crack');return true}
   for(const[X,Y]of h)for(const[i,j]of[[0,0],[-dy,dx]]){const x=Math.round(X+i),y=Math.round(Y+j);damagePixel(x,y,99,dx,dy);for(let v=-1;v<=1;v++)for(let u=-1;u<=1;u++){const q=(y+v)*W+x+u;if(x+u>0&&y+v>0&&x+u<W&&y+v<H&&sol[q]){WH[q]=Math.min(1.1,WH[q]+.4);whOn=true}}}
-  if(hcl(mx).metal)heatMark(cx,cy,b.salvo?7:5,b.salvo?.85:.65);b.E-=hcl(mx).rodE;if(Math.random()<.5)spark(cx,cy,Math.random()<.5?rgb(255,226,150):rgb(255,140,50),-dx*1.5,-dy*1.5,1.8,8+(Math.random()*8|0));if(Math.random()<.2)sfx('sizzle');return true}
+  heatMark(cx,cy,b.salvo?7:5,b.salvo?.85:.65);b.E-=hcl(mx).rodE;if(Math.random()<.5)spark(cx,cy,Math.random()<.5?rgb(255,226,150):rgb(255,140,50),-dx*1.5,-dy*1.5,1.8,8+(Math.random()*8|0));if(Math.random()<.2)sfx('sizzle');return true}
  const M=hcl(mx);if(M.deflect&&cos<.4){if(axis){b.vy*=-.8;b.vx*=.9}else{b.vx*=-.8;b.vy*=.9}b.x-=dx*2;b.y-=dy*2;rodPx(b,Math.atan2(b.vy,b.vx));b.E*=.75;sfx(M.glance);dab(SF,cx,cy,1.4,4);for(let i=0;i<8;i++)spark(cx,cy,Math.random()<.5?rgb(255,226,140):rgb(255,170,70),-dx*2,-dy*2,2.2,6+(Math.random()*8|0));sfx(snd('metal','glance'));return true}
  for(const[X,Y]of h){const eff=M.rod*hpF(X,Y)/Math.max(cos,.4);if(b.E>=eff){b.E-=eff;damagePixel(X,Y,99,dx,dy)}else{damagePixel(X,Y,2,dx,dy);b.E=0}}
  if(M.metal){const sl=slabG[Math.round(cy)*W+Math.round(cx)]&&byId(slabG[Math.round(cy)*W+Math.round(cx)]);if(sl)heatAt(sl,cx,cy,3,.8);if(Math.random()<.3)emberPatch(cx-dx*5,cy-dy*5,7,5);metalSparks(cx,cy,dx,dy,false);if(!b.mchk){b.mchk=1;if(Math.random()<.1){rodBurst(cx-dx*2,cy-dy*2);remove(b);return true}}}
@@ -1152,7 +1176,7 @@ function rebuildSH(){rebuildDS();if(ds0Need||!DS0||DS0.length!==DS.length){DS0=D
 // scorch is a soot film tinted by the floor: grey on stone, char on wood, tarnish on brass and gold, temper colours on other metals, singed cloth
 const burnAt=(X,Y)=>{const fx=Math.max(0,(X-.5)/2),fy=Math.max(0,(Y-.5)/2),x0=Math.min(BW-1,fx|0),y0=Math.min(BH-1,fy|0),x1=Math.min(BW-1,x0+1),y1=Math.min(BH-1,y0+1),a=fx-x0,b=fy-y0,B=BURN;
  const p=B[y0*BW+x0],q=B[y0*BW+x1],r=B[y1*BW+x0],s=B[y1*BW+x1];return p+q+r+s?(p*(1-a)+q*a)*(1-b)+(r*(1-a)+s*a)*b:0};
-const SCT={Stone:[.17,.16,.155],Wood:[.22,.13,.07],Cloth:[.4,.25,.14],tar:[.46,.36,.24]},TEMPER=[[0,[1,1,1]],[.14,[1.02,.94,.78]],[.3,[.82,.66,.56]],[.46,[.56,.56,.7]],[.66,[.32,.33,.39]],[.9,[.15,.15,.17]]],tintC={};
+const SCT={Stone:[.17,.16,.155],Wood:[.22,.13,.07],Cloth:[.4,.25,.14],tar:[.46,.36,.24]},tintC={};
 function scorchT(X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4];if(k in tintC)return tintC[k];const c=CATN[k];return tintC[k]=!c?SCT.Stone:c[0]==='Metal'?(c[1]==='brass'||c[1]==='gold'?SCT.tar:'temper'):SCT[c[0]]||SCT.Stone}
 function scorchC(c,a,X,Y){a=Math.min(1,a);const t=scorchT(X,Y);if(t===SCT.Wood)a=1-Math.pow(1-a,2.2);else if(t===SCT.Stone)a=1-Math.pow(1-a,1.5);// soot reads further out on wood and stone, as the heat colours do on metal
  let f;if(t==='temper'){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0,f0]=TEMPER[i-1],[p1,f1]=TEMPER[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0)));f=f0.map((v,k)=>v+(f1[k]-v)*u)}else f=t.map(v=>1-a*(1-v));
