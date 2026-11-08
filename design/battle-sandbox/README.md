@@ -52,6 +52,15 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 - Units under direct control get a line of key hints at the bottom, only for what they can do right now.
 - With AI on, an AI driver turns toward the nearest foe, drives nose-first, stops short and lets its squad out.
 
+## Materials
+
+Everything in the game is made of a material, and the material decides how it behaves. Read this before adding a surface, a material or an effect.
+
+- Materials live in two places only: `ELEM` in `src/tiles.js` (each element, Earth, Stone, Wood, Metal and Cloth, with its materials: colour, strength, shine, how it ages) and `src/materials.js` (each material class: hit class, footstep and hit sounds, the debris it throws, and what the hit class means for strength, friction and welding). `matInfo(element, material)` returns all of it in one record.
+- A surface (wall, floor, furniture, door, carrier hull, unit armour) stores only which material it is. It never picks its own colours, sounds, sparks or wear; it asks the table. A new metal added to `ELEM.Metal` therefore works everywhere at once.
+- Wear, damage, sounds and effects should come from the event that caused them (hit, blast, heat, fire, scrape, step, break) and the material that took it, through shared code, not per object.
+- Previews: the Fluoria lab page shows the material table as a tree (element, material, variants) with how each one looks, wears and sounds; check a new material there.
+
 ## Rules worth knowing
 
 - Everyone starts sheathed; the first shot or blast draws every weapon.

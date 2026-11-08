@@ -23,7 +23,7 @@ const grey=c=>{const l=cl(((c&255)*.3+(c>>8&255)*.59+(c>>16&255)*.11)*.9);return
 const hx=s=>rgb(parseInt(s.slice(1,3),16),parseInt(s.slice(3,5),16),parseInt(s.slice(5,7),16));
 const css=c=>`rgb(${c&255},${c>>8&255},${c>>16&255})`;
 const K=(x,y)=>(x+512)*1024+(y+512);
-const MAT={1:{hp:3,f:.6,weld:.05},2:{hp:2,f:.82,weld:.45},3:{hp:6,f:.42,weld:.14},4:{hp:1,f:.9,weld:.5},0:{weld:.3}};
+
 
 // sound
 let gest=false,MS=null,AC=null,mute=false,RV=null,ABUS=null,AWET=null;const last={};
@@ -52,7 +52,6 @@ const BMAT={hedge:'foliage',bush:'grass',grass:'grass',crop:'grass',dirt:'soil',
  ...Object.fromEntries(Object.keys(MCHEST).map(k=>[k,'metal'])),...Object.fromEntries(Object.keys(MTABLE).map(k=>[k,'metal'])),...Object.fromEntries(Object.keys(WPIECE).map(k=>[k,'wood']))};
 function matK(k){if(!k)return'stone';k=modK(k);if(/[HNS]$/.test(k)&&WMAT[k.slice(0,-1)])k=k.slice(0,-1);if(EDOK){const m=MODS.tex[k];if(m)return m.rec?m.rec.mat==='plaster'?'stone':m.rec.mat:matK(m.from);
  if(CATN[k]){const[el,mm]=CATN[k];return mprop(el,mm).cls}}return BMAT[k]||'stone'}
-const hitCls=m=>m==='metal'?3:m==='foliage'?4:m==='stone'||m==='marble'||m==='soil'?1:2;
 const WMAT={bush:2,berm:1,rail:2};
 const SHINE={msill:28};
 let HALFF='dirt';
@@ -587,7 +586,9 @@ const slotOK=(t,i)=>t.type!=='token'||!(i===1&&LIGHT.has(t.unit))&&i<INVN;
 const slot=b=>b.type==='token'?b.held:b.type==='weapon'&&WP[b.kind]?b.gs||(b.res===undefined&&CAP[b.kind]&&(b.res=CAP[b.kind]*2),b.gs={get k(){return b.kind},get ammo(){return b.ammo??CAP[b.kind]},set ammo(v){b.ammo=v},get res(){return b.res||0},set res(v){b.res=v},heat:0}):null;
 function consume(b){const s=b.held;if(!s)return;s.n=(s.n||1)-1;if(s.n>0){if(CAP[s.k])s.ammo=CAP[s.k];delete s.mode;b.hc=null;return}if(b.inv&&b.si>=0)b.inv[b.si]=null;b.held=null;b.si=-1;b.hc=null}
 function selectSlot(b,i){const s=b.inv&&b.inv[i];if(!s||s.k==='gold'||s.k==='note'||isKey(s.k))return;if(s.k.endsWith('box')||s.k==='cell'){const h=b.held;if(h&&BOX[h.k]===s.k&&(h.ammo??CAP[h.k])<CAP[h.k])reload(b);return}if(b.si===i)return;b.si=i;b.held=s;b.hc=null;sfx('flick')}
-function reload(b,o2){if(!o2&&offGun(b)){let r2=false;withOff(b,()=>{r2=reload(b,1)});return reload(b,1)||r2}const h=slot(b);if(!h||!CAP[h.k])return false;if(h.k==='sspear'&&(h.res||0)>0){delete h.mode;h.spent=false;b.hc=null}const v=h.vent;delete h.vent;const cur=h.ammo??CAP[h.k],take=Math.min(CAP[h.k]-cur,h.res||0);if(take<=0){if(v){b.cock=14;b.hc=null;sfx('reload')}return!!v}h.res-=take;h.ammo=cur+take;b.cock=14;b.hc=null;sfx('reload');if(b.type==='token'&&(b.ai||b.pa))say(b,'Reloading');hear(b.x,b.y,60,b,'reload');return true}
+// a gun reloading: its recorded mechanism, or the plain click for guns without one
+function reloadSnd(k){const c={musket:'rl_musket',pistol:'rl_pistol',blunder:'rl_blunder',rod:'rl_rod'}[k];if(!c||!AC||mute||!gest){sfx('reload');return}try{const s=AC.createBufferSource(),g=AC.createGain();s.buffer=vClip(c);g.gain.value=.55;s.connect(g).connect(MS);s.start()}catch(e){sfx('reload')}}
+function reload(b,o2){if(!o2&&offGun(b)){let r2=false;withOff(b,()=>{r2=reload(b,1)});return reload(b,1)||r2}const h=slot(b);if(!h||!CAP[h.k])return false;if(h.k==='sspear'&&(h.res||0)>0){delete h.mode;h.spent=false;b.hc=null}const v=h.vent;delete h.vent;const cur=h.ammo??CAP[h.k],take=Math.min(CAP[h.k]-cur,h.res||0);if(take<=0){if(v){b.cock=14;b.hc=null;reloadSnd(h.k)}return!!v}h.res-=take;h.ammo=cur+take;b.cock=14;b.hc=null;reloadSnd(h.k);if(b.type==='token'&&(b.ai||b.pa))say(b,'Reloading');hear(b.x,b.y,60,b,'reload');return true}
 const THR={civ:.5,home:.7,rifle:.8,guard:.9,cmd:1.25,shock:1};
 const C={lw:rgb(198,164,112),lwD:rgb(160,126,80),wood:rgb(138,96,58),woodH:rgb(162,118,74),woodD:rgb(110,74,44),iron:rgb(138,150,144),ironH:rgb(196,206,200),ironD:rgb(86,98,92),ironK:rgb(40,46,44),lead:rgb(78,80,86),clay:rgb(156,82,60),clayD:rgb(104,50,36),cloth:rgb(214,204,180),fuse:rgb(230,170,60)};
 const rodFill=it=>it&&(it.k==='rod'||it.kind==='rod')?Math.ceil((it.ammo??CAP[it.k||it.kind])/CAP[it.k||it.kind]*3-1e-9)/3:1;
@@ -1304,7 +1305,7 @@ function wasd(){slabTurn();let dx=(keys.has('d')?1:0)-(keys.has('a')?1:0),dy=(ke
  for(const b of sel){if(b.type!=='token'||b.status==='dead'||inDrag(b)||b.pinned||cmdMode(b)||b.vseat||b.vwalk)continue;const u=UNITS[b.unit],hv=b.held&&(b.held.k==='rod'||b.held.k==='prod'),el=b.unit==='guard'||b.unit==='shock'||b.unit==='cmd',sp=.85*(1-u.arm*.07)*(!hv?1:b.unit==='civ'?(charge?.3:.55):el?(charge?.6:.92):(charge?.42:.8))*(b.pushT>=tick-2?(u.arm<=1?[.75,.45,.3]:[.85,.7,.55])[(b.pushM||1)-1]:1);b.glide=null;const cr=b.crouch?.4:1,md=moveToward(b,b.x+dx*sp*cr,b.y+dy*sp*cr);if(md>.1){moved=Math.max(moved,md);b.mv=6;arm=Math.max(arm,u.arm);gx=b.x;gy=b.y}}
  for(const b of sel)if(b.type==='weapon'&&srcInfo(b)&&!inDrag(b)&&Math.hypot(b.vx,b.vy)<1){moveToward(b,b.x+dx*.85,b.y+dy*.85);b.stuck=false}
  if(moved){stepAcc+=moved;if(stepAcc>=28+Math.random()*3){stepAcc=0;sfx('st_'+groundEl(gx,gy));if(arm)sfx('jingle')}}}
-const STEP={marble:'marble',stone:'stone',wood:'wood',metal:'metal',cloth:'carpet',soil:'dirt',grass:'grass'};
+const STEP=Object.fromEntries(Object.entries(CLS).map(([k,c])=>[k,c.step]));
 function groundEl(x,y){const X=x|0,Y=y|0;if(X<0||Y<0||X>=W||Y>=H)return 'stone';const g=GT[Y*W+X];if(g===1)return 'grass';if(g===2)return 'dirt';if(g===3)return 'stone';const k=map[Y/T|0][X/T|0];return k&&k.endsWith('H')&&WMAT[k.slice(0,-1)]?'dirt':STEP[matK(k)]}
 let lastHud='';
 let openCrate=null,hoverC=null;const near=(a,c)=>c.box?Math.hypot(Math.max(c.box[0]-a.x,a.x-c.box[2],0),Math.max(c.box[1]-a.y,a.y-c.box[3],0))<14:Math.hypot(a.x-c.x,a.y-c.y)<30;
