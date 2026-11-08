@@ -3549,7 +3549,7 @@ function vEngine(ac,out){const T=()=>ac.currentTime,o=(t,f)=>{const x=ac.createO
   sh.frequency.setTargetAtTime(12.6*rpm,t,.05);fire.frequency.setTargetAtTime(63*rpm,t,.05);mv.frequency.setTargetAtTime(25.2*rpm,t,.05);dr.frequency.setTargetAtTime(13.65*(.9+.2*st.lv),t,.08);sd.frequency.setTargetAtTime(13.1*(.9+.2*st.lv),t,.08);
   const so=st.solo,mB=so&&so!=='engine'?0:1,mD=so&&so!=='drive'?0:1,mR=so&&so!=='rat'?0:1;bus.gain.setTargetAtTime(mB*.9*Math.pow(st.up,1.5),t,.06);cltG.gain.setTargetAtTime(mB*.05*Math.pow(st.up,2)*(1+.6*st.lv),t,.08);lopeG.gain.setTargetAtTime(.07*(1-st.lv),t,.1);chug.frequency.setTargetAtTime(6*rpm,t,.08);shG.gain.setTargetAtTime(.5*(1-.5*st.lv),t,.1);
   mvG.gain.setTargetAtTime(.32*st.lv,t,.1);gritG.gain.setTargetAtTime(.05*st.lv,t,.1);tone.frequency.setTargetAtTime(1100+900*st.lv,t,.1);rumG.gain.setTargetAtTime(.3+.25*st.lv,t,.1);
-  drG.gain.setTargetAtTime(mD*(so==='drive'?.5:.22)*st.tv*st.up,t,.04);rat.gain.setTargetAtTime(mR*(so==='rat'?.7:.49)*st.tv*st.up*(st.near??1),t,.03);
+  drG.gain.setTargetAtTime(mD*(so==='drive'?.5:.22)*st.tv*st.up,t,.04);rat.gain.setTargetAtTime(mR*(so==='rat'?1.05:.735)*st.tv*st.up*(st.near??1),t,.03);
   if(st.tv>.08&&st.up>.5){const iv=.095/(.6+.6*st.tv);if(nextT<t)nextT=t+.02;while(nextT<t+.12){tick(nextT);nextT+=iv*(.85+Math.random()*.3)}}}
  return{st,frame,stop(){for(const n of[bus,drG,rat,cltG])n.gain.setTargetAtTime(0,T(),.05);for(const x of[sh,lope,fire,mv,chug,dr,sd])x.stop(T()+.4);for(const x of[nz,rum,grit,clt])x.stop(T()+.4)}}}
 
