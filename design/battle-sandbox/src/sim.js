@@ -62,7 +62,7 @@ function paintCell0(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;ke
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='circuit',VEH=[],VOB=null;
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();HTB.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
+function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();HTB.clear();MKC.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,bk=baseK(k),o=(x,y)=>!L[y]||baseK(L[y][x])!==bk&&!(rug&&OM[y]&&OM[y][x]);
@@ -258,7 +258,9 @@ function temperF(a){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0
 // a material's blast entry
 const clsB=(el,mat)=>(CLS[mprop(el,mat).cls]||CLS.stone).blast;
 // the material class of the surface showing at a pixel: wall, furniture or floor
-function clsAt(X,Y){const j=Y*W+X,cy=Y>>4,cx=X>>4;if(!sol[j]){const ok=OBJ[j]&&OM[cy]&&OM[cy][cx];if(ok){const e=objEl(ok);return e?mprop(e[0],e[1]).cls:/hedge/.test(ok)?'foliage':matK(ok)}const g=GT[j];if(g===1)return'grass';if(g===2)return'soil'}return matK(map[cy]&&map[cy][cx])}
+function clsAt(X,Y){const j=Y*W+X,cy=Y>>4,cx=X>>4;if(!sol[j]){const ok=OBJ[j]&&OM[cy]&&OM[cy][cx];if(ok){const e=objEl(ok);return e?mprop(e[0],e[1]).cls:/hedge/.test(ok)?'foliage':mkC(ok)}const g=GT[j];if(g===1)return'grass';if(g===2)return'soil'}return mkC(map[cy]&&map[cy][cx])}
+// matK per tile key, cached; cleared when maps or custom textures change
+const MKC=new Map(),mkC=k=>{let v=MKC.get(k);if(v===undefined){v=matK(k);MKC.set(k,v)}return v};
 // heat marks every surface by its class's heat ramp; HTM keeps each pixel's heat, HTB its cold colour and which layer it was
 const HTB=new Map();
 function heatMark(x,y,r,k){vHeatMark(x,y,r,k);let fl=0;for(let Y=Math.floor(y-r);Y<=y+r;Y++)for(let X=Math.floor(x-r);X<=x+r;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X,d=Math.hypot(X-x,Y-y);if(d>r)continue;
@@ -1178,11 +1180,8 @@ function rebuildSH(){rebuildDS();if(ds0Need||!DS0||DS0.length!==DS.length){DS0=D
 // scorch is a soot film tinted by the floor: grey on stone, char on wood, tarnish on brass and gold, temper colours on other metals, singed cloth
 const burnAt=(X,Y)=>{const fx=Math.max(0,(X-.5)/2),fy=Math.max(0,(Y-.5)/2),x0=Math.min(BW-1,fx|0),y0=Math.min(BH-1,fy|0),x1=Math.min(BW-1,x0+1),y1=Math.min(BH-1,y0+1),a=fx-x0,b=fy-y0,B=BURN;
  const p=B[y0*BW+x0],q=B[y0*BW+x1],r=B[y1*BW+x0],s=B[y1*BW+x1];return p+q+r+s?(p*(1-a)+q*a)*(1-b)+(r*(1-a)+s*a)*b:0};
-const SCT={Stone:[.17,.16,.155],Wood:[.22,.13,.07],Cloth:[.4,.25,.14],tar:[.46,.36,.24]},tintC={};
-function scorchT(X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4];if(k in tintC)return tintC[k];const c=CATN[k];return tintC[k]=!c?SCT.Stone:c[0]==='Metal'?(c[1]==='brass'||c[1]==='gold'?SCT.tar:'temper'):SCT[c[0]]||SCT.Stone}
-function scorchC(c,a,X,Y){a=Math.min(1,a);const t=scorchT(X,Y);if(t===SCT.Wood)a=1-Math.pow(1-a,2.2);else if(t===SCT.Stone)a=1-Math.pow(1-a,1.5);// soot reads further out on wood and stone, as the heat colours do on metal
- let f;if(t==='temper'){let i=1;while(i<TEMPER.length-1&&a>TEMPER[i][0])i++;const[p0,f0]=TEMPER[i-1],[p1,f1]=TEMPER[i],u=Math.min(1,Math.max(0,(a-p0)/(p1-p0)));f=f0.map((v,k)=>v+(f1[k]-v)*u)}else f=t.map(v=>1-a*(1-v));
- return rgb(cl((c&255)*f[0]),cl((c>>8&255)*f[1]),cl((c>>16&255)*f[2]))}
+// blast soot: the burnt surface's heat ramp, reaching toward its dark end (chosen in the lab: "ramp, deeper")
+function scorchC(c,a,X,Y){return heatTint(c,clsAt(X,Y),Math.min(.95,1-Math.pow(1-Math.min(1,a),2.2)),X,Y)}
 // fresh blast heat glows and cools: metal brightest, wood embers flicker, stone a dull red
 function glowC(c,h,X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4],B=CATN[k]?clsB(CATN[k][0],CATN[k][1]):CLS.stone.blast,g=B.glow*(B.flick?.8+.4*hh(X>>1,Y>>1,tick>>3):1);return heatCol(h*g,c)}
 let BRY0=1e9,BRY1=-1;const bDirty=q=>{const y=(q/BW|0)*2;if(y-3<BRY0)BRY0=y-3;if(y+5>BRY1)BRY1=y+5};let FLC=null,FLK='',FLR=0,SHL=new Set(),shBuilt=false,SOLL=null,SOLN=0;

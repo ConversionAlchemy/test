@@ -7,7 +7,7 @@ const SKIP=new Set(['materials.js','sounds.js','space.js','tiles.js','countmap.j
 const ALLOW={// file:function rule → phase
  'sim.js:arcHit class number':3,
  'sim.js:slabPix class number':5,'sim.js:barricade class number':5,
- 'sim.js:scorchT element branch':3,
+
  'sim.js:ladL element branch':3,
  'sim.js:boards element branch':5,'sim.js:paintCell0 element branch':5,'editor.js:baseRec element branch':5,'editor.js:slabCell element branch':5,
  'editor.js:cracks element branch':5,'editor.js:R element branch':5,'editor.js:relink element branch':5,
