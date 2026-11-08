@@ -62,7 +62,7 @@ function paintCell0(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;ke
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 let curMap='circuit',VEH=[],VOB=null;
 const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
-function build(){UND=[];REP.clear();WWT.clear();WB0.clear();HTM.clear();HTB.clear();MKC.clear();OWT.clear();OB0.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
+function build(){UND=[];REP.clear();TW.clear();HT.clear();MKC.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
 function regions(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const ok=OM[cy]&&OM[cy][cx],k=ok||map[cy][cx],rug=RUG.has(k);if(!rug&&!ok)continue;const L=ok?OM:map,bk=baseK(k),o=(x,y)=>!L[y]||baseK(L[y][x])!==bk&&!(rug&&OM[y]&&OM[y][x]);
@@ -204,10 +204,10 @@ function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k o
 // blasts on open ground tear up grass, dig a soft crater and throw soil round it
 // a mended tile, furniture cell or wall cell sits a little proud of damage of its own kind beside it: on each side that touches damage its top or left edge catches the light, its bottom or right edge is shaded and casts a faint shadow onto the damage. Drawn at render only
 let EDGM=new Uint8Array(0);const EDF=[1,1.1,.86,.9],REP=new Set();
-function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);if(!REP.size)return;let P0=null;try{P0=PR&&PR.sol&&PR.sol.length===N?PR:null}catch(e){}const kind=(x,y)=>{const c=CATN[map[y][x]];return c&&c[3]?2:OM[y]&&OM[y][x]||OB0.has(y*CW+x)?1:0},
+function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);if(!REP.size)return;let P0=null;try{P0=PR&&PR.sol&&PR.sol.length===N?PR:null}catch(e){}const kind=(x,y)=>{const c=CATN[map[y][x]];return c&&c[3]?2:OM[y]&&OM[y][x]||TW.has(twK(2,y*CW+x))?1:0},
   hurt=(x,y,t)=>{if(x<0||y<0||x>=CW||y>=CH||kind(x,y)!==t)return false;const id=y*CW+x;
-   if(t===2){if(WB0.has(id))return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++){const j=(y*T+v)*W+x*T+u;if(P0&&P0.sol[j]&&(!sol[j]||shp[j]<P0.shp[j]))return true}return false}
-   if(t===1){if(OB0.has(id)||OWT.has(id))return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++){const j=(y*T+v)*W+x*T+u;if(P0&&P0.OBJ[j]&&!OBJ[j])return true}return false}
+   if(t===2){const w=TW.get(twK(1,id));if(w&&w.a)return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++){const j=(y*T+v)*W+x*T+u;if(P0&&P0.sol[j]&&(!sol[j]||shp[j]<P0.shp[j]))return true}return false}
+   if(t===1){if(TW.has(twK(2,id)))return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++){const j=(y*T+v)*W+x*T+u;if(P0&&P0.OBJ[j]&&!OBJ[j])return true}return false}
    const c=CATN[map[y][x]];if((c[4]||5)<5)return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++)if(DMG[(y*T+v)*W+x*T+u])return true;return false},set=(j,v)=>{if(!EDGM[j]||v===2)EDGM[j]=v};
  for(const id of REP){const cx=id%CW,cy=id/CW|0,t=kind(cx,cy);for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){if(!hurt(cx+dx,cy+dy,t))continue;const near=dx<0||dy<0;
   for(let i=0;i<T;i++){const x=dx<0?0:dx>0?T-1:i,y=dy<0?0:dy>0?T-1:i;set((cy*T+y)*W+cx*T+x,near?1:2);if(!near){const ox=cx*T+x+dx,oy=cy*T+y+dy;if(ox>=0&&oy>=0&&ox<W&&oy<H)set(oy*W+ox,3)}}}}}
@@ -225,20 +225,24 @@ function blastWear(x,y,s){vBlastWear(x,y,s);uBlast(x,y,s);BRY0=Math.min(BRY0,y-4
   const cc=lv(cx*T+8,cy*T+8);if(cc<c0)map[cy][cx]=baseK(k)+'~'+cc;
   for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const p=lv(X,Y);if(p>=c0)continue;const ak=c[0]+c[1]+p,A=AC[ak]||(AC[ak]=ageOf(c[0],c[1],p)),q=floor[j],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9);floor[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]));if(PR)PR.floor[j]=floor[j]}}edgeMask()}
 // walls lose condition as they're shot, chipped and blasted: each cell keeps a tally, every step of it wears one condition, softer materials faster; its wall neighbours take a share
-const WWT=new Map(),WB0=new Map(),HTM=new Map(),OWT=new Map(),OB0=new Map();
+// wear, one store. TW: per tile (layer 1 wall, 2 furniture; key twK): worn amount v, starting condition c0, the tile's cold pixels a once it
+// first ages, and furniture's original key k. HT: per pixel: [heat, layer 1 wall 2 furniture 3 floor, cold colour]. Ageing repaints the
+// cold colour and heat is laid back over it, so the two never fight.
+const TW=new Map(),HT=new Map(),twK=(L,id)=>L*65536+id;
 // furniture wears the same way, by its wood or metal from the material table
 const objEl=k=>{const b=baseK(k);return WPIECE[b]?['Wood',WPIECE[b][0]]:MCHEST[b]?['Metal',MCHEST[b][0]]:MTABLE[b]?['Metal',MTABLE[b][0]]:null};
-function wearObj(cx,cy,amt){if(cx<0||cy<0||cx>=CW||cy>=CH)return;const k=OM[cy]&&OM[cy][cx],e=k&&objEl(k);if(!e||!AGE[e[0]])return;const id=cy*CW+cx,v=(OWT.get(id)||0)+amt*softOf(e[0],e[1]);OWT.set(id,v);
- const o=OB0.get(id),c0=o?o.c0:condK(k),cc=Math.max(1,c0-Math.floor(v/9));if(cc>=condK(k))return;
- if(!o){const a=new Uint32Array(T*T);for(let y=0;y<T;y++)for(let x=0;x<T;x++)a[y*T+x]=OBJC[(cy*T+y)*W+cx*T+x];OB0.set(id,{a,c0,k})}
- const a=OB0.get(id).a,A=ageOf(e[0],e[1],cc);OM[cy][cx]=baseK(k)+'~'+cc;if(!A)return;
- for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X;if(!OBJ[j])continue;const q=a[y*T+x],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9);OBJC[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}
+function wearObj(cx,cy,amt){wearTile(2,cx,cy,amt)}
 function wallHit(X,Y,amt){const cx=X>>4,cy=Y>>4;wearWall(cx,cy,amt);for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]])wearWall(cx+dx,cy+dy,amt*.3)}
-function wearWall(cx,cy,amt){if(cx<0||cy<0||cx>=CW||cy>=CH)return;const k=map[cy][cx],c=CATN[k];if(!c||!c[3]||!AGE[c[0]])return;const id=cy*CW+cx,v=(WWT.get(id)||0)+amt*softOf(c[0],c[1]);WWT.set(id,v);
- const o=WB0.get(id),c0=o?o.c0:c[4]||5,cc=Math.max(1,c0-Math.floor(v/9));if(cc>=(c[4]||5))return;
- if(!o){const a=new Uint32Array(T*T);for(let y=0;y<T;y++)for(let x=0;x<T;x++)a[y*T+x]=scol[(cy*T+y)*W+cx*T+x];WB0.set(id,{a,c0})}
- const a=WB0.get(id).a,A=ageOf(c[0],c[1],cc,true)||ageOf(c[0],c[1],cc);map[cy][cx]=baseK(k)+'~'+cc;if(!A)return;
- for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X;if(!sol[j])continue;const q=a[y*T+x],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9);scol[j]=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}solDirty=true}
+function wearWall(cx,cy,amt){wearTile(1,cx,cy,amt)}
+// a wall or furniture tile takes wear; past each 9 its condition drops a step and its pixels age by its material
+function wearTile(L,cx,cy,amt){if(cx<0||cy<0||cx>=CW||cy>=CH)return;const ob=L===2,k=ob?OM[cy]&&OM[cy][cx]:map[cy][cx];if(!k)return;let el,mt,cd;
+ if(ob){const e=objEl(k);if(!e)return;[el,mt]=e;cd=condK(k)}else{const c=CATN[k];if(!c||!c[3])return;[el,mt]=c;cd=c[4]||5}if(!AGE[el])return;
+ const id=twK(L,cy*CW+cx);let w=TW.get(id);if(!w)TW.set(id,w={v:0,c0:cd,a:null,k:ob?k:null});w.v+=amt*softOf(el,mt);const cc=Math.max(1,w.c0-Math.floor(w.v/9));if(cc>=cd)return;
+ const arr=ob?OBJC:scol,on=ob?OBJ:sol;
+ if(!w.a){w.a=new Uint32Array(T*T);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x,h=HT.get(j);w.a[y*T+x]=h&&h[1]===L?h[2]:arr[j]}}
+ const A=ob?ageOf(el,mt,cc):ageOf(el,mt,cc,true)||ageOf(el,mt,cc);(ob?OM[cy]:map[cy])[cx]=baseK(k)+'~'+cc;if(!A)return;
+ for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X;if(!on[j])continue;const q=w.a[y*T+x],r=A([q&255,q>>8&255,q>>16&255],X,Y,()=>9),c=rgb(cl(r[0]),cl(r[1]),cl(r[2])),h=HT.get(j);
+  if(h&&h[1]===L){h[2]=c;arr[j]=heatTint(c,clsAt(X,Y),h[0],X,Y)}else arr[j]=c}if(!ob)solDirty=true}
 // very hot hits leave temper colours on metal: straw, bronze, blue at the centre
 const TEMPER=CLS.metal.heat.temper;
 // a class's chip colour, else the surface's own colour c
@@ -261,16 +265,13 @@ const clsB=(el,mat)=>(CLS[mprop(el,mat).cls]||CLS.stone).blast;
 function clsAt(X,Y){const j=Y*W+X,cy=Y>>4,cx=X>>4;if(!sol[j]){const ok=OBJ[j]&&OM[cy]&&OM[cy][cx];if(ok){const e=objEl(ok);return e?mprop(e[0],e[1]).cls:/hedge/.test(ok)?'foliage':mkC(ok)}const g=GT[j];if(g===1)return'grass';if(g===2)return'soil'}return mkC(map[cy]&&map[cy][cx])}
 // matK per tile key, cached; cleared when maps or custom textures change
 const MKC=new Map(),mkC=k=>{let v=MKC.get(k);if(v===undefined){v=matK(k);MKC.set(k,v)}return v};
-// heat marks every surface by its class's heat ramp; HTM keeps each pixel's heat, HTB its cold colour and which layer it was
-const HTB=new Map();
+// heat marks every surface by its class's heat ramp, over the pixel's cold colour (HT)
 function heatMark(x,y,r,k){vHeatMark(x,y,r,k);let fl=0;for(let Y=Math.floor(y-r);Y<=y+r;Y++)for(let X=Math.floor(x-r);X<=x+r;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X,d=Math.hypot(X-x,Y-y);if(d>r)continue;
   const cls=clsAt(X,Y),Hh=(CLS[cls]||CLS.stone).heat;let a=Math.min(Hh.max||.95,k*(1-d/r)*(.85+.3*hh(X,Y,71)));if(Hh.soft){const e=Math.min(1,(1-d/r)*(Hh.fade?2.4:1.6));a*=e*e*(3-2*e)}
-  const L=sol[j]?1:OBJ[j]?2:3,arr=L===1?scol:L===2?OBJC:floor;let b=HTB.get(j),o=HTM.get(j)||0;if(!b||b[0]!==L){if(b)o=0;b=[L,o&&Hh.temper?untemper(arr[j],o):arr[j]];HTB.set(j,b)}if(a<=o)continue;
-  arr[j]=heatTint(b[1],cls,a,X,Y);HTM.set(j,a);if(L>1)fl=1}
+  const L=sol[j]?1:OBJ[j]?2:3,arr=L===1?scol:L===2?OBJC:floor;let h=HT.get(j);if(!h||h[1]!==L)HT.set(j,h=[0,L,arr[j]]);if(a<=h[0])continue;
+  h[0]=a;arr[j]=heatTint(h[2],cls,a,X,Y);if(L>1)fl=1}
  const c0=clsAt(Math.round(x),Math.round(y)),Hc=(CLS[c0]||CLS.stone).heat;if(Hc.craze&&k>Hc.craze)for(let n=0;n<4;n++){let X=x,Y=y,ang=n*1.6+hh(x|0,y|0,5)*6;for(let s=0;s<r*.7;s++){ang+=(hh(n+(x|0),s+(y|0),7)-.5)*.9;X+=Math.cos(ang);Y+=Math.sin(ang);const jx=X|0,jy=Y|0;if(jx<0||jy<0||jx>=W||jy>=H)break;const q=jy*W+jx;if(sol[q])scol[q]=mul(scol[q],.86);else{floor[q]=mul(floor[q],.86);fl=1}}}
  solDirty=true;if(fl){BRY0=Math.min(BRY0,y-r-3);BRY1=Math.max(BRY1,y+r+5)}}
-// a tempered colour back to its cold colour (saves made before HTB kept it)
-const untemper=(c,a)=>{const f=temperF(a),f0=temperF(0);return rgb(cl((c&255)*f0[0]/f[0]),cl((c>>8&255)*f0[1]/f[1]),cl((c>>16&255)*f0[2]/f[2]))};
 // a blast breaks a built floor by its material: stone and marble through to soil with a chipped edge and hairline cracks, wood broken through to soil inside a rim of splintered board ends, cloth burnt through, metal dented with a bright lip; how far follows toughness
 // what lies under a carpet: the cell's underlay, else plain boards
 const UPX=new Map();function under(X,Y){const cx=X>>4,cy=Y>>4,id=cy*CW+cx;let d=UPX.get(id);if(!d||d.m!==curMap){d=tilePix(undAt(cx,cy)||'wood.oak.planks',cx,cy);d.m=curMap;UPX.set(id,d)}const i=((Y&15)*T+(X&15))*4;return rgb(d[i],d[i+1],d[i+2])}
@@ -319,9 +320,9 @@ function buildCount(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.
 const EXITS={vault:[{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Counting house',lx:3,ly:392}],count:[{dir:'e',cell:[43,12],to:'vault',arrive:[664,200],label:'The Aurum',lx:640,ly:182},{dir:'w',cell:[0,18],label:'Back alley',lx:2,ly:278}]};
 const STATE={},PEND={};
 function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of document.querySelectorAll('#sm .xlab'))e.remove();
- STATE[curMap]={VEH,rep:[...REP],wear:[[...WWT],[...WB0],[...HTM],[...OWT],[...OB0],[...HTB]],CW,CH,map,UND,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG,TF,SF,SS,ST,BURN,FH,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
+ STATE[curMap]={VEH,rep:[...REP],wear:{tw:[...TW],ht:[...HT]},CW,CH,map,UND,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG,TF,SF,SS,ST,BURN,FH,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
 function loadMap(m){const q=STATE[m];delete STATE[m];CW=q.CW;CH=q.CH;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
- ({SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG=new Uint8Array(N),TF,SF,SS,ST,BURN,FH=new Float32Array(NB),FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}=q.a);WWT.clear();WB0.clear();HTM.clear();HTB.clear();OWT.clear();OB0.clear();if(q.wear){for(const[k,v]of q.wear[5]||[])HTB.set(k,v);for(const[k,v]of q.wear[0])WWT.set(k,v);for(const[k,v]of q.wear[1])WB0.set(k,v);for(const[k,v]of q.wear[2])HTM.set(k,v);for(const[k,v]of q.wear[3]||[])OWT.set(k,v);for(const[k,v]of q.wear[4]||[])OB0.set(k,v)}for(const k in q.FX)FX[k]=q.FX[k];
+ ({SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG=new Uint8Array(N),TF,SF,SS,ST,BURN,FH=new Float32Array(NB),FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}=q.a);TW.clear();HT.clear();if(q.wear&&q.wear.tw){for(const[k,v]of q.wear.tw)TW.set(k,v);for(const[k,v]of q.wear.ht)HT.set(k,v)}for(const k in q.FX)FX[k]=q.FX[k];
  map=q.map;UND=q.UND||[];OM=q.OM;DS0=q.DS0;ds0Need=false;alarm=q.alarm;bodies=q.bodies;VEH=q.VEH||[];parts=q.parts;whOn=q.whOn;hzOn=q.hzOn;solDirty=true;fxDirty=true;camInit=true;REP.clear();for(const v of q.rep||[])REP.add(v);edgeMask();setTimeout(fit,0);
  for(const b of bodies)if(b.lab)stage.appendChild(b.lab);arrivals();exitLabels()}
 function goMap(v){if(v===curMap)return;saveMap();curMap=v;const ms=$('msel');if(ms)ms.value=v;$('sm').querySelector('header span').textContent=TITLE[v]||'';sel.clear();openCrate=null;drag=null;charge=null;box=null;moveSel=null;lastHud='';if(STATE[v])loadMap(v);else{camInit=true;CW=-1;reset()}}
