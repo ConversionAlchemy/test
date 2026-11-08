@@ -2479,7 +2479,7 @@ function lowHit(b){const X=Math.round(b.x),Y=Math.round(b.y);if(X<0||Y<0||X>=W||
  const M=hcl(m),r=M.obj[pel?0:1];for(let y=Math.floor(Y-r);y<=Y+r;y++)for(let x=Math.floor(X-r);x<=X+r;x++){const q=y*W+x;if(x<0||y<0||x>=W||y>=H||!OBJ[q]||Math.hypot(x-X,y-Y)>r)continue;if(M.metal){OBJC[q]=mul(OBJC[q],.72);SHN[q]=0;continue}OBJ[q]=0;SHN[q]=0;floor[q]=mix(floor[q],mul(OBJC[q],.45),.7)}ds0Need=true;{const c=bodies.find(o=>o.hidden&&o.box&&X>=o.box[0]&&X<=o.box[2]&&Y>=o.box[1]&&Y<=o.box[3]);if(c)cShot(c,X,Y,r,b)}
  if(b.inO)return false;b.inO=true;hitFx(X,Y,m,b.vx/s,b.vy/s,pel);b.pen=(b.pen||0)+1;
  if(!M.through||pel||b.pen>2||s<7){remove(b);return true}b.vx*=.6;b.vy*=.6;return false}
-function update(){tick++;if(tick%60===0)uUse();SND&&SND.near();SND&&SND.fireTick();for(const b of bodies)if(b.type==='token'&&b.status==='captured')b.ang=-Math.PI/2;// captives face up so their cuffs read
+function update(){tick++;for(const b of bodies)if(b.hf&&b.type==='token'&&b.status==='free'&&!b.direct&&!b.vseat&&!b.ord)turnTo(b,Math.atan2(mouse.y-b.y,mouse.x-b.x));if(tick%60===0)uUse();SND&&SND.near();SND&&SND.fireTick();for(const b of bodies)if(b.type==='token'&&b.status==='captured')b.ang=-Math.PI/2;// captives face up so their cuffs read
  for(const b of bodies)if(b.type==='token'&&(b.matA!==b.ang||b.matN!==lookOf(b)))tokMat(b);if(!aiOn)for(const b of bodies){if(b.ord){ensureRooms();ordTick(b)}else if(b.lookAt)lookTick(b)}if(tick%30===0)leaderTick();turnTick();try{aiTick();}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0){autoPick();keyTick()}for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;b.pull=8;if(heldBlocked(b,0,0)){b.raised=true;b.pull=0;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(!b.raised&&b.pull>0&&tick%3===0){b.pull--;if(heldBlocked(b,0,0))b.pull++}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=i.heat?Math.min(1,.35+(slot(b).heat||0)*.65):pr*pr}}
@@ -2565,8 +2565,8 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k>='1'&&k<='4'){for(const b of sel)if(b.type==='token'&&b.status==='free'&&b.inv)selectSlot(b,+k-1);return}
  if(k==='g'){if(vKeyG())return;for(const b of sel)if(b.type==='token'&&b.held)dropHeld(b);return}
  if(k==='t'){formUp();return}
- // H toggles the group between facing the cursor once and facing back the way they were
- if(k==='h'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat),back=ts.some(b=>b.hf);for(const b of ts){if(back){const a=b.formA??b.face0;if(a!=null)turnTo(b,a);b.hf=false}else{b.face0=b.ang;b.hf=true;turnTo(b,Math.atan2(mouse.y-b.y,mouse.x-b.x))}}if(ts.length)sfx('flick');return}
+ // H toggles the group following the cursor with their eyes; turning off leaves them facing where they last looked
+ if(k==='h'){if(e.repeat)return;const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat),on=!ts.some(b=>b.hf);for(const b of ts)b.hf=on;if(ts.length)sfx('flick');return}
  // F swaps the hand of armed units; on unarmed ones a tap turns them about, or held with an arrow faces them that way
  if(k==='f'){if(e.repeat)return;fHold={turned:false};const arm=[...sel].filter(b=>b.type==='token'&&b.held);for(const b of arm){b.side=-(b.side||1);b.hc=null}if(arm.length)sfx('flick');return}
  if(fHold&&FDIR[k]!==undefined){const ts=unarmedSel();for(const b of ts)turnTo(b,FDIR[k]);fHold.turned=true;if(ts.length)sfx('flick');e.preventDefault();return}
@@ -3640,7 +3640,7 @@ function vHints(){const t=sel.size===1&&[...sel][0],on=t&&t.type==='token'&&t.di
    if(gun)L.push(['Hold','fire'],['R','reload'],['Q','sheathe']);else if(thr)L.push(['Hold','throw'],...(LOBT[t.held.k]?[['Alt','lob']]:[]),['Q','sheathe']);else if(h)L.push(['Hold','attack'],['Q','sheathe']);else if(t.inv&&t.inv.some(Boolean))L.push(['Q','draw']);
    if(t.inv&&t.inv.some(Boolean))L.push(['1–4','weapons']);if(h&&!vNearSeat(t))L.push(['G','drop'])}
   L.push(['E','release '+t.name])}
- else if(!EM){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free');if(ts.length>1)L=[['Q',ts.some(b=>b.held)?'sheathe all':'draw all'],['T','form up'],['H',ts.some(b=>b.hf)?ts.some(b=>b.formA!=null)?'face formation':'face back':'face cursor'],['E','control all']]}
+ else if(!EM){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free');if(ts.length>1)L=[['Q',ts.some(b=>b.held)?'sheathe all':'draw all'],['T','form up'],['H',ts.some(b=>b.hf)?'stop following cursor':'follow cursor'],['E','control all']]}
  const k=L.map(x=>x.join(':')).join('|');if(k===VHK)return;VHK=k;
  if(!VHB){VHB=document.createElement('div');VHB.className='khint';stage.parentElement.appendChild(VHB)}
  VHB.innerHTML='';VHB.style.display=L.length?'':'none';for(const[a,b]of L){const i=document.createElement('span');const c=document.createElement('b');c.textContent=a;i.append(c,' '+b);VHB.append(i)}}
