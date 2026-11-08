@@ -3161,7 +3161,7 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
  {const vt=tilePix('metal.steel.louvre.w',0,0);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const i=(y*16+x)*4;Rf(XST+x,R0+IH-16+y,vtone(mat,rgb(vt[i],vt[i+1],vt[i+2])))}}
  v.base=base;v.roofL=roof;v.src=src;v.smap=smap}
 
-function carrier(mat,x,y,ang,nat,liv,cond){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',mat:DOORK[mat||'steel'][1],nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,offT:999,acc:0,alp:0,hov:new Set(),puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);vMkChest(v,VSUP());if(liv)vLivery(v,liv,.55+Math.random()*.45);if(cond)vCondition(v,cond,(x*7+y*13)|0);return v}
+function carrier(mat,x,y,ang,nat,cond){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',mat:DOORK[mat||'steel'][1],nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,offT:999,acc:0,alp:0,hov:new Set(),puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);vMkChest(v,VSUP());if(cond)vCondition(v,cond,(x*7+y*13)|0);return v}
 // its doors are the game's own doors, riding on the hull: rear double doors part to the sides, the cockpit door slides into the bulkhead
 const VIGN=21;
 const VDOORS=[[VC.L-9,VC.CY-16,Math.PI/2],[VC.L,VC.CY+15,-Math.PI/2],[VC.XP-1,VC.CY-8,Math.PI/2]];
@@ -3314,28 +3314,31 @@ function vHedges(v){const now=new Set(),R=80,cx0=Math.max(0,(v.x-R)>>4),cx1=Math
  for(const c of [...v.hov])if(!now.has(c))v.hov.delete(c)}
 
 // the roof plates wear with the hull beneath them (scars, temper, chipped armour), plus their own blast wear, soot and dents
-function vRW(v){if(!v.rw){const n=VC.LW*VC.H;v.rw=new Float32Array(n);v.rt=new Float32Array(n);v.rs=new Float32Array(n);v.rd=new Float32Array(n)}return v}
+function vRW(v){if(!v.rw){const n=VC.LW*VC.H;v.rw=new Float32Array(n);v.rt=new Float32Array(n);v.rs=new Float32Array(n);v.rd=new Float32Array(n);v.rr=new Float32Array(n)}return v}
 function vRoofC(v,i,lx,ly,c){const q=v.smap.get(K(lx,ly)),a=q&&(q[7]==='w'||q[7]==='g');if(a&&q.dead)return 0;
  c=vScarC(v,{2:c,8:lx,9:ly,wr:Math.max(v.rw?v.rw[i]:0,q&&q.wr||0),tm:Math.max(v.rt?v.rt[i]:0,q&&q.tm||0)});
- if(v.rs&&v.rs[i]>.01)c=mix(c,rgb(30,28,26),Math.min(.7,v.rs[i]));if(v.rd&&v.rd[i])c=mul(c,1+v.rd[i]);return a&&q[3]<q[6]?mul(c,.6+.4*q[3]/q[6]):c}
+ if(v.rs&&v.rs[i]>.01)c=mix(c,rgb(30,28,26),Math.min(.7,v.rs[i]));if(v.rd&&v.rd[i])c=mul(c,1+v.rd[i]);if(v.rr&&v.rr[i]>.01)c=mix(c,mul(rgb(146,78,44),.8+.4*hh(lx,ly,29)),v.rr[i]);return a&&q[3]<q[6]?mul(c,.6+.4*q[3]/q[6]):c}
 function vRoofAt(v,x,y,r,f){vRW(v);const[cx,cy]=vW2L(v,x,y);for(let ly=Math.max(0,Math.floor(cy-r));ly<=Math.min(VC.H-1,cy+r);ly++)for(let lx=Math.max(0,Math.floor(cx-r));lx<=Math.min(VC.LW-1,cx+r);lx++){const i=ly*VC.LW+lx;if(!v.roofL[i])continue;const d=Math.hypot(lx-cx,ly-cy)/r;if(d<1)f(i,d,lx,ly,lx-cx,ly-cy)}v.dirty=1}
 // a blast nearby: soot and wear on the plates in reach, a dent on the side nearest it
 function vBlastWear(x,y,s){for(const v of VEH){if(Math.hypot(v.x-x,v.y-y)>VC.L*.6+24*s)continue;vRoofAt(v,x,y,34*s,(i,d,lx,ly)=>{const n=.6+.7*hh(lx>>1,ly>>1,77+v.id),r=Math.random();v.rw[i]=Math.min(4.5,v.rw[i]+2.6*s*(1-d)*n);v.rs[i]=Math.min(.7,v.rs[i]+1.3*s*Math.pow(1-d,1.5)*n);v.rt[i]=Math.max(v.rt[i],.5*s*(1-d)*(1-d));if(r<.07*(1-d)){v.rw[i]=4.5;v.rd[i]-=.25}});
   const[cx,cy]=vW2L(v,x,y),px=Math.max(VC.X0,Math.min(VC.L-2,cx)),py=Math.max(VC.TR+2,Math.min(VC.H-VC.TR-3,cy));if(Math.hypot(px-cx,py-cy)<14*s){const[dx,dy]=vL2W(v,px,py);vRoofAt(v,dx,dy,6*s,(i,d,lx,ly,ox,oy)=>{v.rd[i]+=.2*((ox+oy)/(6*s))*(1-d)})}}}
 // weathering: patches of the plates age with distance driven
-function vWeather(v,k){vRW(v);for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx;if(!v.roofL[i])continue;const n=hh(lx>>3,ly>>3,51+v.id)*.6+hh(lx>>1,ly>>1,53)*.4;v.rw[i]=Math.min(4.5,v.rw[i]+k*Math.max(0,n-.35)*3)}v.dirty=1}
+function vWeather(v,k,th=.35){vRW(v);for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx;if(!v.roofL[i])continue;const n=hh(lx>>3,ly>>3,51+v.id)*.6+hh(lx>>1,ly>>1,53)*.4;v.rw[i]=Math.min(4.5,v.rw[i]+k*Math.max(0,n-th)*3)}v.dirty=1}
+// rust taking a neglected hull: soft blooms from smooth noise, thicker where water sits along the seams and rim
+function vRust(v,seed){vRW(v);const sm=(x,y,s,k)=>{const fx=x/s,fy=y/s,ix=Math.floor(fx),iy=Math.floor(fy),u=fx-ix,w=fy-iy,a=hh(ix,iy,k),b=hh(ix+1,iy,k),c=hh(ix,iy+1,k),e=hh(ix+1,iy+1,k);return(a+(b-a)*u)*(1-w)+(c+(e-c)*u)*w};
+ for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx;if(!v.roofL[i])continue;const n=sm(lx,ly,9,seed)*.65+sm(lx,ly,3,seed+1)*.35,e=Math.min(lx-VC.X0,VC.X0+VC.IL-lx,ly-VC.R0,VC.R0+VC.IH-ly);v.rr[i]=Math.min(.7,Math.max(0,n-.42)*2.2+(e<3?.25:0)*hh(lx,ly,seed+2))}v.dirty=1}
 // exhaust soot settles behind the roof vent the longer the engine runs
 function vVentSoot(v,k){const[x,y]=vL2W(v,VC.XST+8,VC.RC[2]);vRoofAt(v,x,y,70,(i,d,lx,ly,ox,oy)=>{if(ox<2)return;const w=3+ox*.06;if(Math.abs(oy)>w)return;v.rs[i]=Math.min(.6,v.rs[i]+k*(1-ox/70)*(1-Math.abs(oy)/(w+1))*(.5+.7*hh(lx>>2,ly,91)))})}
 // condition at spawn, played out through the same scars, hits, blasts and soot a carrier collects in use; seeded so it reloads the same
-const VCOND={new:0,service:1,veteran:2,battleworn:3};
+const VCOND={new:0,service:1,veteran:2,battleworn:3,derelict:4};
 function vCondition(v,tier,seed){const lv=VCOND[tier]||0;v.cond=[tier,seed];if(!lv)return;let z=seed*9301+49297;const rnd=()=>(z=(z*9301+49297)%233280)/233280;
  const W2=(lx,ly)=>{const[x,y]=vL2W(v,lx+.5,ly+.5);return[Math.floor(x),Math.floor(y)]},sideY=top=>top?VC.TR:VC.H-VC.TR-1,HP=mprop('Metal',v.metal).hp;
- vWeather(v,[0,1.6,2.6,3.5][lv]);vVentSoot(v,[0,.12,.3,.55][lv]);
- for(let i=0;i<[0,4,10,14][lv];i++){const top=rnd()<.5,[X,Y]=W2(VC.X0+rnd()*VC.IL,sideY(top));vScar(v,X,Y,.6+rnd()*lv*.5)}
+ vWeather(v,[0,1.6,2.6,3.5,6][lv],lv>3?.05:.35);if(lv>3)vRust(v,seed);vVentSoot(v,[0,.12,.3,.55,.7][lv]);
+ for(let i=0;i<[0,4,10,14,24][lv];i++){const top=rnd()<.5,[X,Y]=W2(VC.X0+rnd()*VC.IL,sideY(top));vScar(v,X,Y,.6+rnd()*lv*.5)}
  // blasts: beside the hull for a veteran, one on the roof for the battleworn
- for(let i=0;i<[0,0,2,2][lv];i++){const top=rnd()<.5,on=lv>2&&i===0,[x,y]=vL2W(v,VC.X0+10+rnd()*(VC.IL-20),on?VC.R0+6+rnd()*(VC.IH-12):top?-1-rnd()*3:VC.H+1+rnd()*3),s=lv>2?.8:.7;vBlastWear(x,y,s);vHeatMark(x,y,15*s,.45*s)}
+ for(let i=0;i<[0,0,2,2,4][lv];i++){const top=rnd()<.5,on=lv>2&&i===0,[x,y]=vL2W(v,VC.X0+10+rnd()*(VC.IL-20),on?VC.R0+6+rnd()*(VC.IH-12):top?-1-rnd()*3:VC.H+1+rnd()*3),s=lv>2?.8:.7;vBlastWear(x,y,s);vHeatMark(x,y,15*s,.45*s)}
  // bursts of fire chip the side armour: real hits, so it is weaker where they landed
- if(lv>=2){for(let b=0;b<(lv>2?3:1);b++){const top=rnd()<.5,cx=VC.X0+8+rnd()*(VC.IL-16),n=lv>2?4+Math.floor(rnd()*5):2;
+ if(lv>=2){for(let b=0;b<[0,0,1,3,5][lv];b++){const top=rnd()<.5,cx=VC.X0+8+rnd()*(VC.IL-16),n=lv>2?4+Math.floor(rnd()*5):2;
   for(let i=0;i<n;i++){const lx=Math.round(cx+(rnd()-.5)*18),deep=lv>2&&rnd()<.6?2:1,pw=HP*(lv>2?1.1:.5);for(let d=0;d<deep;d++)for(let w=-1;w<=1;w++){const[X,Y]=W2(lx+w,top?VC.TR+d:VC.H-VC.TR-1-d);hitPix(v,X,Y,pw*(w?.7:1)*(1-d*.3))}const[X,Y]=W2(lx,sideY(top));vScar(v,X,Y,1.4+rnd(),rnd()*.35)}}vSettle(v)}
  v.dirty=1}
 
@@ -3350,31 +3353,8 @@ function vChestPx(mat){const tx=TEX[VCHEST[mat]||'schest'],P=new Uint32Array(256
 // the chest under the cursor, when the hull's inside is in view
 function vChestAt(X,Y){for(const v of VEH){if(!v.chest||vRoof(v))continue;const[lx,ly]=vW2L(v,X+.5,Y+.5);if(lx<VC.XST||lx>=VC.XST+16||ly<VC.R0||ly>=VC.R0+16)continue;const q=v.smap.get(K(lx|0,ly|0)),c=byId(v.chest);if(q&&!q.dead&&c)return c}return null}
 
-// liveries: soft paint laid into the roof metal, keeping its grain, worn by cond (1 fresh); a stencil font for hull numbers
+// a stencil font for painted numbers
 const VFONT={0:'111101101101111',1:'010110010010111',2:'111001111100111',3:'111001111001111',4:'101101111001001',5:'111100111001111',6:'111100111101111',7:'111001010010010',8:'111101111101111',9:'111101111001111',Z:'111001010100111',S:'111100111001111',F:'111100110100100',C:'111100100100111',R:'110101110101101'};
-const VLIV={'Z28':[{t:'text',s:'Z28',c:[236,232,220]}],
- 'F12':[{t:'bands',c:[214,120,58]},{t:'text',s:'F12',c:[240,236,226]}],
- 'F07':[{t:'bands',c:[214,120,58],wear:.35},{t:'text',s:'F07',c:[240,236,226],a:.45}],
- 'C01':[{t:'stripe',c:[150,52,52],h:8,edge:[200,170,96]},{t:'text',s:'C01',c:[236,232,220]}],
- 'R19':[{t:'bands',c:[196,72,64],a:.45},{t:'stripe',c:[236,232,224],h:4,a:.5},{t:'text',s:'R19',c:[196,72,64],x:62,a:.6}],
- 'Z03':[{t:'quarter',c:[146,56,54],edge:[204,176,104]},{t:'text',s:'Z03',c:[236,226,206]}],
- 'C04':[{t:'ribbons',x:48,cs:[[[160,64,60],[206,176,100],[92,108,150]],[[206,176,100],[160,64,60]]]},{t:'text',s:'C04',c:[236,232,220]}],
- 'C05':[{t:'quarter',c:[146,56,54],edge:[204,176,104]},{t:'text',s:'C05',c:[236,226,206]},{t:'ribbons',x:50,cs:[[[206,176,100],[92,108,150]]]}],
- 'F21':[{t:'bands',c:[214,120,58],wear:.2},{t:'text',s:'F21',c:[240,236,226]},{t:'patch',x0:42,x1:80,c:[118,124,132],a:.8}],
- 'S04':[{t:'fill',c:[226,150,132]},{t:'stripe',c:[244,240,234],h:8,a:.6},{t:'text',s:'S04',c:[170,88,84],x:100,a:.6}]};
-function vLivery(v,id,cond=1){const L=VLIV[id];if(!L)return;v.liv=[id,cond];const{X0,R0,IL,IH,LW}=VC,Rf=v.roofL,mid=R0+IH/2,rear=X0+IL-18,wr=(1-cond)*.45,fade=.7+.3*cond,
-  bare=(x,y)=>x>=VC.XST-1&&x<=VC.XST+16&&y>=R0+IH-17||[VC.RC[0],VC.RC[2]].some(hy=>Math.hypot(x-X0-8,y-hy)<4.2),
-  set=(x,y,p,a,w=0,k=1)=>{const i=y*LW+x,c=Rf[i];if(!c||bare(x,y)||hh(x>>1,y>>1,61)<Math.max(w,wr*k))return;Rf[i]=mix(c&0xffffff,p,a*fade*(.85+.3*hh(x,y,57)))|0xff000000},
-  band=(y0,y1,p,a,w)=>{for(let y=y0;y<y1;y++)for(let x=X0;x<X0+IL;x++)set(x,y,p,a,w)},band2=(x0,x1,p,a)=>{for(let y=R0;y<R0+IH;y++)for(let x=x0;x<x1;x++)set(x,y,p,a)};
- for(const d of L){const c=d.c?rgb(...d.c):0;
-  if(d.t==='text'){const k=2,w=d.s.length*4*k-k,x0=Math.round((d.x??rear)-w/2),y0=Math.round(mid-5*k/2);[...d.s].forEach((ch,n)=>{const g=VFONT[ch];for(let r=0;r<5;r++)for(let q=0;q<3;q++)if(g[r*3+q]==='1')for(let j=0;j<k;j++)for(let i=0;i<k;i++){const x=x0+n*4*k+q*k+i,y=y0+r*k+j;if((i+j)%3===2&&hh(x,y,33)>.7)continue;set(x,y,c,d.a||.55,0,.35)}})}
-  else if(d.t==='bands'){const h=Math.round(IH*.25);band(R0,R0+h,c,d.a||.5,d.wear);band(R0+IH-h,R0+IH,c,d.a||.5,d.wear)}
-  else if(d.t==='stripe'){const h=d.h,y0=Math.round(mid-h/2),y1=Math.round(mid+h/2);band(y0,y1,c,d.a||.45);if(d.edge){const e=rgb(...d.edge);band(y0-1,y0,e,.4);band(y1,y1+1,e,.4)}}
-  else if(d.t==='fill')band(R0,R0+IH,c,d.a||.5);
-  else if(d.t==='quarter'){const x1=X0+26;band2(X0,x1,c,.45);if(d.edge){const e=rgb(...d.edge);for(let y=R0;y<R0+IH;y++){set(x1,y,e,.45);set(x1+2,y,e,.3)}}}
-  else if(d.t==='patch')for(let y=R0;y<R0+IH;y++)for(let x=d.x0;x<d.x1;x++){const i=y*LW+x,o=Rf[i];if(o&&!bare(x,y))Rf[i]=mix(o&0xffffff,c,.8*(.92+.16*hh(x>>2,y>>2,3)))|0xff000000}
-  else if(d.t==='ribbons')d.cs.forEach((row,k)=>row.forEach((rc,i)=>{for(let y=0;y<4;y++)for(let x=0;x<10;x++)set(d.x+i*11+x,R0+5+k*5+y,rgb(...rc),.55)}))}
- v.dirty=1}
 
 // boarding and leaving: units walk set waypoints through the rear doors to a seat, or out behind the carrier
 function vFree(v,role){const res=new Set(bodies.filter(t=>t.vwalk&&t.vwalk.v===v).map(t=>t.vwalk.i));for(let i=0;i<VSEATS.length;i++)if(!v.seats[i]&&!res.has(i)&&(role?VSEATS[i][3]===role:VSEATS[i][3]==='p'))return i;return -1}
@@ -3511,9 +3491,9 @@ NBM.yard=()=>{UND=Array.from({length:28},()=>Array(44).fill('grass'));paintAll((
  if(cx>=37&&cx<=38&&(cy>=4&&cy<=7||cy>=20&&cy<=23))return'stone.grey.block.w';
  if(cx===27&&cy>=10&&cy<=17||cx===32&&(cy>=3&&cy<=8||cy>=19&&cy<=24)||cy===24&&cx>=5&&cx<=14)return'hedge';
  if(cy>=12&&cy<=15)return'dirt';return'grass'})};
-NUM.yard=()=>{const v=carrier('steel',15*T,14*T,0,'Imperium','R19');const g=[U('Legate Varro','Imperium','civ',0,0,0,'pistol','Officer'),U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer')];vSeatNow(v,g[0],0);vSeatNow(v,g[1],1);
+NUM.yard=()=>{const v=carrier('steel',15*T,14*T,0,'Imperium');const g=[U('Legate Varro','Imperium','civ',0,0,0,'pistol','Officer'),U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer')];vSeatNow(v,g[0],0);vSeatNow(v,g[1],1);
  ['Brask','Coll','Dunn','Ivo','Hale','Marl'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<2?'guard':'rifle',0,0,0),2+i));
- carrier('iron',15*T,6*T,0,'Imperium','F12');
+ carrier('iron',15*T,6*T,0,'Imperium');
  U('Ser Davin','Imperium','civ',27.5,6,Math.PI,'pistol','Officer');['Orrin','Pell','Wat','Ned'].forEach((n,i)=>U(n,'Imperium',i<1?'guard':'rifle',25.5+(i%2)*1.6,3.6+(i>>1)*1.6,Math.PI,i<1?'rod':undefined));
  for(const t of bodies)if(t.type==='token')t.auto=false};
 // the circuit: a rounded loop of road for driving corners, hedge chicanes and stone blocks inside, an inspection stand of officers and
@@ -3556,8 +3536,7 @@ function circuitPaint(){const L=rgb(232,226,206),O=rgb(206,176,100),Cr=rgb(150,6
  for(let i=0;i<7;i++){const cx=(17.5+i*2.2)*t,cy=39.2*t;for(let y=cy-6;y<=cy+6;y++)for(let x=cx-6;x<=cx+6;x++){const q=Math.hypot(x-cx,y-cy);if(q>=4.5&&q<=5.8)gPaint(x,y,O,.5)}}
  for(let i=0;i<4;i++){const cx=(18.5+i*4)*t,cy=43.5*t;for(let y=cy-7;y<=cy+7;y++)for(let x=cx-7;x<=cx+7;x++)if(Math.max(Math.abs(x-cx),Math.abs(y-cy))===7)gPaint(x,y,L,.5)}}
 NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;circuitPaint();
- carrier('iron',41*T,39*T,P,'Imperium','F07','battleworn');carrier('steel',47*T,39*T,P,'Imperium','Z03','new');const v=carrier('steel',53*T,39*T,P,'Imperium','C05','veteran');
- carrier('iron',3.5*T,41*T,P,'Imperium','F21','veteran');carrier('steel',8*T,41*T,P,'Imperium','S04','service');carrier('steel',12.5*T,41*T,P,'Imperium','C04','veteran');
+ carrier('iron',41*T,39*T,P,'Imperium','battleworn');carrier('iron',47*T,39*T,P,'Imperium','derelict');const v=carrier('steel',53*T,39*T,P,'Imperium','new');
  vSeatNow(v,U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer'),1);['Brask','Coll','Dunn','Ivo','Hale','Marl','Rook','Tobin'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<3?'guard':'rifle',0,0,0),2+i));
  U('Legate Varro','Imperium','civ',56.6,44,A,'pistol','Officer');
  // the parade across the road from the stand, two ranks per squad: two fresh squads, a veteran squad, then worn ones
