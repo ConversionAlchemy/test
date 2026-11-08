@@ -141,7 +141,7 @@ function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==
 function vRoofed(x,y){for(const v of VEH){if(Math.abs(x-v.x)>VC.L*.6||Math.abs(y-v.y)>VC.L*.6||!vRoof(v))continue;const[lx,ly]=vW2L(v,x,y);if(lx>=0&&ly>=VC.TR&&lx<VC.L&&ly<VC.H-VC.TR)return true}return false}
 function vRoof(v){for(const t of sel)if(t.type==='token'&&vHas(v,t))return!!v.ext;return!vPeek(v)}
 // hovering a carrier with people aboard lifts its roof, in Command or when they are the player's side, so they can be picked out
-function vPeek(v){if(v.pkT===tick)return v.pk;v.pkT=tick;v.pk=false;const[lx,ly]=vW2L(v,mouse.x,mouse.y);if(lx<0||ly<0||lx>=VC.L||ly>=VC.H)return false;
+function vPeek(v){if(v.pkT===tick)return v.pk;v.pkT=tick;v.pk=false;if(LOBK)return false;const[lx,ly]=vW2L(v,mouse.x,mouse.y);if(lx<0||ly<0||lx>=VC.L||ly>=VC.H)return false;
  const crew=bodies.filter(t=>t.type==='token'&&t.status!=='dead'&&vHas(v,t));if(!crew.length)return false;let cmd=false;try{cmd=UI.tool==='hand'}catch(e){}
  const me=fogTeam();return v.pk=cmd||!!me&&crew.some(t=>teamOf(t)===me)}
 // V from a seat: switch between seeing the interior and the roof
@@ -372,7 +372,7 @@ function vHints(){const t=sel.size===1&&[...sel][0],on=t&&t.type==='token'&&t.di
   if(s&&s[1]===0)L=[['W S','drive'],['A D','turn'],['Shift','brake'],['X',s[0].bell?'alarm off':'alarm on'],['V','view'],['G','ignition off']];
   else if(s)L=[['V','view'],['G','get up']];
   else{L=[['WASD','move'],['Shift','dash'],['C','crouch']];{const n=vNearSeat(t);if(n)L.push(['G',n[1]===0?'ignition on':'sit'])}
-   if(gun)L.push(['Hold','fire'],['R','reload'],['Q','sheathe']);else if(thr)L.push(['Hold','throw'],['Q','sheathe']);else if(h)L.push(['Hold','attack'],['Q','sheathe']);else if(t.inv&&t.inv.some(Boolean))L.push(['Q','draw']);
+   if(gun)L.push(['Hold','fire'],['R','reload'],['Q','sheathe']);else if(thr)L.push(['Hold','throw'],...(LOBT[t.held.k]?[['Alt','lob']]:[]),['Q','sheathe']);else if(h)L.push(['Hold','attack'],['Q','sheathe']);else if(t.inv&&t.inv.some(Boolean))L.push(['Q','draw']);
    if(t.inv&&t.inv.some(Boolean))L.push(['1–4','weapons']);if(h&&!vNearSeat(t))L.push(['G','drop'])}
   L.push(['E','release '+t.name])}
  else if(!EM){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free');if(ts.length>1)L=[['Q',ts.some(b=>b.held)?'sheathe all':'draw all'],['T','form up'],['H',ts.some(b=>b.hf)?ts.some(b=>b.formA!=null)?'face formation':'face back':'face cursor'],['E','control all']]}

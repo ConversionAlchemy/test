@@ -221,6 +221,12 @@ function lookGive(g,x,y,same){if(!g.length)return;const mx=g.reduce((s,b)=>s+b.x
  for(const b of g){const X=same?b.x+Math.cos(a)*120:x,Y=same?b.y+Math.sin(a)*120:y;b.lookAt={x:X,y:Y,t:tick+240};ORDL.push({x0:b.x,y0:b.y,x1:b.x+(X-b.x)*Math.min(1,40/(Math.hypot(X-b.x,Y-b.y)||1)),y1:b.y+(Y-b.y)*Math.min(1,40/(Math.hypot(X-b.x,Y-b.y)||1)),t:tick,ok:true,look:true})}sfx('flick')}
 // a look order holds until a new order or an enemy; autonomous units return to their own business after 4 s
 function lookTick(b){const L=b.lookAt;if(!L||b.ord||b.direct)return false;if(b.ai&&tick>L.t){b.lookAt=null;return false}turnTo(b,Math.atan2(L.y-b.y,L.x-b.x));return true}
+// the lob: with Alt held, a straight line from each thrower to where the throw will land, 50% white fading to grey; shadows under
+// lobs in flight
+function lobDraw(){const px=(X,Y,c,a)=>{if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=mix(out[Y*W+X],c,a)};
+ for(const b of bodies)if(b.lob&&b.z>.5){const X=Math.round(b.x),Y=Math.round(b.y);for(const[i,j]of[[0,0],[-1,0],[1,0],[0,1],[-1,1],[1,1]])px(X+i,Y+j+2,rgb(0,0,0),.3)}
+ if(!LOBK)return;for(const b of armed()){const inf=srcInfo(b);if(!inf||!inf.throw||!b.held||!LOBT[b.held.k])continue;const[tx,ty]=lobAim(b,mouse.x,mouse.y,inf),L=Math.hypot(tx-b.x,ty-b.y)||1;
+  for(let i=6;i<=L;i++){const u=i/L,g=Math.round(255-127*u);px(Math.round(b.x+(tx-b.x)*u),Math.round(b.y+(ty-b.y)*u),rgb(g,g,g),.5)}}}
 function ordDraw(){ORDL=ORDL.filter(l=>tick-l.t<90);for(const l of ORDL){const k=1-(tick-l.t)/90,c=l.look?rgb(150,200,240):l.ok?rgb(242,239,230):rgb(224,83,63),L=Math.hypot(l.x1-l.x0,l.y1-l.y0)||1;for(let i=0;i<=L;i++){const X=Math.round(l.x0+(l.x1-l.x0)*i/L),Y=Math.round(l.y0+(l.y1-l.y0)*i/L);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=mix(out[Y*W+X],c,.35*k)}}}
 function ensureRooms(){if(!ROOMS||ROOMS.R.length!==CW*CH||(NAVD||ROOMS.nv!==NAVV)&&tick-ROOMS.t>=15||tick-ROOMS.t>300)aiRooms()}
 function ordTick(b){if(!b.ord||b.vseat||b.vwalk)return;{const o=b.oa||(b.oa={}),d=Math.hypot(b.ord.x-b.x,b.ord.y-b.y);if(o.best===undefined||d<o.best-3){o.best=d;o.bt=tick}else if(tick-o.bt>75){b.ord=null;return}}if(b.status!=='free'||!b.oa||(b.oa.stk||0)>45||Math.hypot(b.ord.x-b.x,b.ord.y-b.y)<10||bodies.some(o=>o!==b&&o.type==='token'&&o.status!=='dead'&&Math.hypot(o.x-b.ord.x,o.y-b.ord.y)<12&&Math.hypot(b.ord.x-b.x,b.ord.y-b.y)<30)){b.ord=null;return}if(aiGo(b,b.ord.x,b.ord.y,b.oa))b.ord=null}

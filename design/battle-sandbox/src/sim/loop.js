@@ -106,7 +106,8 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k==='h'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat),back=ts.some(b=>b.hf);for(const b of ts){if(back){const a=b.formA??b.face0;if(a!=null)turnTo(b,a);b.hf=false}else{b.face0=b.ang;b.hf=true;turnTo(b,Math.atan2(mouse.y-b.y,mouse.x-b.x))}}if(ts.length)sfx('flick');return}
  if(k==='f'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}
  if(k==='delete'||k==='backspace'){for(const b of [...sel])remove(b);e.preventDefault()}});
-window.addEventListener('keyup',e=>{if(e.key==='Shift')VBRK=false;if(e.key.toLowerCase()==='c')for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}if(e.key===' ')panKey=false;keys.delete(e.key.toLowerCase())});
+window.addEventListener('keydown',e=>{if(e.key==='Alt'){LOBK=true;e.preventDefault()}});addEventListener('blur',()=>{LOBK=false});
+addEventListener('keyup',e=>{if(e.key==='Alt')LOBK=false;if(e.key==='Shift')VBRK=false;if(e.key.toLowerCase()==='c')for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}if(e.key===' ')panKey=false;keys.delete(e.key.toLowerCase())});
 window.addEventListener('blur',()=>{keys.clear();VBRK=false;panKey=false;for(const b of bodies)if(b.pc){b.crouch=false;b.pc=false}});
 
 // menu
