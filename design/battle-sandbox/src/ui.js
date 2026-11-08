@@ -415,12 +415,12 @@ function padSlots(c,g){const n=c.table?c.cells.length:Math.max(4,(c.cells?c.cell
 window.addEventListener('pointermove',()=>{if(hoverC||!mouse.in||drag)return;const X=mouse.x|0,Y=mouse.y|0,k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(k&&(PCK.has(k)||isTbl(k))&&!bodyAt(X,Y,1))hoverC=boxAt(X,Y)});
 VIEW.addEventListener('contextmenu',e=>{if(EM||!inBoard(e))return;const[x,y]=toBoard(e),X=x|0,Y=y|0;if(bodyAt(X,Y,3))return;const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];if(!k||!PCK.has(k)&&!isTbl(k))return;const c=boxAt(X,Y);if(!c)return;e.preventDefault();e.stopPropagation();openMenu(c,e)},true);
 // right-click a Solari stack (on a table, the floor or a panel slot) to lift half of it; right- or left-click a unit, table or the floor to set it down; Esc puts it back
-let SCAR=null;const SCEL=mk('div','carry');SCEL.style.cssText='position:fixed;pointer-events:none;z-index:999;display:none;align-items:flex-end;gap:2px;font:12px monospace;color:#f4e6b0;text-shadow:0 1px 2px #000';document.body.append(SCEL);
-function carryShow(){if(!SCAR||SCAR.n<=0){SCAR=null;SCEL.style.display='none';return}SCEL.innerHTML='';const ar=mk('i','cin','▼');ar.style.cssText='font-style:normal;font-size:11px;color:#f4e6b0;align-self:flex-start;visibility:hidden';SCEL.append(ar,hic('gold',SCAR.n),mk('b',null,String(SCAR.n)));SCEL.style.display='flex';lastHud='';hbK='';stK=''}
-// a down arrow over the carried solari when it would go into the unit, chest or crate under it
-const carryInto=(X,Y,look)=>{const t=bodyAt(X,Y,4,null,b=>b.type==='token'&&b.status!=='dead')||bodyAt(X,Y,3,null,b=>b.kind==='crate'&&!b.hidden);if(t||X<0||Y<0||X>=W||Y>=H)return t;const c=containerAt(X,Y);if(c||!OBJ[Y*W+X])return c;
- if(!look)return boxAt(X,Y);const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];return k&&(PCK.has(k)||isTbl(k))?{inv:1}:null};
-window.addEventListener('pointermove',e=>{if(!SCAR)return;SCEL.style.left=e.clientX+8+'px';SCEL.style.top=e.clientY+4+'px';let o=null;if(HCX.contains(e.target))o=openCrate||[...sel].find(b=>b.type==='token')||hoverC;else if(inBoard(e)){const[x,y]=toBoard(e);o=carryInto(x|0,y|0,true)}const a=SCEL.querySelector('.cin');if(a)a.style.visibility=o&&o.inv?'visible':'hidden'});
+var SCAR=null;const SCEL=mk('div','carry');SCEL.style.cssText='position:fixed;pointer-events:none;z-index:999;display:none;align-items:flex-end;gap:2px;font:12px monospace;color:#f4e6b0;text-shadow:0 1px 2px #000';document.body.append(SCEL);
+function carryShow(){if(!SCAR||SCAR.n<=0){SCAR=null;SCEL.style.display='none';return}SCEL.innerHTML='';SCEL.append(hic('gold',SCAR.n),mk('b',null,String(SCAR.n)));SCEL.style.display='flex';lastHud='';hbK='';stK=''}
+// where carried solari would go: the unit, crate, chest or table under it (look: test only, never makes a container)
+function carryInto(X,Y,look){const t=bodyAt(X,Y,4,null,b=>b.type==='token'&&b.status!=='dead')||bodyAt(X,Y,3,null,b=>b.kind==='crate'&&!b.hidden);if(t||X<0||Y<0||X>=W||Y>=H)return t;const c=containerAt(X,Y);if(c||!OBJ[Y*W+X])return c;
+ if(!look)return boxAt(X,Y);const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];return k&&(PCK.has(k)||isTbl(k))?{inv:1}:null}
+window.addEventListener('pointermove',e=>{if(!SCAR)return;SCEL.style.left=e.clientX+8+'px';SCEL.style.top=e.clientY+4+'px';});
 const lift=(n,from)=>{const t=Math.floor(n/2);if(t<1){NOPE();return 0}SCAR={n:t,from};carryShow();storeSnd('gold');return t};
 function splitAt(X,Y){const p=bodies.find(b=>b.type==='weapon'&&b.kind==='gold'&&Math.abs(b.x-X)<=7&&Math.abs(b.y-Y)<=7);if(p){const t=lift(p.amt,{x:p.x,y:p.y});if(t){p.amt-=t;if(p.amt<=0)remove(p)}return true}
  const c=containerAt(X,Y);if(c&&c.table){const i=tCell(c,X,Y),q=c.inv[i];if(q&&q.k==='gold'){const t=lift(q.n,{c,i});if(t){q.n-=t;if(q.n<=0)c.inv[i]=null}return true}}return false}

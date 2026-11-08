@@ -1182,7 +1182,7 @@ function render(){VIEWR=VWH&&S?[Math.max(0,Math.floor(-cam.x/S)),Math.max(0,Math
   for(let x=x0;x<=x1;x++)if(x%2===0){if(y0>=0&&y0<H)out[y0*W+x]=c;if(y1>=0&&y1<H)out[y1*W+x]=c}for(let y=y0;y<=y1;y++)if(y%2===0){if(x0>=0&&x0<W)out[y*W+x0]=c;if(x1>=0&&x1<W)out[y*W+x1]=c}}
  if(cellDrag&&moveSel){const k=(mouse.y/T|0)*CW+(mouse.x/T|0);if(moveSel.cells.has(k)){const cx=k%CW,cy=k/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++)if(x===1||y===1||x===T-2||y===T-2)out[(cy*T+y)*W+cx*T+x]=rgb(242,239,230)}}
  ordDraw();exitFade();
- {const ch=!panKey&&!pan&&mouse.in&&!drag&&armed().length>0;if(ch)crosshair();const into=drag&&drag.b.type==='weapon'&&(bodyAt(Math.round(mouse.x),Math.round(mouse.y),2,drag.b,o=>o.type==='token'&&o.status!=='dead')||PICK.has(drag.b.kind)&&!drag.b.fuse&&canStore(dropBox(),drag.b.kind))||SDR&&sdrOk();const cc=pan||drag||SDR?CUR[into?'in':'carry']:panKey?CUR.grab:ch?'none':hover||hoverC?CUR.grab:CUR.arrow;if(cv.style.cursor!==cc)cv.style.cursor=cc;}
+ {const ch=!panKey&&!pan&&mouse.in&&!drag&&armed().length>0;if(ch)crosshair();const into=drag&&drag.b.type==='weapon'&&(bodyAt(Math.round(mouse.x),Math.round(mouse.y),2,drag.b,o=>o.type==='token'&&o.status!=='dead')||PICK.has(drag.b.kind)&&!drag.b.fuse&&canStore(dropBox(),drag.b.kind))||SDR&&sdrOk()||SCAR&&!!carryInto(Math.round(mouse.x),Math.round(mouse.y),true);const cc=pan||drag||SDR||SCAR?CUR[into?'in':'carry']:panKey?CUR.grab:ch?'none':hover||hoverC?CUR.grab:CUR.arrow;if(cv.style.cursor!==cc)cv.style.cursor=cc;}
  if(VIEWR&&VIEWR[2]>VIEWR[0]&&VIEWR[3]>VIEWR[1])ctx.putImageData(img,0,0,VIEWR[0],VIEWR[1],VIEWR[2]-VIEWR[0],VIEWR[3]-VIEWR[1]);else ctx.putImageData(img,0,0);
  for(const e of document.querySelectorAll('#sm .xlab')){const x=(EXITS[curMap]||[])[+e.dataset.i];if(x){e.style.left=x.lx*S+'px';e.style.top=x.ly*S+'px'}}
  for(const b of bodies){if(b.mv>0)b.mv--;if(b.lab){b.lab.style.left=(Math.round(b.x)+.5)*S+'px';b.lab.style.top=(Math.round(b.y)+10)*S+'px';b.lab.style.color=natLabel(b);b.lab.style.zIndex=b.status==='dead'?0:1;{const vc=VIS[(Math.round(b.y)>>1)*BW+(Math.round(b.x)>>1)],hid=fogOn()&&(teamOf(b)!==aiMe&&(b.fogH||!vc)||b.status==='dead'&&!vc);b.lab.style.display=hid?'none':''}dbar(b,S);sayTick(b,S);{let c=b.lab.querySelector('.ld');if(b.leader&&b.status!=='dead'){if(!c){c=document.createElement('span');c.className='ld';c.innerHTML=CROWNI;b.lab.prepend(c)}}else if(c)c.remove()}}}
@@ -1639,18 +1639,28 @@ function shareTick(){for(const b of bodies){if(b.type!=='token'||b.status!=='fre
 function surrender(b){say(b,'I yield',true);if(b.held)dropHeld(b);b.status='captured';b.neutral=true;b.ai=null;b.crouch=false;b.ord=null;b.hc=null;sfx('flick');if(b.lab)b.lab.title='surrendered'}
 function canSeeUp(b,o){const c=b.crouch;b.crouch=false;const r=canSee(b,o);b.crouch=c;return r}
 // your side's view when AI is on: live where your units look, a fading picture elsewhere (5 s to black)
-let VS=new Uint8Array(1),VSF=new Float32Array(1),fSel=false,VIS=new Uint8Array(1),SEEN=new Float32Array(1),SNAP=new Uint32Array(1),VF=new Float32Array(1),VT=new Float32Array(1);
+let SVC={k:'',d:new Float32Array(0),ids:new Set()},SVB=null,VS=new Uint8Array(1),VSF=new Float32Array(1),fSel=false,VIS=new Uint8Array(1),SEEN=new Float32Array(1),SNAP=new Uint32Array(1),VF=new Float32Array(1),VT=new Float32Array(1);
 // fog only while you're driving a unit yourself (E), paused or not; commanding from above sees everything
 let FOGS='';const fogTeam=()=>{if(aiMe)return aiMe;const d=bodies.find(b=>b.direct&&b.type==='token'&&b.status!=='dead');return d?teamOf(d):null},fogOn=()=>dirOn()&&!EM&&!!fogTeam();
 let DIRT=-1,DIRV=false;const dirOn=()=>{if(DIRT!==tick){DIRT=tick;DIRV=bodies.some(b=>b.direct&&b.type==='token'&&b.status!=='dead')}return DIRV};
-function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Array(NB).fill(-1e9)}if(SNAP.length!==W*H)SNAP=new Uint32Array(W*H);VIS.fill(0);
+function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB);SEEN=new Float32Array(NB).fill(-1e9)}if(SNAP.length!==W*H)SNAP=new Uint32Array(W*H);
  const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===FT&&b.status!=='dead');
- if(VS.length!==NB){VS=new Uint8Array(NB);VSF=new Float32Array(NB)}VS.fill(0);fSel=me.some(b=>sel.has(b));
- if(VD.length!==NB)VD=new Float32Array(NB);VD.fill(0);for(const b of me){const sb=sel.has(b);sight360(b,(q,v)=>{VIS[q]=1;if(v>VD[q])VD[q]=v;if(sb)VS[q]=1})}
+ if(VS.length!==NB){VS=new Uint8Array(NB);VSF=new Float32Array(NB)}fSel=me.some(b=>sel.has(b));
+ if(VD.length!==NB)VD=new Float32Array(NB);
+ // units standing still keep their sight in a cache; selected and moving units cast rays every frame. A changed cache is rebuilt a few units a frame, the old one standing in meanwhile
+ const env=solT+'|'+bodies.reduce((h,o)=>o.type==='slab'?h+o.x*7+o.y*13+(o.ang||0)*101|0:h,0)+'|'+VEH.map(v=>v.x+','+v.y+','+v.ang).join(';'),sk=b=>(b.x|0)+','+(b.y|0)+','+!!b.crouch+','+(b.vseat?b.vseat.id:0);
+ for(const b of me){const k=sk(b);if(k!==b._sk){b._mvT=b._sk===undefined?-99:tick;b._sk=k}}
+ const isLive=b=>{const l=sel.has(b)||b.direct||tick-(b._mvT||0)<20;if(l)b._lvT=tick;return l},still=me.filter(b=>!isLive(b)),ck=FT+'|'+env+'|'+still.map(b=>b.id+':'+b._sk).join(';');
+ if(SVC.d.length!==NB)SVC={k:'',d:new Float32Array(NB),i:new Uint8Array(NB),ids:new Set()};
+ if(SVC.k!==ck&&!SVB)SVB={k:ck,d:new Float32Array(NB),i:new Uint8Array(NB),ids:new Set(still.map(b=>b._sk+'#'+b.id)),q:still.slice()};
+ if(SVB){const t0=performance.now();while(SVB.q.length&&performance.now()-t0<(SVC.k?6:12)){const b=SVB.q.pop();if(bodies.includes(b))sight360(b,(q,v)=>{SVB.i[q]=1;if(v>SVB.d[q])SVB.d[q]=v})}if(!SVB.q.length){SVC=SVB;SVB=null}}
+ const live=me.filter(b=>isLive(b)||!SVC.ids.has(b._sk+'#'+b.id)&&tick-(b._lvT??-1e9)<600),lk=live.map(b=>b.id).join(),same=VF.length===NB&&SVC.k===SVC.done&&(!live.length&&!SVC.live||lk===SVC.lk&&tick%2);SVC.done=SVC.k;SVC.live=live.length;SVC.lk=lk;
+ if(!same){
+ VIS.set(SVC.i);VD.set(SVC.d);VS.fill(0);for(const b of live){const sb=sel.has(b);sight360(b,(q,v)=>{VIS[q]=1;if(v>VD[q])VD[q]=v;if(sb)VS[q]=1})}
  for(let y=1;y<BH-1;y++)for(let x=1;x<BW-1;x++){const q=y*BW+x;if(!VIS[q]&&(VIS[q-1]&1&&VIS[q+1]&1||VIS[q-BW]&1&&VIS[q+BW]&1)){VIS[q]=2;VD[q]=Math.max(Math.min(VD[q-1],VD[q+1]),Math.min(VD[q-BW],VD[q+BW]))}}
- for(let q=0;q<NB;q++)if(VIS[q])SEEN[q]=tick;
- // soft edge: blur the view mask a few cells
- if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VD[q];blurMask(VF);if(fSel){for(let q=0;q<NB;q++)VSF[q]=VS[q]?1:0;blurMask(VSF)}
+ }for(let q=0;q<NB;q++)if(VIS[q])SEEN[q]=tick;
+ // soft edge: blur the view mask a few cells; while only moving units change it, every other frame
+ if(!same){if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VD[q];blurMask(VF);if(fSel){for(let q=0;q<NB;q++)VSF[q]=VS[q]?1:0;blurMask(VSF)}}
  for(const o of bodies)if(o.type==='token')o.fogH=relOf(FT,teamOf(o))!=='self'&&relOf(FT,teamOf(o))!=='ally'&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>Math.hypot(o.x-b.x,o.y-b.y)<FOVR*.88&&losClear(b.x,b.y,o.x,o.y,!!b.crouch,!!o.crouch)))}
 // your side's sight, Door Kickers style: all round, stopped dead by walls and closed doors, full bright to about half range then fading to black
 const FOVR=320;let VD=new Float32Array(1);
@@ -1661,7 +1671,7 @@ function sight360(b,f){const low=!!b.crouch,n=Math.ceil(6.283*FOVR/2.5),fade=r=>
 function blurMask(A){for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o=y*BW;let sum=0;for(let k=0;k<=2&&k<BW;k++)sum+=A[o+k];for(let x=0;x<BW;x++){const n=Math.min(BW-1,x+2)-Math.max(0,x-2)+1;VT[o+x]=sum/n;if(x+3<BW)sum+=A[o+x+3];if(x-2>=0)sum-=A[o+x-2]}}
   for(let x=0;x<BW;x++){let sum=0;for(let k=0;k<=2&&k<BH;k++)sum+=VT[k*BW+x];for(let y=0;y<BH;y++){const n=Math.min(BH-1,y+2)-Math.max(0,y-2)+1;A[y*BW+x]=sum/n;if(y+3<BH)sum+=VT[(y+3)*BW+x];if(y-2>=0)sum-=VT[(y-2)*BW+x]}}}}
 // with one of your units selected, what the others see is dimmed slightly
-function fogPass(){const sl=fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===fogTeam());const F=rgb(6,6,8);for(let Y=0,j=0;Y<H;Y++){const r=(Y>>1)*BW;for(let X=0;X<W;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const m=F;out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
+function fogPass(){const sl=fSel&&[...sel].some(b=>b.type==='token'&&teamOf(b)===fogTeam());const F=rgb(6,6,8),[vx0,vy0,vx1,vy1]=VIEWR||[0,0,W,H];for(let Y=vy0;Y<vy1;Y++){const r=(Y>>1)*BW;for(let X=vx0,j=Y*W+vx0;X<vx1;X++,j++){const q=r+(X>>1),v=Math.min(1,VF[q]*1.6);if(VIS[q])SNAP[j]=out[j];if(sl&&v>0){const w=Math.min(1,VSF[q]*1.6);if(w<1)out[j]=mul(out[j],.8+.2*w*w*(3-2*w))}if(v>=1)continue;const m=F;out[j]=v<=0?m:mix(m,out[j],v*v*(3-2*v))}}
  for(const z of RINGS){const k=(tick-z.t)/40,rad=2+k*7;for(let i=0;i<28;i++){const X=Math.round(z.x+Math.cos(i*.2244)*rad),Y=Math.round(z.y+Math.sin(i*.2244)*rad);if(X>=0&&Y>=0&&X<W&&Y<H){const j=Y*W+X;out[j]=mix(out[j],rgb(230,226,214),.5*(1-k))}}}RINGS=RINGS.filter(z=>tick-z.t<40)}
 function ringFor(z){const FT=fogTeam();if(!fogOn()||z.src&&teamOf(z.src)===FT||z.src&&!z.src.fogH)return;const me=bodies.filter(b=>b.type==='token'&&teamOf(b)===FT&&b.status==='free');if(me.some(b=>heardBy(b,z))&&!RINGS.some(r=>tick-r.t<12&&Math.hypot(r.x-z.x,r.y-z.y)<10))RINGS.push({x:z.x,y:z.y,t:tick})}
 // a crouched unit hides behind low furniture: a low shot hits any desk; a high shot hits one beside a crouched unit
