@@ -288,7 +288,7 @@ function vKeyG(){const t=[...sel].find(b=>b.type==='token'&&b.direct&&b.status==
 var VGP=null;function vPrompt(){const t=[...sel].find(b=>b.type==='token'&&b.direct&&b.status==='free'&&!vSeatOf(b));let at=null;
  let drv=false;if(t){const n=vNearSeat(t);if(n){at=vL2W(n[0],...vSit(n[1]));drv=n[1]===0}}
  if(!at){if(VGP)VGP.style.display='none';return}if(!VGP){VGP=document.createElement('div');VGP.className='vkey';VGP.textContent='G'}if(!VGP.parentNode)stage.appendChild(VGP);
- VGP.classList.toggle('drv',drv);VGP.style.display='';VGP.style.left=(at[0]*S)+'px';VGP.style.top=((at[1]-9)*S)+'px'}
+ VGP.classList.toggle('drv',drv);VGP.style.display='';VGP.style.left=(at[0]*S)+'px';VGP.style.top=(at[1]*S)+'px'}
 function vLabels(){for(const v of VEH){if(!vRoof(v))continue;for(const t of bodies)if(t.lab&&t.type==='token'&&vHas(v,t))t.lab.style.display='none'}}
 
 // the engine goes: a short fuse of sparks and smoke, then a heavy blast; the hull is left a burnt shell
