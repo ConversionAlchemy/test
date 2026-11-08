@@ -2038,7 +2038,7 @@ function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=
  if(b.ghost&&!solidHits(b,0,0))b.ghost=false;return Math.hypot(b.x-x0,b.y-y0)}
 const TURN={civ:.18,home:.17,rifle:.16,guard:.12,shock:.1,cmd:.26};
 // form up: the selected units snap into squads of up to 8, 4 across and 2 deep, by kind, side by side with a gap and three squads to a row, centred where they stood, square to the map, facing the quarter most of them faced
-let SQN=0;function formUp(){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat&&!b.vwalk);if(ts.length<2)return;const cx=ts.reduce((a,b)=>a+b.x,0)/ts.length,cy=ts.reduce((a,b)=>a+b.y,0)/ts.length,A=Math.round(Math.atan2(ts.reduce((a,b)=>a+Math.sin(b.ang),0),ts.reduce((a,b)=>a+Math.cos(b.ang),0))/(Math.PI/2))*Math.PI/2,fx=Math.cos(A),fy=Math.sin(A),rx=-fy,ry=fx,G=1.3*T,GAP=2.2*T;
+let SQN=0;function formUp(a0){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat&&!b.vwalk);if(ts.length<2)return;const cx=ts.reduce((a,b)=>a+b.x,0)/ts.length,cy=ts.reduce((a,b)=>a+b.y,0)/ts.length,A=a0!=null?a0:Math.round(Math.atan2(ts.reduce((a,b)=>a+Math.sin(b.ang),0),ts.reduce((a,b)=>a+Math.cos(b.ang),0))/(Math.PI/2))*Math.PI/2,fx=Math.cos(A),fy=Math.sin(A),rx=-fy,ry=fx,G=1.3*T,GAP=2.2*T;
  const kinds=[];for(const b of ts){let k=kinds.find(q=>q.u===b.unit);if(!k)kinds.push(k={u:b.unit,m:[]});k.m.push(b)}const sq=[];for(const k of kinds){k.m.sort((a,b)=>(a.x*rx+a.y*ry)-(b.x*rx+b.y*ry));for(let i=0;i<k.m.length;i+=8)sq.push(k.m.slice(i,i+8))}
  const rows=[];for(let i=0;i<sq.length;i+=3)rows.push(sq.slice(i,i+3));const cols=n=>n<=4?n:Math.ceil(n/2),wid=s=>(cols(s.length)-1)*G,lines=[];
  rows.forEach((row,ri)=>{const w=row.reduce((a,s)=>a+wid(s),0)+GAP*(row.length-1);let u=-w/2;for(const s of row){const c=cols(s.length);s.forEach((b,i)=>lines.push([b,u+(i%c)*G,ri*(G+2.5*T)+(i/c|0)*G]));u+=wid(s)+GAP}});
@@ -2546,9 +2546,10 @@ window.addEventListener('pointerup',e=>{holdFire=false;if(pan){pan=null;return}i
  if(b.type==='weapon'&&(WP[b.kind].gun||WP[b.kind].tool||b.kind==='shield'||(WP[b.kind].melee&&sp<=1.4))){const tk=onTok();if(tk){give(tk,b.kind,b.ammo,b.res);remove(b)}return}
  const max=b.type==='weapon'?WP[b.kind].max:24;
  if(sp>1.4){if(sp>max){vx*=max/sp;vy*=max/sp}sfx('whoosh');b.vx=vx;b.vy=vy;b.thrown=true;if(b.type==='weapon')reshape(b,Math.atan2(vy,vx))}});
-let fHold=null;const FDIR={arrowup:-Math.PI/2,arrowdown:Math.PI/2,arrowleft:Math.PI,arrowright:0},unarmedSel=()=>[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.held&&!b.vseat);
+let fHold=null,tHold=null;const FDIR={arrowup:-Math.PI/2,arrowdown:Math.PI/2,arrowleft:Math.PI,arrowright:0},unarmedSel=()=>[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.held&&!b.vseat);
 window.addEventListener('keyup',e=>{if(e.key.toLowerCase()!=='f'||!fHold)return;if(!fHold.turned){const ts=unarmedSel();for(const b of ts)turnTo(b,(b.ang||0)+Math.PI);if(ts.length)sfx('flick')}fHold=null});
-window.addEventListener('blur',()=>{fHold=null});
+window.addEventListener('keyup',e=>{if(e.key.toLowerCase()!=='t'||!tHold)return;if(!tHold.used)formUp();tHold=null});
+window.addEventListener('blur',()=>{fHold=null;tHold=null});
 window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase();if(k===' '){if(![...sel].some(o=>o.direct))panKey=true;e.preventDefault();return}
  if(k==='z'){if(!e.repeat)toggleSlow();return}
  if(k==='x'){if(!e.repeat)vKeyX();return}
@@ -2564,7 +2565,9 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k==='r'){for(const b of sel){const h=b.type==='token'&&b.status!=='free'?null:slot(b);if(h&&CAP[h.k]&&h.ammo<CAP[h.k])reload(b)}return}
  if(k>='1'&&k<='4'){for(const b of sel)if(b.type==='token'&&b.status==='free'&&b.inv)selectSlot(b,+k-1);return}
  if(k==='g'){if(vKeyG())return;for(const b of sel)if(b.type==='token'&&b.held)dropHeld(b);return}
- if(k==='t'){formUp();return}
+ // T forms up on release, facing as they mostly do; held with an arrow it forms a line facing that way
+ if(k==='t'){if(!e.repeat)tHold={used:false};return}
+ if(tHold&&FDIR[k]!==undefined){formUp(FDIR[k]);tHold.used=true;e.preventDefault();return}
  // H toggles the group following the cursor with their eyes; turning off leaves them facing where they last looked
  if(k==='h'){if(e.repeat)return;const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat),on=!ts.some(b=>b.hf);for(const b of ts)b.hf=on;if(ts.length)sfx('flick');return}
  // F swaps the hand of armed units; on unarmed ones a tap turns them about, or held with an arrow faces them that way
