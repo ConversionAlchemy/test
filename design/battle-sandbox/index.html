@@ -3360,9 +3360,7 @@ function vDraw(top){for(const v of VEH){if(offView(v.x,v.y,VC.L))continue;if(!v.
    if(!n)continue;M[(Y-by)*mw+X-bx]=1;D.J.push(Y*W+X);D.C.push(rgb(r/n|0,g/n|0,b/n|0));D.A.push(n/ns)}
   if(!top)for(let Y=by;Y<=ey;Y++)for(let X=bx;X<=ex;X++){const i=(Y-by)*mw+X-bx;if(M[i]||sol[Y*W+X])continue;const m=(x,y)=>x>=0&&y>=0&&M[y*mw+x],x=X-bx,y=Y-by;
    const k=m(x-1,y)||m(x,y-1)?.62:m(x-2,y)||m(x,y-2)||m(x-1,y-1)?.74:m(x-3,y)||m(x,y-3)||m(x-2,y-1)||m(x-1,y-2)?.87:0;if(k){D.SJ.push(Y*W+X);D.SK.push(k)}}}
-  // over a carrier's roof is a void, like fog: the roof shows under the cursor with Alt held (to lob onto it) and for a unit aboard looking out
-  const dim=top&&L===v.L1&&!(LOBK&&vCur(v))&&![...sel].some(t=>t.type==='token'&&vHas(v,t)),VOID=rgb(6,6,8);
-  for(let i=0;i<D.J.length;i++){const j=D.J[i],a=D.A[i],cc=dim?VOID:D.C[i];out[j]=a===1?cc:mix(out[j],cc,a)}
+  for(let i=0;i<D.J.length;i++){const j=D.J[i],a=D.A[i];out[j]=a===1?D.C[i]:mix(out[j],D.C[i],a)}
   for(let i=0;i<D.SJ.length;i++){const j=D.SJ[i];out[j]=mul(out[j],D.SK[i])}
   if(!top){vGlow(v);for(const b of bodies)if((b.stuck&&!b.att||b.fallen)&&b.type!=='slab'&&vNear(v,b))drawBody(b)}
   if(top)vPuffs(v,L===v.L1)}}
@@ -3673,9 +3671,9 @@ NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
 {const o=document.createElement('option');o.value='yard';o.textContent='Fluoria carrier yard';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['yard','Fluoria carrier yard']);ms.value=curMap}}
 if(curMap==='yard'||curMap==='circuit'){CW=-1;reset()}
 
-// fog: a carrier any part of which your side can see is drawn whole, roof clear of fog; one wholly out of sight stays in the fog
-let VFM=null;function vFogMask(){if(!VFM||VFM.length!==N)VFM=new Uint8Array(N);else VFM.fill(0);for(const v of VEH){const R=VC.L*.62,x0=Math.max(0,v.x-R|0),x1=Math.min(W-1,v.x+R|0),y0=Math.max(0,v.y-R|0),y1=Math.min(H-1,v.y+R|0),js=[];let seen=false;
- for(let Y=y0;Y<=y1;Y++)for(let X=x0;X<=x1;X++){const[lx,ly]=vW2L(v,X+.5,Y+.5);if(lx<0||ly<0||lx>=VC.LW||ly>=VC.H)continue;js.push(Y*W+X);if(!seen&&VIS[(Y>>1)*BW+(X>>1)])seen=true}if(seen)for(const j of js)VFM[j]=1}}
+// fog covers carriers like everything else; holding Alt over one shows its roof through the fog, to lob onto it
+let VFM=null;function vFogMask(){if(!VFM||VFM.length!==N)VFM=new Uint8Array(N);else VFM.fill(0);if(!LOBK)return;for(const v of VEH){if(!vCur(v))continue;const R=VC.L*.62,x0=Math.max(0,v.x-R|0),x1=Math.min(W-1,v.x+R|0),y0=Math.max(0,v.y-R|0),y1=Math.min(H-1,v.y+R|0);
+ for(let Y=y0;Y<=y1;Y++)for(let X=x0;X<=x1;X++){const[lx,ly]=vW2L(v,X+.5,Y+.5);if(lx>=0&&ly>=0&&lx<VC.LW&&ly<VC.H)VFM[Y*W+X]=1}}}
 
 // save games: every visited map's pixels as changes from a fresh build, plus the whole body graph
 const GSK=['SH','GOLD','floor','sol','shp','scol','crk','slabG','GT','SHN','DS','NOD','OBJ','OBJC','SCH','DMG','TF','SF','SS','ST','BURN','FV','SV','DV','TMP','WH','fxLow','fxTop','fxA','HZ','OPEN','LR','LG','LB','LT'];
