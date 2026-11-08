@@ -2429,12 +2429,13 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k==='shift'){if(vKeyBrake(true))return;if(!e.repeat)dash();return}
  if(k==='c'){if(!e.repeat)for(const b of sel)if(b.type==='token'&&b.status==='free'){b.crouch=true;b.pc=true}return}
  if((k==='q'||k==='e')&&[...sel].some(o=>o.type==='slab'&&o.free)){keys.add(k);e.preventDefault();return}
- if(k==='q'){for(const b of sel){if(b.type!=='token'||b.status!=='free'||!b.inv)continue;if(b.held){b.psi=b.si;b.si=-1;b.held=null;b.hc=null}else if(b.psi>=0&&b.inv[b.psi])selectSlot(b,b.psi)}sfx('flick');return}
+ // Q over a group: if any weapon is out, all are put away; otherwise all are drawn
+ if(k==='q'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&b.inv),out=ts.some(b=>b.held);for(const b of ts){if(out){if(b.held){b.psi=b.si;b.si=-1;b.held=null;b.hc=null}}else if(b.psi>=0&&b.inv[b.psi])selectSlot(b,b.psi)}sfx('flick');return}
  if(k==='e'&&[...sel].some(b=>b.type==='token'&&b.status==='free'&&(!aiOn||teamOf(b)===aiMe))){const on=![...sel].some(b=>b.direct);for(const b of sel)if(b.type==='token'){b.direct=on;b.ord=null}sfx('flick');return}
  if(k==='escape'||k==='e'){sel.clear();openCrate=null;moveSel=null;charge=null;box=null;closeMenu();return}
  if(k.length===1&&'wasd'.includes(k)){keys.add(k);e.preventDefault();return}
  if(k==='r'){for(const b of sel){const h=b.type==='token'&&b.status!=='free'?null:slot(b);if(h&&CAP[h.k]&&h.ammo<CAP[h.k])reload(b)}return}
- if(k>='1'&&k<='6'){for(const b of sel)if(b.type==='token'&&b.status==='free'&&b.inv)selectSlot(b,+k-1);return}
+ if(k>='1'&&k<='4'){for(const b of sel)if(b.type==='token'&&b.status==='free'&&b.inv)selectSlot(b,+k-1);return}
  if(k==='g'){if(vKeyG())return;for(const b of sel)if(b.type==='token'&&b.held)dropHeld(b);return}
  if(k==='t'){sfx('flick');return}
  if(k==='f'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}
@@ -3486,7 +3487,7 @@ function vHints(){const t=sel.size===1&&[...sel][0],on=t&&t.type==='token'&&t.di
   else if(s)L=[['V','view'],['G','get up']];
   else{L=[['WASD','move'],['Shift','dash'],['C','crouch']];{const n=vNearSeat(t);if(n)L.push(['G',n[1]===0?'ignition on':'sit'])}
    if(gun)L.push(['Hold','fire'],['R','reload'],['Q','sheathe']);else if(thr)L.push(['Hold','throw'],['Q','sheathe']);else if(h)L.push(['Hold','attack'],['Q','sheathe']);else if(t.inv&&t.inv.some(Boolean))L.push(['Q','draw']);
-   if(t.inv&&t.inv.some(Boolean))L.push(['1–6','slots']);if(h&&!vNearSeat(t))L.push(['G','drop'])}
+   if(t.inv&&t.inv.some(Boolean))L.push(['1–4','weapons']);if(h&&!vNearSeat(t))L.push(['G','drop'])}
   L.push(['E','release '+t.name])}
  const k=L.map(x=>x.join(':')).join('|');if(k===VHK)return;VHK=k;
  if(!VHB){VHB=document.createElement('div');VHB.className='khint';stage.parentElement.appendChild(VHB)}
@@ -4056,7 +4057,7 @@ window.addEventListener('pointerup',e=>{if(SPD){SPD=null;return}if(!SDR)return;c
 // units are only controlled with Command: other tools drop control, and clicking a unit switches back
 const freeCtl=e=>{if(panKey||UI.tool==='hand'||UI.drop||UI.place||e.button||!inBoard(e))return;const[x,y]=toBoard(e),b=bodyAt(x|0,y|0,1);if(b&&b.type==='token'&&b.status!=='dead'){pickTool('hand');return}if(!EM){e.stopImmediatePropagation();e.preventDefault()}};
 cv.addEventListener('pointerdown',freeCtl,true);stage.parentElement.addEventListener('pointerdown',e=>{if(e.target===stage.parentElement||e.target===stage)freeCtl(e)},true);
-window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;if(/^[wasdqecrv1-6]$/i.test(e.key)||e.key==='Shift')e.stopImmediatePropagation()},true);
+window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;if(/^[wasdqecrv1-4]$/i.test(e.key)||e.key==='Shift')e.stopImmediatePropagation()},true);
 // space: tap to run or pause time, hold for slow-mo while held (space + drag still pans)
 {let SP=null;const typing=e=>/INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
  window.addEventListener('keydown',e=>{if(e.code!=='Space'||e.repeat||typing(e)||SP)return;SP={t:performance.now(),pan:false,slow:false};SP.h=setTimeout(()=>{if(SP&&!SP.pan&&!slowMo){window.toggleSlow();SP.slow=true}},250)});

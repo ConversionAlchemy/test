@@ -26,10 +26,10 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Drag | Box-select, or drag a unit or item |
 | Hold | Aim and fire, or wind up a throw; the crosshair fills from inner to outer |
 | WASD | Move selected units; selected units turn to face the cursor |
-| 1–6 | Pick a slot: 1 primary, 2 secondary, 3 grenade, 4 heavy, 5–6 pack |
+| 1–4 | Pick a weapon: 1 primary, 2 secondary, 3 grenade, 4 heavy |
 | R | Reload from spare ammo |
 | T | Lancer: switch between firing bolts and throwing |
-| Q | Sheathe or draw |
+| Q | Sheathe or draw; over a group, if any weapon is out all are put away, otherwise all are drawn |
 | E / Esc | Deselect |
 | F / G | Switch hand / drop |
 | Space + drag, middle drag | Pan the camera on big maps |

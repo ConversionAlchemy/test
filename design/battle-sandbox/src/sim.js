@@ -1755,12 +1755,13 @@ window.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.t
  if(k==='shift'){if(vKeyBrake(true))return;if(!e.repeat)dash();return}
  if(k==='c'){if(!e.repeat)for(const b of sel)if(b.type==='token'&&b.status==='free'){b.crouch=true;b.pc=true}return}
  if((k==='q'||k==='e')&&[...sel].some(o=>o.type==='slab'&&o.free)){keys.add(k);e.preventDefault();return}
- if(k==='q'){for(const b of sel){if(b.type!=='token'||b.status!=='free'||!b.inv)continue;if(b.held){b.psi=b.si;b.si=-1;b.held=null;b.hc=null}else if(b.psi>=0&&b.inv[b.psi])selectSlot(b,b.psi)}sfx('flick');return}
+ // Q over a group: if any weapon is out, all are put away; otherwise all are drawn
+ if(k==='q'){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&b.inv),out=ts.some(b=>b.held);for(const b of ts){if(out){if(b.held){b.psi=b.si;b.si=-1;b.held=null;b.hc=null}}else if(b.psi>=0&&b.inv[b.psi])selectSlot(b,b.psi)}sfx('flick');return}
  if(k==='e'&&[...sel].some(b=>b.type==='token'&&b.status==='free'&&(!aiOn||teamOf(b)===aiMe))){const on=![...sel].some(b=>b.direct);for(const b of sel)if(b.type==='token'){b.direct=on;b.ord=null}sfx('flick');return}
  if(k==='escape'||k==='e'){sel.clear();openCrate=null;moveSel=null;charge=null;box=null;closeMenu();return}
  if(k.length===1&&'wasd'.includes(k)){keys.add(k);e.preventDefault();return}
  if(k==='r'){for(const b of sel){const h=b.type==='token'&&b.status!=='free'?null:slot(b);if(h&&CAP[h.k]&&h.ammo<CAP[h.k])reload(b)}return}
- if(k>='1'&&k<='6'){for(const b of sel)if(b.type==='token'&&b.status==='free'&&b.inv)selectSlot(b,+k-1);return}
+ if(k>='1'&&k<='4'){for(const b of sel)if(b.type==='token'&&b.status==='free'&&b.inv)selectSlot(b,+k-1);return}
  if(k==='g'){if(vKeyG())return;for(const b of sel)if(b.type==='token'&&b.held)dropHeld(b);return}
  if(k==='t'){sfx('flick');return}
  if(k==='f'){for(const b of sel)if(b.type==='token'){b.side=-(b.side||1);b.hc=null}sfx('flick');return}

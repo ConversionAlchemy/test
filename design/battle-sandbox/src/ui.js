@@ -449,7 +449,7 @@ window.addEventListener('pointerup',e=>{if(SPD){SPD=null;return}if(!SDR)return;c
 // units are only controlled with Command: other tools drop control, and clicking a unit switches back
 const freeCtl=e=>{if(panKey||UI.tool==='hand'||UI.drop||UI.place||e.button||!inBoard(e))return;const[x,y]=toBoard(e),b=bodyAt(x|0,y|0,1);if(b&&b.type==='token'&&b.status!=='dead'){pickTool('hand');return}if(!EM){e.stopImmediatePropagation();e.preventDefault()}};
 cv.addEventListener('pointerdown',freeCtl,true);stage.parentElement.addEventListener('pointerdown',e=>{if(e.target===stage.parentElement||e.target===stage)freeCtl(e)},true);
-window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;if(/^[wasdqecrv1-6]$/i.test(e.key)||e.key==='Shift')e.stopImmediatePropagation()},true);
+window.addEventListener('keydown',e=>{if(UI.tool==='hand'||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;if(/^[wasdqecrv1-4]$/i.test(e.key)||e.key==='Shift')e.stopImmediatePropagation()},true);
 // space: tap to run or pause time, hold for slow-mo while held (space + drag still pans)
 {let SP=null;const typing=e=>/INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
  window.addEventListener('keydown',e=>{if(e.code!=='Space'||e.repeat||typing(e)||SP)return;SP={t:performance.now(),pan:false,slow:false};SP.h=setTimeout(()=>{if(SP&&!SP.pan&&!slowMo){window.toggleSlow();SP.slow=true}},250)});

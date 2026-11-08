@@ -365,7 +365,7 @@ function vHints(){const t=sel.size===1&&[...sel][0],on=t&&t.type==='token'&&t.di
   else if(s)L=[['V','view'],['G','get up']];
   else{L=[['WASD','move'],['Shift','dash'],['C','crouch']];{const n=vNearSeat(t);if(n)L.push(['G',n[1]===0?'ignition on':'sit'])}
    if(gun)L.push(['Hold','fire'],['R','reload'],['Q','sheathe']);else if(thr)L.push(['Hold','throw'],['Q','sheathe']);else if(h)L.push(['Hold','attack'],['Q','sheathe']);else if(t.inv&&t.inv.some(Boolean))L.push(['Q','draw']);
-   if(t.inv&&t.inv.some(Boolean))L.push(['1–6','slots']);if(h&&!vNearSeat(t))L.push(['G','drop'])}
+   if(t.inv&&t.inv.some(Boolean))L.push(['1–4','weapons']);if(h&&!vNearSeat(t))L.push(['G','drop'])}
   L.push(['E','release '+t.name])}
  const k=L.map(x=>x.join(':')).join('|');if(k===VHK)return;VHK=k;
  if(!VHB){VHB=document.createElement('div');VHB.className='khint';stage.parentElement.appendChild(VHB)}
