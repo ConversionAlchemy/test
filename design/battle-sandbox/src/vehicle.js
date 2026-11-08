@@ -98,9 +98,13 @@ function vDraw(top){for(const v of VEH){if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!=
   if(!top)vOver(v);const LD=top?null:v.LD,L=top?(vRoof(v)?v.L1:v.L2):v.L0,c=Math.cos(v.ang),s=Math.sin(v.ang),LW=VC.LW,LH=VC.H;
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[lx,ly]of[[0,0],[LW,0],[0,LH],[LW,LH]]){const[gx,gy]=vL2W(v,lx,ly);x0=Math.min(x0,gx);x1=Math.max(x1,gx);y0=Math.min(y0,gy);y1=Math.max(y1,gy)}
   const crisp=Math.abs(Math.sin(v.ang*2))<1e-3,SUB=crisp?[.5,.5]:[.25,.25,.75,.25,.25,.75,.75,.75],ns=SUB.length/2,PX=VC.PX,PY=VC.PY;
-  for(let Y=Math.max(0,Math.floor(y0));Y<=Math.min(H-1,Math.ceil(y1));Y++)for(let X=Math.max(0,Math.floor(x0));X<=Math.min(W-1,Math.ceil(x1));X++){let r=0,g=0,b=0,n=0;
+  // a 3px drop shadow to the right and below, like a wall's, from a footprint mask
+  const bx=Math.max(0,Math.floor(x0)),by=Math.max(0,Math.floor(y0)),ex=Math.min(W-1,Math.ceil(x1)+3),ey=Math.min(H-1,Math.ceil(y1)+3),mw=ex-bx+1,M=new Uint8Array(mw*(ey-by+1));
+  for(let Y=by;Y<=ey;Y++)for(let X=bx;X<=ex;X++){let r=0,g=0,b=0,n=0;
    for(let k=0;k<SUB.length;k+=2){const dx=X+SUB[k]-v.x,dy=Y+SUB[k+1]-v.y,lx=Math.floor(PX+dx*c+dy*s),ly=Math.floor(PY-dx*s+dy*c);if(lx<0||ly<0||lx>=LW||ly>=LH)continue;const col=LD&&LD[ly*LW+lx]||L[ly*LW+lx];if(!col)continue;r+=col&255;g+=col>>8&255;b+=col>>16&255;n++}
-   if(!n)continue;const j=Y*W+X,col=rgb(r/n|0,g/n|0,b/n|0);out[j]=n===ns?col:mix(out[j],col,n/ns)}
+   if(!n)continue;M[(Y-by)*mw+X-bx]=1;const j=Y*W+X,col=rgb(r/n|0,g/n|0,b/n|0);out[j]=n===ns?col:mix(out[j],col,n/ns)}
+  if(!top)for(let Y=by;Y<=ey;Y++)for(let X=bx;X<=ex;X++){const i=(Y-by)*mw+X-bx;if(M[i]||sol[Y*W+X])continue;const m=(x,y)=>x>=0&&y>=0&&M[y*mw+x],x=X-bx,y=Y-by;
+   const k=m(x-1,y)||m(x,y-1)?.62:m(x-2,y)||m(x,y-2)||m(x-1,y-1)?.74:m(x-3,y)||m(x,y-3)||m(x-2,y-1)||m(x-1,y-2)?.87:0;if(k)out[Y*W+X]=mul(out[Y*W+X],k)}
   if(!top){vGlow(v);for(const b of bodies)if((b.stuck&&!b.att||b.fallen)&&b.type!=='slab'&&vNear(v,b))drawBody(b)}
   if(top)vPuffs(v,L===v.L1)}}
 // overlay in the hull's frame: the door leaves at their slide, with the seams of a door, and the core lit by the engine's power
