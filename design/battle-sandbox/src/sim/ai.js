@@ -82,6 +82,8 @@ function aiStep(b,x,y,a=b.ai){const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy);if(d<2
  {const p=a.prog;const dn=Math.hypot(x-b.x,y-b.y);if(!p||p.x!==x||p.y!==y||dn<p.d-2)a.prog={x,y,d:dn,t:tick};else if(tick-p.t>=30){if(phaseBy(b,x,y,a))a.prog=null;else if(tick-p.t>=60){// someone not of ours in the way: route round him for a few seconds
    const ux=(x-b.x)/(dn||1),uy=(y-b.y)/(dn||1),o=bodies.find(q=>q!==b&&q.type==='token'&&q.status!=='dead'&&Math.hypot(q.x-b.x,q.y-b.y)<20&&(q.x-b.x)*ux+(q.y-b.y)*uy>2);if(o){a.avoid={x:o.x,y:o.y,t:tick+180};a.path=null;a.prog=null}}}}return false}
 function aiGo(b,x,y,a=b.ai){if(!a.path||!a.wp||Math.hypot(a.wp[0]-x,a.wp[1]-y)>12||tick-a.pt>90||a.nv!==NAVV){a.path=aiPath(b,x,y);a.wp=[x,y];a.pt=tick;a.nv=NAVV;a.door=null;a.unr=false;
+  // stepping round a unit in the way is only a preference: if it closes the only way (a doorway), route through and wait for it to move
+  if((!a.path||a.path.partial)&&a.avoid&&a.avoid.t>tick){const sv=a.avoid;a.avoid=null;const p2=aiPath(b,x,y);if(p2&&!p2.partial)a.path=p2;else a.avoid=sv}
   if(!a.path||a.path.partial){const p0=aiPath(b,x,y,true),p=p0&&!p0.partial&&p0.raw;const d=p&&DL.find(o=>isDoor(o)&&o.locked&&!o.lockBroken&&p.some(q=>onDoor(o,q[0],q[1])));if(d){a.door=d;const i=p.findIndex(q=>onDoor(d,q[0],q[1]));a.path=p.slice(0,Math.max(0,i-2))}else{a.unr=true;if(!a.path)a.path=[]}}}
  if(!Array.isArray(a.path))a.path=[];const n=a.path.length?a.path[0]:null;if(!n||n[0]===undefined){if(a.door&&a.door.locked&&!a.door.lockBroken){breach(b,a.door,a);return false}return true}if(aiStep(b,n[0],n[1],a)||Math.hypot(n[0]-b.x,n[1]-b.y)<(a.stk>2?10:3)){a.path&&a.path.shift();a.stk=0}else if(a.stk>40){a.path=null;a.stk=0;return false}return !a.path||!a.path.length}
 
