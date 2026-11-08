@@ -55,6 +55,8 @@ function carrier(mat,x,y,ang,nat,cond){const v={id:uid++,veh:true,type:'veh',met
 const VIGN=21;
 const VDOORS=[[VC.L-9,VC.CY-16,Math.PI/2],[VC.L,VC.CY+15,-Math.PI/2],[VC.XP-1,VC.CY-8,Math.PI/2]];
 function vMkDoors(v){v.doors=VDOORS.map(([ax,ay,a])=>{const d=mkDoor(v.metal,0,0,0,8);d.vdoor={v,ax,ay,a};if(v.nat)d.keys=v.nat;return d});v.doors[0].pair=v.doors[1];v.doors[1].pair=v.doors[0];v.dids=new Set(v.doors.map(d=>d.id));vDoorPose(v)}
+// a moving carrier swings its open doors shut (a leaf stops short of anyone in its way)
+function vShutDoors(v){let c=false;for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d)||d.tgt===0)continue;d.tgt=0;c=true}if(c)sfx('door')}
 function vDoorPose(v){for(const d of v.doors||[]){if(d.fallen||!bodies.includes(d))continue;const{ax,ay,a}=d.vdoor,[x,y]=vL2W(v,ax,ay);d.x=x;d.y=y;d.rot=0;d.spin=v.ang+a;orient(d)}}
 const vDriver=v=>{const t=v.seats[0];return t&&bodies.includes(t)&&t.status!=='dead'?t:null};
 const vW2L=(v,X,Y)=>{const c=Math.cos(v.ang),s=Math.sin(v.ang),dx=X-v.x,dy=Y-v.y;return[VC.PX+dx*c+dy*s,VC.PY-dx*s+dy*c]};
@@ -196,7 +198,7 @@ function vMove(v){const n={x:v.x-Math.cos(v.ang)*v.sp,y:v.y-Math.sin(v.ang)*v.sp
  const old={x:v.x,y:v.y,ang:v.ang},moved=Math.hypot(P.x-v.x,P.y-v.y);
  for(const b of carried){const[lx,ly]=vW2L(old,b.x,b.y),[nx,ny]=vL2W(P,lx,ly);b.x=nx;b.y=ny;if(b.ang!==undefined&&b.type!=='slab')b.ang+=P.ang-old.ang;if(b.type==='weapon'&&b.stuck&&typeof reshape==='function')reshape(b,b.ang)}
  vUnmark(v);
- v.x=P.x;v.y=P.y;v.ang=P.ang;v.px=r.px;v.tpx=r.tk;mkSet(v);vMark(v);vDoorPose(v);vHedges(v);vMarks(v,moved+Math.abs(P.ang-old.ang)*30);v.odo=(v.odo||0)+moved;if(v.odo>4000){v.odo=0;vWeather(v,.03)}v.still=0;NAVD=true}
+ v.x=P.x;v.y=P.y;v.ang=P.ang;v.px=r.px;v.tpx=r.tk;mkSet(v);vMark(v);vDoorPose(v);if(moved>.2)vShutDoors(v);vHedges(v);vMarks(v,moved+Math.abs(P.ang-old.ang)*30);v.odo=(v.odo||0)+moved;if(v.odo>4000){v.odo=0;vWeather(v,.03)}v.still=0;NAVD=true}
 function vPin(v){v.seats.forEach((t,i)=>{if(!t)return;const[x,y]=vSit(i),[gx,gy]=vL2W(v,x,y);t.x=gx;t.y=gy;t.vx=t.vy=0;t.ang=v.ang+VSEATS[i][2];t.vseat=v;t.crouch=false})}
 function vRefresh(v){v.dirty=1;vUnmark(v);vOrient(v);vMark(v);vDoorPose(v);NAVD=true}
 // hedges give under the tracks: the carrier rides over them, and a hedge it has wholly passed over is a step more trampled
