@@ -1067,7 +1067,7 @@ function stepParts(){for(const p of parts){p.x+=p.vx;p.y+=p.vy;const X=Math.roun
   if(p.life!==undefined){if(--p.life<=0)p.dead=1;continue}
   if(Math.abs(p.vx)+Math.abs(p.vy)<.12){const X2=Math.round(p.x),Y2=Math.round(p.y);if(X2>=0&&Y2>=0&&X2<W&&Y2<H&&!sol[Y2*W+X2])floor[Y2*W+X2]=mul(p.c,.85);p.dead=1}}
  parts=parts.filter(p=>!p.dead)}
-function cool(){for(const b of [...bodies,...VEH])if(b.type!=='weapon')for(const p of b.px)if(p[5]>0)p[5]=Math.max(0,p[5]-1/600);if(whOn&&tick%2===0){let any=false;for(let j=0;j<N;j++)if(WH[j]>0){WH[j]=Math.max(0,WH[j]-.0007-WH[j]*.0022);any=true;if(WH[j]>.06&&Math.random()<WH[j]*.02){const X=j%W,Y=j/W|0;ST[(Y>>1)*BW+(X>>1)]+=.9;fxDirty=true}}whOn=any}}
+function cool(){for(const b of [...bodies,...VEH]){if(b.type==='weapon'||b.cold&&tick-b.cold<30)continue;let hot=false;for(const p of b.px)if(p[5]>0){p[5]=Math.max(0,p[5]-1/600);hot=true}b.cold=hot?0:tick}if(whOn&&tick%2===0){let any=false;for(let j=0;j<N;j++)if(WH[j]>0){WH[j]=Math.max(0,WH[j]-.0007-WH[j]*.0022);any=true;if(WH[j]>.06&&Math.random()<WH[j]*.02){const X=j%W,Y=j/W|0;ST[(Y>>1)*BW+(X>>1)]+=.9;fxDirty=true}}whOn=any}}
 
 // effects
 const FXC={b0:hx('#5a0a0e'),b1:hx('#76121a'),b2:hx('#8e161c'),b3:hx('#b8343a'),f:['#c86a26','#a8541e','#d8782a','#eea036','#f7c654','#ffe08a','#fff6c8'].map(hx)};
@@ -1108,12 +1108,15 @@ function sheenFrame(){if(SHX.length!==W){SHX=new Float32Array(W);SHC=new Float32
 function shine(c,X,Y,k){const a=shY[0]*Y+shY[1],v=SHX[X]*Math.cos(a)+SHC[X]*Math.sin(a);if(v<=0)return c;const v3=v*v*v;let t=v3*k/255*.45;if(k>=60){const v8=v3*v3*v*v;t+=v8*k/255*.7}return mix(c,rgb(246,250,255),Math.min(.8,t))}
 const unseen=b=>fogOn()&&(b.fogH||!!b.att&&!!(byId(b.att.id)||{}).fogH);
 function streaks(){for(const b of bodies){if(b.type!=='weapon'||!WP[b.kind]||!WP[b.kind].bullet||unseen(b))continue;const s=Math.hypot(b.vx,b.vy);if(s<4)continue;const L=Math.min(40,s*.9),ux=b.vx/s,uy=b.vy/s,c=b.kind==='arc'?plasC(b.hue||0):rgb(255,236,180);for(let i=1;i<L;i++){const X=Math.round(b.x-ux*i),Y=Math.round(b.y-uy*i);if(X<0||Y<0||X>=W||Y>=H||sol[Y*W+X])break;out[Y*W+X]=mix(out[Y*W+X],c,.8*(1-i/L))}}}
+// a token's pixel colours only change when it turns, changes look or kit, or takes damage or heat, so they're kept between frames
+function tokCache(b,spr){let h=0;for(const p of b.px)h=h*31+p[3]*7+p[5]*997|0;const k=b.ang+'|'+lookOf(b)+'|'+b.unit+'|'+b.nat+'|'+b.si+'|'+(b.held&&b.held.kind)+'|'+!!b.guard+'|'+b.px.length+'|'+h;
+ let c=b._tc;if(c&&c.k===k&&c.px===b.px)return c;c=b._tc={k,px:b.px,col:b.px.map(p=>pcol(b,p)),shn:spr?b.px.map(p=>{const a=sprAt(b,p);return a?a[1]:0}):null,vis:spr?new Set(b.px.filter(p=>sprAt(b,p)).map(p=>K(p[0],p[1]))):null};return c}
 function drawBody(b,lift){if(b.hidden||unseen(b))return;if(b.kind==='arc'){const s=Math.hypot(b.vx,b.vy)||1,wd=b.big?1:0;(b.blue?q=>q.map(swb):q=>q)((h=>[rgb(246,242,252),plasC(h),mul(plasC(h+.2),.85),mul(plasC(h+.4),.7),mul(plasC(h+.6),.55)])(b.hue||0)).slice(0,b.big?5:4).forEach((c,i)=>{for(let o=-wd;o<=wd;o++){const X=Math.round(b.x-b.vx/s*i-b.vy/s*o),Y=Math.round(b.y-b.vy/s*i+b.vx/s*o);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=o?mul(c,.8):c}});return}if(WP[b.kind]&&WP[b.kind].bullet&&!WP[b.kind].rod)return;const bx=Math.round(b.x),by=Math.round(b.y),st=b.status,dyn=b.type!=='weapon',hl=sel.has(b)?1.25:b===hover?1.12:1;if(b.type==='token'&&b.unit==='shock'&&b.nat==='Goldbank'&&!lookOf(b))drawCape(b,lift);
  const sh=lift?[3,4]:b.stuck||b.fallen||st==='dead'?null:[1,2];
- const spr=b.type==='token'&&!!sprG(lookOf(b)),vis=spr?new Set(b.px.filter(p=>sprAt(b,p)).map(p=>K(p[0],p[1]))):null;
+ const spr=b.type==='token'&&!!sprG(lookOf(b)),TC=b.type==='token'?tokCache(b,spr):null,vis=spr?TC.vis:null;
  if(sh)for(const p of b.px){const X=bx+p[0]+sh[0],Y=by+p[1]+sh[1];if(spr&&!vis.has(K(p[0],p[1])))continue;if(X<0||Y<0||X>=W||Y>=H||(spr?vis:b.set).has(K(p[0]+sh[0],p[1]+sh[1]))||sol[Y*W+X])continue;out[Y*W+X]=mul(out[Y*W+X],.62)}
- for(const p of b.px){const X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H||b.type==='slab'&&sol[Y*W+X])continue;let c=pcol(b,p);if(c===0)continue;if(b.crouch)c=mul(c,.62);
-  if(spr?sprAt(b,p)[1]:p[7]==='m'||p[7]==='a'||b.type==='slab'&&(b.mat===3||b.gold))c=shine(c,X,Y,spr?45:UNITS[b.unit]&&UNITS[b.unit].dark?30:70);
+ for(let i=0;i<b.px.length;i++){const p=b.px[i],X=bx+p[0],Y=by+p[1];if(X<0||Y<0||X>=W||Y>=H||b.type==='slab'&&sol[Y*W+X])continue;let c=TC?TC.col[i]:pcol(b,p);if(c===0)continue;if(b.crouch)c=mul(c,.62);
+  if(spr?TC.shn[i]:p[7]==='m'||p[7]==='a'||b.type==='slab'&&(b.mat===3||b.gold))c=shine(c,X,Y,spr?45:UNITS[b.unit]&&UNITS[b.unit].dark?30:70);
   if(dyn&&!spr){const l=!b.set.has(K(p[0]-1,p[1]))||!b.set.has(K(p[0],p[1]-1)),r=!b.set.has(K(p[0]+1,p[1]))||!b.set.has(K(p[0],p[1]+1));if(b.type==='slab'){if(r)c=mul(c,.5);else if(l)c=mul(c,.8);else if(!b.set.has(K(p[0]-2,p[1]))||!b.set.has(K(p[0],p[1]-2)))c=mul(c,1.22);else if(!b.set.has(K(p[0]+2,p[1]))||!b.set.has(K(p[0],p[1]+2)))c=mul(c,.82)}else if(l||r)c=mul(c,.36)}
   if(b.kind==='sspear'&&b.glw>.01){const g=b.glw,f=.5+.5*Math.sin(tick*(.15+g*.9)+p[8]*.35);c=mix(c,g<.6?rgb(150,80,255):mix(rgb(150,80,255),rgb(244,232,255),(g-.6)/.4),Math.min(1,.25+g*1.1)*(.7+.3*f))}
   if(st==='dead'&&!(b.type==='token'&&p[7]==='x'))c=mix(mix(grey(c),rgb(122,120,116),.28),natc(b),.16);else if(st==='captured')c=mul(c,.68);if(b.fallen)c=mul(c,.5);if(hl>1)c=mul(c,hl);out[Y*W+X]=c}
@@ -1141,14 +1144,22 @@ function scorchC(c,a,X,Y){a=Math.min(1,a);const t=scorchT(X,Y);if(t===SCT.Wood)a
  return rgb(cl((c&255)*f[0]),cl((c>>8&255)*f[1]),cl((c>>16&255)*f[2]))}
 // fresh blast heat glows and cools: metal brightest, wood embers flicker, stone a dull red
 function glowC(c,h,X,Y){const k=map[Y>>4]&&map[Y>>4][X>>4],e=CATN[k]?CATN[k][0]:'Stone',g=e==='Metal'?1:e==='Wood'?.8*(.8+.4*hh(X>>1,Y>>1,tick>>3)):e==='Cloth'?.75:.5;return heatCol(h*g,c)}
+let FLC=null,FLK='',FLR=0,SHL=new Set(),shBuilt=false,SOLL=null,SOLN=0;
+function floorPx(X,Y,j,hlC,sh){let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>W&&OBJ[j-W-1])c=mul(c,.66);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(sh&&SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);if(sh){const fh=FH[(Y>>1)*BW+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y)}const k=SH[j];if(k)c=mul(c,k===1?.66:.82);return c}
+function floorRows(y0,y1,hlC){if(y0===0&&y1===H)SHL=new Set();for(let Y=y0;Y<y1;Y++)for(let X=0,j=Y*W;X<W;X++,j++){if(sol[j])continue;if(SHN[j]){SHL.add(j);continue}FLC[j]=floorPx(X,Y,j,hlC,false)}}
 function render(){
- if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick}
- sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);for(let Y=0,j=0;Y<H;Y++){const bro=(Y>>1)*BW;for(let X=0;X<W;X++,j++){if(sol[j])continue;let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){const f=hlC.get((Y>>4)*CW+(X>>4));if(f)c=mul(c,f)}}else if(j>W&&OBJ[j-W-1])c=mul(c,.66);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(SHN[j])c=shine(c,X,Y,SHN[j]);const bu=burnAt(X,Y);if(bu>.02)c=scorchC(c,bu*(.92+.16*hh(X,Y,13)),X,Y);const fh=FH[bro+(X>>1)];if(fh>.03)c=glowC(c,fh,X,Y);const k=SH[j];if(k)c=mul(c,k===1?.66:.82);out[j]=c}}
+ if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick;shBuilt=true;SOLL=null}
+ sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);
+ // the ground is composed into a cache: rebuilt whole when scorch, walls, hover or map change, otherwise a slice of rows a frame catches slower edits
+ const fk=curMap+'|'+N+'|'+[...hlC.keys()].join();if(!FLC||FLC.length!==N||fxDirty||FLK!==fk||shBuilt){if(!FLC||FLC.length!==N)FLC=new Uint32Array(N);FLK=fk;shBuilt=false;floorRows(0,H,hlC);FLR=0}else{const n=Math.ceil(H/16);floorRows(FLR,Math.min(H,FLR+n),hlC);FLR=FLR+n>=H?0:FLR+n}
+ out.set(FLC);for(const j of SHL){if(sol[j])continue;out[j]=floorPx(j%W,j/W|0,j,hlC,true)}
+ for(let q=0;q<NB;q++){const fh=FH[q];if(fh<=.03)continue;const X0=(q%BW)*2,Y0=(q/BW|0)*2;for(let y=Y0;y<Y0+2;y++)for(let x=X0;x<X0+2;x++){const j=y*W+x;if(!sol[j]&&!SHN[j])out[j]=glowC(out[j],fh,x,y)}}
  if(fxDirty||(fxActive&&tick%3===0)||(tick%7===0&&FX.fire.some(v=>v>.3)))buildFx();
- for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
+ for(let qy=0,q=0;qy<BH;qy++)for(let qx=0,j0=qy*2*W;qx<BW;qx++,q++,j0+=2){if(!fxLow[j0])continue;const f=fxLow[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])if(!sol[j])out[j]=f}
  if(moveSel)for(const ci of moveSel.cells){const cx=ci%CW,cy=ci/CW|0;for(let y=1;y<T-1;y++)for(let x=1;x<T-1;x++){const j=(cy*T+y)*W+cx*T+x;out[j]=(x>=7&&x<=8&&y>=7&&y<=8)?mix(out[j],rgb(255,255,255),.6):mul(out[j],.68)}}
  for(const b of bodies)if(((b.stuck&&!b.att)||b.fallen)&&!(VEH.length&&b.type!=='slab'&&VEH.some(v=>vNear(v,b))))drawBody(b);
- {const tp=TOPS||OUTD;for(let Y=0,j=0;Y<H;Y++)for(let X=0;X<W;X++,j++){if(!sol[j])continue;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,NOD[j]?.72:.5);else if(k===2)c=mul(c,NOD[j]?1.05:1.1);if(!tp){const d=DS[j],d0=DS0?DS0[j]:d;let f=DF[Math.min(9,d0)];if(d<d0)f=Math.max(f,d===1?.6:d===2?.22:0);c=mul(c,f)}else if(OUTD&&!TOPS)c=mul(c,1-(1-DF[Math.min(9,DS0?DS0[j]:DS[j])])*.35);if(SHN[j]&&(DS[j]<4||tp))c=shine(c,X,Y,SHN[j]);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}}
+ if(!SOLL||SOLN!==N){const a=[];for(let j=0;j<N;j++)if(sol[j])a.push(j);SOLL=Int32Array.from(a);SOLN=N}
+ {const tp=TOPS||OUTD;for(const j of SOLL){if(!sol[j])continue;const X=j%W,Y=j/W|0;let c=scol[j];const k=SH[j];if(k===1)c=mul(c,NOD[j]?.72:.5);else if(k===2)c=mul(c,NOD[j]?1.05:1.1);if(!tp){const d=DS[j],d0=DS0?DS0[j]:d;let f=DF[Math.min(9,d0)];if(d<d0)f=Math.max(f,d===1?.6:d===2?.22:0);c=mul(c,f)}else if(OUTD&&!TOPS)c=mul(c,1-(1-DF[Math.min(9,DS0?DS0[j]:DS[j])])*.35);if(SHN[j]&&(DS[j]<4||tp))c=shine(c,X,Y,SHN[j]);if(EDGM[j])c=mul(c,EDF[EDGM[j]]);if(whOn&&WH[j]>.01)c=mix(c,glow(WH[j]),Math.min(.9,WH[j]*1.4));out[j]=c}}
  for(const b of bodies)if(b.type==='slab'&&!b.fallen&&!inDrag(b)&&!b.vdoor)drawBody(b);vDraw(0);
  const hot=p=>p.life!==undefined||(p.em!==undefined&&p.em/p.em0>.2),rest=p=>!hot(p)&&Math.hypot(p.vx||0,p.vy||0)<.3;
  for(const p of parts){if(!rest(p))continue;const X=Math.round(p.x),Y=Math.round(p.y);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=p.c}
@@ -1163,7 +1174,7 @@ function render(){
  for(const p of parts){if(hot(p)||rest(p))continue;const X=Math.round(p.x),Y=Math.round(p.y);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=p.c}
  for(const z of zaps){const n=Math.max(1,Math.ceil(Math.hypot(z.x1-z.x0,z.y1-z.y0)));for(let i=0;i<=n;i++){const X=Math.round(z.x0+(z.x1-z.x0)*i/n+(i&&i<n?(Math.random()-.5)*1.6:0)),Y=Math.round(z.y0+(z.y1-z.y0)*i/n+(i&&i<n?(Math.random()-.5)*1.6:0));if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=z.b?(i%2?rgb(150,200,255):rgb(232,244,255)):i%2?rgb(200,150,255):rgb(244,232,255)}}zaps=zaps.filter(z=>--z.l>0);
  if(drag)for(const b of drag.group)if(bodies.includes(b))drawBody(b,true);
- for(let q=0;q<NB;q++){const j0=((q/BW|0)*2)*W+(q%BW)*2;if(fxTop[j0]){const al=fxA[j0],f=fxTop[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])out[j]=al>=255?f:mix(out[j],f,al/255);continue}const v=SV[q];if(v>.04){const a=Math.min(.42,v*.5);for(const j of [j0,j0+1,j0+W,j0+W+1])out[j]=mix(out[j],HAZE,a)}}
+ for(let qy=0,q=0;qy<BH;qy++)for(let qx=0,j0=qy*2*W;qx<BW;qx++,q++,j0+=2){if(fxTop[j0]){const al=fxA[j0],f=fxTop[j0];for(const j of [j0,j0+1,j0+W,j0+W+1])out[j]=al>=255?f:mix(out[j],f,al/255);continue}const v=SV[q];if(v>.04){const a=Math.min(.42,v*.5);for(const j of [j0,j0+1,j0+W,j0+W+1])out[j]=mix(out[j],HAZE,a)}}
  for(const p of parts){if(!hot(p))continue;const X=Math.round(p.x),Y=Math.round(p.y);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=p.em!==undefined&&!p.vx&&Math.random()<.15?mul(p.c,1.25):p.c}
  if(hzOn)veil();
  if(slowMo)streaks();lightPass();if(fogOn()){const sg=(tick/3|0)+':'+bodies.filter(b=>b.direct&&b.status!=='dead').map(b=>b.id+','+Math.round(b.x)+','+Math.round(b.y)).join(';');if(sg!==FOGS){FOGS=sg;fogTick()}fogPass()}

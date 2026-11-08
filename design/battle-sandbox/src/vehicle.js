@@ -91,20 +91,25 @@ const vAt=(X,Y)=>VEH.find(v=>{const[lx,ly]=vW2L(v,X+.5,Y+.5);return lx>=0&&ly>=0
 const vSeatOf=t=>{for(const v of VEH){const i=v.seats.indexOf(t);if(i>=0)return[v,i]}return null};
 
 // drawing: the floor layer under units, the roof and mist over them; supersampled 2x2 when turned
-function vBake(v){for(const t of v.px)if(t.s&&t[3]<t.s[3])t.s[3]=t[3];const n=VC.LW*VC.H;v.L0=new Uint32Array(n);v.L1=new Uint32Array(n);v.L2=new Uint32Array(n);v.trk=[];
+function vBake(v){for(const t of v.px)if(t.s&&t[3]<t.s[3])t.s[3]=t[3];const n=VC.LW*VC.H;v.bk=(v.bk||0)+1;v.L0=new Uint32Array(n);v.L1=new Uint32Array(n);v.L2=new Uint32Array(n);v.trk=[];
  for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx,q=v.smap.get(K(lx,ly));if(q&&!q.dead&&(q[7]==='T'||q[7]==='B'))v.trk.push(i,lx,ly,q[7]);const a=vFloorPx(v,lx,ly),r=vRoofPx(v,lx,ly,true),w=vRoofPx(v,lx,ly,false);v.L0[i]=a?a|0xff000000:0;v.L1[i]=r?r|0xff000000:0;v.L2[i]=w?w|0xff000000:0}v.dirty=0;v.fz=v.fuse?(tick>>2)%2:0}
 function vDraw(top){for(const v of VEH){if(!v.L0||v.dirty||v.fuse&&(tick>>2)%2!==v.fz)vBake(v);
   if(!top){const t=v.trk;for(let k=0;k<t.length;k+=4){const c=vTrack(v,t[k+1],t[k+2],t[k+3]);v.L0[t[k]]=v.dead?vChar(c,t[k+1],t[k+2],v)|0xff000000:c|0xff000000}}
   if(!top)vOver(v);const LD=top?null:v.LD,L=top?(vRoof(v)?v.L1:v.L2):v.L0,c=Math.cos(v.ang),s=Math.sin(v.ang),LW=VC.LW,LH=VC.H;
+  // the sampled footprint and its shadow are kept until the pose, the bake, the tracks or the overlay change
+  const key=v.x+','+v.y+','+v.ang+','+(L===v.L1)+','+v.bk+','+v.ph[0]+','+v.ph[1]+','+(top?0:v.ldh),dc=v.dc||(v.dc=[null,null]);let D=dc[top?1:0];
+  if(!D||D.k!==key){D=dc[top?1:0]={k:key,J:[],C:[],A:[],SJ:[],SK:[]};
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[lx,ly]of[[0,0],[LW,0],[0,LH],[LW,LH]]){const[gx,gy]=vL2W(v,lx,ly);x0=Math.min(x0,gx);x1=Math.max(x1,gx);y0=Math.min(y0,gy);y1=Math.max(y1,gy)}
   const crisp=Math.abs(Math.sin(v.ang*2))<1e-3,SUB=crisp?[.5,.5]:[.25,.25,.75,.25,.25,.75,.75,.75],ns=SUB.length/2,PX=VC.PX,PY=VC.PY;
   // a 3px drop shadow to the right and below, like a wall's, from a footprint mask
   const bx=Math.max(0,Math.floor(x0)),by=Math.max(0,Math.floor(y0)),ex=Math.min(W-1,Math.ceil(x1)+3),ey=Math.min(H-1,Math.ceil(y1)+3),mw=ex-bx+1,M=new Uint8Array(mw*(ey-by+1));
   for(let Y=by;Y<=ey;Y++)for(let X=bx;X<=ex;X++){let r=0,g=0,b=0,n=0;
    for(let k=0;k<SUB.length;k+=2){const dx=X+SUB[k]-v.x,dy=Y+SUB[k+1]-v.y,lx=Math.floor(PX+dx*c+dy*s),ly=Math.floor(PY-dx*s+dy*c);if(lx<0||ly<0||lx>=LW||ly>=LH)continue;const col=LD&&LD[ly*LW+lx]||L[ly*LW+lx];if(!col)continue;r+=col&255;g+=col>>8&255;b+=col>>16&255;n++}
-   if(!n)continue;M[(Y-by)*mw+X-bx]=1;const j=Y*W+X,col=rgb(r/n|0,g/n|0,b/n|0);out[j]=n===ns?col:mix(out[j],col,n/ns)}
+   if(!n)continue;M[(Y-by)*mw+X-bx]=1;D.J.push(Y*W+X);D.C.push(rgb(r/n|0,g/n|0,b/n|0));D.A.push(n/ns)}
   if(!top)for(let Y=by;Y<=ey;Y++)for(let X=bx;X<=ex;X++){const i=(Y-by)*mw+X-bx;if(M[i]||sol[Y*W+X])continue;const m=(x,y)=>x>=0&&y>=0&&M[y*mw+x],x=X-bx,y=Y-by;
-   const k=m(x-1,y)||m(x,y-1)?.62:m(x-2,y)||m(x,y-2)||m(x-1,y-1)?.74:m(x-3,y)||m(x,y-3)||m(x-2,y-1)||m(x-1,y-2)?.87:0;if(k)out[Y*W+X]=mul(out[Y*W+X],k)}
+   const k=m(x-1,y)||m(x,y-1)?.62:m(x-2,y)||m(x,y-2)||m(x-1,y-1)?.74:m(x-3,y)||m(x,y-3)||m(x-2,y-1)||m(x-1,y-2)?.87:0;if(k){D.SJ.push(Y*W+X);D.SK.push(k)}}}
+  for(let i=0;i<D.J.length;i++){const j=D.J[i],a=D.A[i];out[j]=a===1?D.C[i]:mix(out[j],D.C[i],a)}
+  for(let i=0;i<D.SJ.length;i++){const j=D.SJ[i];out[j]=mul(out[j],D.SK[i])}
   if(!top){vGlow(v);for(const b of bodies)if((b.stuck&&!b.att||b.fallen)&&b.type!=='slab'&&vNear(v,b))drawBody(b)}
   if(top)vPuffs(v,L===v.L1)}}
 // overlay in the hull's frame: the door leaves at their slide, with the seams of a door, and the core lit by the engine's power
@@ -114,7 +119,7 @@ function vOver(v){const LW=VC.LW;if(!v.LD||v.LD.length!==LW*VC.H)v.LD=new Uint32
   for(const[k,q]of cells){const x=Math.floor(k/1024)-512,y=k%1024-512,r=!cells.has(K(x+1,y))||!cells.has(K(x,y+1)),l=!cells.has(K(x-1,y))||!cells.has(K(x,y-1));const c0=pcol(d,q);put(x,y,r?mul(c0,.5):l?mul(c0,.8):c0)}}
  for(const t of v.px)if(t[5]>.01&&t.s&&t[7]!=='x'){if(t[5]*.6>(t.s.tm||0)+.08){t.s.tm=t[5]*.6;v.dirty=1}const q=t.s,c0=q[3]<q[6]||t[3]<q[6]?mul(q[2],.6+.4*Math.min(q[3],t[3])/q[6]):q[2];put(q[8],q[9],mix(c0,glow(t[5]),Math.min(1,t[5]*1.6)))}
  const g=v.glow||0;if(g>.01)for(const q of v.src)if(q[7]==='e'&&!q.dead){const c=q[2],br=(c&255)+(c>>8&255)>300;put(q[8],q[9],mix(c,br?rgb(255,250,255):rgb(206,150,255),Math.min(.85,g*(br?.9:.6))))}
- v.ldI=used}
+ let h=0;for(const i of used)h=h*31+i+v.LD[i]|0;v.ldh=h;v.ldI=used}
 // the core's light spills over the floor around it, strongest when the engine works hardest
 function vGlow(v){const g=v.glow||0;if(g<.02||v.dead)return;const[cx,cy]=vL2W(v,VC.XST+8,VC.R0+VC.IH-8),R=28,col=rgb(190,130,255);
  for(let Y=Math.max(0,Math.floor(cy-R));Y<=Math.min(H-1,cy+R);Y++)for(let X=Math.max(0,Math.floor(cx-R));X<=Math.min(W-1,cx+R);X++){const d=Math.hypot(X-cx,Y-cy)/R;if(d>=1)continue;const[lx,ly]=vW2L(v,X+.5,Y+.5);if(!vInside(v,lx,ly))continue;const j=Y*W+X,a=Math.min(.85,g*.9*(1-d)*(1-d)+g*.12*(1-d));out[j]=mix(out[j],col,a)}}
