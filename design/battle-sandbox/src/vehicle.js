@@ -39,8 +39,7 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
  // firing slit: a lit lip on the outer face, dimmer metal through the wall, a darker bevel at its inner edge
  for(let y=RC[0]-5;y<=RC[0]+4;y++){S(0,y,vmet(mat,0,y,1.35),2,'g');for(let x=1;x<FW;x++){smap.delete(K(x,y));B(x,y,vmet(mat,x,y,x===FW-1?.5:.62))}}
  // chest over the engine block
- for(let y=0;y<16;y++)for(let x=0;x<16;x++){const e=x===0||y===0||x===15||y===15,r=x<=3||y<=3||x>=12||y>=12,mk=(x===5||x===10)&&(y>=5&&y<=6||y>=9&&y<=10)||(y===5||y===10)&&(x>=5&&x<=6||x>=9&&x<=10);
-  S(XST+x,R0+y,e?vmet(mat,x,y,x===15||y===15?.45:1.35):r?vmet(mat,x,y,x>=12||y>=12?.8:1.25):mk?vmet(mat,x,y,.6):vmet(mat,x,y,1.05),HP,'c')}
+ {const P=vChestPx(mat);for(let y=0;y<16;y++)for(let x=0;x<16;x++)S(XST+x,R0+y,P[y*16+x],HP,'c')}
  for(let y=0;y<16;y++)for(let x=0;x<16;x++){const e=x===0||y===0||x===15||y===15,cs=x===1||y===1||x===14||y===14;let c=e?vmet(mat,x,y,.45):vmet(mat,x,y,x===1||y===1?1.2:.75),tag='w',hp=HP;
   if(!e&&!cs){const u=x-2,w=y-2,r=Math.hypot((u%6)-2.5,(w%6)-2.5),op=mix(plasC(Math.atan2(y-7.5,x-7.5)/6.283+.5),VPV,.45);c=u===0||w===0||u===11||w===11||u===5||u===6||w===5||w===6?VPD:r<1.6?VPB:r<2.4?VPV:op;tag='e';hp=3}
   S(XST+x,R0+IH-16+y,c,hp,tag)}
@@ -51,7 +50,7 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
  {const vt=tilePix('metal.steel.louvre.w',0,0);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const i=(y*16+x)*4;Rf(XST+x,R0+IH-16+y,vtone(mat,rgb(vt[i],vt[i+1],vt[i+2])))}}
  v.base=base;v.roofL=roof;v.src=src;v.smap=smap}
 
-function carrier(mat,x,y,ang,nat,liv,cond){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',mat:DOORK[mat||'steel'][1],nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,offT:999,acc:0,alp:0,hov:new Set(),puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);if(liv)vLivery(v,liv,.55+Math.random()*.45);if(cond)vCondition(v,cond,(x*7+y*13)|0);return v}
+function carrier(mat,x,y,ang,nat,liv,cond){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',mat:DOORK[mat||'steel'][1],nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,offT:999,acc:0,alp:0,hov:new Set(),puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);vMkChest(v,VSUP());if(liv)vLivery(v,liv,.55+Math.random()*.45);if(cond)vCondition(v,cond,(x*7+y*13)|0);return v}
 // its doors are the game's own doors, riding on the hull: rear double doors part to the sides, the cockpit door slides into the bulkhead
 const VIGN=21;
 const VDOORS=[[VC.L-9,VC.CY-16,Math.PI/2],[VC.L,VC.CY+15,-Math.PI/2],[VC.XP-1,VC.CY-8,Math.PI/2]];
@@ -162,7 +161,7 @@ function vMist(v){if(v.on&&tick-v.onT>=VIGN&&tick%900===0)vVentSoot(v,.004);{con
 function vMarks(v,d){if(d<.02)return;const k=Math.min(1,Math.abs(v.sp)/.25+.3);for(const w of['T','B']){const y0=w==='T'?0:VC.H-VC.TR,ph=Math.floor(v.ph[w==='T'?0:1]);for(const x of[4,5,6,7,8,VC.L-9,VC.L-8,VC.L-7,VC.L-6,VC.L-5])for(const t of[1,3]){const[gx,gy]=vL2W(v,x+.5,y0+t+.5),X=Math.floor(gx/2),Y=Math.floor(gy/2);if(X<0||Y<0||X>=BW||Y>=BH)continue;const q=Y*BW+X,lk=((x-ph)%4+4)%4<2;BURN[q]=Math.max(BURN[q],(lk?.144:.096)*k*(.85+.15*hh(X,Y,9)))}}fxDirty=true}
 
 // driving: slow to start, slow to stop, slow to turn; the tracks run with the ground and counter-run to pivot
-function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%3===0)vAI();for(const v of VEH){const dv=vDriver(v);if(v.seats[0]&&!dv)v.seats[0]=null;
+function vTick(){if(!VEH.length){if(VGP)VGP.style.display='none';return}if(tick%3===0)vAI();for(const v of VEH){const dv=vDriver(v);if(v.seats[0]&&!dv)v.seats[0]=null;if(v.chest){const c=byId(v.chest);if(c)vChestPos(v,c)}
   for(let i=0;i<v.seats.length;i++){const t=v.seats[i];if(t&&(!bodies.includes(t)||t.status==='dead')){if(t.status==='dead'&&bodies.includes(t)){t.vseat=null}v.seats[i]=null}}
   const on=!!dv&&!v.dead;if(on!==!!v.on){v.on=on;if(on)v.onT=tick;else v.offT=0}if(!v.on)v.offT++;
   let thr=0,turn=0;v.tin=0;if(v.on&&tick-v.onT>=VIGN+30){if(dv.direct&&sel.has(dv)){thr=(keys.has('w')?1:0)-(keys.has('s')?1:0);turn=(keys.has('d')?1:0)-(keys.has('a')?1:0)}else if(v.ai){thr=v.ai.thr;turn=v.ai.turn}}
@@ -228,6 +227,17 @@ function vCondition(v,tier,seed){const lv=VCOND[tier]||0;v.cond=[tier,seed];if(!
  if(lv>=2){for(let b=0;b<(lv>2?3:1);b++){const top=rnd()<.5,cx=VC.X0+8+rnd()*(VC.IL-16),n=lv>2?4+Math.floor(rnd()*5):2;
   for(let i=0;i<n;i++){const lx=Math.round(cx+(rnd()-.5)*18),deep=lv>2&&rnd()<.6?2:1,pw=HP*(lv>2?1.1:.5);for(let d=0;d<deep;d++)for(let w=-1;w<=1;w++){const[X,Y]=W2(lx+w,top?VC.TR+d:VC.H-VC.TR-1-d);hitPix(v,X,Y,pw*(w?.7:1)*(1-d*.3))}const[X,Y]=W2(lx,sideY(top));vScar(v,X,Y,1.4+rnd(),rnd()*.35)}}vSettle(v)}
  v.dirty=1}
+
+// the chest over the engine is a real chest in the hull's metal, holding the carrier's stores; it rides with the hull
+const VCHEST={steel:'schest',iron:'mchest',brass:'bchest',gold:'gchest',umbra:'uchest'};
+const VSUP=()=>[{k:'cell',n:1},{k:'mbox',n:2},{k:'rbox',n:2},{k:'grenade',n:2},{k:'pistol',n:1}];
+function vMkChest(v,items){const c=weapon('crate',v.x,v.y,0),k=VCHEST[v.metal]||'schest';c.px=[];mkSet(c);Object.assign(c,{hidden:true,mass:1e9,chest:true,vchest:v.id,metal:true,inv:[],n0:1,name:MCHEST[k][1],ck:k,cells:[[-10,-10],[-9,-10],[-8,-10],[-7,-10],[-10,-9],[-9,-9],[-8,-9],[-7,-9]]});vChestPos(v,c);cFill(c,items);v.chest=c.id;return c}
+function vChestPos(v,c){const p=[[0,0],[16,0],[0,16],[16,16]].map(([x,y])=>vL2W(v,VC.XST+x,VC.R0+y)),xs=p.map(q=>q[0]),ys=p.map(q=>q[1]);c.x=(Math.min(...xs)+Math.max(...xs))/2;c.y=(Math.min(...ys)+Math.max(...ys))/2;c.vx=c.vy=0;c.box=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]}
+// the chest as a map chest of that metal looks: its plate, a bevelled rim, and the raised corner brackets
+function vChestPx(mat){const tx=TEX[VCHEST[mat]||'schest'],P=new Uint32Array(256),L=rgb(255,255,255);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const q=tx(x,y,0,0);let c=rgb(cl(q[0]),cl(q[1]),cl(q[2]));const e=[x,y,15-x,15-y],d=Math.min(...e);if(d===0)c=mul(c,e.indexOf(0)<2?1.15:.62);else if(d===1)c=mul(c,e.indexOf(1)<2?1.08:.82);P[y*16+x]=c}
+ for(const[cx,cy,sx,sy]of[[2,2,1,1],[13,2,-1,1],[2,13,1,-1],[13,13,-1,-1]]){const arm=[];for(let i=0;i<4;i++)arm.push([cx+sx*i,cy,i],[cx,cy+sy*i,i]);const on=new Set(arm.map(([x,y])=>y*16+x));for(const[x,y]of arm){const q=(y+sy)*16+x+sx;if(!on.has(q))P[q]=mul(P[q],.82)}for(const[x,y,i]of arm)P[y*16+x]=mix(P[y*16+x],L,i<3?.5:.25)}return P}
+// the chest under the cursor, when the hull's inside is in view
+function vChestAt(X,Y){for(const v of VEH){if(!v.chest||vRoof(v))continue;const[lx,ly]=vW2L(v,X+.5,Y+.5);if(lx<VC.XST||lx>=VC.XST+16||ly<VC.R0||ly>=VC.R0+16)continue;const q=v.smap.get(K(lx|0,ly|0)),c=byId(v.chest);if(q&&!q.dead&&c)return c}return null}
 
 // liveries: soft paint laid into the roof metal, keeping its grain, worn by cond (1 fresh); a stencil font for hull numbers
 const VFONT={0:'111101101101111',1:'010110010010111',2:'111001111100111',3:'111001111001111',4:'101101111001001',5:'111100111001111',6:'111100111101111',7:'111001010010010',8:'111101111101111',9:'111101111001111',Z:'111001010100111',S:'111100111001111',F:'111100110100100',C:'111100100100111',R:'110101110101101'};
@@ -405,8 +415,35 @@ NBM.circuit=()=>{UND=Array.from({length:48},()=>Array(64).fill('grass'));const r
   if(cy>=34&&cy<=35&&cx>=40&&cx<=54)return'dirt';
   if(cx===22&&cy>=11&&cy<=18||cx===32&&cy>=19&&cy<=26||cx===42&&cy>=11&&cy<=18)return'hedge';
   if((cx===27||cx===37)&&cy>=14&&cy<=15||cx===48&&cy>=22&&cy<=23)return'stone.grey.block.w';
-  return'grass'})};
-NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
+  return'grass'});circuitPaint()};
+// ground paint: lime-wash and ochre laid into the floor with its grain, worn in patches; it becomes part of the map as laid, so the sponge leaves it
+function gPaint(X,Y,c,a,wr=0){X|=0;Y|=0;if(X<0||Y<0||X>=W||Y>=H)return;const j=Y*W+X;if(sol[j]||hh(X>>2,Y>>2,41)<wr)return;floor[j]=mix(floor[j],c,Math.min(1,a*(.75+.35*hh(X,Y,37))))}
+function gLine(x0,y0,x1,y1,w,c,a,wr){const n=Math.ceil(Math.hypot(x1-x0,y1-y0)*2);for(let i=0;i<=n;i++){const x=x0+(x1-x0)*i/n,y=y0+(y1-y0)*i/n;for(let u=0;u<w;u++)for(let v=0;v<w;v++)gPaint(x+u-w/2,y+v-w/2,c,a,wr)}}
+// points along a rounded rectangle (pixels), with the distance run and whether it's on a bend
+function gLoop(x0,y0,x1,y1,r,f){let t=0;const seg=(ax,ay,bx,by)=>{const n=Math.ceil(Math.hypot(bx-ax,by-ay));for(let i=0;i<n;i++){f(ax+(bx-ax)*i/n,ay+(by-ay)*i/n,t++,false)}},arc=(cx,cy,a0)=>{const n=Math.ceil(r*Math.PI/2);for(let i=0;i<n;i++){const a=a0+i/n*Math.PI/2;f(cx+Math.cos(a)*r,cy+Math.sin(a)*r,t++,true)}};
+ seg(x0+r,y0,x1-r,y0);arc(x1-r,y0+r,-Math.PI/2);seg(x1,y0+r,x1,y1-r);arc(x1-r,y1-r,0);seg(x1-r,y1,x0+r,y1);arc(x0+r,y1-r,Math.PI/2);seg(x0,y1-r,x0,y0+r);arc(x0+r,y0+r,Math.PI)}
+function gText(s,x,y,k,c,a){const w=s.length*4*k-k;[...s].forEach((ch,n)=>{const g=VFONT[ch];for(let r=0;r<5;r++)for(let q=0;q<3;q++)if(g[r*3+q]==='1')for(let j=0;j<k;j++)for(let i=0;i<k;i++)gPaint(x-w/2+n*4*k+q*k+i,y-5*k/2+r*k+j,c,a)})}
+function circuitPaint(){const L=rgb(232,226,206),O=rgb(206,176,100),Cr=rgb(150,62,58),t=T;
+ // the road: a dashed centre line, edge lines solid on the straights and broken through the bends, crimson and cream kerbs on the inside of each bend
+ gLoop(6.5*t,5.5*t,57.5*t,31.5*t,6*t,(x,y,d,bend)=>{if(d%22<12)for(let u=-1;u<1;u++)for(let v=-1;v<1;v++)gPaint(x+u,y+v,L,.34,.22)});
+ gLoop(4.6*t,3.6*t,59.4*t,33.4*t,7.4*t,(x,y,d,bend)=>{if(!bend||d%8<4)gPaint(x,y,L,.28,.25)});
+ gLoop(8.4*t,7.4*t,55.6*t,29.6*t,4.6*t,(x,y,d,bend)=>{if(bend)for(let u=-2;u<=2;u++)for(let v=-2;v<=2;v++)gPaint(x+u,y+v,(d>>3)%2?L:Cr,.42,.12);else gPaint(x,y,L,.28,.25)});
+ // start line: a double band across the top straight, with a row of gilt lozenges between
+ for(const bx of[30*t,30*t+7])for(let y=3*t;y<8*t;y++)for(let u=0;u<3;u++)gPaint(bx+u,y,L,.5,.15);
+ for(let y=3*t+6;y<8*t-4;y+=9)for(let u=-2;u<=2;u++)for(let v=-2;v<=2;v++)if(Math.abs(u)+Math.abs(v)<=2)gPaint(30*t+4+u,y+v,O,.55);
+ // direction chevrons after the start, and before each bend three faint braking bars
+ for(const cx of[34*t,37*t]){gLine(cx-6,5.5*t-7,cx,5.5*t,2,L,.45,.15);gLine(cx-6,5.5*t+7,cx,5.5*t,2,L,.45,.15)}
+ for(const[x,y0,y1,h]of[[49,3,8,1],[15,29,34,1]])for(let k=0;k<3;k++)for(let y=y0*t+3;y<y1*t-3;y++)for(let u=0;u<2;u++)gPaint(x*t+k*9*(h?1:-1)+u,y,L,.28,.3);
+ for(const[y,x0,x1]of[[22,55,60],[12,4,9]])for(let k=0;k<3;k++)for(let x=x0*t+3;x<x1*t-3;x++)for(let u=0;u<2;u++)gPaint(x,y*t+k*9+u,L,.28,.3);
+ // the apron: three numbered bays, open to the road, a stop bar at the rear and a hatched keep-clear box behind for the doors
+ [41,47,53].forEach((cx,i)=>{const x=cx*t,yt=37*t+2,yb=43.3*t;for(let y=yt;y<yb;y++)for(const sx of[-39,38])for(let u=0;u<2;u++)gPaint(x+sx+u,y,L,.5);for(let xx=x-39;xx<=x+39;xx++)for(let v=0;v<3;v++)gPaint(xx,yb+v,L,.52);
+  const by0=yb+6,by1=46*t-4,bx0=x-32,bx1=x+32;for(let y=by0;y<by1;y++)for(let xx=bx0;xx<=bx1;xx++){const e=y===by0||y===by1-1||xx===bx0||xx===bx1;if(e)gPaint(xx,y,O,.55);else if((xx+y)%7<2&&Math.abs(xx-x)>11)gPaint(xx,y,O,.42)}
+  gText('0'+(i+1),x,(by0+by1)/2,2,L,.65)});
+ // the stand: a gilt cog before the inspection line, a ring where each inspector stands, a square for each guard behind
+ {const cx=24.5*t,cy=41.6*t;for(let y=cy-16;y<=cy+16;y++)for(let x=cx-16;x<=cx+16;x++){const q=Math.hypot(x-cx,y-cy),th=Math.atan2(y-cy,x-cx),ro=11+(Math.cos(th*8)>.2?3:0);if(q<=ro&&q>=7.5||q<=2.5||q<7.5&&Math.abs(Math.sin(th*3))<.14)gPaint(x,y,O,.55)}}
+ for(let i=0;i<7;i++){const cx=(17.5+i*2.2)*t,cy=39.2*t;for(let y=cy-6;y<=cy+6;y++)for(let x=cx-6;x<=cx+6;x++){const q=Math.hypot(x-cx,y-cy);if(q>=4.5&&q<=5.8)gPaint(x,y,O,.5)}}
+ for(let i=0;i<4;i++){const cx=(18.5+i*4)*t,cy=43.5*t;for(let y=cy-7;y<=cy+7;y++)for(let x=cx-7;x<=cx+7;x++)if(Math.max(Math.abs(x-cx),Math.abs(y-cy))===7)gPaint(x,y,L,.5)}}
+NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;circuitPaint();
  carrier('iron',41*T,39*T,P,'Imperium','F07','battleworn');carrier('steel',47*T,39*T,P,'Imperium','Z03','new');const v=carrier('steel',53*T,39*T,P,'Imperium','C05','veteran');
  carrier('iron',3.5*T,41*T,P,'Imperium','F21','veteran');carrier('steel',8*T,41*T,P,'Imperium','S04','service');carrier('steel',12.5*T,41*T,P,'Imperium','C04','veteran');
  vSeatNow(v,U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer'),1);['Brask','Coll','Dunn','Ivo','Hale','Marl','Rook','Tobin'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<3?'guard':'rifle',0,0,0),2+i));

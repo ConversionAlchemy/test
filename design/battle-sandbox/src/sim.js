@@ -160,7 +160,7 @@ function chDraw(c,hit){const L=chTl(c),b=c.box,IX0=b[0]+2,IY0=b[1]+2,IX1=b[2]-2,
   if(k==='gold'){draw({w:9,h:9,px:solTop(q0.n).map(q=>[q[0]+4,q[1]+4,q[2]])},cx,cy,hv);continue}
   const S=chPix(k),n=amtK(k)?Math.min(4,Math.ceil(q0.n/(AMMOCAP[k]||24))):g.length;let pos;if(S.w>S.h*2)pos=Array.from({length:n},(_,i)=>[0,(i-(n-1)/2)*(S.h+1)]);else if(n===1)pos=[[0,0]];else if(isKey(k))pos=[[-1,-1],[1,1]];else{const o=k==='bomb'?1.5:k==='grenade'?2.5:S.w/2;pos=n===2?(k==='bomb'?[[-o,-o],[o,o]]:[[-o/1.6,-o/1.6],[o/1.6,o/1.6]]):n===3?[[-o,-o],[o,-o],[0,o]]:[[-o,-o],[o,-o],[-o,o],[o,o]]}
   for(const[dx,dy]of pos)draw(S,cx+dx,cy+dy,hv)}}
-const containerAt=(X,Y)=>{const cx=X/T|0,cy=Y/T|0;if(!OBJ[Y*W+X])return null;return bodies.find(o=>o.hidden&&o.cells.some(c=>c[0]===cx&&c[1]===cy))||null};
+const containerAt=(X,Y)=>{const vc=vChestAt(X,Y);if(vc)return vc;const cx=X/T|0,cy=Y/T|0;if(!OBJ[Y*W+X])return null;return bodies.find(o=>o.hidden&&o.cells.some(c=>c[0]===cx&&c[1]===cy))||null};
 const EDG=new Set();
 function cutEdges(x,y,R){const x0=Math.max(1,Math.floor(x-R-3)),x1=Math.min(W-2,Math.ceil(x+R+3)),y0=Math.max(1,Math.floor(y-R-3)),y1=Math.min(H-2,Math.ceil(y+R+3)),add=[];
  for(let Y=y0;Y<=y1;Y++)for(let X=x0;X<=x1;X++){const j=Y*W+X;if(!OBJ[j]||EDG.has(j))continue;const lt=!OBJ[j-1]||!OBJ[j-W],rb=!OBJ[j+1]||!OBJ[j+W];if(!lt&&!rb)continue;
@@ -170,7 +170,7 @@ function cutEdges(x,y,R){const x0=Math.max(1,Math.floor(x-R-3)),x1=Math.min(W-2,
 function scorchRays(x,y,s){const n=8+(Math.random()*8*Math.min(1.5,s)|0),R=18*s;for(let r=0;r<n;r++){const a=Math.random()*6.283,len=R*(.5+Math.random()*.9),w0=.4+Math.random()*.7*s,c=Math.cos(a),sn=Math.sin(a),sd=Math.random()*99;
  for(let t=3;t<len;t+=.5){const f=1-t/len,w=w0*f;for(let u=-w;u<=w;u+=.5){const X=Math.round(x+c*t-sn*u),Y=Math.round(y+sn*t+c*u);if(X<1||Y<1||X>=W-1||Y>=H-1)continue;const j=Y*W+X;if(sol[j])continue;const al=.15*Math.pow(f,1.4)*(.75+.4*hh(X,Y,60));SCH[j]=1;if(OBJ[j])OBJC[j]=mix(OBJC[j],rgb(30,22,16),al);else floor[j]=mix(floor[j],rgb(26,22,20),al)}}}}
 function wreck(x,y,s){const R0=10*s,R=R0*1.5;let hit=false;for(let Y=Math.floor(y-R);Y<=y+R;Y++)for(let X=Math.floor(x-R);X<=x+R;X++){if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(!OBJ[j])continue;const q=Math.hypot(X-x,Y-y)/(R0*(OBJ[j]===3?.8:1.5))*(.8+.4*hh(X,Y,88));if(q>=1)continue;OBJ[j]=0;SHN[j]=0;hit=true;NAVD=true;wearObj(X>>4,Y>>4,.12);if(hh(X,Y,89)<.55)floor[j]=mix(floor[j],mul(OBJC[j],.45),.7)}
- if(!hit)return;cutEdges(x,y,R);for(const c of bodies.filter(o=>o.hidden)){let n=0;for(const[a,b]of c.cells)for(let yy=0;yy<T;yy++)for(let xx=0;xx<T;xx++)n+=OBJ[(b*T+yy)*W+a*T+xx];if(n>=c.n0*.7)continue;
+ if(!hit)return;cutEdges(x,y,R);for(const c of bodies.filter(o=>o.hidden&&!o.vchest)){let n=0;for(const[a,b]of c.cells)for(let yy=0;yy<T;yy++)for(let xx=0;xx<T;xx++)n+=OBJ[(b*T+yy)*W+a*T+xx];if(n>=c.n0*.7)continue;
   for(const it of c.inv){if(!it)continue;if(it.k==='note'){placeNote(it,c.x,c.y);continue}for(let i=0;i<Math.min(6,it.k==='gold'?1:it.n||1);i++){const a=Math.random()*6.283;let px=c.x+Math.cos(a)*6,py=c.y+Math.sin(a)*6;const w=weapon(it.k,px,py,a);if(solidHits(w,0,0)){[px,py]=spillAt(c);w.x=px;w.y=py}if(it.k==='gold')w.amt=it.n;if(CAP[it.k]){w.ammo=it.ammo??CAP[it.k];w.res=it.res||0}if(it.k==='grenade'||it.k==='bomb')w.fuse=8+(Math.random()*30|0);w.vx=Math.cos(a)*2;w.vy=Math.sin(a)*2}}remove(c);if(openCrate===c)openCrate=null}}
 // tethers: rope or chain from a ring on a wall face; a little give, then a hard stop
 const TETH={rope:{give:4,hp:.5},chain:{give:1.5,hp:2.6}};
@@ -441,7 +441,7 @@ const ICN=new Map();function itemPix(k,r){const key=k+r;if(ICN.has(key))return I
  else{const px=shape(k,0);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of px){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])}const ox=(w-(x1-x0+1))>>1,oy=(h-(y1-y0+1))>>1;for(const p of px){const a=p[0]-x0+ox,b=p[1]-y0+oy;o.push(r?[h-1-b,a,p[2]]:[a,b,p[2]])}}
  ICN.set(key,o);return o}
 let SDR=null;const GLOWK=new Set(['sspear','pgun','cell']);
-const storesShown=()=>{const L=[];for(const c of [openCrate,hoverC])if(c&&c.inv&&bodies.includes(c)&&!L.includes(c))L.push(c);for(const b of bodies)if(b.kind==='crate'&&!b.hidden&&(b.open||b===hover)&&!L.includes(b))L.push(b);if(SDR&&SDR.c.inv&&(SDR.c.box||SDR.c.kind==='crate')&&!L.includes(SDR.c))L.push(SDR.c);if((SDR||drag&&drag.b.type==='weapon')&&mouse.in){const c=dropBox();if(c&&!L.includes(c))L.push(c)}return L}
+const storesShown=()=>{const L=[];for(const c of [openCrate,hoverC])if(c&&c.inv&&!c.vchest&&bodies.includes(c)&&!L.includes(c))L.push(c);for(const b of bodies)if(b.kind==='crate'&&!b.hidden&&(b.open||b===hover)&&!L.includes(b))L.push(b);if(SDR&&SDR.c.inv&&(SDR.c.box||SDR.c.kind==='crate')&&!L.includes(SDR.c))L.push(SDR.c);if((SDR||drag&&drag.b.type==='weapon')&&mouse.in){const c=dropBox();if(c&&!L.includes(c))L.push(c)}return L}
 function dropBox(){const X=Math.round(mouse.x),Y=Math.round(mouse.y);if(X<0||Y<0||X>=W||Y>=H)return null;const sk=drag&&drag.b,c=bodyAt(X,Y,3,sk,o=>o.kind==='crate'&&!o.hidden);if(c)return c;const k=OM[Y/T|0]&&OM[Y/T|0][X/T|0];return k&&(PCK.has(k)||isTbl(k))&&OBJ[Y*W+X]?boxAt(X,Y):null}
 const canStore=(c,k)=>{if(!c)return false;cNorm(c);if(cT(c))return chSpots(c,k).some(s=>chRoom(c,s,k)>0);return k==='gold'&&c.inv.some(q=>q&&q.k==='gold')||!!(cAt(c,k,mouse.x,mouse.y)||cFit(c,k))};
 function sdrOk(){const q=SDR.c.inv[SDR.i];if(!q||!mouse.in)return false;const X=Math.round(mouse.x),Y=Math.round(mouse.y),tk=bodyAt(X,Y,4,null,o=>o.type==='token'&&o.status!=='dead');if(tk)return tk!==SDR.c;const c=dropBox();if(c===SDR.c)return !!cAt(c,q.k,mouse.x,mouse.y,q);return c?canStore(c,q.k):false}
@@ -1149,7 +1149,7 @@ function floorPx(X,Y,j,hlC,sh){let c=floor[j];if(OBJ[j]){c=OBJC[j];if(hlC.size){
 function floorRows(y0,y1,hlC){if(y0===0&&y1===H)SHL=new Set();for(let Y=y0;Y<y1;Y++)for(let X=0,j=Y*W;X<W;X++,j++){if(sol[j])continue;if(SHN[j]){SHL.add(j);continue}FLC[j]=floorPx(X,Y,j,hlC,false)}}
 function render(){VIEWR=VWH&&S?[Math.max(0,Math.floor(-cam.x/S)),Math.max(0,Math.floor(-cam.y/S)),Math.min(W,Math.ceil((VWH[0]-cam.x)/S)),Math.min(H,Math.ceil((VWH[1]-cam.y)/S))]:null;
  if(solDirty&&tick-solT>=3){rebuildSH();solDirty=false;solT=tick;shBuilt=true;SOLL=null}
- sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);
+ sheenFrame();const hlC=new Map();for(const[c0,f]of[[hoverC,1.12],[openCrate,1.25]])if(c0&&c0.cells&&!c0.vchest)for(const[a,b]of c0.cells)hlC.set(b*CW+a,f);
  // the ground is composed into a cache: rebuilt whole when scorch, walls, hover or map change, otherwise a slice of rows a frame catches slower edits
  const fk=curMap+'|'+N+'|'+[...hlC.keys()].join();if(!FLC||FLC.length!==N||fxDirty||FLK!==fk||shBuilt){if(!FLC||FLC.length!==N)FLC=new Uint32Array(N);FLK=fk;shBuilt=false;floorRows(0,H,hlC);FLR=0}else{const n=Math.ceil(H/16);floorRows(FLR,Math.min(H,FLR+n),hlC);FLR=FLR+n>=H?0:FLR+n}
  out.set(FLC);for(const j of SHL){if(sol[j])continue;out[j]=floorPx(j%W,j/W|0,j,hlC,true)}
