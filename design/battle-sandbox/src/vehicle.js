@@ -141,9 +141,9 @@ function vTrack(v,x,y,w){const t=w==='T'?y:y-(VC.H-VC.TR),ph=Math.floor(v.ph[w==
 // the roof hides the crew unless a selected unit is aboard (V switches back to the roof)
 // a point under a carrier's roof while the roof is shown: light there doesn't reach the outside
 function vRoofed(x,y){for(const v of VEH){if(Math.abs(x-v.x)>VC.L*.6||Math.abs(y-v.y)>VC.L*.6||!vRoof(v))continue;const[lx,ly]=vW2L(v,x,y);if(lx>=0&&ly>=VC.TR&&lx<VC.L&&ly<VC.H-VC.TR)return true}return false}
-// roof by default. Inside: a selected unit aboard sees the interior (V switches to the roof). With no unit selected, hovering a crewed
+// roof by default. Inside: a selected unit aboard sees the interior (V switches to the roof while the cursor is off the carrier). With no unit selected, hovering a crewed
 // carrier shows its interior. Alt over a carrier always shows the roof, to lob onto it
-function vRoof(v){const ov=vCur(v);if(LOBK&&ov)return true;let any=false;for(const t of sel)if(t.type==='token'){any=true;if(vHas(v,t))return!!v.ext}
+function vRoof(v){const ov=vCur(v);if(LOBK&&ov)return true;let any=false;for(const t of sel)if(t.type==='token'){any=true;if(vHas(v,t))return!!v.ext&&!ov}
  return any||!ov||!bodies.some(t=>t.type==='token'&&t.status!=='dead'&&vHas(v,t))}
 function vCur(v){if(v.pkT===tick)return v.pk;v.pkT=tick;const[lx,ly]=vW2L(v,mouse.x,mouse.y);return v.pk=lx>=0&&ly>=0&&lx<VC.L&&ly<VC.H}
 // V from a seat: switch between seeing the interior and the roof
@@ -422,6 +422,7 @@ NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
 {const o=document.createElement('option');o.value='yard';o.textContent='Fluoria carrier yard';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['yard','Fluoria carrier yard']);ms.value=curMap}}
 if(curMap==='yard'||curMap==='circuit'){CW=-1;reset()}
 
-// fog covers carriers like everything else; holding Alt over one shows its roof through the fog, to lob onto it
-let VFM=null;function vFogMask(){if(!VFM||VFM.length!==N)VFM=new Uint8Array(N);else VFM.fill(0);if(!LOBK)return;for(const v of VEH){if(!vCur(v))continue;const R=VC.L*.62,x0=Math.max(0,v.x-R|0),x1=Math.min(W-1,v.x+R|0),y0=Math.max(0,v.y-R|0),y1=Math.min(H-1,v.y+R|0);
+// fog covers carriers like everything else, but never one your side is aboard (its own walls blocked the crew's sight of it and left
+// fog blotches over it); holding Alt over a carrier shows its roof through the fog, to lob onto it
+let VFM=null;function vFogMask(){if(!VFM||VFM.length!==N)VFM=new Uint8Array(N);else VFM.fill(0);const me=fogTeam();for(const v of VEH){if(!(LOBK&&vCur(v))&&!(me&&bodies.some(t=>t.type==='token'&&t.status!=='dead'&&teamOf(t)===me&&vHas(v,t))))continue;const R=VC.L*.62,x0=Math.max(0,v.x-R|0),x1=Math.min(W-1,v.x+R|0),y0=Math.max(0,v.y-R|0),y1=Math.min(H-1,v.y+R|0);
  for(let Y=y0;Y<=y1;Y++)for(let X=x0;X<=x1;X++){const[lx,ly]=vW2L(v,X+.5,Y+.5);if(lx>=0&&ly>=0&&lx<VC.LW&&ly<VC.H)VFM[Y*W+X]=1}}}
