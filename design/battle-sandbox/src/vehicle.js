@@ -419,3 +419,7 @@ NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
 {const o=document.createElement('option');o.value='circuit';o.textContent='Fluoria carrier circuit';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['circuit','Fluoria carrier circuit']);ms.value=curMap}}
 {const o=document.createElement('option');o.value='yard';o.textContent='Fluoria carrier yard';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['yard','Fluoria carrier yard']);ms.value=curMap}}
 if(curMap==='yard'||curMap==='circuit'){CW=-1;reset()}
+
+// fog: a carrier any part of which your side can see is drawn whole, roof clear of fog; one wholly out of sight stays in the fog
+let VFM=null;function vFogMask(){if(!VFM||VFM.length!==N)VFM=new Uint8Array(N);else VFM.fill(0);for(const v of VEH){const R=VC.L*.62,x0=Math.max(0,v.x-R|0),x1=Math.min(W-1,v.x+R|0),y0=Math.max(0,v.y-R|0),y1=Math.min(H-1,v.y+R|0),js=[];let seen=false;
+ for(let Y=y0;Y<=y1;Y++)for(let X=x0;X<=x1;X++){const[lx,ly]=vW2L(v,X+.5,Y+.5);if(lx<0||ly<0||lx>=VC.LW||ly>=VC.H)continue;js.push(Y*W+X);if(!seen&&VIS[(Y>>1)*BW+(X>>1)])seen=true}if(seen)for(const j of js)VFM[j]=1}}
