@@ -1860,7 +1860,7 @@ function render(){VIEWR=VWH&&S?[Math.max(0,Math.floor(-cam.x/S)),Math.max(0,Math
  if(VIEWR&&VIEWR[2]>VIEWR[0]&&VIEWR[3]>VIEWR[1])ctx.putImageData(img,0,0,VIEWR[0],VIEWR[1],VIEWR[2]-VIEWR[0],VIEWR[3]-VIEWR[1]);else ctx.putImageData(img,0,0);
  for(const e of document.querySelectorAll('#sm .xlab')){const x=(EXITS[curMap]||[])[+e.dataset.i];if(x){e.style.left=x.lx*S+'px';e.style.top=x.ly*S+'px'}}
  for(const b of bodies){if(b.mv>0)b.mv--;if(b.lab){b.lab.style.left=(Math.round(b.x)+.5)*S+'px';b.lab.style.top=(Math.round(b.y)+10)*S+'px';b.lab.style.color=natLabel(b);b.lab.style.zIndex=b.status==='dead'?0:1;{const vc=VIS[(Math.round(b.y)>>1)*BW+(Math.round(b.x)>>1)],hid=fogOn()&&(teamOf(b)!==aiMe&&(b.fogH||!vc)||b.status==='dead'&&!vc);b.lab.style.display=hid?'none':''}dbar(b,S);sayTick(b,S);{let c=b.lab.querySelector('.ld');if(b.leader&&b.status!=='dead'){if(!c){c=document.createElement('span');c.className='ld';c.innerHTML=CROWNI;b.lab.prepend(c)}}else if(c)c.remove()}}}
- stage.style.transform=shake>0?`translate(${(Math.random()-.5)*shake}px,${(Math.random()-.5)*shake}px)`:'';if(shake>0)shake--}
+ SHK=shake>0?[Math.round((Math.random()-.5)*shake),Math.round((Math.random()-.5)*shake)]:[0,0];stageXf();if(shake>0)shake--}
 function veil(){const G=24,gw=(W/G|0)+3,gh=(H/G|0)+3,ox=tick/500,fx0=Math.floor(ox),fr=ox-fx0,g=new Float32Array(gw*gh);for(let y=0;y<gh;y++)for(let x=0;x<gw;x++)g[y*gw+x]=hh(x+fx0,y,77);
  for(let Y=0;Y<H;Y++){const gy=Y/G,y0=gy|0,ty=gy-y0;for(let X=0;X<W;X++){const h=HZ[(Y>>1)*BW+(X>>1)];if(h<.003)continue;const gx=X/G+fr,x0=gx|0,tx=gx-x0;
   const n=(g[y0*gw+x0]*(1-tx)+g[y0*gw+x0+1]*tx)*(1-ty)+(g[(y0+1)*gw+x0]*(1-tx)+g[(y0+1)*gw+x0+1]*tx)*ty;const j=Y*W+X;out[j]=mix(out[j],VEIL,Math.min(.4,h)*(.6+.8*n))}}}
@@ -1987,11 +1987,11 @@ function dropSlot(b,i){const q=b.inv&&b.inv[i];if(!q)return;if(q.rd===true){cons
 {const st=document.createElement('style');st.textContent='div#sm{border:0;min-height:100vh;display:flex;flex-direction:column}#sm div.main{grid-template-columns:minmax(0,1fr) 344px;flex:1;min-height:0}#sm div.view{background:#000;position:relative;overflow:hidden;padding:0;border-right:1px solid #000}#sm div.stage{position:absolute}#sm div.side{max-height:none;background:#0a0a0a}#sm div.stage{box-shadow:0 0 0 1px #000}';document.head.appendChild(st)}
 let cam={x:0,y:0},camInit=true,pan=null,panKey=false;
 function fit(){const v=$('stage').parentElement,used=document.querySelector('#sm header').offsetHeight+$('bar').offsetHeight+$('hint').offsetHeight;v.style.height=Math.max(320,window.innerHeight-used)+'px';{const sd=document.querySelector('#sm .side');sd.style.height=v.style.height;sd.style.maxHeight=v.style.height;sd.style.overflowY='auto'}const aw=v.clientWidth-56,ah=v.clientHeight-56;let k=Math.min(aw/W,ah/H);k=k>=3?Math.floor(k):k>=2?Math.floor(k*4)/4:2.5;S=k;stage.style.width=W*S+'px';stage.style.height=H*S+'px';cv.style.width=W*S+'px';cv.style.height=H*S+'px';applyCam()}
-var CAMF=false,VIEWR=null,VWH=null;// VIEWR: the board rect on screen, from the viewport size kept by applyCam
+var CAMF=false,VIEWR=null,VWH=null,CAMX=0,CAMY=0,SHK=[0,0];const stageXf=()=>{const t=`translate(${CAMX+SHK[0]}px,${CAMY+SHK[1]}px)`;if(stage.style.transform!==t)stage.style.transform=t};// VIEWR: the board rect on screen, from the viewport size kept by applyCam
 const offView=(x,y,m)=>VIEWR&&(x<VIEWR[0]-m||y<VIEWR[1]-m||x>VIEWR[2]+m||y>VIEWR[3]+m);
 // following a driven unit: no edge clamp, the map's surround is black anyway
 function applyCam(){const v=$('stage').parentElement,vw=v.clientWidth,vh=v.clientHeight,sw=W*S,sh=H*S;if(camInit){cam.x=curMap==="range"?0:(vw-sw)/2;cam.y=curMap==="range"?0:vh-sh-28;camInit=false}
- const cx=CAMF?cam.x:sw+56<=vw?(vw-sw)/2:Math.min(28,Math.max(vw-sw-28,cam.x)),cy=CAMF?cam.y:sh+56<=vh?(vh-sh)/2:Math.min(28,Math.max(vh-sh-28,cam.y));cam.x=cx;cam.y=cy;stage.style.left=cx+'px';stage.style.top=cy+'px';VWH=[vw,vh]}
+ const cx=CAMF?cam.x:sw+56<=vw?(vw-sw)/2:Math.min(28,Math.max(vw-sw-28,cam.x)),cy=CAMF?cam.y:sh+56<=vh?(vh-sh)/2:Math.min(28,Math.max(vh-sh-28,cam.y));cam.x=cx;cam.y=cy;CAMX=Math.round(cx);CAMY=Math.round(cy);stage.style.left='0px';stage.style.top='0px';VWH=[vw,vh];stageXf()}
 window.addEventListener('resize',fit);setTimeout(fit,0);setTimeout(fit,400);
 let AMB=1;let LR=new Float32Array(NB),LG=new Float32Array(NB),LB=new Float32Array(NB),LT=new Float32Array(NB);let tls=[];
 function flash(x,y,r,g,b,i,rad,d){if(BLU&&b>=r&&b>g)[r,g]=[g,r];tls.push({x,y,r,g,b,i,rad,d})}
@@ -3503,18 +3503,17 @@ NBM.circuit=()=>{UND=Array.from({length:48},()=>Array(64).fill('grass'));const r
   if(cx>=36&&cx<=58&&cy>=36&&cy<=46)return cy===36||cx===36||cx===58||cy===46?'stone.grey.block':'stone.grey.slabs';
   if(cx>=16&&cx<=32&&cy>=38&&cy<=45)return'stone.grey.quarter';
   if(cy>=34&&cy<=35&&cx>=40&&cx<=54)return'dirt';
-  if(cx===22&&cy>=11&&cy<=18||cx===32&&cy>=19&&cy<=26||cx===42&&cy>=11&&cy<=18)return'hedge';
+  if(cx===22&&cy>=11&&cy<=18||cx===42&&cy>=11&&cy<=18)return'hedge';
   if((cx===27||cx===37)&&cy>=14&&cy<=15||cx===48&&cy>=22&&cy<=23)return'stone.grey.block.w';
   return'grass'})};
 NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
  carrier('iron',41*T,39*T,P,'Imperium','battleworn');carrier('iron',47*T,39*T,P,'Imperium','derelict');const v=carrier('steel',53*T,39*T,P,'Imperium','new');
  vSeatNow(v,U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer'),1);['Brask','Coll','Dunn','Ivo','Hale','Marl','Rook','Tobin'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<3?'guard':'rifle',0,0,0),2+i));
  U('Legate Varro','Imperium','civ',56.6,44,A,'pistol','Officer');
- // the parade across the road from the stand, two ranks per squad: two fresh squads, a veteran squad, then worn ones
- {const NM='Abel Bram Cato Dace Edric Faro Gage Hollis Ivo Jarek Kell Lorn Mace Nils Oran Piet Quill Rand Soren Tam Ulric Vane Wick Yorr Zane Aldo Brenn Cole Dorn Emmet Fisk Garr Hask Iver Jory Kade'.split(' '),HR=[[96,70,52],[58,48,42],[150,146,140],[120,84,56]];let k=0,x=11.5;
-  for(const[n,un,tier]of[[8,'rifle','fresh'],[8,'guard','fresh'],[6,'guard','veteran'],[8,'rifle','mixed'],[6,'shock','mixed']]){const cols=n/2;
-   for(let i=0;i<n;i++){const c=i%cols,r=i/cols|0,lv=tier==='fresh'?0:tier==='veteran'?2:[1,2,3,3,2,3,1,3][i%8],t=U(NM[k++],'Imperium',un,x+c*1.3,27.2+r*1.3,P);
-    t.wear={lv,seed:k*17,bare:lv>=2&&(k*7)%5===0,hair:rgb(...HR[k%4])}}x+=cols*1.3+2.2}}
+ // the parade across the road from the stand, as laid out by hand: veteran and fresh Praetorians, fresh and worn Musketeers, then the Shocktroopers
+ {const HR=[[96,70,52],[58,48,42],[150,146,140],[120,84,56]],X={a:[16.6,17.9,19.2,20.6],b:[23.5,24.8,26.1,27.4],c:[30.2,31.5,32.8]},Y=[23.1,24.4,25.8,27.1];let k=0;
+  for(const[names,un,tier,xs,y0]of[['Abel Bram Cato Dace Edric Faro Gage Hollis','rifle','fresh',X.b,0],['Ivo Jarek Kell Lorn Mace Nils Oran Piet','guard','fresh',X.a,2],['Quill Rand Soren Tam Ulric Vane','guard','veteran',X.a,0],['Wick Yorr Zane Aldo Brenn Cole Dorn Emmet','rifle','mixed',X.b,2],['Fisk Garr Hask Iver Jory Kade','shock','mixed',X.c,2]]){const nm=names.split(' '),cols=nm.length/2;
+   nm.forEach((n,i)=>{const lv=tier==='fresh'?0:tier==='veteran'?2:[1,2,3,3,2,3,1,3][i%8],t=U(n,'Imperium',un,xs[i%cols],Y[y0+(i/cols|0)],P);k++;t.wear={lv,seed:k*17,bare:lv>=2&&(k*7)%5===0,hair:rgb(...HR[k%4])}})}}
  // the inspection line along the stand's front, facing the circuit
  [['Lord Castor','Imperial Noble'],['Lady Ysolde','Imperial Noble'],['Lord Aemon','Imperial Noble'],['Overseer Malcor','Overseer'],['Legate Thane','Officer'],['Tribune Corvin','Officer'],['Ser Davin','Officer']].forEach(([n,l],i)=>U(n,'Imperium','civ',17.5+i*2.2,39.2,A,l==='Officer'?'pistol':null,l));
  ['Pell','Wat','Ned','Orrin'].forEach((n,i)=>U(n,'Imperium',i===3?'guard':'rifle',18.5+i*4,43.5,A,i===3?'rod':undefined));
@@ -3964,7 +3963,7 @@ function hotbar(){const tk=UI.tool==='hand'&&([...sel].filter(o=>o.type==='token
 // storage icon: the piece as it looks on the map, its top-left tile
 function pieceIcon(c){if(c.vchest){const e=mk('canvas');e.width=e.height=T;const g=e.getContext('2d'),id=g.createImageData(T,T),o=new Uint32Array(id.data.buffer),P=vChestPx(MCHEST[c.ck][0]);for(let i=0;i<T*T;i++)o[i]=P[i]|0xff000000;g.putImageData(id,0,0);e.style.cssText='width:32px;height:32px;image-rendering:pixelated;flex:none';return e}const[cx,cy]=c.cells.reduce((a,b)=>b[1]<a[1]||b[1]===a[1]&&b[0]<a[0]?b:a),e=mk('canvas');e.width=e.height=T;const g=e.getContext('2d'),id=g.createImageData(T,T),o=new Uint32Array(id.data.buffer);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;o[y*T+x]=(OBJ[j]?OBJC[j]:floor[j])|0xff000000}g.putImageData(id,0,0);e.style.cssText='width:32px;height:32px;image-rendering:pixelated;flex:none';return e}
 function tokIcon(b){const c=mk('canvas');c.width=c.height=17;const g=c.getContext('2d'),id=g.createImageData(17,17),u=new Uint32Array(id.data.buffer),t={type:'token',ang:Math.PI/2,look:b.look,unit:b.unit,nat:b.nat,guard:b.guard,tone:b.tone},px=tokPixels(t),set=new Set(px.map(p=>K(p[0],p[1])));for(const p of px){let q=pcol(t,p);if(q===0)continue;if(!sprG(lookOf(t))&&(!set.has(K(p[0]+1,p[1]))||!set.has(K(p[0]-1,p[1]))||!set.has(K(p[0],p[1]+1))||!set.has(K(p[0],p[1]-1))))q=mul(q,.36);u[(p[1]+8)*17+p[0]+8]=q}g.putImageData(id,0,0);c.style.cssText='width:34px;height:34px;image-rendering:pixelated';return c}
-function follow(){const tk=UI.tool==='hand'&&[...sel].find(o=>o.type==='token'&&o.direct&&o.status!=='dead');CAMF=!!tk;if(!tk)return;const v=VIEW,tx=v.clientWidth/2-tk.x*S,ty=v.clientHeight/2-tk.y*S;cam.x+=(tx-cam.x)*.12;cam.y+=(ty-cam.y)*.12;applyCam()}
+function follow(){const tk=UI.tool==='hand'&&[...sel].find(o=>o.type==='token'&&o.direct&&o.status!=='dead');CAMF=!!tk;if(!tk)return;const v=VIEW,tx=v.clientWidth/2-tk.x*S,ty=v.clientHeight/2-tk.y*S;if(Math.abs(tx-cam.x)<.5&&Math.abs(ty-cam.y)<.5)return;cam.x+=(tx-cam.x)*.12;cam.y+=(ty-cam.y)*.12;applyCam()}
 OVL.push(()=>{hotbar();follow()});
 // spawner looks vary on their own: some conscripts turn out in the striped guard
 const VARIANT={};

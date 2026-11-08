@@ -1186,7 +1186,7 @@ function render(){VIEWR=VWH&&S?[Math.max(0,Math.floor(-cam.x/S)),Math.max(0,Math
  if(VIEWR&&VIEWR[2]>VIEWR[0]&&VIEWR[3]>VIEWR[1])ctx.putImageData(img,0,0,VIEWR[0],VIEWR[1],VIEWR[2]-VIEWR[0],VIEWR[3]-VIEWR[1]);else ctx.putImageData(img,0,0);
  for(const e of document.querySelectorAll('#sm .xlab')){const x=(EXITS[curMap]||[])[+e.dataset.i];if(x){e.style.left=x.lx*S+'px';e.style.top=x.ly*S+'px'}}
  for(const b of bodies){if(b.mv>0)b.mv--;if(b.lab){b.lab.style.left=(Math.round(b.x)+.5)*S+'px';b.lab.style.top=(Math.round(b.y)+10)*S+'px';b.lab.style.color=natLabel(b);b.lab.style.zIndex=b.status==='dead'?0:1;{const vc=VIS[(Math.round(b.y)>>1)*BW+(Math.round(b.x)>>1)],hid=fogOn()&&(teamOf(b)!==aiMe&&(b.fogH||!vc)||b.status==='dead'&&!vc);b.lab.style.display=hid?'none':''}dbar(b,S);sayTick(b,S);{let c=b.lab.querySelector('.ld');if(b.leader&&b.status!=='dead'){if(!c){c=document.createElement('span');c.className='ld';c.innerHTML=CROWNI;b.lab.prepend(c)}}else if(c)c.remove()}}}
- stage.style.transform=shake>0?`translate(${(Math.random()-.5)*shake}px,${(Math.random()-.5)*shake}px)`:'';if(shake>0)shake--}
+ SHK=shake>0?[Math.round((Math.random()-.5)*shake),Math.round((Math.random()-.5)*shake)]:[0,0];stageXf();if(shake>0)shake--}
 function veil(){const G=24,gw=(W/G|0)+3,gh=(H/G|0)+3,ox=tick/500,fx0=Math.floor(ox),fr=ox-fx0,g=new Float32Array(gw*gh);for(let y=0;y<gh;y++)for(let x=0;x<gw;x++)g[y*gw+x]=hh(x+fx0,y,77);
  for(let Y=0;Y<H;Y++){const gy=Y/G,y0=gy|0,ty=gy-y0;for(let X=0;X<W;X++){const h=HZ[(Y>>1)*BW+(X>>1)];if(h<.003)continue;const gx=X/G+fr,x0=gx|0,tx=gx-x0;
   const n=(g[y0*gw+x0]*(1-tx)+g[y0*gw+x0+1]*tx)*(1-ty)+(g[(y0+1)*gw+x0]*(1-tx)+g[(y0+1)*gw+x0+1]*tx)*ty;const j=Y*W+X;out[j]=mix(out[j],VEIL,Math.min(.4,h)*(.6+.8*n))}}}
@@ -1313,11 +1313,11 @@ function dropSlot(b,i){const q=b.inv&&b.inv[i];if(!q)return;if(q.rd===true){cons
 {const st=document.createElement('style');st.textContent='div#sm{border:0;min-height:100vh;display:flex;flex-direction:column}#sm div.main{grid-template-columns:minmax(0,1fr) 344px;flex:1;min-height:0}#sm div.view{background:#000;position:relative;overflow:hidden;padding:0;border-right:1px solid #000}#sm div.stage{position:absolute}#sm div.side{max-height:none;background:#0a0a0a}#sm div.stage{box-shadow:0 0 0 1px #000}';document.head.appendChild(st)}
 let cam={x:0,y:0},camInit=true,pan=null,panKey=false;
 function fit(){const v=$('stage').parentElement,used=document.querySelector('#sm header').offsetHeight+$('bar').offsetHeight+$('hint').offsetHeight;v.style.height=Math.max(320,window.innerHeight-used)+'px';{const sd=document.querySelector('#sm .side');sd.style.height=v.style.height;sd.style.maxHeight=v.style.height;sd.style.overflowY='auto'}const aw=v.clientWidth-56,ah=v.clientHeight-56;let k=Math.min(aw/W,ah/H);k=k>=3?Math.floor(k):k>=2?Math.floor(k*4)/4:2.5;S=k;stage.style.width=W*S+'px';stage.style.height=H*S+'px';cv.style.width=W*S+'px';cv.style.height=H*S+'px';applyCam()}
-var CAMF=false,VIEWR=null,VWH=null;// VIEWR: the board rect on screen, from the viewport size kept by applyCam
+var CAMF=false,VIEWR=null,VWH=null,CAMX=0,CAMY=0,SHK=[0,0];const stageXf=()=>{const t=`translate(${CAMX+SHK[0]}px,${CAMY+SHK[1]}px)`;if(stage.style.transform!==t)stage.style.transform=t};// VIEWR: the board rect on screen, from the viewport size kept by applyCam
 const offView=(x,y,m)=>VIEWR&&(x<VIEWR[0]-m||y<VIEWR[1]-m||x>VIEWR[2]+m||y>VIEWR[3]+m);
 // following a driven unit: no edge clamp, the map's surround is black anyway
 function applyCam(){const v=$('stage').parentElement,vw=v.clientWidth,vh=v.clientHeight,sw=W*S,sh=H*S;if(camInit){cam.x=curMap==="range"?0:(vw-sw)/2;cam.y=curMap==="range"?0:vh-sh-28;camInit=false}
- const cx=CAMF?cam.x:sw+56<=vw?(vw-sw)/2:Math.min(28,Math.max(vw-sw-28,cam.x)),cy=CAMF?cam.y:sh+56<=vh?(vh-sh)/2:Math.min(28,Math.max(vh-sh-28,cam.y));cam.x=cx;cam.y=cy;stage.style.left=cx+'px';stage.style.top=cy+'px';VWH=[vw,vh]}
+ const cx=CAMF?cam.x:sw+56<=vw?(vw-sw)/2:Math.min(28,Math.max(vw-sw-28,cam.x)),cy=CAMF?cam.y:sh+56<=vh?(vh-sh)/2:Math.min(28,Math.max(vh-sh-28,cam.y));cam.x=cx;cam.y=cy;CAMX=Math.round(cx);CAMY=Math.round(cy);stage.style.left='0px';stage.style.top='0px';VWH=[vw,vh];stageXf()}
 window.addEventListener('resize',fit);setTimeout(fit,0);setTimeout(fit,400);
 let AMB=1;let LR=new Float32Array(NB),LG=new Float32Array(NB),LB=new Float32Array(NB),LT=new Float32Array(NB);let tls=[];
 function flash(x,y,r,g,b,i,rad,d){if(BLU&&b>=r&&b>g)[r,g]=[g,r];tls.push({x,y,r,g,b,i,rad,d})}

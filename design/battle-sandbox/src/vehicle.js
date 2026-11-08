@@ -392,18 +392,17 @@ NBM.circuit=()=>{UND=Array.from({length:48},()=>Array(64).fill('grass'));const r
   if(cx>=36&&cx<=58&&cy>=36&&cy<=46)return cy===36||cx===36||cx===58||cy===46?'stone.grey.block':'stone.grey.slabs';
   if(cx>=16&&cx<=32&&cy>=38&&cy<=45)return'stone.grey.quarter';
   if(cy>=34&&cy<=35&&cx>=40&&cx<=54)return'dirt';
-  if(cx===22&&cy>=11&&cy<=18||cx===32&&cy>=19&&cy<=26||cx===42&&cy>=11&&cy<=18)return'hedge';
+  if(cx===22&&cy>=11&&cy<=18||cx===42&&cy>=11&&cy<=18)return'hedge';
   if((cx===27||cx===37)&&cy>=14&&cy<=15||cx===48&&cy>=22&&cy<=23)return'stone.grey.block.w';
   return'grass'})};
 NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
  carrier('iron',41*T,39*T,P,'Imperium','battleworn');carrier('iron',47*T,39*T,P,'Imperium','derelict');const v=carrier('steel',53*T,39*T,P,'Imperium','new');
  vSeatNow(v,U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer'),1);['Brask','Coll','Dunn','Ivo','Hale','Marl','Rook','Tobin'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<3?'guard':'rifle',0,0,0),2+i));
  U('Legate Varro','Imperium','civ',56.6,44,A,'pistol','Officer');
- // the parade across the road from the stand, two ranks per squad: two fresh squads, a veteran squad, then worn ones
- {const NM='Abel Bram Cato Dace Edric Faro Gage Hollis Ivo Jarek Kell Lorn Mace Nils Oran Piet Quill Rand Soren Tam Ulric Vane Wick Yorr Zane Aldo Brenn Cole Dorn Emmet Fisk Garr Hask Iver Jory Kade'.split(' '),HR=[[96,70,52],[58,48,42],[150,146,140],[120,84,56]];let k=0,x=11.5;
-  for(const[n,un,tier]of[[8,'rifle','fresh'],[8,'guard','fresh'],[6,'guard','veteran'],[8,'rifle','mixed'],[6,'shock','mixed']]){const cols=n/2;
-   for(let i=0;i<n;i++){const c=i%cols,r=i/cols|0,lv=tier==='fresh'?0:tier==='veteran'?2:[1,2,3,3,2,3,1,3][i%8],t=U(NM[k++],'Imperium',un,x+c*1.3,27.2+r*1.3,P);
-    t.wear={lv,seed:k*17,bare:lv>=2&&(k*7)%5===0,hair:rgb(...HR[k%4])}}x+=cols*1.3+2.2}}
+ // the parade across the road from the stand, as laid out by hand: veteran and fresh Praetorians, fresh and worn Musketeers, then the Shocktroopers
+ {const HR=[[96,70,52],[58,48,42],[150,146,140],[120,84,56]],X={a:[16.6,17.9,19.2,20.6],b:[23.5,24.8,26.1,27.4],c:[30.2,31.5,32.8]},Y=[23.1,24.4,25.8,27.1];let k=0;
+  for(const[names,un,tier,xs,y0]of[['Abel Bram Cato Dace Edric Faro Gage Hollis','rifle','fresh',X.b,0],['Ivo Jarek Kell Lorn Mace Nils Oran Piet','guard','fresh',X.a,2],['Quill Rand Soren Tam Ulric Vane','guard','veteran',X.a,0],['Wick Yorr Zane Aldo Brenn Cole Dorn Emmet','rifle','mixed',X.b,2],['Fisk Garr Hask Iver Jory Kade','shock','mixed',X.c,2]]){const nm=names.split(' '),cols=nm.length/2;
+   nm.forEach((n,i)=>{const lv=tier==='fresh'?0:tier==='veteran'?2:[1,2,3,3,2,3,1,3][i%8],t=U(n,'Imperium',un,xs[i%cols],Y[y0+(i/cols|0)],P);k++;t.wear={lv,seed:k*17,bare:lv>=2&&(k*7)%5===0,hair:rgb(...HR[k%4])}})}}
  // the inspection line along the stand's front, facing the circuit
  [['Lord Castor','Imperial Noble'],['Lady Ysolde','Imperial Noble'],['Lord Aemon','Imperial Noble'],['Overseer Malcor','Overseer'],['Legate Thane','Officer'],['Tribune Corvin','Officer'],['Ser Davin','Officer']].forEach(([n,l],i)=>U(n,'Imperium','civ',17.5+i*2.2,39.2,A,l==='Officer'?'pistol':null,l));
  ['Pell','Wat','Ned','Orrin'].forEach((n,i)=>U(n,'Imperium',i===3?'guard':'rifle',18.5+i*4,43.5,A,i===3?'rod':undefined));
