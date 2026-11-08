@@ -408,17 +408,13 @@ NBM.circuit=()=>{UND=Array.from({length:48},()=>Array(64).fill('grass'));const r
   if(cx===22&&cy>=11&&cy<=18||cx===42&&cy>=11&&cy<=18)return'hedge';
   if((cx===27||cx===37)&&cy>=14&&cy<=15||cx===48&&cy>=22&&cy<=23)return'stone.grey.block.w';
   return'grass'})};
-NUM.circuit=()=>{const A=-Math.PI/2,P=Math.PI/2;
- carrier('iron',41*T,39*T,P,'Imperium','battleworn');carrier('iron',47*T,39*T,P,'Imperium','derelict');const v=carrier('steel',53*T,39*T,P,'Imperium','new');
- vSeatNow(v,U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer'),1);['Brask','Coll','Dunn','Ivo','Hale','Marl','Rook','Tobin'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<3?'guard':'rifle',0,0,0),2+i));
- U('Legate Varro','Imperium','civ',56.6,44,A,'pistol','Officer');
- // the parade across the road from the stand, as laid out by hand: veteran and fresh Praetorians, fresh and worn Musketeers, then the Shocktroopers
- {const HR=[[96,70,52],[58,48,42],[150,146,140],[120,84,56]],X={a:[16.6,17.9,19.2,20.6],b:[23.5,24.8,26.1,27.4],c:[30.2,31.5,32.8]},Y=[23.1,24.4,25.8,27.1];let k=0;
-  for(const[names,un,tier,xs,y0]of[['Abel Bram Cato Dace Edric Faro Gage Hollis','rifle','fresh',X.b,0],['Ivo Jarek Kell Lorn Mace Nils Oran Piet','guard','fresh',X.a,2],['Quill Rand Soren Tam Ulric Vane','guard','veteran',X.a,0],['Wick Yorr Zane Aldo Brenn Cole Dorn Emmet','rifle','mixed',X.b,2],['Fisk Garr Hask Iver Jory Kade','shock','mixed',X.c,2]]){const nm=names.split(' '),cols=nm.length/2;
-   nm.forEach((n,i)=>{const lv=tier==='fresh'?0:tier==='veteran'?2:[1,2,3,3,2,3,1,3][i%8],t=U(n,'Imperium',un,xs[i%cols],Y[y0+(i/cols|0)],P);k++;t.wear={lv,seed:k*17,bare:lv>=2&&(k*7)%5===0,hair:rgb(...HR[k%4])}})}}
- // the inspection line along the stand's front, facing the circuit
- [['Lord Castor','Imperial Noble'],['Lady Ysolde','Imperial Noble'],['Lord Aemon','Imperial Noble'],['Overseer Malcor','Overseer'],['Legate Thane','Officer'],['Tribune Corvin','Officer'],['Ser Davin','Officer']].forEach(([n,l],i)=>U(n,'Imperium','civ',17.5+i*2.2,39.2,A,l==='Officer'?'pistol':null,l));
- ['Pell','Wat','Ned','Orrin'].forEach((n,i)=>U(n,'Imperium',i===3?'guard':'rifle',18.5+i*4,43.5,A,i===3?'rod':undefined));
+NUM.circuit=()=>{const A=-Math.PI/2;
+ carrier('iron',41*T,39*T,Math.PI/2,'Imperium','battleworn');carrier('iron',47*T,39*T,Math.PI/2,'Imperium','derelict');carrier('steel',53*T,39*T,Math.PI/2,'Imperium','new');
+ // the comparison: each current Imperial squad of four beside its Terravkor counterpart, facing the stand
+ const PAIRS=[[['Conscript','home'],['Guardsman','home']],[['Officer','civ','pistol'],['Captain','civ','pistol']],[['Conscript','home'],['Trooper','home']],[['Musketeer','rifle'],['Trooper Musketeer','rifle']],
+  [['Praetorian','guard'],['Royal Trooper','guard']],[['Shocktrooper','shock'],['Shock Trooper','shock']],[['Commando','cmd'],['Praetorian Guard','cmd']]];
+ const NM='Abel Bram Cato Dace Edric Faro Gage Hale Ivo Jarek Kell Lorn Mace Nils Oran Piet Quill Rand Soren Tam Ulric Vane Wick Yorr Zane Aldo Brenn Cole'.split(' ');
+ PAIRS.forEach(([a,b],r)=>{const y=9.6+r*2.6;for(const[[l,u,w],nat,x0,o]of[[a,'Imperium',12.5,0],[b,'Terravkor',28.5,14]])for(let i=0;i<4;i++)U(NM[(r*4+i+o)%NM.length],nat,u,x0+i*2,y,A,w,l)});
  for(const t of bodies)if(t.type==='token')t.auto=false};
 {const o=document.createElement('option');o.value='circuit';o.textContent='Fluoria carrier circuit';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['circuit','Fluoria carrier circuit']);ms.value=curMap}}
 {const o=document.createElement('option');o.value='yard';o.textContent='Fluoria carrier yard';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['yard','Fluoria carrier yard']);ms.value=curMap}}
