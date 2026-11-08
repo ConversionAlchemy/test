@@ -334,7 +334,7 @@ function cleanTick(){for(let i=VP.length-1;i>=0;i--){const p=VP[i],dx=mouse.x-p.
 function cleanDown(k,e){const[x,y]=toBoard(e);if(k==='wand'){CL={k,cells:[],seen:new Set()};wandAdd(x/T|0,y/T|0);return}CL={k,lx:-99,ly:-99,dirty:new Set()};if(k==='vac')vacOn()}
 function wandAdd(cx,cy){const o=Math.floor((edSize-1)/2);for(let y=cy-o;y<cy-o+edSize;y++)for(let x=cx-o;x<cx-o+edSize;x++){if(x<0||y<0||x>=CW||y>=CH)continue;const id=y*CW+x;if(CL.seen.has(id))continue;CL.seen.add(id);if(cellBad(x,y))CL.cells.push([x,y])}}
 function cleanUp(){if(!CL)return;const c=CL;CL=null;vacOff();if(c.k==='wand'&&c.cells.length)WQ={q:c.cells,next:0,run:0}}
-let WQ=null;function wandTick(){const w=WQ;if(!w)return;const t=performance.now();if(t<w.next)return;const[x,y]=w.q.shift();repairCell(x,y);w.run++;chime(1+Math.min(.4,w.run*.03));w.next=t+Math.max(45,110-w.run*6);if(!w.q.length){WQ=null;ds0Need=true;if(ROOMS)ROOMS.t=-1e9}}
+let WQ=null;function wandTick(){const w=WQ;if(!w)return;const t=performance.now();if(t<w.next)return;const[x,y]=w.q.shift();try{repairCell(x,y)}catch(err){console.error('wand',x,y,err)}w.run++;chime(1+Math.min(.4,w.run*.03));w.next=t+Math.max(45,110-w.run*6);if(!w.q.length){WQ=null;ds0Need=true;if(ROOMS)ROOMS.t=-1e9}}
 
 // items
 const ITEMS=[['gold','Solari'],['mbox','Musket balls'],['pbox','Pistol shot'],['sbox','Blunderbuss pellets'],['rbox','Bolter rods'],['cell','Plasma cells']];let itDrag=null;

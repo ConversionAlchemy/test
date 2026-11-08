@@ -924,7 +924,7 @@ function edgeMask(){if(EDGM.length!==N)EDGM=new Uint8Array(N);else EDGM.fill(0);
   hurt=(x,y,t)=>{if(x<0||y<0||x>=CW||y>=CH||kind(x,y)!==t)return false;const id=y*CW+x;
    if(t===2){const w=TW.get(twK(1,id));if(w&&w.a)return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++){const j=(y*T+v)*W+x*T+u;if(P0&&P0.sol[j]&&(!sol[j]||shp[j]<P0.shp[j]))return true}return false}
    if(t===1){if(TW.has(twK(2,id)))return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++){const j=(y*T+v)*W+x*T+u;if(P0&&P0.OBJ[j]&&!OBJ[j])return true}return false}
-   const c=CATN[map[y][x]];if((c[4]||5)<5)return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++)if(DMG[(y*T+v)*W+x*T+u])return true;return false},set=(j,v)=>{if(!EDGM[j]||v===2)EDGM[j]=v};
+   const c=CATN[map[y][x]];if(!c)return false;if((c[4]||5)<5)return true;for(let v=0;v<T;v++)for(let u=0;u<T;u++)if(DMG[(y*T+v)*W+x*T+u])return true;return false},set=(j,v)=>{if(!EDGM[j]||v===2)EDGM[j]=v};
  for(const id of REP){const cx=id%CW,cy=id/CW|0,t=kind(cx,cy);for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){if(!hurt(cx+dx,cy+dy,t))continue;const near=dx<0||dy<0;
   for(let i=0;i<T;i++){const x=dx<0?0:dx>0?T-1:i,y=dy<0?0:dy>0?T-1:i;set((cy*T+y)*W+cx*T+x,near?1:2);if(!near){const ox=cx*T+x+dx,oy=cy*T+y+dy;if(ox>=0&&oy>=0&&ox<W&&oy<H)set(oy*W+ox,3)}}}}}
 // blasts wear the floor in a ragged circle, strongest at the blast: how far and how hard follow the floor's toughness from the material table (soft wood further, umbra hardly at all). Each pixel takes the wear of the condition it reaches; each cell's condition is what its centre reached. The worn look becomes the cell's clean state, so cleaning keeps it and the wand undoes it
@@ -1564,8 +1564,8 @@ function lobStep(b){const L=b.lob;if(L.roof){const v=L.roof.v;if(!VEH.includes(v
  b.z=0;const X=Math.round(b.x),Y=Math.round(b.y);
  for(const v of VEH){if(v.dead)continue;const[lx,ly]=vW2L(v,b.x,b.y);if(lx<0||ly<0||lx>=VC.LW||ly>=VC.H)continue;vRW(v);if(!v.roofL[(ly|0)*VC.LW+(lx|0)])continue;L.roof={v,lx,ly};sfx(snd('metal','knock'));return}
  b.lob=null;const blk=(x,y)=>x<1||y<1||x>=W-1||y>=H-1||sol[y*W+x]||slabG[y*W+x];
- if(blk(X,Y)){let best=null;for(let r=1;r<20&&!best;r++)for(let a=0;a<16;a++){const x=Math.round(X+Math.cos(a/16*6.283)*r),y=Math.round(Y+Math.sin(a/16*6.283)*r);if(!blk(x,y)){best=[x,y];break}}if(best){b.x=best[0];b.y=best[1]}}
- const dx=L.x1-L.x0,dy=L.y1-L.y0,dl=Math.hypot(dx,dy)||1;b.vx=dx/dl*1.1;b.vy=dy/dl*1.1;b.ghost=!!solidHits(b,0,0);sfx(hcl((CLS[clsAt(Math.round(b.x),Math.round(b.y),1)]||CLS.stone).n).knock)}
+ let skid=1;if(blk(X,Y)||solidHits(b,0,0)){skid=0;let best=null;for(let r=1;r<26&&!best;r++)for(let a=0;a<24;a++){const x=Math.round(X+Math.cos(a/24*6.283)*r),y=Math.round(Y+Math.sin(a/24*6.283)*r);if(blk(x,y))continue;b.x=x;b.y=y;if(!solidHits(b,0,0)){best=[x,y];break}}if(!best){b.x=X;b.y=Y}}
+ const dx=L.x1-L.x0,dy=L.y1-L.y0,dl=Math.hypot(dx,dy)||1;b.vx=dx/dl*1.1*skid;b.vy=dy/dl*1.1*skid;b.ghost=!!solidHits(b,0,0);sfx(hcl((CLS[clsAt(Math.round(b.x),Math.round(b.y),1)]||CLS.stone).n).knock)}
 function detonate(b){remove(b);ROOFV=b.lob&&b.lob.roof?b.lob.roof.v:null;try{explode(b.x,b.y,b.kind==='bomb'?1.95:1.3)}finally{ROOFV=null}}
 let alarm=false;function raiseAlarm(){if(alarm)return;alarm=true;setTimeout(()=>{for(const t of bodies)if(t.type==='token'&&t.status==='free'&&!t.held&&t.psi>=0&&t.inv&&t.inv[t.psi])selectSlot(t,t.psi)},250)}
 function explode(x,y,s=1){raiseAlarm();hear(x,y,520*s,null,'boom');SND&&SND.at(s>1.5?'bomb':'grenade',x,y);flash(x,y,1,.62,.25,2.2*s,9*s,.9);shake=10*s;carve(x,y,6.5*s,3+(s>1?1:0),0,0);blastWear(x,y,s);if(ROOFV)vHeatMark(x,y,15*s,.45*s);else{crater(x,y,s);heatMark(x,y,15*s,.45*s)}{const c=!ROOFV&&CATN[map[Math.round(y)>>4]&&map[Math.round(y)>>4][Math.round(x)>>4]];if(c&&clsB(c[0],c[1]).ignite){emberPatch(x,y,16,9*s);dab(TF,x,y,.7*s,4)}}wreck(x,y,s);for(const c of bodies.filter(o=>o.kind==='crate'&&!o.hidden&&o.inv&&Math.hypot(o.x-x,o.y-y)<14*s))cShot(c,Math.round(c.x),Math.round(c.y),20,null);scorchRays(x,y,s*blastSoft(x,y));blastTethers(x,y,s);lockBlast(x,y,12*s);const R=30*s,F=26*s;
@@ -3114,7 +3114,7 @@ function cleanTick(){for(let i=VP.length-1;i>=0;i--){const p=VP[i],dx=mouse.x-p.
 function cleanDown(k,e){const[x,y]=toBoard(e);if(k==='wand'){CL={k,cells:[],seen:new Set()};wandAdd(x/T|0,y/T|0);return}CL={k,lx:-99,ly:-99,dirty:new Set()};if(k==='vac')vacOn()}
 function wandAdd(cx,cy){const o=Math.floor((edSize-1)/2);for(let y=cy-o;y<cy-o+edSize;y++)for(let x=cx-o;x<cx-o+edSize;x++){if(x<0||y<0||x>=CW||y>=CH)continue;const id=y*CW+x;if(CL.seen.has(id))continue;CL.seen.add(id);if(cellBad(x,y))CL.cells.push([x,y])}}
 function cleanUp(){if(!CL)return;const c=CL;CL=null;vacOff();if(c.k==='wand'&&c.cells.length)WQ={q:c.cells,next:0,run:0}}
-let WQ=null;function wandTick(){const w=WQ;if(!w)return;const t=performance.now();if(t<w.next)return;const[x,y]=w.q.shift();repairCell(x,y);w.run++;chime(1+Math.min(.4,w.run*.03));w.next=t+Math.max(45,110-w.run*6);if(!w.q.length){WQ=null;ds0Need=true;if(ROOMS)ROOMS.t=-1e9}}
+let WQ=null;function wandTick(){const w=WQ;if(!w)return;const t=performance.now();if(t<w.next)return;const[x,y]=w.q.shift();try{repairCell(x,y)}catch(err){console.error('wand',x,y,err)}w.run++;chime(1+Math.min(.4,w.run*.03));w.next=t+Math.max(45,110-w.run*6);if(!w.q.length){WQ=null;ds0Need=true;if(ROOMS)ROOMS.t=-1e9}}
 
 // items
 const ITEMS=[['gold','Solari'],['mbox','Musket balls'],['pbox','Pistol shot'],['sbox','Blunderbuss pellets'],['rbox','Bolter rods'],['cell','Plasma cells']];let itDrag=null;
