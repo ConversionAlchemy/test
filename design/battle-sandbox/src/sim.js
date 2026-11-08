@@ -217,7 +217,7 @@ const ladL=k=>{if(k==='grass')return 0;if(k==='dirt')return 4;const c=CATN[k];if
 function earthWear(cx,cy,x,y,R,top,L0){const so=Math.min(1.2,softOf('Earth','grass')),Rm=R*(.55+.45*so),st=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?0:(1-d)*top*so+.15},to=(X,Y)=>{const s=st(X,Y);if(s<=0)return L0;const r=hh(X,Y,93);return Math.min(8,Math.max(L0+Math.floor(s/2+r),Math.floor(s*1.2+r)))};
  const Lc=to(cx*T+8,cy*T+8);if(Lc>L0)map[cy][cx]=ladK(Lc);
  for(let y2=0;y2<T;y2++)for(let x2=0;x2<T;x2++){const X=cx*T+x2,Y=cy*T+y2,j=Y*W+X;if(sol[j])continue;const L=to(X,Y);if(L<=L0)continue;const q=TEX[ladK(L)](X,Y,cx,cy);if(!q)continue;floor[j]=rgb(cl(q[0]),cl(q[1]),cl(q[2]));if(PR)PR.floor[j]=floor[j]}}
-function blastWear(x,y,s){const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
+function blastWear(x,y,s){vBlastWear(x,y,s);const hv=s>1.5,R=(hv?3.3:2)*T,top=hv?4:3,AC={};
  for(let cy=Math.max(0,(y-R*2.6)/T|0);cy<=Math.min(CH-1,(y+R*2.6)/T|0);cy++)for(let cx=Math.max(0,(x-R*2.6)/T|0);cx<=Math.min(CW-1,(x+R*2.6)/T|0);cx++){const k=map[cy][cx],c=CATN[k],ok=OM[cy]&&OM[cy][cx],oe=ok&&objEl(ok);if(oe){const so=softOf(oe[0],oe[1]),wd=oe[0]==='Wood',Rm=R*1.3*(wd?1.6:1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearObj(cx,cy,(1-d/Rm)*top*(wd?40:26))}
   if(c&&c[3]&&AGE[c[0]]){const so=softOf(c[0],c[1]),wd=c[0]==='Wood',Rm=R*1.3*(wd?1.6:1)*(.55+.45*Math.min(1.2,so)),dx=Math.max(cx*T-x,0,x-cx*T-T+1),dy=Math.max(cy*T-y,0,y-cy*T-T+1),d=Math.hypot(dx,dy);if(d<Rm)wearWall(cx,cy,(1-d/Rm)*top*(wd?40:26));continue}if(OM[cy]&&OM[cy][cx])continue;{const L0=ladL(k);if(L0>=0){earthWear(cx,cy,x,y,R,top,L0);continue}}if(!c||c[3]||!AGE[c[0]])continue;
   const c0=c[4]||5,so=softOf(c[0],c[1]),wf=c[0]==='Wood',Rm=R*(c[0]==='Cloth'?1.6:wf?1.5:1)*(.55+.45*Math.min(1.2,so)),lv=(X,Y)=>{const d=Math.hypot(X-x,Y-y)/(Rm*(.8+.4*fbm(X/7,Y/7,91)));return d>=1?c0:Math.max(1,Math.min(c0,5-Math.round((wf?Math.pow(1-d,.9)*1.15:1-d)*top*Math.min(1.2,so)+.3)))};
@@ -723,7 +723,21 @@ function drawCape(b,lift){const a=b.ang||0,c=Math.cos(a),s=Math.sin(a),bx=Math.r
  for(let f=-10;f<=-5;f+=.5)for(let u=-6.5;u<=6.5;u+=.5){const uu=u+sw*(-5-f)/5,X=Math.round(bx+c*f-s*uu)+o,Y=Math.round(by+s*f+c*uu)+o;if(X<0||Y<0||X>=W||Y>=H||b.set.has(K(X-bx-o,Y-by-o)))continue;
   let col=mul(rgb(42,94,62),.8+.2*Math.cos(u*1.4));if(Math.abs(u)>6||f<-9.5)col=mul(col,.6);if(b.status==='dead')col=grey(col);out[Y*W+X]=col}}
 const cape=(ox,oy)=>{const v=vn(ox/2,oy*1.5,77);return mul(rgb(42,94,62),.82+v*.3)};
-function pcol(b,p){let c;const r=p[7],ox=p[8],oy=p[9],u=UNITS[b.unit]||UNITS.civ;
+function pcol(b,p){const c=pcol0(b,p);return c&&b.wear?uWear(b,p,c):c}
+// worn armour, in the unit's own frame so marks turn with it: aged metal, scuffs, dents, heat and soot, chips off the rim; lv 0 fresh to 3 battleworn; some veterans go bare-headed
+function uWear(b,p,c0){const W=b.wear,lv=W.lv||0,sd=W.seed||0;if(!W.marks){let z=sd*9301+49297;const r=()=>(z=(z*9301+49297)%233280)/233280,pt=k=>[(r()-.5)*10,(r()-.5)*10,k];W.marks={dents:Array.from({length:[0,0,1,2][lv]},()=>pt(2.5+r())),heat:Array.from({length:[0,0,r()<.5?1:0,2][lv]},()=>[...pt(2.5+r()*1.5),.45+r()*.4]),soot:Array.from({length:[0,0,1,3][lv]},()=>[...pt(3+r()*2),.5+r()*.25])}}
+ const ox=p[8],oy=p[9],a=b.ang||0,fa=ox*Math.cos(a)+oy*Math.sin(a),sa=-ox*Math.sin(a)+oy*Math.cos(a),d=Math.hypot(ox,oy),u=Math.round(fa),v=Math.round(sa),n=hh(u+40,v+40,sd),n2=hh(u+40>>1,v+40>>1,sd+3);
+ if(W.bare&&d<3.6){if(d>2.7&&fa>0||d>3.1)return mul(rgb(198,152,120),fa>0?1:.85);return mul(W.hair||rgb(96,70,52),.75+.4*hh(Math.round(fa*2),v,sd+9))}
+ if(lv<1)return c0;if(lv>=3&&d>6.6&&n<.12)return 0;
+ const R=c0&255,G=c0>>8&255,B=c0>>16&255,lum=(R*.3+G*.59+B*.11)/255;let c=c0;
+ if(Math.max(R,G,B)-Math.min(R,G,B)<30&&lum>.2){if(n2>[1,.55,.35,.18][lv]){const A=ageOf('Metal','steel',lv>=3?1:lv>=2?2:3);if(A){const q=A([R,G,B],u*3+sd,v*3,()=>9);c=rgb(cl(q[0]),cl(q[1]),cl(q[2]))}}
+  if(lv>=2&&n>.9)c=mix(c,rgb(236,238,242),.35);
+  for(const[dx,dy,r]of W.marks.dents){const e=Math.hypot(fa-dx,sa-dy);if(e<r)c=mul(c,1+.22*((fa-dx)+(sa-dy))/r*(1-e/r))}
+  for(const[dx,dy,r,k]of W.marks.heat){const e=Math.hypot(fa-dx,sa-dy)/r;if(e<1){const f=temperF(k*(1-e)),f0=temperF(0);c=rgb(cl((c&255)*f[0]/f0[0]),cl((c>>8&255)*f[1]/f0[1]),cl((c>>16&255)*f[2]/f0[2]))}}}
+ else{if(lv>=2&&n2>.55)c=mul(c,.82);if(n>[1,.92,.85,.78][lv])c=mix(c,rgb(150,150,156),.2)}
+ for(const[dx,dy,r,k]of W.marks.soot){const e=Math.hypot(fa-dx,sa-dy)/r;if(e<1)c=mix(c,rgb(26,24,22),k*(1-e*e)*(.6+.6*n))}
+ return lv>=3&&d>5.8&&n<.22?mul(c,.55):c}
+function pcol0(b,p){let c;const r=p[7],ox=p[8],oy=p[9],u=UNITS[b.unit]||UNITS.civ;
  if(b.type==='token'){const q=sprAt(b,p);if(q!==undefined){if(!q)return 0;c=neutralTone(b,r==='x'?mul(q[0],.7):q[0],p);if(p[3]<p[6])c=mul(c,.6+.4*p[3]/p[6]);if(p[5]>.01)c=mix(c,glow(p[5]),Math.min(1,p[5]*1.6));return c}}
  if(r==='x'||b.type==='weapon'){c=p[2];const hw=b.long?15:5;if(b.kind==='crate'&&b.metal&&!(b.open&&Math.abs(ox)<hw&&Math.abs(oy)<5))c=mix(grey(c),rgb(152,158,170),.45);if(b.kind==='crate'&&b.open&&Math.abs(ox)<hw&&Math.abs(oy)<5)c=Math.abs(ox)===hw-1||Math.abs(oy)===4?mul(C.woodD,.75):(oy+5)%3===0?mul(C.woodD,.45):mul(C.woodD,.6);const sth=b.th||8,sln=b.len||16;if(b.type==='slab'&&!b.free&&ox>=0&&oy>=-(sth>>1)-1&&oy<=-(sth>>1)){if(ox>=1&&ox<=2)c=b.mat===3?rgb(62,64,70):rgb(170,172,176);else if(ox>=sln-5&&ox<=sln-4&&!b.lockBroken)c=b.locked?rgb(240,140,40):rgb(150,92,44)}}
  else if(r==='a'){if(u.leather){c=u.ac;const v=hh(ox,oy,3);c=mul(c,.96+v*.08);if(ox+oy<-5)c=mul(c,1.14);else if(ox+oy>5)c=mul(c,.84)}else{const q=metalCore(ox*2+b.id*13,oy*2),d=Math.hypot(ox,oy);const gb=b.nat==='Goldbank';c=gb?mix(rgb(cl(q[0]),cl(q[1]),cl(q[2])),b.unit==='shock'?rgb(178,140,64):b.unit==='guard'?rgb(222,186,96):rgb(200,164,84),.66):mix(rgb(cl(q[0]),cl(q[1]),cl(q[2])),u.ac,u.dark?.75:.45);c=mul(c,1+(-(ox+oy)/16)*(u.dark?.12:.22));if(d>7.8)c=mul(c,.72);else if(d>7.4-u.arm+.6&&d<7.4-u.arm+1.4)c=mul(c,1.12)}
