@@ -128,12 +128,15 @@ function vGlow(v){const g=v.glow||0;if(g<.02||v.dead)return;const[cx,cy]=vL2W(v,
  for(let Y=Math.max(0,Math.floor(cy-R));Y<=Math.min(H-1,cy+R);Y++)for(let X=Math.max(0,Math.floor(cx-R));X<=Math.min(W-1,cx+R);X++){const d=Math.hypot(X-cx,Y-cy)/R;if(d>=1)continue;const[lx,ly]=vW2L(v,X+.5,Y+.5);if(!vInside(v,lx,ly))continue;const j=Y*W+X,a=Math.min(.85,g*.9*(1-d)*(1-d)+g*.12*(1-d));out[j]=mix(out[j],col,a)}}
 const vNear=(v,b)=>{if(Math.abs(b.x-v.x)>90||Math.abs(b.y-v.y)>90)return false;const[lx,ly]=vW2L(v,b.x,b.y);return lx>=-14&&ly>=-14&&lx<VC.L+14&&ly<VC.H+14};
 function vFloorPx(v,lx,ly){const q=v.smap.get(K(lx,ly));let c=0;
- if(q&&!q.dead){c=vScarC(v,q);c=q[7]==='T'||q[7]==='B'?vTrack(v,lx,ly,q[7]):q[7]==='e'&&v.fuse&&(tick>>2)%2?VPB:c;if(q[3]<q[6]&&q[7]!=='e')c=mul(c,.6+.4*q[3]/q[6])}
+ if(q&&!q.dead){c=vWallC(v,q,lx,ly);c=q[7]==='T'||q[7]==='B'?vTrack(v,lx,ly,q[7]):q[7]==='e'&&v.fuse&&(tick>>2)%2?VPB:c;if(q[3]<q[6]&&q[7]!=='e')c=mul(c,.6+.4*q[3]/q[6])}
  if(!c){const b=v.base[ly*VC.LW+lx];c=b?b&0xffffff:0}
  return c&&v.dead?vChar(c,lx,ly,v):c}
 function vRoofPx(v,lx,ly,roof){const r=roof&&v.roofL[ly*VC.LW+lx];if(r)return vRoofC(v,ly*VC.LW+lx,lx,ly,r&0xffffff);const q=v.smap.get(K(lx,ly));return q&&!q.dead&&(q[7]==='w'||q[7]==='g')?vFloorPx(v,lx,ly):0}
 // a painted hull keeps its paint, lit like the steel under it; wear chips it back to that steel, which then ages
 const VOFF=[204,200,188];
+// the walls weather with the roof: the same stains and rust run over the edge, a little lighter
+const vWall=(v,lx,ly)=>{const q=v.smap.get(K(lx,ly));return q&&q[7]==='w'};
+function vWallC(v,q,lx,ly){if(q[7]!=='w'||!v.rw)return vScarC(v,q);const i=ly*VC.LW+lx;let c=vScarC(v,{2:q[2],7:q[7],8:q[8],9:q[9],wr:Math.max(q.wr||0,v.rw[i]*.85),tm:q.tm,lip:q.lip});if(v.rr[i]>.01)c=mix(c,mul(rgb(146,78,44),.8+.4*hh(lx,ly,29)),v.rr[i]*.85);return c}
 function vScarC(v,q){let c=q[2];if(v.paint&&!'geTB'.includes(q[7]||'_')){const l=Math.min(1.12,((c&255)*.3+(c>>8&255)*.59+(c>>16&255)*.11)/196),chip=q.wr>1&&hh(q[8],q[9],v.id+7)<Math.min(.6,(q.wr-1)*.14);if(!chip){const P=v.paint;c=rgb(cl(P[0]*l),cl(P[1]*l),cl(P[2]*l));if(q.wr>.5)c=mul(c,1-Math.min(.08,q.wr*.02))}else if(q.wr>.5){const A=ageOf('Metal',v.metal,Math.max(1,5-Math.floor(q.wr)));if(A){const r=A([c&255,c>>8&255,c>>16&255],q[8]*2+v.id*37,q[9]*2,()=>9);c=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}}
  else if(q.wr>.5){const cd=Math.max(1,5-Math.floor(q.wr)),A=ageOf('Metal',v.metal,cd);if(A){const r=A([c&255,c>>8&255,c>>16&255],q[8]*2+v.id*37,q[9]*2,()=>9);c=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}
  if(q.lip)c=mul(c,1.3);if(q.tm>.02)c=heatTint(c,'metal',q.tm);return c}
@@ -227,10 +230,10 @@ function vRoofAt(v,x,y,r,f){vRW(v);const[cx,cy]=vW2L(v,x,y);for(let ly=Math.max(
 function vBlastWear(x,y,s){for(const v of VEH){if(Math.hypot(v.x-x,v.y-y)>VC.L*.6+24*s)continue;vRoofAt(v,x,y,34*s,(i,d,lx,ly)=>{const n=.6+.7*hh(lx>>1,ly>>1,77+v.id),r=Math.random();v.rw[i]=Math.min(4.5,v.rw[i]+2.6*s*(1-d)*n);v.rs[i]=Math.min(.7,v.rs[i]+1.3*s*Math.pow(1-d,1.5)*n);v.rt[i]=Math.max(v.rt[i],.5*s*(1-d)*(1-d));if(r<.07*(1-d)){v.rw[i]=4.5;v.rd[i]-=.25}});
   const[cx,cy]=vW2L(v,x,y),px=Math.max(VC.X0,Math.min(VC.L-2,cx)),py=Math.max(VC.TR+2,Math.min(VC.H-VC.TR-3,cy));if(Math.hypot(px-cx,py-cy)<14*s){const[dx,dy]=vL2W(v,px,py);vRoofAt(v,dx,dy,6*s,(i,d,lx,ly,ox,oy)=>{v.rd[i]+=.2*((ox+oy)/(6*s))*(1-d)})}}}
 // weathering: patches of the plates age with distance driven
-function vWeather(v,k,th=.35){vRW(v);for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx;if(!v.roofL[i])continue;const n=hh(lx>>3,ly>>3,51+v.id)*.6+hh(lx>>1,ly>>1,53)*.4;v.rw[i]=Math.min(4.5,v.rw[i]+k*Math.max(0,n-th)*3)}v.dirty=1}
+function vWeather(v,k,th=.35){vRW(v);for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx;if(!v.roofL[i]&&!vWall(v,lx,ly))continue;const n=hh(lx>>3,ly>>3,51+v.id)*.6+hh(lx>>1,ly>>1,53)*.4;v.rw[i]=Math.min(4.5,v.rw[i]+k*Math.max(0,n-th)*3)}v.dirty=1}
 // rust taking a neglected hull: soft blooms from smooth noise, thicker where water sits along the seams and rim
 function vRust(v,seed){vRW(v);const sm=(x,y,s,k)=>{const fx=x/s,fy=y/s,ix=Math.floor(fx),iy=Math.floor(fy),u=fx-ix,w=fy-iy,a=hh(ix,iy,k),b=hh(ix+1,iy,k),c=hh(ix,iy+1,k),e=hh(ix+1,iy+1,k);return(a+(b-a)*u)*(1-w)+(c+(e-c)*u)*w};
- for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx;if(!v.roofL[i])continue;const n=sm(lx,ly,9,seed)*.65+sm(lx,ly,3,seed+1)*.35,e=Math.min(lx-VC.X0,VC.X0+VC.IL-lx,ly-VC.R0,VC.R0+VC.IH-ly);v.rr[i]=Math.min(.7,Math.max(0,n-.42)*2.2+(e<3?.25:0)*hh(lx,ly,seed+2))}v.dirty=1}
+ for(let ly=0;ly<VC.H;ly++)for(let lx=0;lx<VC.LW;lx++){const i=ly*VC.LW+lx;if(!v.roofL[i]&&!vWall(v,lx,ly))continue;const n=sm(lx,ly,9,seed)*.65+sm(lx,ly,3,seed+1)*.35,e=Math.min(lx-VC.X0,VC.X0+VC.IL-lx,ly-VC.R0,VC.R0+VC.IH-ly);v.rr[i]=Math.min(.7,Math.max(0,n-.42)*2.2+(e<3?.25:0)*hh(lx,ly,seed+2))}v.dirty=1}
 // exhaust soot settles behind the roof vent the longer the engine runs
 function vVentSoot(v,k){const[x,y]=vL2W(v,VC.XST+8,VC.RC[2]);vRoofAt(v,x,y,70,(i,d,lx,ly,ox,oy)=>{if(ox<2)return;const w=3+ox*.06;if(Math.abs(oy)>w)return;v.rs[i]=Math.min(.6,v.rs[i]+k*(1-ox/70)*(1-Math.abs(oy)/(w+1))*(.5+.7*hh(lx>>2,ly,91)))})}
 // condition at spawn, played out through the same scars, hits, blasts and soot a carrier collects in use; seeded so it reloads the same
