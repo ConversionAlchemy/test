@@ -96,9 +96,9 @@ function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;retu
  const s1=slab(3,164,208,1),s2=slab(3,315,223,3);s1.locked=s2.locked=true;slab(3,164,544,1);slab(3,315,559,3);
  container(8,2,[{k:'grenade',n:2},{k:'gold',n:100}]);container(19,2,[{k:'bomb',n:1},{k:'gold',n:100}]);for(let x=13;x<=16;x++)for(let y=4;y<=5;y++)container(x,y,[{k:'gold',n:100}]);container(5,25,[{k:'gold',n:100}]);container(20,25,[{k:'gold',n:100}]);
  container(22,10,[{k:'gold',n:100},{k:'grenade',n:3}]);container(5,10,[]);container(5,33,[]);container(22,33,[{k:'gold',n:100}]);for(const o of bodies){if(o.type==='slab')goldify(o);if(o.kind==='crate')o.metal=true}
- // the crew: rebels; a captain with a blunderbuss, grenades and heavy grenades, two riflemen, and two in taken Company plate
- for(const[n,u,x,y,w,k,l]of[['Rask','cmd',240,640,'blunder',[{k:'grenade',n:4},{k:'bomb',n:3}],'Rebel captain'],['Mott','rifle',205,640,'musket',[{k:'grenade',n:2}],'Partisan'],['Hook','rifle',275,640,'musket',[{k:'grenade',n:2}],'Striker'],
-  ['Brann','guard',222,668,'blunder',[{k:'grenade',n:2}],'Rebel Plate'],['Cole','shock',258,668,'spear',[],'Rebel Heavy']]){const t=face(token(n,'Rebels',u,x,y,false,w,l),up);t.inv=[t.inv[0],t.inv[1]||null,k[0]||null,k[1]||null,...t.inv.slice(4)];kitSnap(t)}{const r=bodies.find(o=>o.name==='Rask');sel.clear();sel.add(r);r.direct=true}
+ // the crew: a commando with a blunderbuss, grenades and heavy grenades, two riflemen, and two heavier hands in front of them
+ for(const[n,u,x,y,w,k,l]of[['Rask','cmd',240,640,'blunder',[{k:'grenade',n:4},{k:'bomb',n:3}],undefined],['Mott','rifle',205,640,'musket',[{k:'grenade',n:2}],undefined],['Hook','rifle',275,640,'musket',[{k:'grenade',n:2}],undefined],
+  ['Brann','guard',222,668,'blunder',[{k:'grenade',n:2}],'Raider'],['Cole','shock',258,668,'spear',[],'Blademaster']]){const t=face(token(n,'Reapers',u,x,y,false,w,l),up);t.inv=[t.inv[0],t.inv[1]||null,k[0]||null,k[1]||null,...t.inv.slice(4)];kitSnap(t)}{const r=bodies.find(o=>o.name==='Rask');sel.clear();sel.add(r);r.direct=true}
  face(token('Pell','Goldbank','rifle',200,560),dn);face(token('Bryn','Goldbank','rifle',280,560),dn);
  face(token('Master Corwin','Goldbank','civ',90,560,false,'pistol'),0);face(token('Ines','Goldbank','civ',380,580,false,null),Math.PI);
  face(token('Ansel','Goldbank','civ',120,388,false,null),dn);face(token('Hesta','Goldbank','civ',360,388,false,null),dn);
