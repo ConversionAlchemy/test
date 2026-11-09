@@ -152,7 +152,7 @@ function shatter(b){sfx('crash');for(let i=0;i<4;i++)dab(TF,b.x+(Math.random()-.
  for(let i=0;i<24;i++)spark(b.x,b.y,Math.random()<.5?C.clay:C.clayD,0,0,3);remove(b)}
 
 // held weapons
-const HOFF={pgun:7,sbomb:9,grenade:9,bomb:9,sspear:10,spear:10,sword:7,musket:8,blunder:7,pistol:6,crossbow:9,rod:8,shield:9};
+const HOFF={pgun:6,sbomb:9,grenade:9,bomb:9,sspear:10,spear:10,sword:7,musket:8,blunder:7,pistol:6,crossbow:9,rod:8,shield:9};
 const sideOf=b=>b.held&&b.held.k==='shield'?0:5*(b.side||1);
 // the weapon sits to one side, so turn a little further for its line to pass through the target
 const aimA=(b,x,y)=>{const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy),sd=b.held?sideOf(b):0;return Math.atan2(dy,dx)-(sd&&d>Math.abs(sd)+1?Math.asin(sd/d):0)};

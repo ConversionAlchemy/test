@@ -91,7 +91,7 @@ function gunPix(kind,fill,heat){const R=rgb,W=R(138,96,58),WL=R(168,122,76),WD=R
  if(kind==='musket'){r(1,8,-1,0,(x,y)=>y<0?WL:WD);p(0,-1,IH);p(0,0,ID);r(9,10,-1,0,(x,y)=>y<0?IH:ID);r(11,21,-1,-1,I);r(11,21,0,0,WD);for(const x of[14,19]){p(x,-1,IH);p(x,0,ID)}r(22,25,-1,-1,I);p(25,-1,K);p(12,-1,IH);p(17,-1,IH)}
  if(kind==='blunder'){r(1,7,-1,1,umb);r(0,0,-1,1,stl);r(8,9,-1,1,stl);r(10,25,-1,1,stl);p(25,0,K);for(const x of[13,19])p(x,0,IH)}
  if(kind==='rod'){const glow=c=>heat>1?mix(c,R(214,70,30),Math.min(.8,(heat-1)*2.2)):c,ln=Math.round(14*fill);r(0,5,-1,1,(x,y)=>glow(y<0?DL:y>0?K:D));r(6,10,-1,1,(x,y)=>glow(y<0?DH:y>0?K:DL));r(11,25,-1,-1,()=>glow(DL));r(11,25,1,1,()=>glow(K));r(11,24,0,0,x=>x-11<ln?heatCol(heat*(.9+.12*(x-11)/14),ROD):K);p(25,0,ln>=14?R(236,240,246):K);p(8,0,ROD)}
- if(kind==='pgun'){r(0,6,-1,1,umb);r(7,10,-1,1,(x,y)=>y<0?UH:y>0?UK:UL);r(11,25,-1,-1,UL);r(11,25,1,1,UK);r(11,23,0,0,UC);p(8,0,UC);p(24,0,G2);p(25,0,G1);p(25,-1,G3);p(25,1,G3)}
+ if(kind==='pgun'){len=15;const OW=R(204,200,188),BK=R(46,46,50),BK2=R(36,36,40),sh=(c,y)=>y<0?R(...[c&255,(c>>8)&255,(c>>16)&255].map(v=>Math.min(255,v*1.22|0))):y>0?R(...[c&255,(c>>8)&255,(c>>16)&255].map(v=>v*.7|0)):c;r(0,3,-1,1,(x,y)=>sh(OW,y));r(4,7,-1,1,(x,y)=>sh(BK,y));r(8,13,-1,1,(x,y)=>sh(BK2,y));p(14,-1,R(70,72,76));p(14,0,heat>.05?R(255,Math.min(255,206+heat*49|0),Math.min(255,140+heat*115|0)):R(232,170,104));p(14,1,R(70,72,76))}
  return[...m].map(([k,c])=>{const[x,y]=k.split(',').map(Number);return[x-(len>>1),y,c]})}
 // Solari seen from above: 3x3 coin stacks of 20 on a 5x5 grid that fills its tile as a centred block, 500 at most; a part stack is dimmer
 const SOLMAX=100;
@@ -109,7 +109,7 @@ function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(
   for(let t=Math.ceil(o+R);t<=8;t++)put(t,t,M);put(7,7,M);if(big){put(8,6,D);put(6,4,D);put(7,5,D)}else{put(6,7,D);put(6,8,D)}}
  if(kind==='spear')st(-12.8,12.4,0,t=>t>11?rgb(226,232,236):t>9.5?rgb(196,204,210):rgb(172,180,186));
  if(kind==='sspear')st(-12,11.5,0,t=>{if(t>8)return(t*2|0)%2?plasC(Math.random()):rgb(240,226,255);const base=(t*2|0)%7===0?rgb(26,27,31):rgb(48,50,57);if(!heat)return base;const c=heatCol(heat*(.8+.25*(t+12)/20)+(hh(t*2|0,7,3)-.5)*.05*Math.min(1,heat*3),base,PHEAT);return heat>1?mix(c,rgb(255,255,255),Math.min(.7,(heat-1)*2.5)):c});
- if(kind==='pgun'){const dm=rgb(44,46,54);st(-10,-5,1,(t,u)=>sh3(dm,u));st(-5,6,.5,(t,u)=>sh3(rgb(54,56,66),u));st(6,8,1,(t,u)=>sh3(rgb(50,54,66),u));st(8.5,10,1.5,(t,u)=>t>=10&&Math.abs(u)<.3?rgb(220,170,255):sh3(rgb(58,60,68),u))}
+ if(kind==='pgun'){st(-7,-4,1,(t,u)=>sh3(rgb(204,200,188),u));st(-3.5,6,1,(t,u)=>sh3(rgb(42,42,46),u));st(6.5,7,1,(t,u)=>Math.abs(u)<.3?rgb(232,170,104):rgb(70,72,76))}
  if(kind==='sbomb'){disc(3.2,(x,y,d)=>d>2.6?rgb(70,96,120):d<1.4?rgb(200,230,255):x+y<-1?rgb(120,180,240):rgb(70,120,210));m.set(K(0,-3),C.lwD);m.set(K(0,-4),C.lwD)}
  if(kind==='arc')m.set(K(0,0),rgb(200,230,255));
  if(kind==='sword'){st(-4,-1,0,()=>C.ironD);for(let u=-2;u<=2;u+=.5)m.set(K(Math.round(c*-.5-s*u),Math.round(s*-.5+c*u)),C.ironD);st(0,11,.5,(t,u)=>t>10||u<0?C.ironH:C.iron)}
