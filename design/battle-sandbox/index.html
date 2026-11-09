@@ -1400,7 +1400,7 @@ function shape(kind,a,fill=1,heat=0){const m=new Map(),c=Math.cos(a),s=Math.sin(
   // top-down key laid on the diagonal so it fills a square: a ring bow top-left, the blade down to the bottom-right, one bit (two on a large key)
   const R=big?1.9:1.4,o=big?2:1.5;for(let y=-1;y<=5;y++)for(let x=-1;x<=5;x++){const d=Math.hypot(x-o,y-o);if(d>R-.6&&d<R+.6)put(x,y,x+y<2*o?L:M)}
   for(let t=Math.ceil(o+R);t<=8;t++)put(t,t,M);put(7,7,M);if(big){put(8,6,D);put(6,4,D);put(7,5,D)}else{put(6,7,D);put(6,8,D)}}
- if(kind==='spear')st(-12.8,12.4,0,t=>t>11?C.ironH:(t*2|0)%7===0?C.ironD:C.iron);
+ if(kind==='spear')st(-12.8,12.4,0,t=>t>11?rgb(226,232,236):t>9.5?rgb(196,204,210):rgb(172,180,186));
  if(kind==='sspear')st(-12,11.5,0,t=>{if(t>8)return(t*2|0)%2?plasC(Math.random()):rgb(240,226,255);const base=(t*2|0)%7===0?rgb(26,27,31):rgb(48,50,57);if(!heat)return base;const c=heatCol(heat*(.8+.25*(t+12)/20)+(hh(t*2|0,7,3)-.5)*.05*Math.min(1,heat*3),base,PHEAT);return heat>1?mix(c,rgb(255,255,255),Math.min(.7,(heat-1)*2.5)):c});
  if(kind==='pgun'){const dm=rgb(44,46,54);st(-10,-5,1,(t,u)=>sh3(dm,u));st(-5,6,.5,(t,u)=>sh3(rgb(54,56,66),u));st(6,8,1,(t,u)=>sh3(rgb(50,54,66),u));st(8.5,10,1.5,(t,u)=>t>=10&&Math.abs(u)<.3?rgb(220,170,255):sh3(rgb(58,60,68),u))}
  if(kind==='sbomb'){disc(3.2,(x,y,d)=>d>2.6?rgb(70,96,120):d<1.4?rgb(200,230,255):x+y<-1?rgb(120,180,240):rgb(70,120,210));m.set(K(0,-3),C.lwD);m.set(K(0,-4),C.lwD)}
