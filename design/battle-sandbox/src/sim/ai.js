@@ -270,16 +270,17 @@ function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB)
  if(VS.length!==NB){VS=new Uint8Array(NB);VSF=new Float32Array(NB)}fSel=me.some(b=>sel.has(b));
  if(VD.length!==NB)VD=new Float32Array(NB);
  // units standing still keep their sight in a cache; moving units cast rays every frame. A changed cache is rebuilt a few units a frame, the old one standing in meanwhile
- const env=solT+'|'+bodies.reduce((h,o)=>o.type==='slab'?h+o.x*7+o.y*13+(o.ang||0)*101|0:h,0)+'|'+VEH.map(v=>v.x+','+v.y+','+v.ang).join(';'),sk=b=>(b.x>>2)+','+(b.y>>2)+','+!!b.crouch+','+(b.vseat?b.vseat.id:0);
+ // only doors and vehicles in reach of a unit's sight can change what it sees
+ const SLB=bodies.filter(o=>o.type==='slab'),RR=(FOVR+40)**2,env=b=>solT+'|'+SLB.reduce((h,o)=>(o.x-b.x)**2+(o.y-b.y)**2<RR?h+o.x*7+o.y*13+(o.ang||0)*101|0:h,0)+'|'+VEH.filter(v=>(v.x-b.x)**2+(v.y-b.y)**2<RR*2).map(v=>v.x+','+v.y+','+v.ang).join(';'),sk=b=>(b.x>>2)+','+(b.y>>2)+','+!!b.crouch+','+(b.vseat?b.vseat.id:0);
  for(const b of me){const k=sk(b);if(k!==b._sk){b._mvT=b._sk===undefined?-99:tick;b._sk=k}}
  // each standing unit keeps its own sight, so a unit that starts moving drops out of the shared view at once instead of leaving its old sight behind
  const isLive=b=>tick-(b._mvT||0)<20,still=me.filter(b=>!isLive(b)),t0=performance.now();
  still.sort((a,b)=>(a._sv&&a._sv.p===a._sk)-(b._sv&&b._sv.p===b._sk));
- for(const b of still){const k=b._sk+'|'+env,c=b._sv;if(c&&c.k===k||performance.now()-t0>(c&&c.p===b._sk?6:12)||!bodies.includes(b))continue;const Q=[],V=[];if(SVT.length!==NB)SVT=new Float32Array(NB).fill(-1);sight360(b,(q,v)=>{if(SVT[q]<0)Q.push(q);if(v>SVT[q])SVT[q]=v});for(const q of Q){V.push(SVT[q]);SVT[q]=-1}b._sv={k,p:b._sk,n:(c?c.n:0)+1,q:Int32Array.from(Q),v:Float32Array.from(V)}}
- const kept=still.filter(b=>b._sv&&b._sv.p===b._sk),ck=FT+'|'+kept.map(b=>b.id+':'+b._sv.n+(sel.has(b)?'s':'')).join(';');
+ for(const b of still){const k=b._ek=b._sk+'|'+env(b),c=b._sv;if(c&&c.k===k||performance.now()-t0>(c&&c.p===b._sk?6:12)||!bodies.includes(b))continue;const Q=[],V=[];if(SVT.length!==NB)SVT=new Float32Array(NB).fill(-1);sight360(b,(q,v)=>{if(SVT[q]<0)Q.push(q);if(v>SVT[q])SVT[q]=v});for(const q of Q){V.push(SVT[q]);SVT[q]=-1}b._sv={k,p:b._sk,n:(c?c.n:0)+1,q:Int32Array.from(Q),v:Float32Array.from(V)}}
+ const kept=still.filter(b=>b._sv&&b._sv.k===b._ek),ck=FT+'|'+kept.map(b=>b.id+':'+b._sv.n+(sel.has(b)?'s':'')).join(';');
  if(SVC.d.length!==NB)SVC={k:'',d:new Float32Array(NB),i:new Uint8Array(NB),s:new Uint8Array(NB)};
  if(SVC.k!==ck){SVC.d.fill(0);SVC.i.fill(0);SVC.s.fill(0);for(const b of kept){const{q,v}=b._sv,sb=sel.has(b);for(let j=0;j<q.length;j++){const c=q[j];SVC.i[c]=1;if(v[j]>SVC.d[c])SVC.d[c]=v[j];if(sb)SVC.s[c]=1}}SVC.k=ck}
- const live=me.filter(b=>!kept.includes(b)&&tick-(b._mvT??-1e9)<600),lk=live.map(b=>b.id).join(),same=VF.length===NB&&SVC.k===SVC.done&&(!live.length&&!SVC.live||lk===SVC.lk&&tick%2);SVC.done=SVC.k;SVC.live=live.length;SVC.lk=lk;
+ const live=me.filter(b=>!kept.includes(b)&&(tick-(b._mvT??-1e9)<600||b._sv&&b._sv.p===b._sk)),lk=live.map(b=>b.id).join(),same=VF.length===NB&&SVC.k===SVC.done&&(!live.length&&!SVC.live||lk===SVC.lk&&tick%2);SVC.done=SVC.k;SVC.live=live.length;SVC.lk=lk;
  if(!same){
  VIS.set(SVC.i);VD.set(SVC.d);VS.set(SVC.s);for(const b of live){const sb=sel.has(b);sight360(b,(q,v)=>{VIS[q]=1;if(v>VD[q])VD[q]=v;if(sb)VS[q]=1})}
  for(let y=1;y<BH-1;y++)for(let x=1;x<BW-1;x++){const q=y*BW+x;if(!VIS[q]&&(VIS[q-1]&1&&VIS[q+1]&1||VIS[q-BW]&1&&VIS[q+BW]&1)){VIS[q]=2;VD[q]=Math.max(Math.min(VD[q-1],VD[q+1]),Math.min(VD[q-BW],VD[q+BW]))}}
