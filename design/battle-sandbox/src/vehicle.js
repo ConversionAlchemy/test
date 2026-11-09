@@ -397,10 +397,10 @@ NBM.yard=()=>{UND=Array.from({length:28},()=>Array(44).fill('grass'));paintAll((
  if(cx>=37&&cx<=38&&(cy>=4&&cy<=7||cy>=20&&cy<=23))return'stone.grey.block.w';
  if(cx===27&&cy>=10&&cy<=17||cx===32&&(cy>=3&&cy<=8||cy>=19&&cy<=24)||cy===24&&cx>=5&&cx<=14)return'hedge';
  if(cy>=12&&cy<=15)return'dirt';return'grass'})};
-NUM.yard=()=>{const v=carrier('steel',15*T,14*T,0,'Imperium');const g=[U('Legate Varro','Imperium','civ',0,0,0,'pistol','Officer'),U('Tribune Cass','Imperium','civ',0,0,0,'pistol','Officer')];vSeatNow(v,g[0],0);vSeatNow(v,g[1],1);
- ['Brask','Coll','Dunn','Ivo','Hale','Marl'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<2?'guard':'rifle',0,0,0),2+i));
+NUM.yard=()=>{const v=carrier('steel',15*T,14*T,0,'Imperium');const g=[U('Major Varro','Imperium','cmd',0,0,0,'pistol','Astrian Officer|f|steel|h'),U('Captain Cass','Imperium','cmd',0,0,0,'pistol','Astrian Officer|m|steel|h')];vSeatNow(v,g[0],0);vSeatNow(v,g[1],1);
+ ['Brask','Coll','Dunn','Ivo','Hale','Marl'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<2?'guard':'rifle',0,0,0,undefined,['Astrian Guard|f|steel|h','Astrian Guard|f|iron|h','Astrian Line|m|steel|h','Astrian Line|m|iron|h','Astrian Line|t|iron|h','Astrian Line|n|iron|h'][i]),2+i));
  carrier('steel',15*T,6*T,0,'Imperium',null,VOFF);
- U('Ser Davin','Imperium','civ',27.5,6,Math.PI,'pistol','Officer');['Orrin','Pell','Wat','Ned'].forEach((n,i)=>U(n,'Imperium',i<1?'guard':'rifle',25.5+(i%2)*1.6,3.6+(i>>1)*1.6,Math.PI,i<1?'rod':undefined));
+ U('Lt. Davin','Imperium','cmd',27.5,6,Math.PI,'pistol','Astrian Officer|n|iron|h');['Orrin','Pell','Wat','Ned'].forEach((n,i)=>U(n,'Imperium',i<1?'guard':'rifle',25.5+(i%2)*1.6,3.6+(i>>1)*1.6,Math.PI,i<1?'rod':undefined,['Astrian Guard|f|iron|h','Astrian Line|t|iron|h','Astrian Line|n|iron|h','Astrian Line|m|iron|b'][i]));
  for(const t of bodies)if(t.type==='token')t.auto=false};
 // the circuit: a rounded loop of road for driving corners, hedge chicanes and stone blocks inside, an inspection stand of officers and
 // nobles on the south side, perimeter guards, and a parking apron beside the stand: two iron carriers parked empty and a steel one crewed bar its driver

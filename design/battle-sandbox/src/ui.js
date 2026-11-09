@@ -141,7 +141,7 @@ function unitPx(i){const R=ROSTER[fnat.value]||[],[l,un]=R[i]||['Peasant','civ']
 function spawnCtx(){SCX.innerHTML='';SM.dataset.st=UI.st;const tabs=mk('div','tabs');for(const[t,n]of[['units','Units'],['wp','Weapons'],['it','Items'],['cov','Cover']])tabs.append(ubtn(n,UI.st===t?'on':'',()=>{UI.st=t;LS.set('bs.st',t);spawnCtx()}));SCX.append(tabs);
  if(UI.st!=='units')return;fnat.classList.add('wide');SCX.append(fnat);const L=mk('div','ulist');
  for(const o of fu.options){const i=+o.value,r=mk('div','urow'+(String(i)===fu.value?' on':''));r.append(unitPx(i),mk('span','n',o.textContent));
-  if(String(i)===fu.value)r.append(fw);r.onpointerdown=e=>{if(e.target===fw||e.button)return;if(fu.value!==String(i)){fu.value=i;setArms();spawnCtx()}e.preventDefault();$('tpr').dispatchEvent(new PointerEvent('pointerdown',{clientX:e.clientX,clientY:e.clientY,bubbles:true}))};L.append(r)}
+  if(String(i)===fu.value)r.append(fw);r.onpointerdown=e=>{if(e.target===fw||e.target.tagName==='SELECT'||e.button)return;if(fu.value!==String(i)){fu.value=i;setArms();spawnCtx()}e.preventDefault();$('tpr').dispatchEvent(new PointerEvent('pointerdown',{clientX:e.clientX,clientY:e.clientY,bubbles:true}))};L.append(r);if(String(i)===fu.value){const q=mk('div','uopt');for(const k of['fa','fm','fh','fc']){const s={fa:AFA,fm:AFM,fh:AFH,fc:AFC}[k];s.onchange=()=>{preview();spawnCtx()};if(k==='fc'||AST[fsel0()[0]])q.append(s)}L.append(q)}}
  SCX.append(L)}
 {const f0=fnat.onchange;fnat.onchange=()=>{f0();spawnCtx()}}
 
