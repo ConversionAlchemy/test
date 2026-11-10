@@ -135,6 +135,8 @@ The clock opens the region: a 4× detail copy of the Fluoria map around Goldbank
 - Fallen: a squad with every man dead and a wreck become fallen; the skull button shows or hides them on the map and in the lists. Delete one from its card or with a right-click; the skull on a place clears all its fallen. Dead men stay in their squad, greyed, until cleared.
 - Saved games carry the region; it is also kept in the browser between visits.
 
+- Passages: in Command with nothing selected, a map whose cell holds other maps lists its edge openings (North, South, West, East) under Passages; pick a map for one and it becomes a passage both ways, like the Aurum and the counting house: it fades into the dark with the other map's name, a unit walking off arrives at the far map's matching side (the first trip there picks the far opening facing back), and the view follows a selected unit. Emperor's Dock comes linked: the stockyard's south door to the carrier yard, the yard's east side to the circuit.
+
 ## AI
 
 The AI button hands one side to the computer (for now only the Havenport warehouse, where it plays the Reapers). Each reset its leader rolls fresh orders: hold position, defend a zone (main floor, back room, bomb stash), protect the stash or the leader, or attack. Units stay sheathed until they see an enemy or hear the alarm, then turn, aim and fire, reload, throw a grenade at a bunch of enemies, hold fire when a friend is in the way, open unlocked doors on their way, and fall back to the back room when badly hurt. If the leader goes down, some of them pull back. Hover a name to see its order.

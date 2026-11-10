@@ -246,6 +246,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .rsd .dr{display:flex;align-items:center;gap:8px;padding:3px 4px 3px 10px;background:#262626;border:1px solid #2e2e2e;cursor:pointer}#sm .rsd .dr.on{border-color:#f2efe6}#sm .rsd .dr .dn{flex:1;font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#sm .rsd .dr small{color:#8f8b82;font-size:15px}#sm .rsd .dr.add{color:#9a978e;border-style:dashed;padding:5px 10px}
 #sm .rsd .dots{background:#2e2e2e;border:1px solid #3a3a3a;color:#c9c5ba;font:18px VT323,monospace;width:30px;height:24px;cursor:pointer;min-height:0;padding:0}
 #sm .rsd .dm{display:flex;gap:6px;align-items:center;padding:4px 6px 4px 16px;background:#181818;border:1px solid #2e2e2e}#sm .rsd .dm span{flex:1}#sm .rsd .dm input{flex:1}#sm .rsd .dm button{background:#2e2e2e;border:1px solid #3a3a3a;color:#f2efe6;font:18px VT323,monospace;padding:2px 10px;cursor:pointer;min-height:0}#sm .rsd .dm .warn{color:#e07a70;border-color:#6a2a2a}
+#sm .psg{display:none;flex-direction:column;gap:4px;margin-top:6px}#sm[data-tool=hand] .psg.on{display:flex}#sm .psg .prow{display:flex;align-items:center;gap:8px}#sm .psg .prow span{width:64px;color:#c9c5ba}#sm .psg select{flex:1;min-width:0;background:#141414;border:1px solid #3a3a3a;color:#f2efe6;font:18px VT323,monospace;padding:2px 4px}
 </style>
 <script>
 const T=16;
@@ -1109,11 +1110,11 @@ function loadMap(m){const q=STATE[m];delete STATE[m];CW=q.CW;CH=q.CH;W=CW*T;H=CH
  for(const b of bodies)if(b.lab)stage.appendChild(b.lab);arrivals();exitLabels()}
 function goMap(v){if(v===curMap)return;saveMap();curMap=v;const ms=$('msel');if(ms)ms.value=v;$('sm').querySelector('header span').textContent=TITLE[v]||'';sel.clear();openCrate=null;drag=null;charge=null;box=null;moveSel=null;lastHud='';if(STATE[v])loadMap(v);else{camInit=true;CW=-1;reset()}}
 function arrivals(){const q=PEND[curMap];if(!q)return;delete PEND[curMap];for(const b of q){bodies.push(b);if(b.lab)stage.appendChild(b.lab)}}
-function exitLabels(){for(const e of document.querySelectorAll('#sm .xlab'))e.remove();(EXITS[curMap]||[]).forEach((x,i)=>{const l=document.createElement('div');l.className='xlab';l.dataset.i=i;l.textContent=x.label;stage.appendChild(l)})}
+function exitLabels(){for(const e of document.querySelectorAll('#sm .xlab'))e.remove();(EXITS[curMap]||[]).forEach((x,i)=>{if(!x.cell||!x.label)return;const l=document.createElement('div');l.className='xlab';l.dataset.i=i;l.textContent=x.label;stage.appendChild(l)})}
 // the passage fades to black towards the map it leads to
-function exitFade(){for(const x of EXITS[curMap]||[]){const L=28,[cx,cy]=x.cell;for(let i=0;i<L;i++){const f=Math.pow(i/L,1.4);if(x.dir==='w'||x.dir==='e'){const X=x.dir==='w'?i:W-1-i;for(let Y=cy*T-6;Y<cy*T+T+6;Y++)if(Y>=0&&Y<H)out[Y*W+X]=mul(out[Y*W+X],f)}else{const Y=x.dir==='n'?i:H-1-i;for(let X=cx*T-6;X<cx*T+T+6;X++)if(X>=0&&X<W)out[Y*W+X]=mul(out[Y*W+X],f)}}}}
-function exitTick(){for(const x of EXITS[curMap]||[]){if(!x.to)continue;const back=EXITS[x.to].find(e=>e.to===curMap);for(const b of [...bodies]){if(b.type!=='token'||b.status!=='free'||inDrag(b)||b.tether&&!b.tether.broken)continue;if((b.x/T|0)!==x.cell[0]||(b.y/T|0)!==x.cell[1])continue;
- const was=sel.has(b);bodies=bodies.filter(o=>o!==b);if(b.lab)b.lab.remove();sel.delete(b);b.x=back.arrive[0];b.y=back.arrive[1];b.vx=b.vy=0;b.glide=null;b.hc=null;sfx('door');
+function exitFade(){for(const x of EXITS[curMap]||[]){if(!x.cell)continue;const L=28,[cx,cy]=x.cell;for(let i=0;i<L;i++){const f=Math.pow(i/L,1.4);if(x.dir==='w'||x.dir==='e'){const X=x.dir==='w'?i:W-1-i;for(let Y=cy*T-6;Y<cy*T+T+6;Y++)if(Y>=0&&Y<H)out[Y*W+X]=mul(out[Y*W+X],f)}else{const Y=x.dir==='n'?i:H-1-i;for(let X=cx*T-6;X<cx*T+T+6;X++)if(X>=0&&X<W)out[Y*W+X]=mul(out[Y*W+X],f)}}}}
+function exitTick(){for(const x of EXITS[curMap]||[]){if(!x.to||!x.cell)continue;const back=(EXITS[x.to]||[]).find(e=>e.to===curMap)||{};for(const b of [...bodies]){if(b.type!=='token'||b.status!=='free'||inDrag(b)||b.tether&&!b.tether.broken)continue;if((b.x/T|0)!==x.cell[0]||(b.y/T|0)!==x.cell[1])continue;
+ const was=sel.has(b);bodies=bodies.filter(o=>o!==b);if(b.lab)b.lab.remove();sel.delete(b);if(back.arrive){b.x=back.arrive[0];b.y=back.arrive[1]}else b.linkFrom=curMap;b.vx=b.vy=0;b.glide=null;b.hc=null;sfx('door');
  if(STATE[x.to])STATE[x.to].bodies.push(b);else(PEND[x.to]||(PEND[x.to]=[])).push(b);if(was){goMap(x.to);if(bodies.includes(b))sel.add(b);return}}}}
 function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t},X=x=>(x+CO)*16,eb=d=>{mahogany(d,EBONY);return d};
  const hd=(x,y,m)=>slab(m,X(x),y*16+11,0),vd=(x,y,m,th)=>slab(m,X(x)+4,y*16,1,16,th||8);
@@ -4746,8 +4747,43 @@ cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=xy(e),f=Math.exp(-
 function moveF(f,to){const go=()=>{if(inMap(f))withdraw(f);undo.push({f,from:f.cell});f.cell=to;rsel=f.id;cell=to;layout();save();list2();cards();draw()};
  if(!inMap(f)){go();return}const C=mk('div','rcard rask');C.append(mk('div',null,`Pull ${f.n} out of ${mapName((f.men.find(m=>m.map)||f).map)}?`));const r=mk('div','g2');r.append(ubtn('Pull out','lite',()=>{C.remove();go()}),ubtn('Stay','',()=>{C.remove();draw()}));C.append(r);CARDS.prepend(C)}
 
+
+// ---- passages: an opening on a map's edge can lead to another map in the same cell, both ways, like the Aurum and the counting house
+R.links=R.links||[];R.open=R.open||{};
+// Emperor's Dock comes linked: stockyard south door to the yard, the yard's east side to the circuit
+if(!R.linkSeed){R.linkSeed=1;R.links.push({a:'stock',ac:[13,15],ad:'s',b:'yard',bc:[22,1],bd:'n'},{a:'yard',ac:[42,14],ad:'e',b:'circuit',bc:[1,24],bd:'w'})}
+const DIRW={w:'West',e:'East',n:'North',s:'South'},OPP={w:'e',e:'w',n:'s',s:'n'};
+function openings(){const L=[],solid=(cx,cy)=>{const x=cx*T+T/2,y=cy*T+T/2;return sol[(y|0)*W+(x|0)]>0},run=(dir,cells)=>{let cur=[];for(const c of[...cells,null]){if(c&&!solid(c[0],c[1]))cur.push(c);else{if(cur.length)L.push({dir,cell:cur[cur.length>>1]});cur=[]}}};
+ // a side walled all along by the map's own border is read one cell in
+ const side=(dir,f)=>{for(const k of ENVSET[curMap]==='out'?[0,1]:[0]){const cells=Array.from({length:dir==='n'||dir==='s'?CW:CH},(_,i)=>f(i,k));if(cells.some(c=>!solid(c[0],c[1]))){run(dir,cells);return}}};
+ side('n',(i,k)=>[i,k]);side('s',(i,k)=>[i,CH-1-k]);side('w',(i,k)=>[k,i]);side('e',(i,k)=>[CW-1-k,i]);return L}
+const inward=(c,d)=>{const[x,y]=c;return d==='w'?[(x+1.5)*T,(y+.5)*T]:d==='e'?[(x-.5)*T,(y+.5)*T]:d==='n'?[(x+.5)*T,(y+1.5)*T]:[(x+.5)*T,(y-.5)*T]};
+const labAt=(c,d,mw,mh)=>{const[x,y]=c;return d==='w'?[3,y*T-16]:d==='e'?[mw-96,y*T-16]:d==='n'?[x*T+T+4,3]:[x*T+T+4,mh-18]};
+const sizeOf=id=>id===curMap?[W,H]:STATE[id]?[STATE[id].CW*T,STATE[id].CH*T]:(MAPSZ[id]||[18,14]).map(v=>v*T);
+function pickOpen(id,want,except){const L=(R.open[id]||[]).filter(o=>!except.some(e=>e&&e[0]===o.cell[0]&&e[1]===o.cell[1]));return L.find(o=>o.dir===want)||L[0]||null}
+function usedOn(id,skip){return R.links.filter(l=>l!==skip).map(l=>l.a===id?l.ac:l.b===id?l.bc:null)}
+function applyLinks(){for(const k in EXITS)EXITS[k]=EXITS[k].filter(x=>!x.dyn);
+ for(const l of R.links){if(!l.bc&&R.open[l.b]){const o=pickOpen(l.b,OPP[l.ad],usedOn(l.b,l));if(o){l.bc=o.cell;l.bd=o.dir}}
+  for(const[m,c,d,to]of[[l.a,l.ac,l.ad,l.b],[l.b,l.bc,l.bd,l.a]]){const[mw,mh]=sizeOf(m),[lx,ly]=c?labAt(c,d,mw,mh):[0,0];(EXITS[m]||(EXITS[m]=[])).push(c?{dyn:1,dir:d,cell:c,to,arrive:inward(c,d),label:mapName(to),lx,ly}:{dyn:1,cell:null,to,arrive:null})}}
+ save()}
+function setLink(id,o,to){R.links=R.links.filter(l=>!(l.a===id&&l.ac[0]===o.cell[0]&&l.ac[1]===o.cell[1]||l.b===id&&l.bc&&l.bc[0]===o.cell[0]&&l.bc[1]===o.cell[1])&&!(to&&(l.a===id&&l.b===to||l.b===id&&l.a===to)));
+ if(to)R.links.push({a:id,ac:o.cell,ad:o.dir,b:to,bc:null,bd:null});applyLinks();exitLabels()}
+// men arriving through a passage whose far end was not yet known take the best opening there
+{const a0=arrivals;arrivals=function(){a0();R.open[curMap]=openings();let ch=false;for(const b of bodies){if(!b.linkFrom)continue;const l=R.links.find(l=>l.a===b.linkFrom&&l.b===curMap||l.b===b.linkFrom&&l.a===curMap);delete b.linkFrom;if(!l)continue;
+  if(l.b===curMap&&!l.bc){const o=pickOpen(curMap,OPP[l.ad],usedOn(curMap,l));if(o){l.bc=o.cell;l.bd=o.dir;ch=true}}const c=l.a===curMap?l.ac:l.bc,d=l.a===curMap?l.ad:l.bd;if(c){const[x,y]=inward(c,d);b.x=x;b.y=y;spot(b,x,y,0)}}
+ if(ch){applyLinks();exitLabels()}}}
+applyLinks();
+// the side panel lists this map's openings when nothing is picked
+const PSG=mk('div','psg');ZC.append(PSG);let psgK='';
+function psg(){const c=Object.keys(R.cm).find(k=>R.cm[k].includes(curMap)),others=c!=null?R.cm[c].filter(x=>x!==curMap):[],show=!OV.hidden?false:sel.size===0&&others.length>0;PSG.classList.toggle('on',show);if(!show){psgK='';return}
+ if(!R.open[curMap]||tick%120===0)R.open[curMap]=openings();const O=R.open[curMap],key=curMap+JSON.stringify(O)+JSON.stringify(R.links)+others.join();if(key===psgK)return;psgK=key;
+ PSG.innerHTML='<div class="hlab">Passages</div>';const per={};for(const o of O){per[o.dir]=(per[o.dir]||0)+1}const idx={};
+ for(const o of O){const l=R.links.find(l=>l.a===curMap&&l.ac[0]===o.cell[0]&&l.ac[1]===o.cell[1]||l.b===curMap&&l.bc&&l.bc[0]===o.cell[0]&&l.bc[1]===o.cell[1]),to=l?(l.a===curMap?l.b:l.a):'';idx[o.dir]=(idx[o.dir]||0)+1;
+  const r=mk('div','prow'),s2=mk('select');s2.innerHTML=`<option value="">—</option>`+others.map(id=>`<option value="${id}"${id===to?' selected':''}>${mapName(id).split(' · ').pop()}</option>`).join('');s2.onchange=()=>{setLink(curMap,o,s2.value||null);psgK=''};
+  r.append(mk('span',null,DIRW[o.dir]+(per[o.dir]>1?' '+idx[o.dir]:'')),s2);PSG.append(r)}}
+setInterval(psg,400);
 // ---- saved games carry the region with them
-window.REGION={zoomTo:(n,k)=>{const b=BURG[n];view.k=k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=v;save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
+window.REGION={ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=v;R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
 })();
 })();
 </script></body></html>
