@@ -26,6 +26,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Hold | Aim and fire, or wind up a throw; the crosshair fills from inner to outer |
 | WASD | Move selected units; selected units turn to face the cursor |
 | 1–4 | Pick a weapon: 1 primary, 2 secondary, 3 grenade, 4 heavy |
+| Hold and release (grenade) | Pressing pulls the pin and the grenade cooks while held (the hand spark blinks); releasing throws it with what fuse is left. Hold past the fuse and it goes off in hand |
 | R | Reload from spare ammo |
 | Q | Sheathe or draw; over a group, if any weapon is out all are put away, otherwise all are drawn |
 | T | Form up: the selected units snap into squads of up to 8 (4 across, 2 deep) by kind, side by side, three to a row, centred where they stood |

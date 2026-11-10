@@ -23,7 +23,8 @@ function update(){tick++;for(const b of bodies)if(b.hf&&b.type==='token'&&b.stat
  for(const b of bodies)if(b.type==='token'&&(b.matA!==b.ang||b.matN!==lookOf(b)))tokMat(b);if(!aiOn)for(const b of bodies){if(b.ord){ensureRooms();ordTick(b)}else if(b.lookAt)lookTick(b)}if(tick%30===0)leaderTick();turnTick();try{aiTick();}catch(e){console.warn(e)}if(aiOn&&tick%20===0)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&b.mv>0&&!b.crouch)hear(b.x,b.y,UNITS[b.unit].arm>=2?90:60,b,'step');markSlabs();if(drag)dragStep();if(tick%3===0)fireTick();if(tick%10===0){autoPick();keyTick()}for(const b of bodies){if(b.mw){if(b.status==='free')moveToward(b,b.x+b.mw.dx,b.y+b.mw.dy);if(--b.mw.n<=0)b.mw=null}if(b.raised&&tick-b.rT>12&&tick%4===0){b.raised=false;b.hc=null;b.pull=8;if(heldBlocked(b,0,0)){b.raised=true;b.pull=0;b.hc=null}else{b.rT=tick;rustle(b,.5)}}if(!b.raised&&b.pull>0&&tick%3===0){b.pull--;if(heldBlocked(b,0,0))b.pull++}if(b.cock>0)b.cock--;if(b.type==='token'&&b.status==='free'&&b.held&&CAP[b.held.k]&&b.held.ammo===0&&b.held.res>0&&!b.burst&&!b.bq&&!(b.cock>0)){if(++b.rlT>20){b.rlT=0;reload(b)}}else b.rlT=0;burstTick(b);if(b.dash)dashStep(b)}aiDodge();if(tick%6===0)hud();wasd();doors();shockTick();for(const b of bodies)if(b.held)melee(b);rodTick();
  for(const b of [...bodies])if((b.kind==='grenade'||b.kind==='bomb')&&b.fuse>0&&--b.fuse===0&&bodies.includes(b))detonate(b)
  for(const b of bodies)b.wind=0;if(charge){const pr=Math.min(1,(performance.now()-charge.t)/charge.need);for(const b of armed()){const i=srcInfo(b);if(i&&i.throw)b.wind=i.heat?Math.min(1,.35+(slot(b).heat||0)*.65):pr*pr}}
- if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);if(holdFire&&armed().length&&armed().every(o=>{const i=srcInfo(o);return i&&!i.throw&&!i.heat}))charge={...charge,t:performance.now()};else charge=null}
+ cookTick();if(charge&&charge.cook){if(!charge.fired&&performance.now()-charge.t>=charge.need){charge.fired=true;fireGroup(mouse.x,mouse.y,o=>!cooks(o))}}
+ else if(charge&&performance.now()-charge.t>=charge.need){fireGroup(mouse.x,mouse.y);if(holdFire&&armed().length&&armed().every(o=>{const i=srcInfo(o);return i&&!i.throw&&!i.heat}))charge={...charge,t:performance.now()};else charge=null}
  for(const b of [...bodies])if(bodies.includes(b))step(b);vTick();tetherTick();if(tick%4===0)exitTick();if(curMap==='air'&&tick%5===0)overboard();stepParts();cool();fxTick()}
 let lastT=performance.now(),acc=0,slowMo=false,holdFire=false;
 // at most two steps a frame: under load the game slows a touch rather than stalling to catch up
@@ -54,7 +55,7 @@ const boardDown=e=>{au();closeMenu();if(panKey||e.button===1){pan={x:e.clientX,y
   const b=bodyAt(X,Y,1)||(X>=0&&Y>=0&&X<W&&Y<H?containerAt(X,Y):null)||vPick(X,Y);lastClick={X,Y};
   if(e.shiftKey){if(b&&b.type!=='slab')startDrag(b,x,y,false,true);return}
   const ar=armed();
-  if(ar.length&&!(b&&(sel.has(b)||b.kind==='crate'))){charge={t:performance.now(),need:Math.max(...ar.map(o=>srcInfo(o).hold)),x,y,b};holdFire=true;return}
+  if(ar.length&&!(b&&(sel.has(b)||b.kind==='crate'))){charge={t:performance.now(),need:Math.max(...ar.map(o=>srcInfo(o).hold)),x,y,b,cook:ar.some(cooks)};cookStart(ar);holdFire=true;return}
   if(b){if(b.status==='dead'||b.kind==='crate'){clickBody(b,e.ctrlKey||e.metaKey);return}pend={b,x,y,add:e.ctrlKey||e.metaKey};return}
   box={x0:x,y0:y,x1:x,y1:y}}
 };
@@ -71,6 +72,7 @@ window.addEventListener('pointermove',e=>{if(pan){cam.x=pan.cx+e.clientX-pan.x;c
 });
 window.addEventListener('pointerup',e=>{holdFire=false;if(pan){pan=null;return}if(spinning){spinning=false;return}const add=e.ctrlKey||e.metaKey;
  if(cellDrag){const cd=cellDrag;cellDrag=null;const k=(mouse.y/T|0)*CW+(mouse.x/T|0);if(moveSel&&moveSel.b===cd.b&&moveSel.cells.has(k)){const b=cd.b;b.glide=[(mouse.x/T|0)*T+8,(mouse.y/T|0)*T+8];b.ghost=true;b.stuck=false;b.vx=b.vy=0;moveSel=null;sfx('flick')}return}
+ if(charge&&charge.cook){fireGroup(mouse.x,mouse.y,cooks);charge=null;return}
  if(charge&&armed().some(o=>{const i=srcInfo(o);return i&&i.heat})&&(performance.now()-charge.t>120||armed().some(o=>o.held&&o.held.k==='sspear'))){fireGroup(mouse.x,mouse.y);charge=null;return}
  if(charge){if(charge.b&&charge.b.type!=='slab'&&charge.b.kind!=='crate'&&Math.hypot(mouse.x-charge.x,mouse.y-charge.y)<3)clickBody(charge.b,add);charge=null;return}
  if(box){const x0=Math.min(box.x0,box.x1),x1=Math.max(box.x0,box.x1),y0=Math.min(box.y0,box.y1),y1=Math.max(box.y0,box.y1);box=null;
