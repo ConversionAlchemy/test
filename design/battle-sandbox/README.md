@@ -29,7 +29,7 @@ A pixel interior battle prototype for Fluoria: one self-contained page (`index.h
 | Hold and release (grenade) | Pressing pulls the pin and the grenade cooks while held (the hand spark blinks); releasing throws it with what fuse is left. Hold past the fuse and it goes off in hand |
 | R | Reload from spare ammo |
 | Q | Sheathe or draw; over a group, if any weapon is out all are put away, otherwise all are drawn |
-| T | Form up: the selected units snap into squads of up to 8 (4 across, 2 deep) by kind, side by side, three to a row, centred where they stood |
+| T | Form up: the selected units snap into a block by tier, guards in front, then line, conscripts at the rear and officers a step behind the centre, centred where they stood. A group already in formation keeps its width and facing, so pressing T again only tidies it. Hold T and press an arrow to face that way |
 | Alt + click | Lob a grenade or bomb at the cursor (no aim guide): it looks like a normal throw but passes over walls and people and lands near the cursor, a little off with distance and less so for better throwers. Holding Alt over a carrier shows its roof. It stays on a carrier roof and bursts there sparing the crew, and drops off a wall top to the nearest floor. |
 | H | Toggle a group between facing the cursor and facing their formation's direction (from T), or back the way they were if never formed up |
 | Double-click | Select a unit's squad from the last form-up, or its kind close by |
@@ -162,7 +162,7 @@ With AI on you see only what your units see: the rest keeps its last picture and
 
 Hold C to crouch: slower, no dash, dimmed. A crouched unit behind a desk or table can't be seen or shot past it, and can't see or shoot over it either; stand to fire.
 
-Right-click a cell to send the selected units there; they find their own way through doors. With AI on only your units take orders, and only to places your side has seen; a faint line shows each order, red if refused. E takes direct control (WASD, aim at the cursor, hold to fire, green outline); E again hands it back. Only units under direct control turn to the cursor. Units walk a half-tile grid that keeps them clear of walls and furniture and cut corners where the way is clear. Units shooting round a corner switch hands so the gun clears the edge.
+Right-click a cell to send the selected units there; they find their own way through doors. A group gets one slot per man in formation (the same order as T), facing the way it moves, and a ring shows each slot while the button is down and until he gets there; right-drag instead lays the front rank along the drag, facing away from where they came. A man shoved off his slot steps back when idle. With AI on only your units take orders, and only to places your side has seen; a faint line shows each order, red if refused. E takes direct control (WASD, aim at the cursor, hold to fire, green outline); E again hands it back. Only units under direct control turn to the cursor. Units walk a half-tile grid that keeps them clear of walls and furniture and cut corners where the way is clear. Units shooting round a corner switch hands so the gun clears the edge.
 
 A unit that is hopelessly outmatched with an enemy close by surrenders: it drops its weapon and becomes a neutral captive. With AI on, your units not under direct control hold where they are, turn towards enemies the team can see, and fight with what they carry: guns, spears, Lancers, and grenades when no friend is near the target.
 

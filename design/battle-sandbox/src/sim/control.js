@@ -56,12 +56,22 @@ function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=
  if(b.ghost&&!solidHits(b,0,0))b.ghost=false;return Math.hypot(b.x-x0,b.y-y0)}
 const TURN={civ:.18,home:.17,rifle:.16,guard:.12,shock:.1,cmd:.26};
 // form up: the selected units snap into squads of up to 8, 4 across and 2 deep, by kind, side by side with a gap and three squads to a row, centred where they stood, square to the map, facing the quarter most of them faced
-let SQN=0;function formUp(a0){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat&&!b.vwalk);if(ts.length<2)return;const cx=ts.reduce((a,b)=>a+b.x,0)/ts.length,cy=ts.reduce((a,b)=>a+b.y,0)/ts.length,A=a0!=null?a0:Math.round(Math.atan2(ts.reduce((a,b)=>a+Math.sin(b.ang),0),ts.reduce((a,b)=>a+Math.cos(b.ang),0))/(Math.PI/2))*Math.PI/2,fx=Math.cos(A),fy=Math.sin(A),rx=-fy,ry=fx,G=1.3*T,GAP=2.2*T;
- const kinds=[];for(const b of ts){let k=kinds.find(q=>q.u===b.unit);if(!k)kinds.push(k={u:b.unit,m:[]});k.m.push(b)}const sq=[];for(const k of kinds){k.m.sort((a,b)=>(a.x*rx+a.y*ry)-(b.x*rx+b.y*ry));for(let i=0;i<k.m.length;i+=8)sq.push(k.m.slice(i,i+8))}
- const rows=[];for(let i=0;i<sq.length;i+=3)rows.push(sq.slice(i,i+3));const cols=n=>n<=4?n:Math.ceil(n/2),wid=s=>(cols(s.length)-1)*G,lines=[];
- rows.forEach((row,ri)=>{const w=row.reduce((a,s)=>a+wid(s),0)+GAP*(row.length-1);let u=-w/2;for(const s of row){const c=cols(s.length);s.forEach((b,i)=>lines.push([b,u+(i%c)*G,ri*(G+2.5*T)+(i/c|0)*G]));u+=wid(s)+GAP}});
- const depth=Math.max(...lines.map(l=>l[2]));SQN++;sq.forEach((s,i)=>s.forEach(b=>b.sq=SQN*100+i));
- for(const[b,u,v]of lines){const ox=b.x,oy=b.y,d=v-depth/2;b.x=Math.round(cx+rx*u-fx*d);b.y=Math.round(cy+ry*u-fy*d);if(b.x<4||b.y<4||b.x>W-4||b.y>H-4||solidHits(b,0,0)){b.x=ox;b.y=oy}b.ord=null;b.mw=null;b.glide=null;b.vx=b.vy=0;b.face0=b.ang;b.formA=A;b.hf=false;turnNow(b,A)}sfx('clank')}
+// formations: guards in front, then line, conscripts at the rear, officers a step behind the centre; a formed group keeps its width and facing
+const FG=1.3*T,tierOf=b=>b.unit==='cmd'?3:b.unit==='shock'||b.unit==='guard'?0:b.unit==='rifle'?1:2;
+function formWidth(ts,A){const fx=Math.cos(A),fy=Math.sin(A),m=ts.filter(b=>tierOf(b)<3);if(m.length<2)return 0;const f=m.map(b=>b.x*fx+b.y*fy),mx=Math.max(...f);return m.filter((b,i)=>mx-f[i]<FG*.5).length}
+const formed=ts=>ts.length>1&&ts.every(b=>b.formA!=null&&Math.abs(Math.atan2(Math.sin(b.formA-ts[0].formA),Math.cos(b.formA-ts[0].formA)))<.05);
+function formSlots(ts,cx,cy,A,wd){const fx=Math.cos(A),fy=Math.sin(A),rx=-fy,ry=fx,men=ts.filter(b=>tierOf(b)<3),off=ts.filter(b=>tierOf(b)===3),n=men.length;
+ if(!wd)wd=n<=4?n:n<=8?4:Math.min(10,Math.ceil(n/3));wd=Math.max(1,Math.min(wd,n||1));
+ const fw=b=>Math.round((b.x*fx+b.y*fy)/(FG*.5)),lat=b=>b.x*rx+b.y*ry,loc=[],ranks=Math.ceil(n/wd);
+ men.sort((a,b)=>tierOf(a)-tierOf(b)||fw(b)-fw(a)||lat(a)-lat(b));
+ for(let r=0;r<ranks;r++){const row=men.slice(r*wd,r*wd+wd).sort((a,b)=>lat(a)-lat(b));row.forEach((b,i)=>loc.push([b,(i-(row.length-1)/2)*FG,-r*FG]))}
+ off.sort((a,b)=>lat(a)-lat(b)).forEach((b,i)=>loc.push([b,(i-(off.length-1)/2)*FG,-ranks*FG]));
+ const ref=n?loc.slice(0,n):loc,mu=ref.reduce((s,l)=>s+l[1],0)/ref.length,mv=ref.reduce((s,l)=>s+l[2],0)/ref.length;
+ return loc.map(([b,u,v])=>[b,Math.round(cx+rx*(u-mu)+fx*(v-mv)),Math.round(cy+ry*(u-mu)+fy*(v-mv))])}
+function formUp(a0){const ts=[...sel].filter(b=>b.type==='token'&&b.status==='free'&&!b.vseat&&!b.vwalk);if(ts.length<2)return;
+ const f=formed(ts),men=ts.filter(b=>tierOf(b)<3),ref=men.length?men:ts,A0=f?ts[0].formA:Math.round(Math.atan2(ts.reduce((a,b)=>a+Math.sin(b.ang),0),ts.reduce((a,b)=>a+Math.cos(b.ang),0))/(Math.PI/2))*Math.PI/2,A=a0!=null?a0:A0,wd=f?formWidth(ts,A0):0;
+ const cx=Math.round(ref.reduce((a,b)=>a+b.x,0)/ref.length/8)*8,cy=Math.round(ref.reduce((a,b)=>a+b.y,0)/ref.length/8)*8;
+ for(const[b,x,y]of formSlots(ts,cx,cy,A,wd)){const ox=b.x,oy=b.y;b.x=x;b.y=y;if(b.x<4||b.y<4||b.x>W-4||b.y>H-4||solidHits(b,0,0)){b.x=ox;b.y=oy}b.ord=null;b.mw=null;b.glide=null;b.vx=b.vy=0;b.face0=b.ang;b.formA=A;b.hf=false;b.home=[b.x,b.y];turnNow(b,A)}sfx('clank')}
 function turnTo(b,a,now){if(now||b.type!=='token'||b.status!=='free')return turnNow(b,a);b.faceT=a}
 function turnTick(){goldSnap();for(const b of bodies){if(b.faceT==null)continue;if(b.type==='weapon'){const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang));if(Math.abs(d)<=.14){if(Math.abs(d)>.01)reshape(b,b.faceT);b.faceT=null}else reshape(b,b.ang+Math.sign(d)*.14);continue}if(b.status!=='free'){b.faceT=null;continue}const d=Math.atan2(Math.sin(b.faceT-b.ang),Math.cos(b.faceT-b.ang)),r=(TURN[b.unit]||.14)*(b.crouch?.7:1);if(Math.abs(d)<=r){turnNow(b,b.faceT);b.faceT=null}else turnNow(b,b.ang+Math.sign(d)*r)}}
 const facing=(b,x,y)=>Math.hypot(x-b.x,y-b.y)<28||Math.abs(Math.atan2(Math.sin(Math.atan2(y-b.y,x-b.x)-b.ang),Math.cos(Math.atan2(y-b.y,x-b.x)-b.ang)))<.35;
