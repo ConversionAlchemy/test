@@ -193,7 +193,7 @@ function vaultRose(){delete CHB.vault;const keep={...PNT};Object.assign(PNT,{mir
  for(let Y=368;Y<408;Y++)for(let X=192;X<240;X++){const dx=X-239.5,dy=Y-407.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3);if(r<3||r>=st*.55&&r<st-.8||r>R*.82+.7&&r<R-.7)chiselPt(X,Y)}
  Object.assign(PNT,{mir:keep.mir,mx:keep.mx,my:keep.my,size:keep.size,box:keep.box})}
 // the map on screen was built before this file ran
-if(curMap==='vault'&&!CHM.vault){vaultRose();snapPR();ds0Need=true;solDirty=true}{const r0=refinish;refinish=function(){r0();chApply();snapPR()}}
+if(curMap==='vault'&&!CHM.vault){vaultRose();snapPR();ds0Need=true;solDirty=true}{const r0=refinish;refinish=function(...a){r0(...a);chApply();snapPR()}}
 {const r0=reset;reset=function(){delete CHM[curMap];delete CHB[curMap];PU.length=0;r0()}}
 function paintDown(x,y){if(PNT.k==='chisel'&&PNT.mir&&(!PNT.box||x<PNT.box[0]||y<PNT.box[1]||x>=PNT.box[2]||y>=PNT.box[3])){const cx=x/T|0,cy=y/T|0;PNT.drag=[cx,cy];PNT.box=[cx*T,cy*T,cx*T+T,cy*T+T];return}
  puPush();PDN=true;PNT.last=null;PNT.t=0;if(PNT.k==='chisel')chiselLine(x,y);else if(PNT.k!=='cond')daub(x,y)}

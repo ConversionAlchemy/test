@@ -152,7 +152,7 @@ let PLOP=null;const GHOST=new Map();
 function ghostOf(k){if(GHOST.has(k))return GHOST.get(k);const p=bake(k),c=mk('canvas');c.width=c.height=T;const g=c.getContext('2d'),im=g.createImageData(T,T);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const o=(y*TS+x)*3,i=(y*T+x)*4,l=lum(p[o],p[o+1],p[o+2])*.7+60;im.data[i]=im.data[i+1]=im.data[i+2]=l;im.data[i+3]=255}g.putImageData(im,0,0);GHOST.set(k,c);return c}
 function edCells(cx,cy){const o=Math.floor((edSize-1)/2),r=[];for(let y=cy-o;y<cy-o+edSize;y++)for(let x=cx-o;x<cx-o+edSize;x++)if(x>=0&&y>=0&&x<CW&&y<CH)r.push([x,y]);return r}
 function addPend(st,cx,cy){for(const c of edCells(cx,cy)){const id=c[1]*CW+c[0];if(!st.seen.has(id)){st.seen.add(id);st.cells.push(c)}}}
-function plop(cells,k,er){flushPlop();if(er){let n=0;for(const[x,y]of cells)n+=clearDoor(x,y);if(n)solDirty=true}const s=srcNow();cells=cells.filter(([x,y])=>s[y][x]!==k);if(!cells.length)return;PLOP={k,er,q:cells,per:Math.min(12,Math.max(1,Math.ceil(cells.length/60))),run:0,next:0,heavy:!er&&heavyK(k),m:er?'erase':matOf(k)}}
+function plop(cells,k,er){flushPlop();if(er){let n=0;for(const[x,y]of cells)n+=clearDoor(x,y);if(n)solDirty=true}const s=srcNow();cells=cells.filter(([x,y])=>s[y][x]!==k);if(!cells.length)return;PLOP={box:boxOf(cells),k,er,q:cells,per:Math.min(12,Math.max(1,Math.ceil(cells.length/60))),run:0,next:0,heavy:!er&&heavyK(k),m:er?'erase':matOf(k)}}
 // one sound per plop; plops speed up from 70 ms to 30 ms apart, and big areas place up to 12 tiles per plop
 // one cell of a plop: floors replace walls and doors but slide under furniture; walls and furniture keep the floor beneath them
 const wallish=k=>!!WMAT[k]||/[HNS]$/.test(k)&&!!WMAT[k.slice(0,-1)],cover=k=>furnK(k)||wallish(k);
@@ -163,8 +163,8 @@ function plopCell(p,s,x,y,live){const was=s[y][x],U=()=>UND[y]||(UND[y]=[]);let 
  s[y][x]=k;if(live){paintCell(x,y,k);puff(x,y,k)}}
 // one sound per plop; plops speed up from 70 ms to 30 ms apart, and big areas place up to 12 tiles per plop
 function plopTick(){const p=PLOP;if(!p)return;const t=performance.now();if(t<p.next)return;const s=srcNow();for(let i=0;i<p.per&&p.q.length;i++){const[x,y]=p.q.shift();plopCell(p,s,x,y,true)}
- p.run++;sndT=0;edSnd(p.m,1+Math.min(.25,p.run*.012),.75,p.heavy);p.next=t+Math.max(30,70-p.run*4);if(!p.q.length){PLOP=null;refinish()}}
-function flushPlop(){const p=PLOP;if(!p)return;PLOP=null;const s=srcNow();for(const[x,y]of p.q)plopCell(p,s,x,y,false);refinish()}
+ p.run++;sndT=0;edSnd(p.m,1+Math.min(.25,p.run*.012),.75,p.heavy);p.next=t+Math.max(30,70-p.run*4);if(!p.q.length){PLOP=null;refinish(p.box)}}
+function flushPlop(){const p=PLOP;if(!p)return;PLOP=null;const s=srcNow();for(const[x,y]of p.q)plopCell(p,s,x,y,false);refinish(p.box)}
 {const s0=startDrag;startDrag=function(...a){s0(...a);if(EM&&drag)drag.free=true}}
 {const r0=reset;reset=function(){PLOP=null;WQ=null;edSrc=null;edUndo=[];edRedo=[];r0();if(!PRSET)snapPR();PRSET=false;envCalc();if(EM==='map')fillMapTools()}}
 {const PRS={};const g0=goMap;goMap=function(v){flushPlop();WQ=null;if(PR)PRS[curMap]=PR;edSrc=null;edUndo=[];edRedo=[];g0(v);PR=PRS[v]&&PRS[v].CW===CW&&PRS[v].CH===CH?PRS[v]:PR;if(!prOK())snapPR();envCalc();if(EM==='map')fillMapTools()}}
@@ -182,7 +182,16 @@ const snapEd=()=>{const a=srcNow().map(r=>r.slice());a.und=UND.map(r=>r&&r.slice
 function edPush(){edUndo.push(snapEd());if(edUndo.length>60)edUndo.shift();edRedo=[]}
 // one step of map undo (or redo)
 function edStep(redo){flushPlop();const a=redo?edRedo:edUndo,b=redo?edUndo:edRedo;if(!a.length)return false;b.push(snapEd());edSrc=a.pop();if(edSrc.und)UND=edSrc.und.map(r=>r&&r.slice());refinish();return true}
-function refinish(){REP.clear();const s=srcNow();map=s.map(r=>r.slice());for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);resill();EDG.clear();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask();
+// after a stroke only the stroke's area, two tiles round, is repainted; the finishing passes run as before and the pixels outside it are put back as they were
+// a patterned floor is laid out over its whole connected area, so a stroke touching one repaints all of it; open ground does not need that
+const NATK=k=>/^(grass|dirt|earth\.)/.test(k||'');
+const boxOf=cells=>{if(!cells||!cells.length)return null;let x0=1e9,y0=1e9,x1=-1,y1=-1;for(const[x,y]of cells){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y)}
+ const s=srcNow(),seen=new Set(),grow=(sx,sy)=>{const k=s[sy]&&s[sy][sx];if(!k||NATK(k)||seen.has(sy*CW+sx))return;const bk=baseK(k),q=[[sx,sy]];seen.add(sy*CW+sx);while(q.length){const[a,b]=q.pop();x0=Math.min(x0,a);y0=Math.min(y0,b);x1=Math.max(x1,a);y1=Math.max(y1,b);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(na<0||nb<0||na>=CW||nb>=CH||seen.has(nb*CW+na)||baseK(s[nb][na])!==bk)continue;seen.add(nb*CW+na);q.push([na,nb])}}};
+ for(const[x,y]of cells)for(const[da,db]of[[0,0],[1,0],[-1,0],[0,1],[0,-1]])grow(x+da,y+db);return{x0:Math.max(0,x0-2),y0:Math.max(0,y0-2),x1:Math.min(CW-1,x1+2),y1:Math.min(CH-1,y1+2)}};
+function refinish(box){const s=srcNow(),A=box?[floor,scol,sol,shp,SH,OBJ,OBJC,SHN,GT,crk,slabG,GOLD,DS,NOD,SCH].map(a=>a.slice()):null;REP.clear();map=s.map(r=>r.slice());
+ if(box){FINBOX={X0:box.x0*T,Y0:box.y0*T,X1:(box.x1+1)*T,Y1:(box.y1+1)*T};for(let cy=box.y0;cy<=box.y1;cy++)for(let cx=box.x0;cx<=box.x1;cx++)paintCell(cx,cy,map[cy][cx])}else for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);
+ try{resill();EDG.clear();blendGround();objects();boards();borders();regions();polish();cracks()}finally{
+ if(A){const F=FINBOX,L=[floor,scol,sol,shp,SH,OBJ,OBJC,SHN,GT,crk,slabG,GOLD,DS,NOD,SCH];L.forEach((a,i)=>{const o=A[i];for(let Y=0;Y<H;Y++){if(Y<F.Y0||Y>=F.Y1){a.set(o.subarray(Y*W,Y*W+W),Y*W);continue}if(F.X0>0)a.set(o.subarray(Y*W,Y*W+F.X0),Y*W);if(F.X1<W)a.set(o.subarray(Y*W+F.X1,Y*W+W),Y*W+F.X1)}})}FINBOX=null}edgeMask();
  for(const c of bodies.filter(o=>o.hidden&&!o.vchest))if(!c.cells.every(([a,b])=>OM[b]&&OM[b][a]))remove(c);snapDoors();sills();ds0Need=true;solDirty=true;fxDirty=true;if(ROOMS)ROOMS.t=-1e9;envCalc();snapPR()}
 const slabCell=d=>{let x=0,y=0;for(const p of d.px){x+=p[0];y+=p[1]}const n=d.px.length||1,X=Math.round(d.x)+x/n,Y=Math.round(d.y)+y/n;return(Y/T|0)*CW+(X/T|0)};
 const DOORK=Object.fromEntries([['wood','Oak','Wood door'],['pine','Pine'],['teak','Teak'],['ebony','Ebony'],['mahog','Mahogany'],['steel','Steel'],['iron','Iron'],['brass','Brass'],['gold','Aurum'],['umbra','Umbra']].map(([k,n,d])=>{const el=ELEM.Metal.mats[k]?'Metal':'Wood',m=k==='wood'?'oak':k;return[k,[d||n+' door',hitCls(mprop(el,m).cls)]]}));
@@ -276,6 +285,7 @@ function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&AGE[c[0
   let s0=(cx*73856093^cy*19349663)>>>0;const R=()=>(s0=(s0*1664525+1013904223)>>>0)/4294967296,worn=[...comp].filter(i=>{const c=CATN[map[i/CW|0][i%CW]];return c[4]&&c[4]<=2});if(!worn.length)continue;
   let n=0;for(const i of worn)n+=CATN[map[i/CW|0][i%CW]][4]===1?.95:.5;n=Math.floor(n+R());const wall=CATN[k0][3],JF={slabs:.9,quarter:.82,block:.84,rubble:.8,crazy:.85}[CATN[k0][2]]||.86,JC=rgb(...(memb(CATN[k0][0],CATN[k0][1]).c||[120,116,108]).map(v=>Math.round(v*JF*.9))),LC=rgb(...(memb(CATN[k0][0],CATN[k0][1]).c||[120,116,108]).map(v=>Math.min(255,Math.round(v*1.06)))),hit=new Set(),L0=Math.min(42,7+Math.sqrt(comp.size)*6);
   const sp=mprop(CATN[k0][0],CATN[k0][1]).split;if(sp!=null)n=Math.round(n*(sp||1)*1.4);
+  const wd=!!mprop(CATN[k0][0],CATN[k0][1]).cleave;// cracks in a cleaving material run along its grain
   let bx=0,by=0,bs=16;const walk=(x,y,ang,len,fork)=>{if(wd){ang=R()<.5?0:Math.PI;len=Math.min(len,4+R()*7|0);fork=false}ang=Math.round(ang/.785)*.785;let run=0;for(let t=0;t<len;t++){if(!wd&&++run>2+R()*4){run=0;ang+=(R()<.5?-1:1)*.785*(R()<.7?.5:1)}x+=Math.cos(ang);y+=Math.sin(ang);const X=Math.round(x),Y=Math.round(y),ci=(Y>>4)*CW+(X>>4);if(X<1||Y<1||X>=W-1||Y>=H-1||!comp.has(ci)||Math.floor(X/bs)!==bx||Math.floor(Y/bs)!==by)return;
     if(R()<.18)continue;const j=Y*W+X;if(hit.has(j))continue;hit.add(j);const lj=j+(Math.abs(Math.cos(ang))>.5?W:1),lit=t%3===1&&!hit.has(lj);if(wall){if(!sol[j])return;scol[j]=mix(scol[j],JC,.85);shp[j]=1;if(lit&&sol[lj])scol[lj]=mix(scol[lj],LC,.4)}else{floor[j]=mix(floor[j],JC,.85);if(lit)floor[lj]=mix(floor[lj],LC,.4)}if(fork&&t===len>>1&&R()<.3)walk(x,y,ang+(R()<.5?-.785:.785),len>>1,false)}};
   for(let m=0;m<n;m++){const i=worn[(R()*worn.length)|0];bs=16;bx=Math.floor((i%CW)*T/bs);by=Math.floor((i/CW|0)*T/bs);const ex=R()<.5,X0=(i%CW)*T+(ex?(R()<.5?1:T-2):2+R()*(T-4)),Y0=(i/CW|0)*T+(ex?2+R()*(T-4):(R()<.5?1:T-2));walk(X0,Y0,R()*6.283,(R()<.75?5+R()*6:L0*(.6+R()*.6))|0,true)}}}

@@ -21,7 +21,7 @@ const NOB=new Set(['grass','dirt','sky','bush','sill','msill']);
 for(const k in CATN){const[el,mat,v,w]=CATN[k];const P=mprop(el,mat),cd=CATN[k][4]||5;if(w)WMAT[k]=hitCls(P.cls);if(P.shine)SHINE[k]=Math.round(P.shine*(.4+.6*(cd-1)/4));const E=ELEM[el];if(!w&&P.nob||(E.vnob||{})[v])NOB.add(k);if(!w&&(E.vplk||{})[v])PLK.add(k)}
 for(const k in MTABLE){SHINE[k]=mprop('Metal',MTABLE[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}for(const k in MCHEST){SHINE[k]=mprop('Metal',MCHEST[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}SHINE.mchest=60;
 // tile borders follow inner corners too, so a rim turns square instead of breaking
-function borders(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const bk=baseK(k),o=(x,y)=>map[y]&&map[y][x]!==undefined&&baseK(map[y][x])!==bk;
+function borders(){const F=FINBOX;for(let cy=F?F.Y0/T:0;cy<(F?F.Y1/T:CH);cy++)for(let cx=F?F.X0/T:0;cx<(F?F.X1/T:CW);cx++){const k=map[cy][cx];if(!TEX[k]||NOB.has(k)||OM[cy]&&OM[cy][cx])continue;const bk=baseK(k),o=(x,y)=>map[y]&&map[y][x]!==undefined&&baseK(map[y][x])!==bk;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){let d=Math.min(o(cx-1,cy)?x:99,o(cx+1,cy)?T-1-x:99,o(cx,cy-1)?y:99,o(cx,cy+1)?T-1-y:99);for(const[a,b]of[[-1,-1],[1,-1],[-1,1],[1,1]])if(!o(cx+a,cy)&&!o(cx,cy+b)&&o(cx+a,cy+b))d=Math.min(d,Math.max(a<0?x:T-1-x,b<0?y:T-1-y));if(d>(WMAT[k]===3?2:1))continue;const j=(cy*T+y)*W+cx*T+x,mt=WMAT[k]===3,f=mt?[.7,1.3,.88][d]:d===0?.84:1.05;if(sol[j])scol[j]=mul(scol[j],f);else floor[j]=mul(floor[j],f)}}}
 const fmat=k=>hitCls(matK(k));
 function objMat(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k)continue;const m=fmat(k);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;if(OBJ[j])OBJ[j]=m}}}
@@ -138,7 +138,7 @@ function blendGround(){GT.fill(0);let any=false;for(const r of map)for(const k o
  const R=6,ind=new Float32Array(N),tmp=new Float32Array(N);for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){const k=map[Y/T|0][X/T|0];ind[Y*W+X]=k==='grass'?1:k==='dirt'||k.endsWith('H')?0:.5}
  for(let Y=0;Y<H;Y++){let a=0;for(let X=-R;X<W;X++){if(X+R<W)a+=ind[Y*W+X+R];if(X-R-1>=0)a-=ind[Y*W+X-R-1];if(X>=0)tmp[Y*W+X]=a}}
  for(let X=0;X<W;X++){let a=0;for(let Y=-R;Y<H;Y++){if(Y+R<H)a+=tmp[(Y+R)*W+X];if(Y-R-1>=0)a-=tmp[(Y-R-1)*W+X];if(Y>=0)ind[Y*W+X]=a/((2*R+1)*(2*R+1))}}
- for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){const j=Y*W+X,k=map[Y/T|0][X/T|0];if(sol[j]||k!=='grass'&&k!=='dirt'&&!(k.endsWith('H')&&X%T>=T/2))continue;
+ const F=FINBOX;for(let Y=F?F.Y0:0;Y<(F?F.Y1:H);Y++)for(let X=F?F.X0:0;X<(F?F.X1:W);X++){const j=Y*W+X,k=map[Y/T|0][X/T|0];if(sol[j]||k!=='grass'&&k!=='dirt'&&!(k.endsWith('H')&&X%T>=T/2))continue;
   const v=ind[j]+(fbm(X/7,Y/7,90)-.5)*.5+(hh(X,Y,91)-.5)*.1,g=v>.5;let c=g?grassT(X,Y):soilT(X,Y);if(g&&v<.62&&hh(X,Y,92)>(v-.5)/.12)c=mx(GDRY,soilT(X,Y),.5);
   floor[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));GT[j]=g?1:2}}
 // blasts on open ground tear up grass, dig a soft crater and throw soil round it

@@ -295,7 +295,7 @@ function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB)
  const kept=still.filter(b=>b._sv&&b._sv.k===b._ek),ck=FT+'|'+kept.map(b=>b.id+':'+b._sv.n+(sel.has(b)?'s':'')).join(';');
  if(SVC.d.length!==NB)SVC={k:'',d:new Float32Array(NB),i:new Uint8Array(NB),s:new Uint8Array(NB)};
  if(SVC.k!==ck){SVC.d.fill(0);SVC.i.fill(0);SVC.s.fill(0);for(const b of kept){const{q,v}=b._sv,sb=sel.has(b);for(let j=0;j<q.length;j++){const c=q[j];SVC.i[c]=1;if(v[j]>SVC.d[c])SVC.d[c]=v[j];if(sb)SVC.s[c]=1}}SVC.k=ck}
- const live=me.filter(b=>!kept.includes(b)&&(tick-(b._mvT??-1e9)<600||b._sv&&b._sv.p===b._sk)),lk=live.map(b=>b.id).join(),same=VF.length===NB&&SVC.k===SVC.done&&(!live.length&&!SVC.live||lk===SVC.lk&&tick%2);SVC.done=SVC.k;SVC.live=live.length;SVC.lk=lk;
+ const live=me.filter(b=>!kept.includes(b)&&(tick-(b._mvT??-1e9)<600||b._sv&&b._sv.p===b._sk)),lk=live.map(b=>b.id).join(),same=VF.length===NB&&SVC.k===SVC.done&&(!live.length&&!SVC.live||lk===SVC.lk&&tick%2&&!live.some(b=>b.direct));// the unit you drive is recast every frame, so a doorway opens up at onceSVC.done=SVC.k;SVC.live=live.length;SVC.lk=lk;
  if(!same){
  VIS.set(SVC.i);VD.set(SVC.d);VS.set(SVC.s);for(const b of live){const sb=sel.has(b);sight360(b,(q,v)=>{VIS[q]=1;if(v>VD[q])VD[q]=v;if(sb)VS[q]=1})}
  for(let y=1;y<BH-1;y++)for(let x=1;x<BW-1;x++){const q=y*BW+x;if(!VIS[q]&&(VIS[q-1]&1&&VIS[q+1]&1||VIS[q-BW]&1&&VIS[q+BW]&1)){VIS[q]=2;VD[q]=Math.max(Math.min(VD[q-1],VD[q+1]),Math.min(VD[q-BW],VD[q+BW]))}}

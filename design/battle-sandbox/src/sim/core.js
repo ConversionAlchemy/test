@@ -3,6 +3,7 @@
 const $=id=>document.getElementById(id);
 let S=2,EM=null,TOPS=false,OUTD=false;let CW=18,CH=14,W=CW*T,H=CH*T,BW=W/2,BH=H/2,N=W*H,NB=BW*BH;
 const cv=$('sb');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');let img=ctx.createImageData(W,H);let out=new Uint32Array(img.data.buffer);
+let FINBOX=null;// the area a partial repaint is limited to
 let SH=new Uint8Array(N),GOLD=new Uint8Array(N),floor=new Uint32Array(N),sol=new Uint8Array(N),shp=new Uint8Array(N),scol=new Uint32Array(N),crk=new Uint8Array(N),slabG=new Int32Array(N),GT=new Uint8Array(N),SHN=new Uint8Array(N),DS=new Uint8Array(N),NOD=new Uint8Array(N),OBJ=new Uint8Array(N),SCH=new Uint8Array(N),OBJC=new Uint32Array(N),DMG=new Uint8Array(N);// DMG: chips and holes blasts leave in the floor, which only the wand repairs
 const FX={blood:new Float32Array(NB),fire:new Float32Array(NB),smoke:new Float32Array(NB)};
 let TF=new Float32Array(NB),SF=new Float32Array(NB),SS=new Float32Array(NB),GM=new Float32Array(NB),ST=new Float32Array(NB),BURN=new Float32Array(NB),TRK=new Float32Array(NB),FH=new Float32Array(NB),FV=new Float32Array(NB),SV=new Float32Array(NB),DV=new Float32Array(NB),TMP=new Float32Array(NB);
