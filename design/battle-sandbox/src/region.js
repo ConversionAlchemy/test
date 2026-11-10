@@ -16,6 +16,7 @@ function fillOf(c,i){if(!land(c)){const t=Math.min(1,c.h/19);return mixc([38,62,
  const s=shade[i];return s>0?mixc(b,[250,244,226],s*.35):mixc(b,[60,58,48],-s*.45)}
 const FILL=D.cells.map((c,i)=>{const f=vis[i],base=fillOf(c,i),grey=(base[0]+base[1]+base[2])/3;return mixc(mixc(base,[grey,grey,grey],(1-f)*.85),VOID,(1-f)*.6)});
 const ST=Object.fromEntries(D.states.filter(s=>s.c).map(s=>[s.i,s]));
+const CEN=D.cells.map(c=>{let A=0,x=0,y=0;const P=c.p;for(let i=0;i<P.length;i++){const[a1,b1]=P[i],[a2,b2]=P[(i+1)%P.length],k=a1*b2-a2*b1;A+=k;x+=(a1+a2)*k;y+=(b1+b2)*k}return A?[x/(3*A),y/(3*A)]:c.c});
 const near=pt=>{let bi=-1,bd=1e9;for(let i=0;i<D.cells.length;i++){const c=D.cells[i].c,d=(c[0]-pt[0])**2+(c[1]-pt[1])**2;if(d<bd){bd=d;bi=i}}return bi};
 const RV=D.routes.map(r=>{let m=0;for(const p of r.pts)m=Math.max(m,vis[near(p)]);return m}),RVI=D.burgs.map(b=>vis[near([b.x,b.y])]);
 const BURG={};for(const b of D.burgs)if(!BURG[b.n]||Math.hypot(b.x-BOXC[0],b.y-BOXC[1])<Math.hypot(BURG[b.n].x-BOXC[0],BURG[b.n].y-BOXC[1]))BURG[b.n]=b;
@@ -104,7 +105,7 @@ function glyph(b,X,Y,z){const ink='#2a221c',cream='#efe5c8';g.lineWidth=1;
  g.fillStyle=ink;g.beginPath();g.arc(X,Y,1.9*z,0,7);g.fill();return 2*z}
 function anchorG(X,Y,z){g.strokeStyle='#2c4a63';g.lineWidth=1.2;g.beginPath();g.moveTo(X,Y-3.5*z);g.lineTo(X,Y+3*z);g.moveTo(X-2*z,Y-1.8*z);g.lineTo(X+2*z,Y-1.8*z);g.moveTo(X-3*z,Y+.5*z);g.quadraticCurveTo(X-3*z,Y+3.4*z,X,Y+3.2*z);g.quadraticCurveTo(X+3*z,Y+3.4*z,X+3*z,Y+.5*z);g.stroke()}
 const BOXES=[];let BURGPT=[];const fits=r=>!BOXES.some(o=>r[0]<o[2]&&r[2]>o[0]&&r[1]<o[3]&&r[3]>o[1]);
-function burgs(){BOXES.length=0;markBoxes();const z=Math.max(.75,Math.min(1.5,Math.sqrt(view.k/1.3)));
+function burgs(){BOXES.length=0;if(view.k>=CLOSE)placeClose();markBoxes();const z=Math.max(.75,Math.min(1.5,Math.sqrt(view.k/1.3)));
  const L=D.burgs.map((b,i)=>({b,r:b.cap?0:RANK[b.group]??3,v:RVI[i]})).filter(o=>o.v>.45).sort((a,b)=>a.r-b.r);
  BURGPT=L;for(const o of L){const[X,Y]=W2S(o.b.x,o.b.y);o.X=X;o.Y=Y;g.globalAlpha=Math.min(1,o.v*1.2);o.rad=glyph(o.b,X,Y,z);if(o.b.port)anchorG(X+o.rad+5*z,Y-o.rad-1,z*.9);g.globalAlpha=1;BOXES.push([X-o.rad,Y-o.rad,X+o.rad,Y+o.rad])}
  const SZ=[19,16,14,12.5,11.5];for(const o of L){if(o.r>=4&&view.k<1.6||o.r===3&&view.k<1.05)continue;const fs=SZ[o.r]*Math.min(1.25,Math.max(.85,Math.sqrt(view.k/1.4)));
@@ -185,14 +186,19 @@ function tok(m,X,Y,r,z,cnt){const on=rsel===m.id,dead=fallen(m),hv=hovT===m.id;g
  else if(cnt!=null||m.t!=='unit'){g.font=`${Math.round(14*z)}px VT323`;const t=String(cnt??m.men.filter(x=>!x.dead).length),w=g.measureText(t).width+5;g.fillStyle='#f2efe6';g.fillRect(X+r-4,Y+r-9,w,11*z);g.fillStyle='#141414';g.fillText(t,X+r-1.5,Y+r+.5)}
  if(inMap(m)){g.fillStyle='#d6b45a';g.beginPath();g.arc(X-r+1,Y-r+1,3*z,0,7);g.fill()}
  g.globalAlpha=1;m.R=r+3;m.X=X;m.Y=Y}
+// close in, each cell's forces sit as a tight block in screen space round the cell's middle, nations side by side
+function placeClose(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),S=20*z+10,by={};for(const G of GROUPS)(by[G.cell]||(by[G.cell]=[])).push(G);
+ for(const c in by){const cl=D.cells[c],b=CELLB[c];let[ax,ay]=CEN[c];if(b){const dx=ax-b.x,dy=ay-b.y,d=Math.hypot(dx,dy)||1,u=Math.max(0,14-d);ax+=dx/d*u;ay+=(d<1?u:dy/d*u)}const[X,Y]=W2S(ax,ay);
+  const L=by[c].map(G=>{const fs=stackOf(G),cols=Math.max(1,Math.ceil(Math.sqrt(fs.length))),rows=Math.ceil(fs.length/cols);return{fs,cols,rows,w:cols*S}}),tw=L.reduce((a,g2)=>a+g2.w,0)+(L.length-1)*8;
+  let x0=X-tw/2;for(const g2 of L){const h=g2.rows*S;g2.fs.forEach((f,i)=>{f.SX=x0+(i%g2.cols+.5)*S;f.SY=Y-h/2+(Math.floor(i/g2.cols)+.5)*S});x0+=g2.w+8}}}
 function markers(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),r=10*z;for(const f of R.F)f.R=0;
  for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;
-  if(view.k>=CLOSE){for(const f of fs){const[a,b]=W2S(f.x,f.y);tok(f,a,b,r,z)}continue}
+  if(view.k>=CLOSE){for(const f of fs)tok(f,f.SX,f.SY,r,z);continue}
   const n=view.k<1.7?1:Math.min(2,fs.length),[X,Y]=W2S(G.x,G.y);
   for(let i=0;i<n;i++){const f=fs[i],a=X+(i-(n-1)/2)*(2*r+6),rest=fs.slice(i);
    if(i===n-1&&rest.length>1){g.globalAlpha=rest.some(match)?1:.3;for(let s=Math.min(2,rest.length-1);s>0;s--){g.fillStyle='#141414';g.beginPath();g.arc(a+s*3,Y-s*3,r+2,0,7);g.fill();g.strokeStyle=css(NATS[G.nat].ring);g.lineWidth=2;g.beginPath();g.arc(a+s*3,Y-s*3,r,0,7);g.stroke()}g.globalAlpha=1;
     tok(f,a,Y,r,z,rest.reduce((s,f)=>s+soldiers(f),0));f.R=0;G.R=[a-r-3,Y-r-6,a+r+6,Y+r+3]}else tok(f,a,Y,r,z)}}}
-function markBoxes(){const r=14;for(const G of GROUPS){const fs=stackOf(G);if(!fs.length)continue;if(view.k>=CLOSE)for(const f of fs){const[X,Y]=W2S(f.x,f.y);BOXES.push([X-r,Y-r,X+r+4,Y+r])}else{const[X,Y]=W2S(G.x,G.y),n=view.k<1.7?1:Math.min(2,fs.length),w=n*(r+3);BOXES.push([X-w,Y-r-4,X+w+6,Y+r])}}}
+function markBoxes(){const r=14;for(const G of GROUPS){const fs=stackOf(G);if(!fs.length)continue;if(view.k>=CLOSE){for(const f of fs)BOXES.push([f.SX-r,f.SY-r,f.SX+r+4,f.SY+r])}else{const[X,Y]=W2S(G.x,G.y),n=view.k<1.7?1:Math.min(2,fs.length),w=n*(r+3);BOXES.push([X-w,Y-r-4,X+w+6,Y+r])}}}
 function ghost(){const[X,Y]=[dragF.mx,dragF.my],im=imgOf(dragF.f);g.globalAlpha=.75;g.fillStyle='#1e1e1e';g.beginPath();g.arc(X,Y,13,0,7);g.fill();g.strokeStyle='#f2efe6';g.lineWidth=2;g.stroke();if(im&&dragF.f.t!=='vehicle'){g.imageSmoothingEnabled=false;g.drawImage(im,X-im.width*.6,Y-im.height*.6,im.width*1.2,im.height*1.2)}g.globalAlpha=1}
 
 // ---- state of the panel
