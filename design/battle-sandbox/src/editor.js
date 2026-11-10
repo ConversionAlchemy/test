@@ -188,7 +188,9 @@ const NATK=k=>/^(grass|dirt|earth\.)/.test(k||'');
 const boxOf=cells=>{if(!cells||!cells.length)return null;let x0=1e9,y0=1e9,x1=-1,y1=-1;for(const[x,y]of cells){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y)}
  const s=srcNow(),seen=new Set(),grow=(sx,sy)=>{const k=s[sy]&&s[sy][sx];if(!k||NATK(k)||seen.has(sy*CW+sx))return;const bk=baseK(k),q=[[sx,sy]];seen.add(sy*CW+sx);while(q.length){const[a,b]=q.pop();x0=Math.min(x0,a);y0=Math.min(y0,b);x1=Math.max(x1,a);y1=Math.max(y1,b);for(const[da,db]of[[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;if(na<0||nb<0||na>=CW||nb>=CH||seen.has(nb*CW+na)||baseK(s[nb][na])!==bk)continue;seen.add(nb*CW+na);q.push([na,nb])}}};
  for(const[x,y]of cells)for(const[da,db]of[[0,0],[1,0],[-1,0],[0,1],[0,-1]])grow(x+da,y+db);return{x0:Math.max(0,x0-2),y0:Math.max(0,y0-2),x1:Math.min(CW-1,x1+2),y1:Math.min(CH-1,y1+2)}};
-function refinish(box){const s=srcNow(),A=box?[floor,scol,sol,shp,SH,OBJ,OBJC,SHN,GT,crk,slabG,GOLD,DS,NOD,SCH].map(a=>a.slice()):null;REP.clear();map=s.map(r=>r.slice());
+// the first grass, or the last, changes how all bare ground blends, so that stroke repaints everything
+function refinish(box){const s=srcNow();if(box&&GT.some(v=>v)!==s.some(r=>r.includes('grass')))box=null;
+ const A=box?[floor,scol,sol,shp,SH,OBJ,OBJC,SHN,GT,crk,slabG,GOLD,DS,NOD,SCH].map(a=>a.slice()):null;REP.clear();map=s.map(r=>r.slice());
  if(box){FINBOX={X0:box.x0*T,Y0:box.y0*T,X1:(box.x1+1)*T,Y1:(box.y1+1)*T};for(let cy=box.y0;cy<=box.y1;cy++)for(let cx=box.x0;cx<=box.x1;cx++)paintCell(cx,cy,map[cy][cx])}else for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)paintCell(cx,cy,map[cy][cx]);
  try{resill();EDG.clear();blendGround();objects();boards();borders();regions();polish();cracks()}finally{
  if(A){const F=FINBOX,L=[floor,scol,sol,shp,SH,OBJ,OBJC,SHN,GT,crk,slabG,GOLD,DS,NOD,SCH];L.forEach((a,i)=>{const o=A[i];for(let Y=0;Y<H;Y++){if(Y<F.Y0||Y>=F.Y1){a.set(o.subarray(Y*W,Y*W+W),Y*W);continue}if(F.X0>0)a.set(o.subarray(Y*W,Y*W+F.X0),Y*W);if(F.X1<W)a.set(o.subarray(Y*W+F.X1,Y*W+W),Y*W+F.X1)}})}FINBOX=null}edgeMask();
