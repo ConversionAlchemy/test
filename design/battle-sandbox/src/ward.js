@@ -204,6 +204,7 @@ if(IMP_NEW)FACTIONS.Imperium=[...IMP,...FACTIONS.Imperium.filter(n=>!IMP_ARCH.in
 // the city's factions; the old ones stay listed as archived
 const ARCHIVED=['Goldbank','Reapers','Sanctis','Havenport','Portsbridge','Great Keys'];
 if(IMP_NEW)Object.assign(FACTIONS,{Citizens:['Chairman','Board Director','Board Shareholder','Manager','Inspector','Desk Clerk','Bookkeeper','Labourer','Docker','Mechanic'],Underground:['The Boss','Consigliere','Enforcer','Soldier','Runner','Fence','Bootlegger','Card sharp','Vagrant'],Rebels:['Rebel captain','Agitator','Striker','Partisan','Saboteur','Rebel Plate','Rebel Heavy'],'Internal Security':['Chief of Security','Special Agent','Interrogator','Agent','Informant']});
+if(!IMP_NEW)delete FACTIONS.Terravkor;// the Terravkor test faction goes with the Company era
 const UNITS=[...new Set(Object.values(FACTIONS).flat())];
 // the spawn's sprite as rows of [colour, metal?, material, metal name]; front at the top like the old sprites
 function grid(n,sp,cond=4){const S=P[sp.alt?TAG[n].alt+(sp.dv!=null&&TAG[TAG[n].alt].dresses?'#'+sp.dv:''):sp.dv!=null?n+'#'+sp.dv:n];if(sp.alt&&TAG[n].altBare)sp={...sp,nohelm:1};

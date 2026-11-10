@@ -416,11 +416,10 @@ NBM.circuit=()=>{UND=Array.from({length:48},()=>Array(64).fill('grass'));const r
   return'grass'})};
 NUM.circuit=()=>{const A=-Math.PI/2;
  carrier('steel',41*T,39*T,Math.PI/2,'Imperium','battleworn',VOFF);carrier('steel',47*T,39*T,Math.PI/2,'Imperium','derelict',VOFF);carrier('steel',53*T,39*T,Math.PI/2,'Imperium','new');
- // the comparison: each current Imperial squad of four beside its Terravkor counterpart, facing the stand
- const PAIRS=[[['Conscript','home'],['Guardsman','home']],[['Officer','civ','pistol'],['Captain','civ','pistol']],[['Conscript','home'],['Trooper','home']],[['Musketeer','rifle'],['Trooper Musketeer','rifle']],
-  [['Praetorian','guard'],['Royal Trooper','guard']],[['Shocktrooper','shock'],['Shock Trooper','shock']],[['Commando','cmd'],['Praetorian Guard','cmd']]];
+ // Astrian squads of four facing the stand, one row per kit
+ const ROWS=[['Astrian Officer|n|iron|h','cmd'],['Astrian Line|n|iron|h','home'],['Astrian Line|t|iron|h','rifle'],['Astrian Line|m|iron|h','rifle'],['Astrian Line|m|steel|h','rifle'],['Astrian Guard|f|iron|h','guard'],['Astrian Guard|f|steel|h','guard']];
  const NM='Abel Bram Cato Dace Edric Faro Gage Hale Ivo Jarek Kell Lorn Mace Nils Oran Piet Quill Rand Soren Tam Ulric Vane Wick Yorr Zane Aldo Brenn Cole'.split(' ');
- PAIRS.forEach(([a,b],r)=>{const y=9.6+r*2.6;for(const[[l,u,w],nat,x0,o]of[[a,'Imperium',12.5,0],[b,'Terravkor',28.5,14]])for(let i=0;i<4;i++)U(NM[(r*4+i+o)%NM.length],nat,u,x0+i*2,y,A,w,l)});
+ ROWS.forEach(([l,u],r)=>{for(let i=0;i<4;i++)U(NM[(r*4+i)%NM.length],'Imperium',u,12.5+i*2,9.6+r*2.6,A,undefined,l)});
  for(const t of bodies)if(t.type==='token')t.auto=false};
 {const o=document.createElement('option');o.value='circuit';o.textContent='Fluoria carrier circuit';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['circuit','Fluoria carrier circuit']);ms.value=curMap}}
 {const o=document.createElement('option');o.value='yard';o.textContent='Fluoria carrier yard';const ms=$('msel');if(ms){ms.appendChild(o);MAPBASE.push(['yard','Fluoria carrier yard']);ms.value=curMap}}
