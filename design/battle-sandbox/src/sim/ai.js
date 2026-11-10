@@ -62,8 +62,8 @@ function aiPath(b,tx,ty,anyLock){navEnsure();const tm=teamOf(b),LK=new Set();if(
  const out=[];let px=b.x,py=b.y,i=0;while(i<raw.length){let j=raw.length-1;while(j>i&&!clear(px,py,raw[j][0],raw[j][1]))j--;out.push(raw[j]);px=raw[j][0];py=raw[j][1];i=j+1}
  if(!partial&&wOpen(tx,ty)&&(!out.length||Math.hypot(tx-out[out.length-1][0],ty-out[out.length-1][1])<12&&clear(out.length>1?out[out.length-2][0]:b.x,out.length>1?out[out.length-2][1]:b.y,tx,ty)))if(out.length)out[out.length-1]=[tx,ty];else out.push([tx,ty]);
  out.raw=raw;out.partial=partial;return out}
-// a unit stuck against a teammate for half a second dashes through him, if they touch and there's room on the far side
-function phaseBy(b,x,y,a){if(tick<(b.phT||0)||b.dash||b.status!=='free')return false;const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,o=tokHit(b,ux*2,uy*2)||bodies.find(q=>q!==b&&q.type==='token'&&q.status==='free'&&Math.hypot(q.x-b.x,q.y-b.y)<18&&(q.x-b.x)*ux+(q.y-b.y)*uy>4);
+// a unit stuck against a teammate for half a second dashes through him, if they touch and there's room on the far side; a man walking to his formation slot just slips past instead
+function phaseBy(b,x,y,a){if(tick<(b.phT||0)||b.dash||b.status!=='free'||b.ord&&b.ord.a!=null)return false;const dx=x-b.x,dy=y-b.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,o=tokHit(b,ux*2,uy*2)||bodies.find(q=>q!==b&&q.type==='token'&&q.status==='free'&&Math.hypot(q.x-b.x,q.y-b.y)<18&&(q.x-b.x)*ux+(q.y-b.y)*uy>4);
  if(!o||o.type!=='token'||o.status!=='free'||teamOf(o)!==teamOf(b)||o.dash)return false;const pr=(o.x-b.x)*ux+(o.y-b.y)*uy;if(pr<=0)return false;
  // land past him along the route, where a body fits and nobody stands
  const pts=[[b.x,b.y],...(a.path||[]).slice(0,8)];if(pts.length<2)pts.push([x,y]);{const[p,q]=pts.slice(-2),l=Math.hypot(q[0]-p[0],q[1]-p[1])||1;pts.push([q[0]+(q[0]-p[0])/l*40,q[1]+(q[1]-p[1])/l*40])}const free=(X,Y)=>wOpen(X,Y)&&!bodies.some(q=>q!==b&&q.type==='token'&&q.status!=='dead'&&Math.hypot(q.x-X,q.y-Y)<14);
