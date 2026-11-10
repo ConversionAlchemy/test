@@ -175,7 +175,7 @@ const CLOSE=2.4;let GROUPS=[];
 function layout(){GROUPS=[];const by={};for(const f of R.F){if(!f.men.length&&!f.wreck)continue;(by[f.cell]||(by[f.cell]={}))[f.nat]=1}
  for(const c in by){const[bx,byy]=cellXY(+c),ns=Object.keys(by[c]),used=[];ns.forEach(n=>{const fs=R.F.filter(f=>f.cell===+c&&f.nat===n),cols=Math.ceil(Math.sqrt(fs.length)),rows=Math.ceil(fs.length/cols),sp=13,hw=(cols-1)/2*sp,hh=(rows-1)/2*sp,d=13+Math.hypot(hw,hh);
   let a=0,best=-1e9;for(let q=0;q<12;q++){const t=q/12*Math.PI*2;let s=0;for(const r of[d*.6,d,d*1.4])s+=land(D.cells[near([bx+Math.cos(t)*r,byy+Math.sin(t)*r])])?1:-2;for(const u of used)s-=Math.max(0,3-Math.abs(((t-u+Math.PI*3)%(Math.PI*2))-Math.PI)*3);if(s>best){best=s;a=t}}used.push(a);
-  const cx=bx+Math.cos(a)*d,cy=byy+Math.sin(a)*d;GROUPS.push({cell:+c,nat:n,x:bx+Math.cos(a)*15,y:byy+Math.sin(a)*13,fs});fs.forEach((f,i)=>{f.x=cx+(i%cols)*sp-hw;f.y=cy+Math.floor(i/cols)*sp-hh})})}}
+  const cx=bx+Math.cos(a)*d,cy=byy+Math.sin(a)*d;GROUPS.push({stack:false,cell:+c,nat:n,x:bx+Math.cos(a)*15,y:byy+Math.sin(a)*13,fs});fs.forEach((f,i)=>{f.x=cx+(i%cols)*sp-hw;f.y=cy+Math.floor(i/cols)*sp-hh})})}}
 const rankF=f=>(f.id===rsel?1e4:0)+(f.fav?1e3:0)+soldiers(f);
 const shown=f=>f.show!==false&&(R.fallenOn||!fallen(f));
 const stackOf=G=>G.fs.filter(shown).sort((a,b)=>(fallen(a)-fallen(b))||rankF(b)-rankF(a));
@@ -186,19 +186,30 @@ function tok(m,X,Y,r,z,cnt){const on=rsel===m.id,dead=fallen(m),hv=hovT===m.id;g
  else if(cnt!=null||m.t!=='unit'){g.font=`${Math.round(14*z)}px VT323`;const t=String(cnt??m.men.filter(x=>!x.dead).length),w=g.measureText(t).width+5;g.fillStyle='#f2efe6';g.fillRect(X+r-4,Y+r-9,w,11*z);g.fillStyle='#141414';g.fillText(t,X+r-1.5,Y+r+.5)}
  if(inMap(m)){g.fillStyle='#d6b45a';g.beginPath();g.arc(X-r+1,Y-r+1,3*z,0,7);g.fill()}
  g.globalAlpha=1;m.R=r+3;m.X=X;m.Y=Y}
-// close in, each cell's forces sit as a tight block in screen space round the cell's middle, nations side by side
-function placeClose(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),S=20*z+10,by={};for(const G of GROUPS)(by[G.cell]||(by[G.cell]=[])).push(G);
- for(const c in by){const cl=D.cells[c],b=CELLB[c];let[ax,ay]=CEN[c];if(b){const dx=ax-b.x,dy=ay-b.y,d=Math.hypot(dx,dy)||1,u=Math.max(0,14-d);ax+=dx/d*u;ay+=(d<1?u:dy/d*u)}const[X,Y]=W2S(ax,ay);
-  const L=by[c].map(G=>{const fs=stackOf(G),cols=Math.max(1,Math.ceil(Math.sqrt(fs.length))),rows=Math.ceil(fs.length/cols);return{fs,cols,rows,w:cols*S}}),tw=L.reduce((a,g2)=>a+g2.w,0)+(L.length-1)*8;
-  let x0=X-tw/2;for(const g2 of L){const h=g2.rows*S;g2.fs.forEach((f,i)=>{f.SX=x0+(i%g2.cols+.5)*S;f.SY=Y-h/2+(Math.floor(i/g2.cols)+.5)*S});x0+=g2.w+8}}}
-function markers(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),r=10*z;for(const f of R.F)f.R=0;
+// close in, each cell's forces sit as one tight block in screen space, placed where it stays inside its cell and clear of the town and its name
+const inPoly=(x,y,P)=>{let o=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const[a,b]=P[i],[c,d]=P[j];if((b>y)!==(d>y)&&x<(c-a)*(y-b)/(d-b)+a)o=!o}return o};
+let BLOCKS=[];
+function placeClose(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),S=20*z+7,by={};BLOCKS=[];for(const G of GROUPS)(by[G.cell]||(by[G.cell]=[])).push(G);
+ for(const c in by){const cl=D.cells[c],b=CELLB[c],[X,Y]=W2S(CEN[c][0],CEN[c][1]),B=b?W2S(b.x,b.y):null;
+  const L=by[c].map(G=>{const fs=stackOf(G),cols=Math.max(1,Math.ceil(Math.sqrt(fs.length))),rows=Math.ceil(fs.length/cols);return{fs,cols,rows,w:cols*S,h:rows*S}}).filter(g2=>g2.fs.length);if(!L.length)continue;
+  const tw=L.reduce((a,g2)=>a+g2.w,0)+(L.length-1)*8,rel=[];let x0=-tw/2;for(const g2 of L){g2.fs.forEach((f,i)=>rel.push([f,x0+(i%g2.cols+.5)*S,-g2.h/2+(Math.floor(i/g2.cols)+.5)*S]));x0+=g2.w+8}
+  const lw=B?Math.max(40,b.n.length*7.5):0,score=(ox,oy)=>{let s2=-Math.hypot(ox,oy)/60;for(const[,rx,ry]of rel){const px=X+ox+rx,py=Y+oy+ry,[wx,wy]=S2W(px,py);if(!inPoly(wx,wy,cl.p))s2-=3;
+    if(B){if(Math.hypot(px-B[0],py-B[1])<S)s2-=5;if(px>B[0]-8&&px<B[0]+lw+14&&py>B[1]-16&&py<B[1]+12)s2-=2}}return s2};
+  let best=[0,0],bs=score(0,0);for(const d of[S*.5,S,S*1.6,S*2.3,S*3])for(let a=0;a<16;a++){const ox=Math.cos(a/16*Math.PI*2)*d,oy=Math.sin(a/16*Math.PI*2)*d,v=score(ox,oy);if(v>bs){bs=v;best=[ox,oy]}}
+  let out=0;for(const[,rx,ry]of rel){const[wx,wy]=S2W(X+best[0]+rx,Y+best[1]+ry);if(!inPoly(wx,wy,cl.p))out++}
+  if(out){const sw=28*z;by[c].forEach((G,i)=>{G.stack=true;G.SX=X+(i-(by[c].length-1)/2)*sw;G.SY=Y;if(B&&Math.hypot(G.SX-B[0],G.SY-B[1])<S){G.SY=B[1]+S}});for(const[f]of rel)f.SX=null;BLOCKS.push({c:+c,B,x:X,y:by[c][0].SY,w:sw*by[c].length,h:sw});continue}
+  for(const G of by[c])G.stack=false;for(const[f,rx,ry]of rel){f.SX=X+best[0]+rx;f.SY=Y+best[1]+ry}BLOCKS.push({c:+c,B,x:X+best[0],y:Y+best[1],w:tw,h:Math.max(...L.map(g2=>g2.h))})}}
+// a faint line ties a block to its town when they sit apart
+function leaders(){g.save();g.strokeStyle='rgba(30,24,18,.45)';g.lineWidth=1.3;g.setLineDash([3,3]);for(const k of BLOCKS){if(!k.B)continue;const dx=k.x-k.B[0],dy=k.y-k.B[1],d=Math.hypot(dx,dy);if(d<k.w/2+18)continue;
+  const t=Math.min(1,Math.max(0,1-Math.min(k.w/2/Math.abs(dx||1e-9),k.h/2/Math.abs(dy||1e-9))*1));g.beginPath();g.moveTo(k.B[0]+dx/d*7,k.B[1]+dy/d*7);g.lineTo(k.B[0]+dx*t,k.B[1]+dy*t);g.stroke()}g.restore()}
+function markers(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),r=10*z;for(const f of R.F)f.R=0;if(view.k>=CLOSE)leaders();
  for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;
-  if(view.k>=CLOSE){for(const f of fs)tok(f,f.SX,f.SY,r,z);continue}
-  const n=view.k<1.7?1:Math.min(2,fs.length),[X,Y]=W2S(G.x,G.y);
+  if(view.k>=CLOSE&&!G.stack){for(const f of fs)tok(f,f.SX,f.SY,r,z);continue}
+  const n=view.k<1.7||G.stack&&view.k>=CLOSE?1:Math.min(2,fs.length),[X,Y]=view.k>=CLOSE&&G.stack?[G.SX,G.SY]:W2S(G.x,G.y);
   for(let i=0;i<n;i++){const f=fs[i],a=X+(i-(n-1)/2)*(2*r+6),rest=fs.slice(i);
    if(i===n-1&&rest.length>1){g.globalAlpha=rest.some(match)?1:.3;for(let s=Math.min(2,rest.length-1);s>0;s--){g.fillStyle='#141414';g.beginPath();g.arc(a+s*3,Y-s*3,r+2,0,7);g.fill();g.strokeStyle=css(NATS[G.nat].ring);g.lineWidth=2;g.beginPath();g.arc(a+s*3,Y-s*3,r,0,7);g.stroke()}g.globalAlpha=1;
     tok(f,a,Y,r,z,rest.reduce((s,f)=>s+soldiers(f),0));f.R=0;G.R=[a-r-3,Y-r-6,a+r+6,Y+r+3]}else tok(f,a,Y,r,z)}}}
-function markBoxes(){const r=14;for(const G of GROUPS){const fs=stackOf(G);if(!fs.length)continue;if(view.k>=CLOSE){for(const f of fs)BOXES.push([f.SX-r,f.SY-r,f.SX+r+4,f.SY+r])}else{const[X,Y]=W2S(G.x,G.y),n=view.k<1.7?1:Math.min(2,fs.length),w=n*(r+3);BOXES.push([X-w,Y-r-4,X+w+6,Y+r])}}}
+function markBoxes(){const r=14;for(const G of GROUPS){const fs=stackOf(G);if(!fs.length)continue;if(view.k>=CLOSE&&!G.stack){for(const f of fs)BOXES.push([f.SX-r,f.SY-r,f.SX+r+4,f.SY+r])}else{const[X,Y]=view.k>=CLOSE?[G.SX,G.SY]:W2S(G.x,G.y),n=view.k<1.7||view.k>=CLOSE?1:Math.min(2,fs.length),w=n*(r+3);BOXES.push([X-w,Y-r-4,X+w+6,Y+r])}}}
 function ghost(){const[X,Y]=[dragF.mx,dragF.my],im=imgOf(dragF.f);g.globalAlpha=.75;g.fillStyle='#1e1e1e';g.beginPath();g.arc(X,Y,13,0,7);g.fill();g.strokeStyle='#f2efe6';g.lineWidth=2;g.stroke();if(im&&dragF.f.t!=='vehicle'){g.imageSmoothingEnabled=false;g.drawImage(im,X-im.width*.6,Y-im.height*.6,im.width*1.2,im.height*1.2)}g.globalAlpha=1}
 
 // ---- state of the panel
@@ -387,5 +398,5 @@ function moveF(f,to){const go=()=>{if(inMap(f))withdraw(f);undo.push({f,from:f.c
  if(!inMap(f)){go();return}const C=mk('div','rcard rask');C.append(mk('div',null,`Pull ${f.n} out of ${mapName((f.men.find(m=>m.map)||f).map)}?`));const r=mk('div','g2');r.append(ubtn('Pull out','lite',()=>{C.remove();go()}),ubtn('Stay','',()=>{C.remove();draw()}));C.append(r);CARDS.prepend(C)}
 
 // ---- saved games carry the region with them
-window.REGION={settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=v;save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
+window.REGION={zoomTo:(n,k)=>{const b=BURG[n];view.k=k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=v;save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
 })();
