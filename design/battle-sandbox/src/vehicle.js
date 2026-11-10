@@ -50,7 +50,7 @@ function vBuild(v){const{L,H,LW,TR,SW,FW,RW,X0,R0,IL,IH,RC,CY,XST,XP}=VC,mat=v.m
  {const vt=tilePix('metal.steel.louvre.w',0,0);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const i=(y*16+x)*4;Rf(XST+x,R0+IH-16+y,vtone(mat,rgb(vt[i],vt[i+1],vt[i+2])))}}
  v.base=base;v.roofL=roof;v.src=src;v.smap=smap}
 
-function carrier(mat,x,y,ang,nat,cond,paint){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',paint:paint||null,mat:metalCls(mat||'steel'),nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,offT:999,acc:0,alp:0,hov:new Set(),puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);vMkChest(v,VSUP());if(cond)vCondition(v,cond,(x*7+y*13)|0);return v}
+function carrier(mat,x,y,ang,nat,cond){const v={id:uid++,veh:true,type:'veh',metal:mat||'steel',mat:metalCls(mat||'steel'),nat:nat||null,x,y,ang:ang||0,sp:0,w:0,ph:[0,0],seats:Array(VSEATS.length).fill(null),on:0,offT:999,acc:0,alp:0,hov:new Set(),puffs:[],px:[],set:new Map(),hp:1};vBuild(v);vOrient(v);VEH.push(v);vMkDoors(v);vMkChest(v,VSUP());if(cond)vCondition(v,cond,(x*7+y*13)|0);return v}
 // its doors are the game's own doors, riding on the hull: rear double doors part to the sides, the cockpit door slides into the bulkhead
 const VIGN=21;
 const VDOORS=[[VC.L-9,VC.CY-16,Math.PI/2],[VC.L,VC.CY+15,-Math.PI/2],[VC.XP-1,VC.CY-8,Math.PI/2]];
@@ -132,13 +132,10 @@ function vFloorPx(v,lx,ly){const q=v.smap.get(K(lx,ly));let c=0;
  if(!c){const b=v.base[ly*VC.LW+lx];c=b?b&0xffffff:0}
  return c&&v.dead?vChar(c,lx,ly,v):c}
 function vRoofPx(v,lx,ly,roof){const r=roof&&v.roofL[ly*VC.LW+lx];if(r)return vRoofC(v,ly*VC.LW+lx,lx,ly,r&0xffffff);const q=v.smap.get(K(lx,ly));return q&&!q.dead&&(q[7]==='w'||q[7]==='g')?vFloorPx(v,lx,ly):0}
-// a painted hull keeps its paint, lit like the steel under it; wear chips it back to that steel, which then ages
-const VOFF=[204,200,188];
 // the walls weather with the roof: the same stains and rust run over the edge, a little lighter
 const vWall=(v,lx,ly)=>{const q=v.smap.get(K(lx,ly));return q&&q[7]==='w'};
 function vWallC(v,q,lx,ly){if(q[7]!=='w'||!v.rw)return vScarC(v,q);const i=ly*VC.LW+lx;let c=vScarC(v,{2:q[2],7:q[7],8:q[8],9:q[9],wr:Math.max(q.wr||0,v.rw[i]*.85),tm:q.tm,lip:q.lip});if(v.rr[i]>.01)c=mix(c,mul(rgb(146,78,44),.8+.4*hh(lx,ly,29)),v.rr[i]*.85);return c}
-function vScarC(v,q){let c=q[2];if(v.paint&&!'geTB'.includes(q[7]||'_')){const l=Math.min(1.12,((c&255)*.3+(c>>8&255)*.59+(c>>16&255)*.11)/196),chip=q.wr>1&&hh(q[8],q[9],v.id+7)<Math.min(.6,(q.wr-1)*.14);if(!chip){const P=v.paint;c=rgb(cl(P[0]*l),cl(P[1]*l),cl(P[2]*l));if(q.wr>.5)c=mul(c,1-Math.min(.08,q.wr*.02))}else if(q.wr>.5){const A=ageOf('Metal',v.metal,Math.max(1,5-Math.floor(q.wr)));if(A){const r=A([c&255,c>>8&255,c>>16&255],q[8]*2+v.id*37,q[9]*2,()=>9);c=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}}
- else if(q.wr>.5){const cd=Math.max(1,5-Math.floor(q.wr)),A=ageOf('Metal',v.metal,cd);if(A){const r=A([c&255,c>>8&255,c>>16&255],q[8]*2+v.id*37,q[9]*2,()=>9);c=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}
+function vScarC(v,q){let c=q[2];if(q.wr>.5){const cd=Math.max(1,5-Math.floor(q.wr)),A=ageOf('Metal',v.metal,cd);if(A){const r=A([c&255,c>>8&255,c>>16&255],q[8]*2+v.id*37,q[9]*2,()=>9);c=rgb(cl(r[0]),cl(r[1]),cl(r[2]))}}
  if(q.lip)c=mul(c,1.3);if(q.tm>.02)c=heatTint(c,'metal',q.tm);return c}
 function vScar(v,X,Y,amt,heat){const[lx,ly]=vW2L(v,X+.5,Y+.5),R=3;let ch=false;for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const q=v.smap.get(K(Math.floor(lx)+i,Math.floor(ly)+j));if(!q||q[7]==='T'||q[7]==='B')continue;const d=Math.hypot(i,j)/(R+1);if(d>=1)continue;const w=amt*(1-d);q.wr=Math.min(4.5,(q.wr||0)+w);if(heat){const t=Math.min(.85,heat*(1-d));if(t>(q.tm||0)){q.tm=t}}ch=true}if(ch)v.dirty=1}
 function vHeatMark(x,y,r,k){for(const v of VEH){if(Math.hypot(v.x-x,v.y-y)<VC.L*.6+r)vRoofAt(v,x,y,r,(i,d,lx,ly)=>{v.rt[i]=Math.max(v.rt[i],Math.min(.85,k*(1-d)*(.85+.3*hh(lx,ly,71))))});const[lx,ly]=vW2L(v,x,y);if(lx<-r||ly<-r||lx>VC.LW+r||ly>VC.H+r)continue;for(let j=-Math.ceil(r);j<=r;j++)for(let i=-Math.ceil(r);i<=r;i++){const q=v.smap.get(K(Math.floor(lx)+i,Math.floor(ly)+j));if(!q)continue;const d=Math.hypot(i,j);if(d>r)continue;const a=Math.min(.85,k*(1-d/r)*(.85+.3*hh(q[8],q[9],71)));if(a>(q.tm||0)){q.tm=a;v.dirty=1}}}}
@@ -399,7 +396,7 @@ NBM.yard=()=>{UND=Array.from({length:28},()=>Array(44).fill('grass'));paintAll((
  if(cy>=12&&cy<=15)return'dirt';return'grass'})};
 NUM.yard=()=>{const v=carrier('steel',15*T,14*T,0,'Imperium');const g=[U('Major Varro','Imperium','cmd',0,0,0,'pistol','Astrian Officer|f|steel|h'),U('Captain Cass','Imperium','cmd',0,0,0,'pistol','Astrian Officer|m|steel|h')];vSeatNow(v,g[0],0);vSeatNow(v,g[1],1);
  ['Brask','Coll','Dunn','Ivo','Hale','Marl'].forEach((n,i)=>vSeatNow(v,U(n,'Imperium',i<2?'guard':'rifle',0,0,0,undefined,['Astrian Guard|f|steel|h','Astrian Guard|f|iron|h','Astrian Line|m|steel|h','Astrian Line|m|iron|h','Astrian Line|t|iron|h','Astrian Line|n|iron|h'][i]),2+i));
- carrier('steel',15*T,6*T,0,'Imperium',null,VOFF);
+ carrier('iron',15*T,6*T,0,'Imperium');
  U('Lt. Davin','Imperium','cmd',27.5,6,Math.PI,'pistol','Astrian Officer|n|iron|h');['Orrin','Pell','Wat','Ned'].forEach((n,i)=>U(n,'Imperium',i<1?'guard':'rifle',25.5+(i%2)*1.6,3.6+(i>>1)*1.6,Math.PI,i<1?'rod':undefined,['Astrian Guard|f|iron|h','Astrian Line|t|iron|h','Astrian Line|n|iron|h','Astrian Line|m|iron|b'][i]));
  for(const t of bodies)if(t.type==='token')t.auto=false};
 // the circuit: a rounded loop of road for driving corners, hedge chicanes and stone blocks inside, an inspection stand of officers and
@@ -415,7 +412,7 @@ NBM.circuit=()=>{UND=Array.from({length:48},()=>Array(64).fill('grass'));const r
   if((cx===27||cx===37)&&cy>=14&&cy<=15||cx===48&&cy>=22&&cy<=23)return'stone.grey.block.w';
   return'grass'})};
 NUM.circuit=()=>{const A=-Math.PI/2;
- carrier('steel',41*T,39*T,Math.PI/2,'Imperium','battleworn',VOFF);carrier('steel',47*T,39*T,Math.PI/2,'Imperium','derelict',VOFF);carrier('steel',53*T,39*T,Math.PI/2,'Imperium','new');
+ carrier('iron',41*T,39*T,Math.PI/2,'Imperium','battleworn');carrier('iron',47*T,39*T,Math.PI/2,'Imperium','derelict');carrier('steel',53*T,39*T,Math.PI/2,'Imperium','new');
  // Astrian squads of four facing the stand, one row per kit
  const ROWS=[['Astrian Officer|n|iron|h','cmd'],['Astrian Line|n|iron|h','home'],['Astrian Line|t|iron|h','rifle'],['Astrian Line|m|iron|h','rifle'],['Astrian Line|m|steel|h','rifle'],['Astrian Guard|f|iron|h','guard'],['Astrian Guard|f|steel|h','guard']];
  const NM='Abel Bram Cato Dace Edric Faro Gage Hale Ivo Jarek Kell Lorn Mace Nils Oran Piet Quill Rand Soren Tam Ulric Vane Wick Yorr Zane Aldo Brenn Cole'.split(' ');
