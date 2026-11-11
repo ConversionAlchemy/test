@@ -258,6 +258,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .rcap{color:#c9c5b8;font-size:20px}
 #sm .rpn .wsw{display:block;width:16px;height:12px;background:#88a8b0;border:1px solid #1e1e1e;margin:0 auto}#sm .rzp .rpn input.rn{height:24px;font:18px VT323,monospace;background:#141414;color:#f2efe6;border:1px solid #77736a;min-width:0}
 #sm .rzi .r3{grid-template-columns:repeat(3,1fr)}#sm .rzi .rtil[hidden]{display:none}#sm .rrd{grid-template-columns:1fr}#sm .rrd .tb{font-size:17px;height:30px}#sm .rrd .tb em{font-style:normal}#sm .rrd .tb span{display:flex;justify-content:center;align-items:center}#sm .rzi .ch .sq{width:30px;height:30px}
+#sm .remb-ed .eh .hb{display:flex;gap:3px}#sm .remb-ed .eh .sq{width:30px;height:30px;font-size:18px;padding:0;text-align:center}#sm .remb-ed .eh .sq.sz{width:auto;padding:0 8px}#sm .remb-ed:focus{outline:none}
 </style>
 <script>
 const T=16;
@@ -4983,17 +4984,23 @@ function eraseRoad(i){let hit=false;const out=[];for(const r of D.routes){if(r.g
  if(hit){D.routes.length=0;D.routes.push(...out);roadsDone()}}
 function roadDraft(){if(!RB||RB.g==='erase'||RB.cells.length<2)return;const k=view.k;g.save();g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);line(RB.cells.map(anchor));g.setLineDash([3/k,3/k]);g.strokeStyle='rgba(52,36,22,.9)';g.lineWidth=(RB.g==='roads'?4:2.6)/k;g.stroke();g.restore()}
 // ---- the flag editor: the nation's emblem on a 33-pixel grid inside its fixed black border; mirror paints both halves, right-click takes a colour
-function embEdit(n){let px=embPx(n).slice(),col=px[16*33+16],mir=true,down=0;const W2=mk('div','remb-ed'),S=12;
- W2.innerHTML=`<div class="eh"><b>${disp(n)}</b><button class="mi on">⇋</button><button class="x">×</button></div><div class="eb"><canvas width="${33*S}" height="${33*S}"></canvas><div class="pal"></div></div><div class="ebf"><button class="rs">Library</button><span></span><button class="sv lite">Save</button></div>`;
+function embEdit(n){let px=embPx(n).slice(),col=px[16*33+16],mir=true,mirY=false,sz=1,down=0;const W2=mk('div','remb-ed'),S=12,hist=[];
+ W2.innerHTML=`<div class="eh"><b>${disp(n)}</b><span class="hb"></span><button class="x">×</button></div><div class="eb"><canvas width="${33*S}" height="${33*S}"></canvas><div class="pal"></div></div><div class="ebf"><button class="rs">Library</button><span></span><button class="sv lite">Save</button></div>`;
  const c=W2.querySelector('canvas'),x=c.getContext('2d'),pal=W2.querySelector('.pal');
  const paint=()=>{x.clearRect(0,0,c.width,c.height);px.forEach((h,i)=>{x.fillStyle=h;x.fillRect((i%33)*S,(i/33|0)*S,S,S)});x.strokeStyle='rgba(255,255,255,.06)';for(let k=1;k<33;k++){x.beginPath();x.moveTo(k*S+.5,0);x.lineTo(k*S+.5,33*S);x.moveTo(0,k*S+.5);x.lineTo(33*S,k*S+.5);x.stroke()}};
  const pals=()=>{const L=[...new Set([...px.filter((h,i)=>{const a=i%33,b=i/33|0;return a&&b&&a<32&&b<32}),'#000000','#eee5cd',...NCOL])];pal.innerHTML=L.map(h=>`<button data-c="${h}" style="background:${h}" class="${h===col?'on':''}"></button>`).join('')};
- const at=e=>{const r=c.getBoundingClientRect(),a=Math.floor((e.clientX-r.left)/r.width*33),b=Math.floor((e.clientY-r.top)/r.height*33);if(a<1||b<1||a>31||b>31)return;if(down===2){col=px[b*33+a];pals();return}px[b*33+a]=col;if(mir)px[b*33+32-a]=col;paint()};
- c.oncontextmenu=e=>e.preventDefault();c.onpointerdown=e=>{down=e.button===2?2:1;c.setPointerCapture(e.pointerId);at(e)};c.onpointermove=e=>{if(down===1)at(e)};c.onpointerup=()=>{down=0;pals()};
+ // the settlement map's buttons: brush size, undo, and a mirror each way
+ const hb=W2.querySelector('.hb'),szB=ubtn('1×1','sq sz',()=>{sz=sz>1?1:2;szB.textContent=sz>1?'2×2':'1×1'}),un=ubtn('','sq',()=>{if(hist.length){px=hist.pop();paint();pals()}});un.title='Undo';un.append(uicon('undo'));
+ const mx=ubtn('⇋','sq on',()=>{mir=!mir;mx.classList.toggle('on',mir)}),my=ubtn('⇅','sq',()=>{mirY=!mirY;my.classList.toggle('on',mirY)});hb.append(szB,un,mx,my);
+ const dot=(a,b)=>{if(a<1||b<1||a>31||b>31)return;px[b*33+a]=col};
+ const at=e=>{const r=c.getBoundingClientRect(),a=Math.floor((e.clientX-r.left)/r.width*33),b=Math.floor((e.clientY-r.top)/r.height*33);if(a<1||b<1||a>31||b>31)return;if(down===2){col=px[b*33+a];pals();return}
+  for(let v=0;v<sz;v++)for(let u=0;u<sz;u++){const A=a+u,B=b+v;dot(A,B);if(mir)dot(32-A,B);if(mirY)dot(A,32-B);if(mir&&mirY)dot(32-A,32-B)}paint()};
+ c.oncontextmenu=e=>e.preventDefault();c.onpointerdown=e=>{down=e.button===2?2:1;if(down===1){hist.push(px.slice());if(hist.length>60)hist.shift()}c.setPointerCapture(e.pointerId);at(e)};c.onpointermove=e=>{if(down===1)at(e)};c.onpointerup=()=>{down=0;pals()};
+ W2.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();un.click()}});W2.tabIndex=-1;
  pal.onclick=e=>{const b=e.target.closest('button');if(b){col=b.dataset.c;pals()}};
- W2.querySelector('.mi').onclick=e=>{mir=!mir;e.currentTarget.classList.toggle('on',mir)};W2.querySelector('.x').onclick=()=>W2.remove();
- W2.querySelector('.rs').onclick=()=>{px=libEmb(n);paint();pals()};W2.querySelector('.sv').onclick=()=>{R.emb[n]=px;save();W2.remove();natBar();if(!SDL.hidden)drawSD()};
- OV.append(W2);paint();pals()}
+ W2.querySelector('.x').onclick=()=>W2.remove();
+ W2.querySelector('.rs').onclick=()=>{hist.push(px.slice());px=libEmb(n);paint();pals()};W2.querySelector('.sv').onclick=()=>{R.emb[n]=px;save();W2.remove();natBar();if(!SDL.hidden)drawSD()};
+ OV.append(W2);W2.focus();paint();pals()}
 function moveF(f,to){const go=()=>{if(inMap(f))withdraw(f);undo.push({f,from:f.cell});f.cell=to;rsel=f.id;cell=to;layout();save();list2();cards();draw()};
  if(!inMap(f)){go();return}const C=mk('div','rcard rask');C.append(mk('div',null,`Pull ${f.n} out of ${mapName((f.men.find(m=>m.map)||f).map)}?`));const r=mk('div','g2');r.append(ubtn('Pull out','lite',()=>{C.remove();go()}),ubtn('Stay','',()=>{C.remove();draw()}));C.append(r);CARDS.prepend(C)}
 
