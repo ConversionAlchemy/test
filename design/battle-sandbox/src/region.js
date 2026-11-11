@@ -26,7 +26,7 @@ const cellXY=i=>CELLB[i]?[CELLB[i].x,CELLB[i].y]:D.cells[i].c;
 
 const EDK=D.burgs.find(b=>b.n==="Emperor's Dock");
 const HOLD={Havenport:['Havenport','Overbay','Smugglerskeep','Towerbay','Turnpickle','Templewood'],'Great Keys':['Great Keys'],Goldbank:['Goldbank','Goldtown','Carnival','Holywell'],Portsbridge:['Portsbridge','Shantyport','Midway Trade Post','Codsbrook','Monestry','Crossroads',"Willard's Pass",'Fumbleweed'],
- Astria:["Emperor's Dock"],Reapers:['Mudwater','Sweetwater','Crosshaven',"Willow's Ranch"]};
+ Astria:["Emperor's Dock"],Reapers:['Mudwater',"Bog's Keep",'Crosshaven',"Willow's Ranch"]};
 const KEEP=new Set(['Aracia','Whitecoast','Lindale','Holverland']),OWN=(()=>{const O=D.cells.map(c=>land(c)&&ST[c.s]&&KEEP.has(ST[c.s].n)?ST[c.s].n:null),dist=D.cells.map(()=>1e9),Q=[];
  const at=n=>{let b=null,d=1e9;for(const o of D.burgs)if(o.n===n){const e=Math.hypot(o.x-BOXC[0],o.y-BOXC[1]);if(e<d){d=e;b=o}}return b};
  for(const nat in HOLD)for(const t of HOLD[nat]){const b=at(t);if(!b)continue;let bi=0,bd=1e9;D.cells.forEach((c,i)=>{const e=(c.c[0]-b.x)**2+(c.c[1]-b.y)**2;if(e<bd){bd=e;bi=i}});dist[bi]=0;O[bi]=nat;Q.push([0,bi,nat])}
@@ -184,7 +184,7 @@ function seed(){let nid=0;const F=[],PP=[],cellOf=at=>near([BURG[at].x,BURG[at].
  pp('Havenport','Havenport','Harbourmaster','Harbourmaster Quint','Harbourmaster',1);for(const k of['Sailor','Sailor','Dockhand','Dockhand','Smuggler'])pp('Havenport','Havenport',k,null,k);
  sq('Portsbridge','Portsbridge','Company Guard',rep('Company Guard',8));sq('Portsbridge','Portsbridge','2nd Company Guard',rep('Company Guard',8));sq('Portsbridge','Shantyport','Enforcement',['Enforcement Officer',...rep('Police Officer',4)]);sq('Portsbridge','Midway Trade Post','Bailiffs',rep('Bailiff',4));
  pp('Portsbridge','Portsbridge','Director','Director Halvard Penn','Director',1);pp('Portsbridge','Portsbridge','Boardsman','Cyril Moss','Boardsman',1);pp('Portsbridge','Portsbridge','Shareholder',null,'Shareholder');for(const k of['Company Clerk','Townsman','Townsman'])pp('Portsbridge','Portsbridge',k,null,k);
- sq('Reapers','Mudwater','Mudwater Band',['Ravager','Raider','Raider','Thug','Thug','Cutthroat','Raider','Thug']);sq('Reapers',"Willow's Ranch",'Ranch Raiders',rep('Raider',6));sq('Reapers','Smugglerskeep','Keep Cutthroats',[...rep('Cutthroat',5),'Thug','Thug']);sq('Reapers','Sweetwater','Sweetwater Thugs',rep('Thug',5));
+ sq('Reapers','Mudwater','Mudwater Band',['Ravager','Raider','Raider','Thug','Thug','Cutthroat','Raider','Thug']);sq('Reapers',"Willow's Ranch",'Ranch Raiders',rep('Raider',6));sq('Reapers','Smugglerskeep','Keep Cutthroats',[...rep('Cutthroat',5),'Thug','Thug']);sq('Reapers',"Bog's Keep","Bog's Keep Thugs",rep('Thug',5));
  lone('Reapers','Portsbridge','Raider','Brann','Raider');lone('Reapers','Portsbridge','Blademaster','Cole','Blademaster');lone('Reapers','Crosshaven','Ravager','Sable','Ravager');pp('Reapers','Mudwater','Ravager','Mordecai Skell','Warlord',1);
  // maps already built for these places
  const cm={};const put=(at,ids)=>{cm[cellOf(at)]=ids};put('Goldbank',['bank','vault','count']);put(ED,['stock','range','yard','circuit']);put('Crossroads',['road']);put('Great Keys',['alley']);
@@ -192,7 +192,7 @@ function seed(){let nid=0;const F=[],PP=[],cellOf=at=>near([BURG[at].x,BURG[at].
 let R=LS.get('bs.region',null);if(!R||R.v!==1)R=seed();
 // regions saved before Great Keys moved to the coast bring its forces, people and maps along
 function migrate(R){if(R.gk2)return R;const o=near([524.5,396.7]),n=near([BURG['Great Keys'].x,BURG['Great Keys'].y]);if(o!==n){for(const f of[...R.F,...R.PP])if(f.cell===o)f.cell=n;if(R.cm[o]){R.cm[n]=[...(R.cm[n]||[]),...R.cm[o]];delete R.cm[o]}if(R.last[o]){R.last[n]=R.last[o];delete R.last[o]}}R.gk2=1;return R}
-migrate(R);
+migrate(R);for(const f of R.F)if(f.n==='Sweetwater Thugs')f.n="Bog's Keep Thugs";
 const save=()=>{const c=JSON.parse(JSON.stringify(R,(k,v)=>k==='carry'?undefined:v));LS.set('bs.region',c)};
 const ALLF=()=>R.F,men=f=>f.men.filter(m=>!m.dead),soldiers=f=>f.t==='vehicle'?0:men(f).length,fallen=f=>f.wreck||f.t!=='vehicle'&&f.men.length&&!men(f).length;
 const lead=f=>men(f)[0]||f.men[0]||{k:f.k,h:0},hpOf=f=>f.t==='vehicle'?f.hull:Math.round(men(f).reduce((a,m)=>a+m.h,0)/(men(f).length||1));
