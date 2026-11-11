@@ -4382,7 +4382,7 @@ VIEW.addEventListener('dblclick',e=>{if(UI.tool!=='hand'||EM||!inBoard(e))return
 
 // region map: the clock switches between it and the cell maps; nations, their forces and people live here between battles
 (()=>{const D=RGD;
-const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)],mixc=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t),css=(c,a=1)=>`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
+const hex=h=>h&&[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)],mixc=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t),css=(c,a=1)=>`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
 const VOID=[13,16,21],PAPER=[226,216,188];
 // ---- geometry: shared edges give coasts, borders and cell outlines
 const[[bx0,by0],[bx1,by1]]=D.box,BOXC=[(bx0+bx1)/2,(by0+by1)/2];
@@ -4471,7 +4471,7 @@ function terrain(){if(TC)return TC;const x0=Math.floor(bx0-8),y0=Math.floor(by0-
  const lw=(W>>2)+3,lh=(H>>2)+3,LA=new Float32Array(lw*lh),LB=new Float32Array(lw*lh);for(let j=0;j<lh;j++)for(let i=0;i<lw;i++){LA[j*lw+i]=th(i,j,81)-.5;LB[j*lw+i]=th(i,j,82)-.5}
  const lat=(L,x,y)=>{const u=x/4,v=y/4,i=u|0,j=v|0,fu=smt(u-i),fv=smt(v-j),o=j*lw+i,a=L[o],b=L[o+1],c=L[o+lw],d=L[o+lw+1];return a+(b-a)*fu+(c-a)*fv+(a-b-c+d)*fu*fv};
  for(let y=0;y<H;y++)for(let x=0;x<W;x++)TC.CI[y*W+x]=cellPx(x0+x+lat(LA,x,y)*6,y0+y+lat(LB,x,y)*6)
- paintRect(0,0,W,H);return TC}
+ roadMask();paintRect(0,0,W,H);return TC}
 // repaint a box of pixels; the shore distance is measured with a margin so a box can be redone on its own
 function paintRect(ax,ay,bx,by){const{W,H,CI,x0,y0,img}=TC,o=img.data;ax=Math.max(0,ax|0);ay=Math.max(0,ay|0);bx=Math.min(W,Math.ceil(bx));by=Math.min(H,Math.ceil(by));
  const mx=Math.max(0,ax-DM),my=Math.max(0,ay-DM),Mx=Math.min(W,bx+DM),My=Math.min(H,by+DM),w=Mx-mx,h=My-my,LD=new Uint8Array(w*h),DW=new Float32Array(w*h).fill(1e9);
@@ -4484,6 +4484,7 @@ function paintRect(ax,ay,bx,by){const{W,H,CI,x0,y0,img}=TC,o=img.data;ax=Math.ma
   else{const d=DW[l];if(d<1.2)col=COASTP.foam;else if(d<3)col=COASTP.band;else if(d>=4&&d<5)col=COASTP.rip;else if(d<8&&dth<(8-d)/6)col=COASTP.band}
   const dx=Math.max(bx0-X,0,X-bx1),dy=Math.max(by0-Y,0,Y-by1),v=dx||dy?Math.max(0,1-Math.hypot(dx,dy)/110+(pv(X/9,Y/9,91,1e6)-.5)*.25):1;
   if(v<1){const grey=(col[0]+col[1]+col[2])/3,f=Math.round((1-v)*6+dth-.5)/6;col=col.map(c2=>c2+(grey-c2)*f*.8);col=col.map((c2,q2)=>c2+(VOID[q2]-c2)*Math.min(1,f*1.05))}
+  const rm=TC.RM&&TC.RM[j];if(rm)col=hex(rm===4?RDC.road:rm===3?RDC.edge:rm===2?RDC.trail:null)||col.map(v=>v*.8);
   o[j*4]=col[0];o[j*4+1]=col[1];o[j*4+2]=col[2];o[j*4+3]=255}
  TC.ctx.putImageData(img,0,0,ax,ay,bx-ax,by-ay)}
 // after a cell changes: its pixels and the shore around them
@@ -4509,12 +4510,8 @@ function ground(){const k=view.k;g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle=css
  if(R.terr!==false)territory(k);else D.cells.forEach((c,i)=>{if(!land(c)||!ST[c.s]||vis[i]<.05)return;poly(c.p);g.fillStyle=css(hex(ST[c.s].c),.09*vis[i]);g.fill()});
  if(R.terr===false)for(const e of E.values()){if(e.c.length<2)continue;const[a,b]=e.c.map(i=>D.cells[i]),v=Math.min(vis[e.c[0]],vis[e.c[1]]);if(v<=.05||!land(a)||!land(b)||a.s===b.s||!(ST[a.s]||ST[b.s]))continue;g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);g.setLineDash([3.5/k,2.5/k]);g.strokeStyle=`rgba(70,40,40,${.7*v})`;g.lineWidth=1.4/k;g.stroke();g.setLineDash([])}
  for(const r of D.rivers){if(r.pts.length<2)continue;const v=vis[near(r.pts[r.pts.length>>1])];if(v<=.05)continue;line(r.pts);g.strokeStyle=`rgba(96,138,152,${v})`;g.lineWidth=Math.max(.6,Math.min(3,(r.w||1)*.9))/Math.sqrt(k)*1.2;g.stroke()}
- // roads: every casing first so crossings merge; main roads cream, trails white, sea lanes dotted
- {const zw=Math.min(1.7,Math.max(1,Math.sqrt(k/1.3))),RS=[];D.routes.forEach((r,n)=>{if(r.pts.length>1&&RV[n]>.05)RS.push([r,RV[n]])});
-  for(const[r,v]of RS)if(r.g==='trails'){line(r.pts);g.strokeStyle=`rgba(52,40,28,${.55*v})`;g.lineWidth=2.6*zw/k;g.stroke()}
-  for(const[r,v]of RS)if(r.g==='roads'){line(r.pts);g.strokeStyle=`rgba(52,36,22,${.95*v})`;g.lineWidth=4*zw/k;g.stroke()}
-  for(const[r,v]of RS)if(r.g==='trails'){line(r.pts);g.strokeStyle=`rgba(246,242,230,${.92*v})`;g.lineWidth=1.25*zw/k;g.stroke()}
-  for(const[r,v]of RS)if(r.g==='roads'){line(r.pts);g.strokeStyle=`rgba(236,206,140,${v})`;g.lineWidth=2.1*zw/k;g.stroke()}}}
+ // far out a road's pixels are under a screen pixel: drawn as fine lines in the same colours until they can be seen
+ if(k<1.4){if(!SEG)SEG=roadSegs();const a=Math.min(1,(1.4-k)/.4);g.globalAlpha=a;for(const t of['trails','roads']){g.beginPath();for(const[p,q,u]of SEG)if(u===t){g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1])}g.strokeStyle=t==='roads'?RDC.road:RDC.trail;g.lineWidth=(t==='roads'?2:1.2)/k;g.stroke()}g.globalAlpha=1}}
 const ownC=n=>n&&(NATS[n]?NATS[n].c:(D.states.find(s=>s.n===n)||{}).c||'#777777');
 function territory(k){D.cells.forEach((c,i)=>{const o=OWN[i];if(!o||vis[i]<.05)return;poly(c.p);g.fillStyle=css(hex(ownC(o)),.13*vis[i]);g.fill()});
  for(const e of E.values()){if(e.c.length<2)continue;const[i,j]=e.c,oa=OWN[i],ob=OWN[j];if(oa===ob)continue;const v=Math.min(vis[i],vis[j]);if(v<=.05)continue;
@@ -4729,9 +4726,9 @@ const treasury=n=>{const v=cellGold();let s=0;for(const c in v)if(n==='all'?NATS
 // the Treasury and People totals show as their own marks in place of the forces
 const COIN=['..aaaa..','.abbbba.','abbccbba','abccccba','abbccbba','.abbbba.','..aaaa..'],COINC={a:'#7a5a1c',b:'#e3c463',c:'#f6e6a4'};
 const MAN=['..aa..','.aaaa.','..aa..','.aaaa.','aaaaaa','a.aa.a','.a..a.','.a..a.'],MANC={a:'#eee5cd'};
-function pix(rows,cols,X,Y,s){for(let y=0;y<rows.length;y++)for(let x=0;x<rows[y].length;x++){const k=rows[y][x];if(cols[k]){g.fillStyle=cols[k];g.fillRect(Math.round(X+(x-rows[y].length/2)*s),Math.round(Y+(y-rows.length/2)*s),Math.ceil(s),Math.ceil(s))}}}
+function pixAt(rows,cols,X,Y,s){for(let y=0;y<rows.length;y++)for(let x=0;x<rows[y].length;x++){const k=rows[y][x];if(cols[k]){g.fillStyle=cols[k];g.fillRect(Math.round(X+(x-rows[y].length/2)*s),Math.round(Y+(y-rows.length/2)*s),Math.ceil(s),Math.ceil(s))}}}
 function mark(X,Y,r,z,ring,rows,cols,label,dim){g.globalAlpha=dim?.3:1;g.fillStyle='rgba(0,0,0,.4)';g.beginPath();g.arc(X+1.5,Y+2,r+2,0,7);g.fill();g.fillStyle='#1e1e1e';g.beginPath();g.arc(X,Y,r+2,0,7);g.fill();g.strokeStyle=ring;g.lineWidth=3;g.beginPath();g.arc(X,Y,r,0,7);g.stroke();
- pix(rows,cols,X,Y,1.6*z);g.font=`${Math.round(14*z)}px VT323`;const w=g.measureText(label).width+5;g.fillStyle='#f2efe6';g.fillRect(X+r-4,Y+r-9,w,11*z);g.fillStyle='#141414';g.fillText(label,X+r-1.5,Y+r+.5);g.globalAlpha=1}
+ pixAt(rows,cols,X,Y,1.6*z);g.font=`${Math.round(14*z)}px VT323`;const w=g.measureText(label).width+5;g.fillStyle='#f2efe6';g.fillRect(X+r-4,Y+r-9,w,11*z);g.fillStyle='#141414';g.fillText(label,X+r-1.5,Y+r+.5);g.globalAlpha=1}
 function totals(z,r){if(vf==='gold'){const v=cellGold();for(const c in v){const o=OWN[c],[X,Y0]=W2S(...cellXY(+c)),Y=Y0+r+8;mark(X,Y,r,z,'#c9a54a',COIN,COINC,money(v[c]),nation!=='all'&&o!==nation)}}
  if(vf==='ppl'){const by={};for(const p of R.PP)if(!p.dead&&p.show!==false)(by[p.cell]||(by[p.cell]=[])).push(p);for(const c in by){const L=by[c],mine=L.filter(p=>nation==='all'||p.nat===nation),n0=L[0].nat,one=L.every(p=>p.nat===n0),[X,Y0]=W2S(...cellXY(+c)),Y=Y0+r+8;
   mark(X,Y,r,z,one&&NATS[n0]?css(NATS[n0].ring):'#c9c5ba',MAN,MANC,String((nation==='all'?L:mine).length||L.length),!mine.length)}}}
@@ -4851,10 +4848,12 @@ const RTOOLS=[['cmd','hand','Command','Esc'],['tile','tile','Tiler','N'],['paint
 {const G=Z('.rzt .tgrid');for(const[k,ic,n,key]of RTOOLS){const b=mk('button','tb');b.dataset.k=k==='cmd'?'hand':k;b.dataset.t=k;const t=mk('span',null,n);t.append(mk('i','kb','('+key+')'));b.append(uicon(ic),t);b.onclick=()=>setTool(k);if(k==='cmd')b.classList.add('on');G.append(b)}}
 function setTool(k){rtool=k;painting=tiling=0;for(const b of Z('.rzt .tgrid').children)b.classList.toggle('on',b.dataset.t===k);Z('.rzp').hidden=k!=='paint';Z('.rzi').hidden=k!=='tile';Z('.rzn').hidden=Z('.rzd').hidden=k!=='cmd';cv.style.cursor=k==='cmd'?'':'crosshair';if(k==='paint')painterUI();if(k==='tile')tilerUI();draw()}
 let pwat=null;
-const ROADT=[['roads','Main road'],['trails','Trail'],['erase','Erase']];
+const ROADT=[['roads','Main road'],['trails','Trail']];let rdDel=false;const RUN=[],RRE=[];
 function painterUI(){const P=Z('.rzp'),H=P.querySelector('.ch');H.innerHTML='';H.append(uicon('paint'),mk('span',null,'Painter'));const L=P.querySelector('.rrd');L.innerHTML='';
- for(const[k,n]of ROADT){const b=mk('button','tb'+(rdT===k?' on':''));const c=mk('canvas');c.width=22;c.height=12;const x=c.getContext('2d');if(k==='erase'){c.width=0}else{x.lineCap='round';x.strokeStyle=k==='roads'?'#342416':'#34281c';x.lineWidth=k==='roads'?6:4;x.beginPath();x.moveTo(3,6);x.lineTo(19,6);x.stroke();x.strokeStyle=k==='roads'?'#eccd8c':'#f6f2e6';x.lineWidth=k==='roads'?3:1.6;x.stroke()}
-  const sp=mk('span');if(k==='erase')sp.innerHTML=ERASE;else sp.append(c);b.append(sp,mk('em',null,n));b.onclick=()=>{rdT=k;painterUI()};L.append(b)}}
+ const hb=mk('span','hb'),un=ubtn('','sq',()=>roadStep(RUN,RRE)),re=ubtn('','sq',()=>roadStep(RRE,RUN)),bin=ubtn('','sq red'+(rdDel?' on':''),()=>{rdDel=!rdDel;painterUI()});un.title='Undo';re.title='Redo';un.append(uicon('undo'));re.append(pix(...PIC.redo));un.replaceChildren(pix(...PIC.undo));bin.append(uicon('bin'));hb.append(un,re,bin);H.append(hb);
+ for(const[k,n]of ROADT){const b=mk('button','tb'+(rdT===k&&!rdDel?' on':''));const c=mk('canvas');c.width=22;c.height=12;const x=c.getContext('2d');for(let i=3;i<19;i++){if(k==='roads'){x.fillStyle=RDC.edge;x.fillRect(i,4,1,4);x.fillStyle=RDC.road;x.fillRect(i,5,1,2)}else{x.fillStyle=RDC.trail;x.fillRect(i,6,1,1)}}
+  const sp=mk('span');sp.append(c);b.append(sp,mk('em',null,n));b.onclick=()=>{rdT=k;rdDel=false;painterUI()};L.append(b)}}
+function roadStep(from,to){if(!from.length)return;to.push(JSON.stringify(R.rd));R.rd=JSON.parse(from.pop());roadsDone()}
 // waters: named seas and bays, painted cell by cell; + starts a new one, double-click renames
 function rename(id){const b=Z(`.rpn button[data-w="${id}"]`);if(!b)return;const t=mk('input','rn');t.value=R.seas[id].n;b.replaceWith(t);t.focus();t.select();const done=()=>{const v=t.value.trim();if(v)R.seas[id].n=v;SL=null;save();tilerUI();draw()};t.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')t.blur();if(e.key==='Escape'){t.value=R.seas[id].n;t.blur()}};t.onblur=done}
 function swatch(t,s){const T=terTile(t),c=mk('canvas');c.width=c.height=s;const x=c.getContext('2d'),im=x.createImageData(s,s);for(let y=0;y<s;y++)for(let X=0;X<s;X++){const col=T.P[Math.min(T.A[(y+8)*T.s+X+8],T.P.length-1)];im.data.set([col[0],col[1],col[2],255],(y*s+X)*4)}x.putImageData(im,0,0);return c}
@@ -4944,16 +4943,16 @@ document.fonts&&document.fonts.ready.then(()=>draw());
 const xy=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
 let pan=null,dragF=null,moved=0,BLOCK=null;
 // a force can't be sent into water, or into woods and high ground off the roads
-function blocked(i){if(!BLOCK){const R0=new Set(D.burgs.map(b=>near([b.x,b.y])));for(const r of D.routes){if(r.g==='searoutes')continue;let h=-1;for(let k=0;k<r.pts.length-1;k++){const a=r.pts[k],b=r.pts[k+1];for(let t=0;t<8;t++){h=cellAt(a[0]+(b[0]-a[0])*t/8,a[1]+(b[1]-a[1])*t/8,h);R0.add(h)}}}
+function blocked(i){if(!BLOCK){const R0=new Set(D.burgs.map(b=>near([b.x,b.y])));for(const key in R.rd)for(const c of key.split('-'))R0.add(+c);
  BLOCK=D.cells.map((c,j)=>!land(c)||(c.f||c.h>=58)&&!R0.has(j))}return BLOCK[i]}
 cv.addEventListener('pointerdown',e=>{const[x,y]=xy(e);moved=0;cv.setPointerCapture(e.pointerId);
- if(rtool==='paint'){const i=near(S2W(x,y));if(vis[i]<.5)return;painting=1;RB={g:e.button===2?'erase':rdT,cells:[i]};if(RB.g==='erase')eraseRoad(i);draw();return}
+ if(rtool==='paint'){const i=near(S2W(x,y));if(vis[i]<.5||!land(D.cells[i]))return;painting=1;RUN.push(JSON.stringify(R.rd));if(RUN.length>60)RUN.shift();RRE.length=0;RB={g:e.button===2||rdDel?'erase':rdT,cells:[i]};if(RB.g==='erase')eraseRoad(i);draw();return}
  if(rtool==='tile'){const er=e.button===2||rErase;if(tileW===1&&er)return;if(tileW===2&&wmode==='name'&&!pwat&&!er)return;tiling=er?-1:1;tileAt(x,y);return}
  const f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f){if(e.button===2)return;dragF={f,x,y,mx:x,my:y,on:false};return}
  const G=GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]);if(G&&e.button!==2){settle(G.cell);return}
  pan={x,y,vx:view.x,vy:view.y}});
 cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
- if(painting){const i=near(S2W(x,y)),L=RB.cells;if(i!==L[L.length-1]&&vis[i]>=.5){if(RB.g==='erase'){L.push(i);eraseRoad(i)}else for(const j of linkCells(L[L.length-1],i))L.push(j)}draw();return}
+ if(painting){const i=near(S2W(x,y)),L=RB.cells;if(i!==L[L.length-1]&&vis[i]>=.5&&land(D.cells[i])){if(RB.g==='erase'){L.push(i);eraseRoad(i)}else for(const j of linkCells(L[L.length-1],i))L.push(j)}draw();return}
  if(tiling){tileAt(x,y);return}
  if(dragF){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);dragF.mx=x;dragF.my=y;if(moved>6)dragF.on=true;if(dragF.on){const h=near(S2W(x,y));hov=blocked(h)?-1:h;draw()}return}
  if(pan){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);view.x=pan.vx+x-pan.x;view.y=pan.vy+y-pan.y;draw();return}
@@ -4965,7 +4964,7 @@ cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  const isl=land(c)&&Object.values(R.isl).find(o=>o.c.includes(i)),bio=land(c)?(isl?isl.n+' · ':'')+terrainOf(c):R.seas[R.wc[i]]?R.seas[R.wc[i]].n:c.h>=14?'Coastal waters':'Open sea',maps=(R.cm[i]||[]).length;
  TIP.innerHTML=`${placeOf(i)} <span>· ${bio}${ST[c.s]&&land(c)?' · '+ST[c.s].n:''}${nats?' · '+nats:''}${maps?' · '+maps+(maps>1?' maps':' map'):''}</span>`;TIP.style.display='block'});
 cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
- if(painting){painting=0;if(RB.g!=='erase')addRoad(RB);RB=null;draw();return}
+ if(painting){painting=0;if(RB.g!=='erase')addRoad(RB);else if(RUN.length&&RUN[RUN.length-1]===JSON.stringify(R.rd))RUN.pop();RB=null;draw();return}
  if(tiling){tiling=0;save();draw();return}
  if(dragF){const d=dragF;dragF=null;if(d.on){const to=near(S2W(x,y));if(to!==d.f.cell&&vis[to]>.5&&!blocked(to))moveF(d.f,to);else draw()}else pick(d.f,false);return}
  if(pan&&moved<4){const i=near(S2W(x,y)),b=BURGPT.find(o=>o.rad&&Math.hypot(x-o.X,y-o.Y)<Math.max(9,o.rad+3));if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}pan=null});
@@ -4980,12 +4979,33 @@ cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=xy(e),f=Math.exp(-
 function paintAt(x,y){const i=near(S2W(x,y));if(tileW===2){if(land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pwat:null;if((R.wc[i]||null)===v)return;if(v)R.wc[i]=v;else delete R.wc[i];SL=null;draw();return}if(!land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pnat:null;if(OWN[i]===v)return;OWN[i]=v;R.own[i]=v||'';LBL=null;BCH=null;draw()}
 // ---- roads: drawn cell to cell over land, joining a road already in the end cell; erasing cuts the roads in a cell
 function linkCells(a,b){const prev=new Map([[a,-1]]),Q=[a];for(let q=0;q<Q.length&&!prev.has(b);q++)for(const j of nb[Q[q]])if(!prev.has(j)&&land(D.cells[j])){prev.set(j,Q[q]);Q.push(j)}if(!prev.has(b))return[];const out=[];for(let c=b;c!==a;c=prev.get(c))out.unshift(c);return out}
-const anchor=i=>{const b=D.burgs.find(o=>near([o.x,o.y])===i);if(b)return[b.x,b.y];for(const r of D.routes){if(r.g==='searoutes')continue;for(const p of r.pts)if(near(p)===i)return p.slice()}return CEN[i].slice()};
-function roadsDone(){R.rt=D.routes;rvCalc();BLOCK=null;save()}
-function addRoad(rb){const L=rb.cells.filter(i=>land(D.cells[i]));if(L.length<2)return;D.routes.push({g:rb.g,pts:L.map(anchor)});roadsDone()}
-function eraseRoad(i){let hit=false;const out=[];for(const r of D.routes){if(r.g==='searoutes'){out.push(r);continue}let cur=[];const parts=[];for(const p of r.pts){if(near(p)===i){hit=true;if(cur.length>1)parts.push(cur);cur=[]}else cur.push(p)}if(cur.length>1)parts.push(cur);for(const P of parts)out.push({g:r.g,pts:P})}
- if(hit){D.routes.length=0;D.routes.push(...out);roadsDone()}}
-function roadDraft(){if(!RB||RB.g==='erase'||RB.cells.length<2)return;const k=view.k;g.save();g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);line(RB.cells.map(anchor));g.setLineDash([3/k,3/k]);g.strokeStyle='rgba(52,36,22,.9)';g.lineWidth=(RB.g==='roads'?4:2.6)/k;g.stroke();g.restore()}
+// a road is a set of links between neighbouring cells; each cell draws its piece: from its centre to the middle of each linked wall
+// where it holds a settlement, ends or branches, else straight from wall to wall
+const lk=(a,b)=>a<b?a+'-'+b:b+'-'+a,EMID=new Map();for(const e of E.values())if(e.c.length===2)EMID.set(lk(e.c[0],e.c[1]),[(e.a[0]+e.b[0])/2,(e.a[1]+e.b[1])/2]);
+const BURGC=new Map(D.burgs.map(b=>[near([b.x,b.y]),[b.x,b.y]]));
+function roadsFrom(routes){const rd={};for(const r of routes){if(r.g==='searoutes'||r.pts.length<2)continue;let prev=-1,h=-1;
+  for(let k=0;k<r.pts.length-1;k++){const a=r.pts[k],b=r.pts[k+1];for(let t=0;t<=10;t++){h=cellAt(a[0]+(b[0]-a[0])*t/10,a[1]+(b[1]-a[1])*t/10,h);if(h===prev||!land(D.cells[h]))continue;
+   if(prev>=0){const path=nb[prev].includes(h)?[h]:linkCells(prev,h);let p=prev;for(const q of path){const key=lk(p,q);if(rd[key]!=='roads')rd[key]=r.g==='roads'?'roads':'trails';p=q}}prev=h}}}return rd}
+if(!R.rd)R.rd=roadsFrom(R.rt||D.routes);
+let SEG=null;
+function roadSegs(){const deg={};for(const key in R.rd){const[a,b]=key.split('-').map(Number);(deg[a]||(deg[a]=[])).push([b,R.rd[key]]);(deg[b]||(deg[b]=[])).push([a,R.rd[key]])}
+ const out=[];for(const c in deg){const L=deg[c],i=+c,ctr=BURGC.get(i)||D.cells[i].c,mids=L.map(([j,t])=>[EMID.get(lk(i,j)),t]).filter(m=>m[0]);
+  if(mids.length===2&&!BURGC.has(i)){const t=mids[0][1]==='roads'&&mids[1][1]==='roads'?'roads':'trails';out.push([mids[0][0],mids[1][0],t])}else for(const[m,t]of mids)out.push([ctr,m,t])}
+ return out}
+const RDC={road:'#e3c890',edge:'#4d3b28',trail:'#e9e2c8',tedge:'#7d6c50'};
+// road pixels, one per map unit: a dark kerb round a two-pixel cream main road; a single pale pixel for a trail, shaded below
+function roadMask(){const{W,H,x0,y0}=TC,M=new Uint8Array(W*H);SEG=roadSegs();
+ const stamp=(x,y,lo,hi,v,only)=>{for(let b=lo;b<=hi;b++)for(let a=lo;a<=hi;a++){const X=Math.floor(x)+a-x0,Y=Math.floor(y)+b-y0;if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(!only||M[j]<v)M[j]=Math.max(M[j],v)}};
+ const walk=(p,q,f)=>{const n=Math.ceil(Math.hypot(q[0]-p[0],q[1]-p[1])*2)||1;for(let k=0;k<=n;k++)f(p[0]+(q[0]-p[0])*k/n,p[1]+(q[1]-p[1])*k/n)};
+ for(const[p,q,t]of SEG)if(t==='trails')walk(p,q,(x,y)=>{stamp(x+1,y+1,0,0,1,1);stamp(x,y,0,0,2)});
+ for(const[p,q,t]of SEG)if(t==='roads')walk(p,q,(x,y)=>stamp(x,y,-1,2,3,1));
+ for(const[p,q,t]of SEG)if(t==='roads')walk(p,q,(x,y)=>stamp(x,y,0,1,4));
+ TC.RM=M}
+function roadsDone(){SEG=null;BLOCK=null;if(TC){roadMask();paintRect(0,0,TC.W,TC.H)}save()}
+function addRoad(rb){const L=rb.cells.filter(i=>land(D.cells[i]));for(let k=1;k<L.length;k++)if(L[k]!==L[k-1]&&nb[L[k]].includes(L[k-1]))R.rd[lk(L[k-1],L[k])]=rb.g;roadsDone()}
+function eraseRoad(i){let hit=false;for(const key in R.rd){const[a,b]=key.split('-').map(Number);if(a===i||b===i){delete R.rd[key];hit=true}}if(hit)roadsDone()}
+function roadDraft(){if(!RB||RB.g==='erase'||RB.cells.length<2)return;const k=view.k;g.save();g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);g.beginPath();const L=RB.cells;
+ for(let n=0;n<L.length;n++){const p=BURGC.get(L[n])||D.cells[L[n]].c;n?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])}g.setLineDash([3/k,3/k]);g.strokeStyle='rgba(52,36,22,.9)';g.lineWidth=(RB.g==='roads'?4:2.6)/k;g.stroke();g.restore()}
 // ---- the flag editor: the nation's emblem on a 33-pixel grid inside its fixed black border; mirror paints both halves, right-click takes a colour
 function embEdit(n){let px=embPx(n).slice(),col=px[16*33+16],mir=true,mirY=false,sz=1,down=0;const W2=mk('div','remb-ed'),S=12,hist=[];
  W2.innerHTML=`<div class="eh"><b>${disp(n)}</b><span class="hb"></span><button class="x">×</button></div><div class="eb"><canvas width="${33*S}" height="${33*S}"></canvas><div class="pal"></div></div><div class="ebf"><button class="rs">Library</button><span></span><button class="sv lite">Save</button></div>`;
@@ -4993,8 +5013,8 @@ function embEdit(n){let px=embPx(n).slice(),col=px[16*33+16],mir=true,mirY=false
  const paint=()=>{x.clearRect(0,0,c.width,c.height);px.forEach((h,i)=>{x.fillStyle=h;x.fillRect((i%33)*S,(i/33|0)*S,S,S)});x.strokeStyle='rgba(255,255,255,.06)';for(let k=1;k<33;k++){x.beginPath();x.moveTo(k*S+.5,0);x.lineTo(k*S+.5,33*S);x.moveTo(0,k*S+.5);x.lineTo(33*S,k*S+.5);x.stroke()}};
  const pals=()=>{const L=[...new Set([...px.filter((h,i)=>{const a=i%33,b=i/33|0;return a&&b&&a<32&&b<32}),'#000000','#eee5cd',...NCOL])];pal.innerHTML=L.map(h=>`<button data-c="${h}" style="background:${h}" class="${h===col?'on':''}"></button>`).join('')};
  // the settlement map's buttons: brush size, undo, and a mirror each way
- const hb=W2.querySelector('.hb'),szB=ubtn('1×1','sq sz',()=>{sz=sz>1?1:2;szB.textContent=sz>1?'2×2':'1×1'}),un=ubtn('','sq',()=>{if(hist.length){px=hist.pop();paint();pals()}});un.title='Undo';un.append(uicon('undo'));
- const mx=ubtn('⇋','sq on',()=>{mir=!mir;mx.classList.toggle('on',mir)}),my=ubtn('⇅','sq',()=>{mirY=!mirY;my.classList.toggle('on',mirY)});hb.append(szB,un,mx,my);
+ const hb=W2.querySelector('.hb'),szB=ubtn('1×1','sq sz',()=>{sz=sz>1?1:2;szB.textContent=sz>1?'2×2':'1×1'}),un=ubtn('','sq',()=>{if(hist.length){px=hist.pop();paint();pals()}});un.title='Undo';un.append(pix(...PIC.undo));
+ const mx=ubtn('','sq on',()=>{mir=!mir;mx.classList.toggle('on',mir)}),my=ubtn('','sq',()=>{mirY=!mirY;my.classList.toggle('on',mirY)});mx.append(pix(...PIC.mx));my.append(pix(...PIC.my));hb.append(szB,un,mx,my);
  const dot=(a,b)=>{if(a<1||b<1||a>31||b>31)return;px[b*33+a]=col};
  const at=e=>{const r=c.getBoundingClientRect(),a=Math.floor((e.clientX-r.left)/r.width*33),b=Math.floor((e.clientY-r.top)/r.height*33);if(a<1||b<1||a>31||b>31)return;if(down===2){col=px[b*33+a];pals();return}
   for(let v=0;v<sz;v++)for(let u=0;u<sz;u++){const A=a+u,B=b+v;dot(A,B);if(mir)dot(32-A,B);if(mirY)dot(A,32-B);if(mir&&mirY)dot(32-A,32-B)}paint()};
