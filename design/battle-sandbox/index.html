@@ -4427,6 +4427,19 @@ const TEX={
  rock:(X,Y)=>{const f=pf(X,Y,8,50),d=pf(X,Y,2,51);let k=.82+f*.32+(d-.5)*.12;const cr=Math.abs(pv(X/16,Y/16,52,8)-.5),on=pv(X/8,Y/8,54,16)>.55;if(on&&cr<.02)k*=.74;else if(on&&cr<.035)k*=1.1;if(th(X,Y,53)>.985)k*=1.15;return k},
  sea:(X,Y)=>{const w=Math.sin((Y+pv(X/32,Y/32,90,4)*14)/16*Math.PI*2),n=pv(X/16,Y/8,91,8,16);let k=1+(pf(X,Y,32,92)-.5)*.08;if(w>.88&&n>.55)k*=1.14;else if(w<-.9&&n>.6)k*=.94;return k},
  paper:(X,Y)=>1+(th(X,Y,95)-.5)*.1+(pf(X,Y,32,96)-.5)*.12};
+// painted tiles, seen from above: woods as packed tree crowns lit from the north-west, mountains as hill-shaded stone
+const CS=256;let CPAT=null;
+function canopy(){const c=mk('canvas');c.width=c.height=CS;const x=c.getContext('2d');x.fillStyle='#1f3320';x.fillRect(0,0,CS,CS);const T=[];let s=1;const rnd=()=>{s=(s*16807)%2147483647;return s/2147483647};
+ for(let i=0;i<620;i++)T.push([rnd()*CS,rnd()*CS,3.2+rnd()*3.4,rnd()]);T.sort((a,b)=>a[1]-b[1]);
+ const each=f=>{for(const t of T)for(const ox of[-CS,0,CS])for(const oy of[-CS,0,CS])f(t[0]+ox,t[1]+oy,t[2],t[3])};
+ each((X,Y,r)=>{x.fillStyle='rgba(12,22,12,.55)';x.beginPath();x.arc(X+r*.35,Y+r*.45,r*1.02,0,7);x.fill()});
+ each((X,Y,r,v)=>{const b=[46+v*30,74+v*34,40+v*18],G=x.createRadialGradient(X-r*.35,Y-r*.4,r*.1,X,Y,r);G.addColorStop(0,`rgb(${b[0]+52},${b[1]+50},${b[2]+26})`);G.addColorStop(.55,`rgb(${b})`);G.addColorStop(1,`rgb(${b[0]*.62|0},${b[1]*.66|0},${b[2]*.6|0})`);x.fillStyle=G;x.beginPath();x.arc(X,Y,r,0,7);x.fill()});return c}
+function stone(){const c=mk('canvas');c.width=c.height=CS;const x=c.getContext('2d'),im=x.createImageData(CS,CS),H=new Float32Array(CS*CS);
+ for(let Y=0;Y<CS;Y++)for(let X=0;X<CS;X++){let h=0,a=1,f=1/64;for(let o=0;o<5;o++){const n=pv(X*f,Y*f,140+o*7,CS*f);h+=a*(1-Math.abs(2*n-1))**(o?1.6:2.4);a*=.45;f*=2}H[Y*CS+X]=h}
+ const at=(X,Y)=>H[((Y+CS)%CS)*CS+(X+CS)%CS];
+ for(let Y=0;Y<CS;Y++)for(let X=0;X<CS;X++){const dx=(at(X+1,Y)-at(X-1,Y))*9,dy=(at(X,Y+1)-at(X,Y-1))*9,l=Math.max(.35,Math.min(1.35,.8+(-dx-dy)*.55)),h=at(X,Y),sp=(th(X,Y,149)-.5)*10+(pv(X/3,Y/3,151,CS/3)-.5)*12,
+  base=[104+h*30,104+h*28,100+h*24],o=(Y*CS+X)*4;im.data[o]=Math.min(255,base[0]*l+sp);im.data[o+1]=Math.min(255,base[1]*l+sp);im.data[o+2]=Math.min(255,base[2]*l+sp);im.data[o+3]=255}
+ x.putImageData(im,0,0);return c}
 let PAT=null;function pats(){PAT={};for(const k in TEX){const c=mk('canvas');c.width=c.height=TS;const x=c.getContext('2d'),im=x.createImageData(TS,TS);for(let Y=0;Y<TS;Y++)for(let X=0;X<TS;X++){const v=Math.max(0,Math.min(255,128*TEX[k](X,Y))),o=(Y*TS+X)*4;im.data[o]=im.data[o+1]=im.data[o+2]=v;im.data[o+3]=255}x.putImageData(im,0,0);PAT[k]=c}}
 const terrainOf=c=>c.f?'Woods':c.h>=66?'Mountains':c.h>=58?'Hills':D.biomes[c.b].n;
 const KIND=D.cells.map(c=>!land(c)?null:c.f?'forest':c.h>=58?'rock':c.b===4||c.b===3?'grass':c.b===6||c.b===5?'wood':c.b===8||c.b===7?'rain':c.b===9?'taiga':c.b===12?'wet':'grass');
@@ -4441,15 +4454,24 @@ function poly(P){g.beginPath();g.moveTo(P[0][0],P[0][1]);for(let j=1;j<P.length;
 function line(p){g.beginPath();g.moveTo(p[0][0],p[0][1]);for(let i=0;i<p.length-1;i++){const a=p[i-1]||p[i],b=p[i],c=p[i+1],d=p[i+2]||c;g.bezierCurveTo(b[0]+(c[0]-a[0])/6,b[1]+(c[1]-a[1])/6,c[0]-(d[0]-b[0])/6,c[1]-(d[1]-b[1])/6,c[0],c[1])}}
 function textures(){if(!PAT)pats();g.save();g.globalCompositeOperation='overlay';const P={};for(const k in PAT)P[k]=g.createPattern(PAT[k],'repeat');
  g.beginPath();D.cells.forEach((c,i)=>{if(land(c)||vis[i]<=0)return;const Q=c.p;g.moveTo(Q[0][0],Q[0][1]);for(let j=1;j<Q.length;j++)g.lineTo(Q[j][0],Q[j][1]);g.closePath()});P.sea.setTransform(new DOMMatrix([.5,0,0,.5,0,0]));g.fillStyle=P.sea;g.globalAlpha=.7;g.fill();
- D.cells.forEach((c,i)=>{const kd=KIND[i];if(!kd||vis[i]<=0)return;P[kd].setTransform(OFF[i]);poly(c.p);g.fillStyle=P[kd];g.globalAlpha=STR[kd]*vis[i];g.fill()});
+ D.cells.forEach((c,i)=>{const kd=KIND[i];if(!kd||kd==='forest'||kd==='rock'||vis[i]<=0)return;P[kd].setTransform(OFF[i]);poly(c.p);g.fillStyle=P[kd];g.globalAlpha=STR[kd]*vis[i];g.fill()});
+ g.globalCompositeOperation='source-over';if(!CPAT)CPAT={forest:g.createPattern(canopy(),'repeat'),rock:g.createPattern(stone(),'repeat')};CPAT.forest.setTransform(new DOMMatrix([.3,0,0,.3,0,0]));CPAT.rock.setTransform(new DOMMatrix([.4,0,0,.4,0,0]));
+ D.cells.forEach((c,i)=>{const kd=KIND[i];if((kd!=='forest'&&kd!=='rock')||vis[i]<=0)return;poly(c.p);g.fillStyle=CPAT[kd];g.globalAlpha=(kd==='rock'?Math.min(1,.55+(c.h-58)*.06):1)*vis[i];g.fill()});
+ g.globalCompositeOperation='overlay';
  P.paper.setTransform(new DOMMatrix([.35,0,0,.35,0,0]));g.fillStyle=P.paper;g.globalAlpha=.6;g.fillRect(bx0-200,by0-200,bx1-bx0+400,by1-by0+400);g.restore()}
 function voidFrame(){const[a0,b0]=W2S(bx0,by0),[a1,b1]=W2S(bx1,by1),k=view.k,m=26*k,f=Math.max(30,70*k);
  g.save();g.filter=`blur(${f}px)`;g.fillStyle=css(VOID);g.beginPath();g.rect(-2000,-2000,VW+4000,VH+4000);g.roundRect(a0-m,b0-m,a1-a0+2*m,b1-b0+2*m,60*k);g.fill('evenodd');g.restore();
  g.save();g.globalAlpha=.85;g.fillStyle=css(VOID);g.beginPath();g.rect(-2000,-2000,VW+4000,VH+4000);g.roundRect(a0-m-f*1.6,b0-m-f*1.6,a1-a0+2*m+3.2*f,b1-b0+2*m+3.2*f,90*k);g.fill('evenodd');g.restore()}
+// the shore seen in the water: a soft pale fade, a white ripple a little way out, a pale band and a white edge
+let COAST=null;
+function coast(){if(!COAST){COAST=[];for(const e of E.values()){if(e.c.length<2)continue;const[a,b]=e.c.map(i=>D.cells[i]);if(land(a)!==land(b))COAST.push([e.a,e.b,Math.min(vis[e.c[0]],vis[e.c[1]])])}}
+ g.save();g.beginPath();D.cells.forEach((c,i)=>{if(land(c)||vis[i]<=0)return;const Q=c.p;g.moveTo(Q[0][0],Q[0][1]);for(let j=1;j<Q.length;j++)g.lineTo(Q[j][0],Q[j][1]);g.closePath()});g.clip();
+ const band=(w,col)=>{g.strokeStyle=col;g.lineWidth=w;g.beginPath();for(const[a,b,v]of COAST)if(v>.05){g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1])}g.stroke()};
+ band(20,'rgba(150,196,214,.08)');band(14,'rgba(150,196,214,.1)');band(9.4,'rgba(232,244,248,.5)');band(8.4,'rgba(130,176,198,.95)');band(8.4,'rgba(160,204,220,.45)');band(5,'rgba(180,220,234,.55)');band(2.2,'rgba(240,248,250,.85)');g.restore()}
 function ground(){const k=view.k;g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle=css(VOID);g.fillRect(0,0,VW,VH);
  g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);g.lineJoin='round';g.lineCap='round';
  D.cells.forEach((c,i)=>{if(land(c)||vis[i]<=0)return;poly(c.p);g.fillStyle=g.strokeStyle=css(FILL[i]);g.lineWidth=.6/k;g.fill();g.stroke()});
- for(const e of E.values()){if(e.c.length<2)continue;const[a,b]=e.c.map(i=>D.cells[i]);if(land(a)===land(b))continue;const v=Math.min(vis[e.c[0]],vis[e.c[1]]);if(v<=0)continue;g.strokeStyle=`rgba(150,190,205,${.22*v})`;g.lineWidth=7/k*Math.min(1.6,Math.max(.6,k/1.5));g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);g.stroke()}
+ coast();
  D.cells.forEach((c,i)=>{if(!land(c)||vis[i]<=0)return;poly(c.p);g.fillStyle=g.strokeStyle=css(FILL[i]);g.lineWidth=.6/k;g.fill();g.stroke()});
  textures();
  if(R.terr!==false)territory(k);else D.cells.forEach((c,i)=>{if(!land(c)||!ST[c.s]||vis[i]<.05)return;poly(c.p);g.fillStyle=css(hex(ST[c.s].c),.09*vis[i]);g.fill()});
