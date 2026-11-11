@@ -4465,7 +4465,7 @@ function cellMarks(){const k=view.k;g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dp
  for(const i in R.cm){if(!R.cm[i].length)continue;const c=D.cells[i];if(vis[i]<.5)continue;poly(c.p);g.strokeStyle='rgba(42,34,28,.55)';g.setLineDash([2/k,2/k]);g.lineWidth=1.1/k;g.stroke();g.setLineDash([])}
  if(hov>=0){poly(D.cells[hov].p);g.fillStyle='rgba(255,250,235,.16)';g.fill();g.strokeStyle='rgba(255,250,235,.9)';g.lineWidth=1.4/k;g.stroke()}
  if(cell>=0){poly(D.cells[cell].p);g.strokeStyle='#f2efe6';g.lineWidth=2.2/k;g.stroke();g.strokeStyle='#141414';g.lineWidth=.8/k;g.stroke()}}
-function draw(){if(OV.hidden)return;ground();cellMarks();g.setTransform(dpr,0,0,dpr,0,0);voidFrame();burgs();states();markers();if(dragF)ghost()}
+function draw(){if(OV.hidden)return;ground();cellMarks();g.setTransform(dpr,0,0,dpr,0,0);voidFrame();states();burgs();markers();if(dragF)ghost()}
 
 // ---- settlements: a glyph per kind, names sized by rank, ports marked
 const RANK={capital:0,city:1,town:2,fort:2,monastery:3,trading_post:3,caravanserai:3,village:3,hamlet:4};
@@ -4486,9 +4486,24 @@ function burgs(){BOXES.length=0;if(view.k>=CLOSE)placeClose();markBoxes();const 
   g.font=`${o.r>=3?'italic ':''}${fs}px ${o.r<=1?'"IM Fell English SC"':'"IM Fell English"'},Georgia,serif`;const w=g.measureText(o.b.n).width;
   for(const[ax,ay,al]of[[o.rad+4,fs*.35,'left'],[-o.rad-4,fs*.35,'right'],[-w/2,-o.rad-4,'left'],[-w/2,o.rad+fs*.85,'left']]){const x0=al==='left'?o.X+ax:o.X+ax-w,y0=o.Y+ay-fs*.8,r=[x0-1,y0,x0+w+1,y0+fs];if(!fits(r))continue;BOXES.push(r);
    g.globalAlpha=Math.min(1,o.v*1.2);g.textAlign='left';g.lineJoin='round';g.strokeStyle='rgba(240,232,208,.85)';g.lineWidth=3.2;g.strokeText(o.b.n,x0,o.Y+ay);g.fillStyle=o.r<=1?'#2a1f18':'#3a2e24';g.fillText(o.b.n,x0,o.Y+ay);g.globalAlpha=1;break}}}
-function states(){const acc={};D.cells.forEach((c,i)=>{const o=OWN[i];if(!land(c)||!o||vis[i]<.9)return;const a=acc[o]||(acc[o]={x:0,y:0,n:0});a.x+=c.c[0];a.y+=c.c[1];a.n++});
- for(const s in acc){const a=acc[s];if(a.n<(s==='Great Keys'?1:14))continue;const[X,Y]=W2S(a.x/a.n,a.y/a.n),st={n:disp(s),c:ownC(s)},fs=Math.min(30,Math.max(15,Math.sqrt(a.n)*1.6*Math.sqrt(view.k/1.4)));
-  g.font=`${fs}px "IM Fell English SC",Georgia,serif`;const t=st.n.toUpperCase().split('').join(' ');g.textAlign='center';g.globalAlpha=.55;g.strokeStyle='rgba(240,232,208,.6)';g.lineWidth=3;g.strokeText(t,X,Y);g.fillStyle=css(mixc(hex(st.c),[40,30,25],.55));g.fillText(t,X,Y);g.globalAlpha=1;g.textAlign='left'}}
+// nation names: each set at the point deepest inside its land, as large as the land around it allows, on two lines if one is too cramped; worked out once in map units
+let LBL=null;
+function cellAt(x,y,h){if(h>=0&&inPoly(x,y,D.cells[h].p))return h;if(h>=0)for(const j of nb[h])if(inPoly(x,y,D.cells[j].p))return j;return near([x,y])}
+function labels(){const out=[],deep=D.cells.map(()=>-1),Q=[];
+ D.cells.forEach((c,i)=>{const o=OWN[i];if(!o||vis[i]<.9)return;if(nb[i].some(j=>OWN[j]!==o||vis[j]<.9)){deep[i]=0;Q.push(i)}});
+ for(let q=0;q<Q.length;q++){const i=Q[q];for(const j of nb[i])if(deep[j]<0&&OWN[j]===OWN[i]&&vis[j]>=.9){deep[j]=deep[i]+1;Q.push(j)}}
+ const by={};D.cells.forEach((c,i)=>{const o=OWN[i];if(o&&vis[i]>=.9)(by[o]||(by[o]=[])).push(i)});
+ const cx=document.createElement('canvas').getContext('2d'),span=(o,x,y,h)=>{let a=x,b=x,c=h;for(;a>x-500;a-=2){c=cellAt(a,y,c);if(OWN[c]!==o)break}c=h;for(;b<x+500;b+=2){c=cellAt(b,y,c);if(OWN[c]!==o)break}return[a+2,b-2]};
+ for(const o in by){const name=disp(o);if(D.burgs.some(b=>b.n===name))continue;const L=by[o],mx=L.reduce((a,i)=>a+CEN[i][0],0)/L.length,my=L.reduce((a,i)=>a+CEN[i][1],0)/L.length;
+  const top=Math.max(...L.map(i=>deep[i])),cand=L.filter(i=>deep[i]>=top-1).sort((a,b)=>Math.hypot(CEN[a][0]-mx,CEN[a][1]-my)-Math.hypot(CEN[b][0]-mx,CEN[b][1]-my));let best=null;
+  for(const h of cand.slice(0,6)){const[x,y]=CEN[h],words=name.toUpperCase().split(' '),opts=[[words.join(' ')]];if(words.length>1){let k=1,d=1e9;for(let t=1;t<words.length;t++){const v=Math.abs(words.slice(0,t).join(' ').length-words.slice(t).join(' ').length);if(v<d){d=v;k=t}}opts.push([words.slice(0,k).join(' '),words.slice(k).join(' ')])}
+   for(const lines of opts){for(let f=22;f>=5;f-=.5){cx.font=`${f}px "IM Fell English SC",Georgia,serif`;const sp=t=>t.split('').join(' '),w=Math.max(...lines.map(t=>cx.measureText(sp(t)).width)),hh=f*1.05*lines.length;
+     let ok=true,lo=-1e9,hi=1e9;for(const dy of[-hh/2,0,hh/2]){const[a,b]=span(o,x,y+dy,h);lo=Math.max(lo,a);hi=Math.min(hi,b);if(hi-lo<w*1.08){ok=false;break}}
+     if(ok){if(!best||f>best.f)best={x:(lo+hi)/2,y,f,lines:lines.map(sp)};break}}}}
+  if(best)out.push({...best,c:ownC(o)})}
+ return out}
+function states(){if(!LBL)LBL=labels();for(const l of LBL){const fs=l.f*view.k;if(fs<9)continue;const k=Math.min(1,34/fs),F=fs*k,[X,Y]=W2S(l.x,l.y);g.font=`${F}px "IM Fell English SC",Georgia,serif`;g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
+ const col=css(mixc(hex(l.c),[30,22,18],.62));l.lines.forEach((t,i)=>{const y=Y+(i-(l.lines.length-1)/2)*F*1.05;g.globalAlpha=.9;g.strokeStyle='rgba(244,238,222,.8)';g.lineWidth=Math.max(2.5,F*.16);g.strokeText(t,X,y);g.fillStyle=col;g.fillText(t,X,y)});g.globalAlpha=1;g.textAlign='left';g.textBaseline='alphabetic'}}
 
 // ---- nations, their forces and their people (game nation in brackets where it differs)
 const disp=n=>NATS[n]?NATS[n].n:n;
