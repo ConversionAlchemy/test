@@ -156,7 +156,7 @@ function draw(){if(OV.hidden)return;ground();cellMarks();g.setTransform(dpr,0,0,
 // ---- settlements: a glyph per kind, names sized by rank, ports marked
 // three sizes: the nation's seat is its Town, each province's seat a Village, the rest Hamlets (shrines and posts keep their own mark)
 const RANK={capital:0,city:1,village:1,town:2,fort:3,monastery:3,trading_post:3,caravanserai:3,hamlet:3};
-const STYPE=b=>b.cap||b.group==='capital'?'Town':b.group==='village'?'Village':'Hamlet',GARR={Town:4,Village:1,Hamlet:0},INCOME={Town:500,Village:120,Hamlet:25};
+const STYPE=b=>b.cap||b.group==='capital'?'Town':b.group==='village'?'Village':'Hamlet',GARR={Town:4,Village:1,Hamlet:0},INCOME={Town:6,Village:2,Hamlet:1},MPG={Town:6,Village:2,Hamlet:1};
 function glyph(b,X,Y,z){const ink='#2a221c',cream='#efe5c8';g.lineWidth=1;
  const q=v=>Math.round(v),box=(s,f,o)=>{const x=q(X-s),y=q(Y-s),w=q(2*s);if(o){g.fillStyle=o;g.fillRect(x-1,y-1,w+2,w+2)}g.fillStyle=f;g.fillRect(x,y,w,w)};
  if(b.group==='capital'||b.cap){const s=5*z;box(s,'#7a2a22',ink);if(b.walls){g.strokeStyle=ink;g.strokeRect(q(X-s)-3.5,q(Y-s)-3.5,q(2*s)+7,q(2*s)+7)}return s+2}
@@ -368,7 +368,7 @@ const EMK={Astria:'astia','Old Kingdoms':'aracia',Hoverlands:'holverland',Whitec
 const libEmb=n=>{const e=RGE[EMK[n]];return e?[...e.i].map(ch=>e.p[ch.charCodeAt(0)-48]):Array(33*33).fill('#000000').map((c,i)=>{const x=i%33,y=i/33|0;return x&&y&&x<32&&y<32?NATS[n].c:c})};
 const embPx=n=>R.emb[n]||libEmb(n);
 function embCanvas(n,s,px){const c=mk('canvas','emb');c.width=c.height=33;const x=c.getContext('2d'),im=x.createImageData(33,33),P=px||embPx(n);P.forEach((h,i)=>{const v=hex(h);im.data.set([v[0],v[1],v[2],255],i*4)});x.putImageData(im,0,0);c.style.width=c.style.height=33*s+'px';return c}
-const ALLF=()=>R.F,men=f=>f.men.filter(m=>!m.dead),soldiers=f=>f.t==='vehicle'?0:men(f).length,fallen=f=>f.wreck||f.t!=='vehicle'&&f.men.length&&!men(f).length;
+const ALLF=()=>R.F,men=f=>f.men.filter(m=>!m.dead),soldiers=f=>f.t==='vehicle'||f.civ?0:men(f).length,fallen=f=>f.wreck||f.t!=='vehicle'&&f.men.length&&!men(f).length;
 const lead=f=>men(f)[0]||f.men[0]||{k:f.k,h:0},hpOf=f=>f.t==='vehicle'?f.hull:Math.round(men(f).reduce((a,m)=>a+m.h,0)/(men(f).length||1));
 
 // ---- links to the battlefield: a man fights in one map as a body tagged with his id
@@ -376,12 +376,12 @@ const bins=()=>{const L=[[curMap,bodies]];for(const m in STATE)if(m!==curMap)L.p
 function findBody(id){for(const[m,arr]of bins()){const b=arr.find(o=>o.rid===id);if(b)return[m,b,arr]}return null}
 function sync(){for(const f of [...R.F,...R.PP])for(const m of f.t==='person'?[f]:f.men){if(!m.map)continue;const q=findBody(m.id);if(!q){delete m.map;continue}const[mp,b]=q;m.map=mp;m.h=Math.max(1,Math.min(100,Math.round(100*b.px.length/(b.n0||1))));if(b.status==='dead'){if(!m.dead&&m.ruler){const by=feller(m,mp);if(by)capitulate(m.nat,by)}m.dead=1;m.h=0}}for(const f of R.F)capture(f);save()}
 const inMap=f=>(f.t==='person'?[f]:f.men).some(m=>m.map&&!m.dead);
-function withdraw(f){for(const m of f.t==='person'?[f]:f.men){if(!m.map)continue;const q=findBody(m.id);delete m.map;if(!q||q[1].status==='dead')continue;const[mp,b,arr]=q;const i=arr.indexOf(b);if(i>=0)arr.splice(i,1);if(b.lab)b.lab.remove();if(mp===curMap)sel.delete(b);m.carry=b}save()}
+function withdraw(f){for(const m of f.t==='person'?[f]:f.men){if(!m.map)continue;const q=findBody(m.id);delete m.map;if(!q||q[1].status==='dead')continue;const[mp,b,arr]=q;m.spent=spentOf(b);const i=arr.indexOf(b);if(i>=0)arr.splice(i,1);if(b.lab)b.lab.remove();if(mp===curMap)sel.delete(b);m.carry=b}save()}
 function spot(b,ax,ay,i){for(let r=0;r<40;r++){const n=Math.max(1,r*6);for(let j=0;j<n;j++){const a=j/n*Math.PI*2+i*.37,x=ax+Math.cos(a)*r*16,y=ay+Math.sin(a)*r*16;if(x<12||y<12||x>W-12||y>H-12)continue;b.x=x;b.y=y;if(!solidHits(b,0,0)&&!bodies.some(o=>o!==b&&o.type==='token'&&Math.hypot(o.x-x,o.y-y)<15))return}}}
 function deploy(list){const ex=(EXITS[curMap]||[]).find(x=>x.arrive),ax=ex?ex.arrive[0]:W/2,ay=ex?ex.arrive[1]:H/2;let i=0;
  for(const[f,m]of list){const nat=NATS[f.nat].gn||f.nat;{if(m.dead||m.map)continue;let b=m.carry;
    if(b){bodies.push(b);if(b.lab)stage.appendChild(b.lab);else mkLabel(b);delete m.carry}else{const base=m.k.split('|')[0],u=CLSU[WARD.CLS[base]]||'civ';b=token(m.n,nat,u,ax,ay,false,undefined,m.k)}
-   b.rid=m.id;spot(b,ax,ay,i++);if(m.ruler||m.gov){const ch=findChair();if(ch){b.x=(ch[0]+.5)*T;b.y=(ch[1]+.5)*T}}b.vx=b.vy=0;b.ang=Math.atan2(H/2-b.y,W/2-b.x);m.map=curMap}}
+   if(!m.carry&&m.spent)drain(b,m.spent);b.rid=m.id;spot(b,ax,ay,i++);if(m.ruler||m.gov){const ch=findChair();if(ch){b.x=(ch[0]+.5)*T;b.y=(ch[1]+.5)*T}}b.vx=b.vy=0;b.ang=Math.atan2(H/2-b.y,W/2-b.x);m.map=curMap}}
  save()}
 
 // ---- sprites: the game's own top-down units at the size of a card cell
@@ -430,7 +430,7 @@ const goldDef=a=>{let s=0;for(const o of a||[]){if(o.t==='u')continue;if(o.t==='
 const mapGold=id=>id===curMap?goldLive(bodies):STATE[id]?goldLive(STATE[id].bodies):MODS.maps[id]?goldDef(MODS.maps[id].bodies):GOLD0[id]||0;
 let GC=null;
 function cellGold(){if(GC&&performance.now()-GC.t<1500)return GC.v;const v={};for(const c in R.cm){const n=(R.cm[c]||[]).reduce((a,id)=>a+mapGold(id),0);if(n)v[c]=n}GC={t:performance.now(),v};return v}
-const treasury=n=>{const v=cellGold();let s=0;for(const c in v)if(n==='all'?NATS[OWN[c]]:OWN[c]===n)s+=v[c];return s};
+const treasury=n=>n==='all'?Object.keys(NATS).reduce((a,k)=>a+(alive(k)&&R.tres[k]||0),0):R.tres[n]||0;
 // the Treasury and People totals show as their own marks in place of the forces
 const COIN=['..aaaa..','.abbbba.','abbccbba','abccccba','abbccbba','.abbbba.','..aaaa..'],COINC={a:'#7a5a1c',b:'#e3c463',c:'#f6e6a4'};
 const MAN=['..aa..','.aaaa.','..aa..','.aaaa.','aaaaaa','a.aa.a','.a..a.','.a..a.'],MANC={a:'#eee5cd'};
@@ -490,6 +490,24 @@ function delF(f){if(f.t==='person')R.PP=R.PP.filter(p=>p!==f);else R.F=R.F.filte
 
 // ---- the settlement dialog: every man in the cell, groups as rows that open; Enter with a map picker
 const SDL=mk('div','rsd');SDL.hidden=true;OV.append(SDL);
+// ---- the nation bar: what the selected nation has, what comes in each turn, and the end of the turn
+const TB=mk('div','rtop');TB.hidden=true;OV.append(TB);
+const IC={coin:[['.kkkk.','kyyyyk','kyykyk','kyykyk','kyyyyk','.kkkk.'],{k:'#2a2116',y:'#d6b45a'}],man:[['..kk..','.kwwk.','..kk..','.kwwk.','kwwwwk','.k..k.'],{k:'#1a1a1a',w:'#c9c5ba'}],
+ rnd:[['.k.','kyk','kyk','kwk','kwk','kwk'],{k:'#1a1a1a',y:'#d6b45a',w:'#8f8b80'}],sq:[['kkkkkk','kwwwwk','kwkkwk','kwkkwk','kwwwwk','kkkkkk'],{k:'#1a1a1a',w:'#c9c5ba'}],
+ war:[['k....k','kk..kk','.kkkk.','..kk..','.kkkk.','kk..kk'],{k:'#d9603b'}],dip:[['kkkkkk','kwwwwk','kwkkwk','kwwwwk','kwkkwk','kkkkkk'],{k:'#1a1a1a',w:'#c9c5ba'}]};
+const ico=k=>pix(...IC[k],3);
+function topBar(pay){const n=nation;TB.hidden=!alive(n);if(TB.hidden)return;TB.innerHTML='';
+ const it=(ic,val,gain,tip,fn,cls)=>{const d=mk('button','ti'+(cls?' '+cls:''));if(tip)d.title=tip;d.append(ico(ic));d.insertAdjacentHTML('beforeend',`<b>${val}</b>${gain?`<em>${gain}</em>`:''}`);if(fn)d.onclick=fn;else d.classList.add('ro');TB.append(d);return d};
+ const fl=mk('span','tf');fl.append(embCanvas(n,1),mk('b',null,disp(n)));TB.append(fl);
+ const cnt={Town:0,Village:0,Hamlet:0};for(const b of D.burgs){const c=near([b.x,b.y]);if(OWN[c]===n&&governed(c))cnt[STYPE(b)]++}const brk=k=>Object.keys(cnt).filter(t=>cnt[t]).map(t=>`${cnt[t]} ${t}${cnt[t]>1?'s':''} ${k==='g'?'§'+cnt[t]*INCOME[t]:'+'+cnt[t]*MPG[t]}`).join(' · ');
+ const g=it('coin','§'+treasury(n),'+'+incomeOf(n),brk('g'));if(pay&&pay[n]){const q=mk('i','pop','+§'+pay[n]);g.append(q);setTimeout(()=>q.remove(),1400)}
+ it('man',R.mp[n],'+'+mpGain(n),brk('m')+' · max '+mpCap(n));
+ const a=it('rnd',R.ars[n],'',null,()=>{if(R.tres[n]<CRATEP)return NOPE();R.tres[n]-=CRATEP;R.ars[n]+=CRATE;sndT=0;edSnd('wood',1,.7);save();topBar()});a.title='+'+CRATE+' · §'+CRATEP;
+ const au=ubtn('Auto','tg'+(R.auto[n]?' on':''),()=>{R.auto[n]=!R.auto[n];save();topBar()});TB.append(au);
+ const sq=R.F.filter(f=>f.nat===n&&f.t!=='unit'&&!fallen(f));it('sq',sq.length,'',sq.reduce((a,f)=>a+soldiers(f),0)+' men',()=>{tab='mil';list2()});
+ const wars=Object.keys(NATS).filter(o=>o!==n&&alive(o)&&atWar(n,o));it(wars.length?'war':'dip',wars.length||'—','',wars.map(disp).join(', ')||null,()=>{tab='dip';list2()},wars.length?'red':'');
+ const et=mk('span','tt');et.append(mk('b',null,'Turn '+R.turn),ubtn('End turn','lite',endTurn));TB.append(et)}
+
 let sdc=-1,sdPick=new Set(),sdMap=null,sdFil='all',sdOpen=new Set(),sdDrop=false,sdMenu=null,DRG=null,sdT=0;
 const CAP=f=>f.t==='vehicle'?6:8;
 // a seat whose first map has no chair gets a keep or fort of its own put first
@@ -537,6 +555,9 @@ function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scr
  if(show('people')&&ppl.length){hd('People');const nt=ppl.filter(p=>p.note),fk=ppl.filter(p=>!p.note),col=own?ownC(own):'#555';if(nt.length)row('pn'+c,col,`Court <em>(${nt.length})</em>`,'',nt,true,null);if(fk.length)row('pf'+c,col,`Townsfolk <em>(${fk.length})</em>`,'',fk,true,null)}
  if(show('locals')&&out.length){hd('In the maps');for(const g2 of out)row(g2.key,natCol(g2.nat),`${disp(g2.nat)} <em>(${g2.men.length})</em>`,mapName(g2.map),g2.men,false,null)}
  if(show('prisoners')&&np){hd('Prisoners');for(const s of['Under escort','Chained','Tied','Held'])if(pris[s])row('pr'+c+s,'#77706a',`${s} <em>(${pris[s].length})</em>`,'',pris[s],false,null)}
+ if(own&&sdFil==='all'&&alive(own)){const rc=canRecruit(own,c),sh=R.F.filter(f=>f.nat===own&&f.cell===c&&supplied(f)).reduce((a,f)=>a+shortOf(f),0);if(rc||sh){hd('Muster');const G=mk('div','rrec');
+  if(rc)for(const t of['home','rifle','guard','civ']){const b=ubtn('',R.tres[own]>=PRICE[t]&&R.mp[own]>=PMEN[t]?'':'off',()=>{if(recruit(own,c,t)){list2();cards();drawSD();draw();topBar()}});b.innerHTML=`<b>${TIERN[t]}</b><small>§${PRICE[t]} · ${PMEN[t]}</small>`;G.append(b)}
+  if(sh){const b=ubtn('',R.ars[own]+Math.floor(R.tres[own]/CRATEP)*CRATE>=sh?'':'off',()=>{resupplyAll(own,true,c);save();drawSD();topBar()});b.innerHTML=`<b>Resupply</b><small>${sh} rounds</small>`;G.append(b)}body.append(G)}}
  if(body.children.length===0)body.append(mk('div','none','—'));
  // Enter, with the map picker on its arrow
  const F=mk('div','sdf'),cur=sdMap;F.innerHTML=`<span>${sdPick.size?sdPick.size+' to send':''}</span><span class="spl"><button class="go">Enter ${cur?mapName(cur).split(' · ').pop():'new map'}</button><button class="arr">▾</button></span>`;
@@ -618,6 +639,33 @@ Z('.rso').onchange=e=>{sortBy=e.target.value;list2()};
 Z('.rpl').onchange=e=>{place=e.target.value;if(place!=='all'){openP.add(+place);const[x,y]=cellXY(+place);fly(x,y,Math.max(view.k,2.6))}list2();draw()};
 Z('.rq').oninput=e=>{q=e.target.value.trim().toLowerCase();list2();draw()};
 const governed=c=>{const p=R.prov[PROV[c]];return!!p&&!!holderOf(p.cc)},incomeOf=n=>D.burgs.reduce((a,b)=>{const c=near([b.x,b.y]),o=OWN[c];return o&&(n==='all'||o===n)&&governed(c)?a+INCOME[STYPE(b)]:a},0);
+// ---- economy: Solari, manpower and rounds per nation; every nation is paid at the end of each turn
+const PRICE={home:16,rifle:40,guard:96,civ:10},PMEN={home:8,rifle:8,guard:8,civ:1},TIERN={home:'Conscripts',rifle:'Line',guard:'Guard',civ:'Civilian'},CRATE=20,CRATEP=2,
+ LFB={civ:'Townsman',home:'Conscript',rifle:'Musketeer',guard:'Praetorian'},lookFor=(n,t)=>{const L=LOOK[NATS[n]&&NATS[n].gn||n];return L&&L[t]||LFB[t]};
+const alive=n=>NATS[n]&&!(R.fallen&&R.fallen[n]);
+const mpGain=n=>D.burgs.reduce((a,b)=>{const c=near([b.x,b.y]);return OWN[c]===n&&governed(c)?a+MPG[STYPE(b)]:a},0),mpCap=n=>3*mpGain(n);
+if(!R.eco){R.eco=1;R.tres={};R.mp={};R.ars={};R.auto={};R.turn=R.turn||1;for(const n in NATS){R.tres[n]=Math.round(NATS[n].gold/800)*10;R.mp[n]=2*mpGain(n);R.ars[n]=100;R.auto[n]=true}}
+const AW=k=>k==='pgun'?3:k==='rod'?2:1;
+// rounds a man is short of: what refilling each of his guns would put back
+function spentOf(b){let s=0;for(const z of b.inv||[]){if(!z||z.ammo===undefined||z.k==='gold')continue;const t={inv:[{...z}],unit:b.unit,hc:null};try{refill(t,z.k)}catch(e){continue}const f=t.inv[0];s+=Math.max(0,(f.ammo-z.ammo)+((f.res||0)-(z.res||0)))*AW(z.k)}return Math.round(s)}
+function drain(b,need){for(const z of b.inv||[]){if(!z||z.ammo===undefined||z.k==='gold'||need<=0)continue;const w=AW(z.k);let r=Math.ceil(need/w);const a=Math.min(z.res||0,r);z.res=(z.res||0)-a;r-=a;const c=Math.min(z.ammo,r);z.ammo-=c;r-=c;need-=(a+c)*w}}
+const shortOf=f=>men(f).filter(m=>!m.map).reduce((a,m)=>a+(m.spent||0),0);
+const supplied=(f)=>OWN[f.cell]===f.nat;
+function buyCrates(n,need){while(R.ars[n]<need&&R.tres[n]>=CRATEP){R.tres[n]-=CRATEP;R.ars[n]+=CRATE}}
+function resupply(f,buy){if(!supplied(f)||f.t==='vehicle')return 0;const n=f.nat;if(buy)buyCrates(n,shortOf(f));let used=0;
+ for(const m of men(f)){if(m.map||!m.spent||R.ars[n]<m.spent)continue;R.ars[n]-=m.spent;used+=m.spent;m.spent=0;if(m.carry)for(const z of m.carry.inv||[])if(z&&z.ammo!==undefined&&z.k!=='gold')try{refill(m.carry,z.k)}catch(e){}}return used}
+const resupplyAll=(n,buy,c)=>R.F.filter(f=>f.nat===n&&(c==null||f.cell===c)).reduce((a,f)=>a+resupply(f,buy),0);
+// recruiting: at your own capital, or a province seat with its governor in place
+const canRecruit=(n,c)=>alive(n)&&OWN[c]===n&&(capCell(n)===c||seatCell(c)&&!!holderOf(c));
+function recruit(n,c,t){if(!canRecruit(n,c)||R.tres[n]<PRICE[t]||R.mp[n]<PMEN[t]){NOPE();return null}R.tres[n]-=PRICE[t];R.mp[n]-=PMEN[t];R.nid=R.nid||9999;
+ const man=()=>({id:'m'+(R.nid++),k:lookFor(n,t),n:NAMES[(R.nid*7)%NAMES.length],role:TIERN[t],h:100});let f;
+ if(t==='civ')f={id:'f'+uidS(),t:'unit',civ:1,nat:n,cell:c,n:'',men:[man()]};
+ else{const k=R.F.filter(x=>x.nat===n&&x.tier===t).length+1,o=k+(k%10===1&&k!==11?'st':k%10===2&&k!==12?'nd':k%10===3&&k!==13?'rd':'th');f={id:'f'+uidS(),t:'squad',tier:t,nat:n,cell:c,n:o+' '+TIERN[t],men:Array.from({length:8},man)}}
+ if(t==='civ')f.n=f.men[0].n;R.F.push(f);sndT=0;edSnd('soft',1,.8);layout();save();return f}
+// a civilian walked onto his own nation's empty seat takes the chair
+function seatCiv(f){if(!f.civ||OWN[f.cell]!==f.nat||!seatCell(f.cell)||holderOf(f.cell))return;const m=f.men[0];if(m.dead)return;R.F=R.F.filter(x=>x!==f);
+ R.PP.push({...m,t:'person',nat:f.nat,cell:f.cell,gov:1,note:1,role:'Governor'});rsel=null}
+function endTurn(){const pay={};for(const n in NATS){if(!alive(n))continue;const g=incomeOf(n);R.tres[n]+=g;R.mp[n]=Math.min(mpCap(n),R.mp[n]+mpGain(n));pay[n]=g;if(R.auto[n])resupplyAll(n,true)}R.turn++;sndT=0;edSnd('metal',1.2,.6);save();topBar(pay);list2();cards();draw()}
 function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="tb all${nation==='all'?' on':''}"><span></span>All nations</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="tb${nation===n?' on':''}" title="${disp(n)}"><span></span><em>${disp(n)}</em></button>`).join('');Z('.rflags').querySelectorAll('.tb:not(.all) span').forEach(sp=>sp.append(embCanvas(sp.parentNode.dataset.n,22/33)));
  const fs=R.F.filter(f=>nation==='all'||f.nat===nation),ps=R.PP.filter(p=>!p.dead&&(nation==='all'||p.nat===nation)),gold=treasury(nation);
  const H=Z('.rname'),tools=`<span class="hb">${nation==='all'?'':`<button class="sq rsw" style="background:${NATS[nation].c}"></button>`}<button class="sq rter${R.terr!==false?' on':''}">⚑</button><button class="sq rfal${R.fallenOn?' on':''}">${SKULL}</button></span>`;
@@ -636,7 +684,7 @@ function dipList(box){const K=Object.keys(NATS),pairs=[];for(let a=0;a<K.length;
  for(const[a,b]of pairs){const o=nation===b?[b,a]:[a,b],r=mk('div','rr dip'),k=relKey(a,b);r.innerHTML=`<span class="ic a"></span>${nation==='all'?'<span class="ic b"></span>':''}<span class="tx"><b>${nation==='all'?disp(o[0])+' · '+disp(o[1]):disp(o[1])}</b></span>`;
   r.querySelector('.ic.a').append(embCanvas(nation==='all'?o[0]:o[1],22/33));if(nation==='all')r.querySelector('.ic.b').append(embCanvas(o[1],22/33));
   const sel=dsel([['ally','Ally'],['peace','Peace'],['war','War']],R.rel[k]||'peace',v=>{R.rel[k]=v;const gn=n=>NATS[n].gn||n;REL[[gn(a),gn(b)].sort().join('|')]=v==='war'?'enemy':v==='ally'?'ally':'neutral';save();list2()});sel.classList.add('rdl','r'+(R.rel[k]||'peace'));r.append(sel);box.append(r)}}
-function list2(){natBar();const box=Z('.rlist');box.innerHTML='';const dip=tab==='dip';for(const q2 of['.rq','.rchips','.rsels'])Z(q2).hidden=dip;if(dip){dipList(box);return}const L=tab==='mil'?R.F.filter(match):R.PP.filter(pmatch);
+function list2(){natBar();topBar();const box=Z('.rlist');box.innerHTML='';const dip=tab==='dip';for(const q2 of['.rq','.rchips','.rsels'])Z(q2).hidden=dip;if(dip){dipList(box);return}const L=tab==='mil'?R.F.filter(match):R.PP.filter(pmatch);
  const by={};for(const f of L)(by[f.cell]||(by[f.cell]=[])).push(f);const seat=nation!=='all'&&near([BURG[NATS[nation].seat].x,BURG[NATS[nation].seat].y]);
  const order=Object.keys(by).map(Number).sort((a,b)=>(b===seat)-(a===seat)||by[b].length-by[a].length);
  for(const c of order){const fs=by[c].sort(srt),n=tab!=='mil'?fs.filter(p=>!p.dead).length:fil==='vehicles'?fs.filter(f=>f.t==='vehicle'&&!f.wreck).length:fs.reduce((a,f)=>a+men(f).length,0),op=openP.has(c)||+place===c||q,fl=fs.filter(f=>f.t==='person'?f.dead:fallen(f)||f.men.some(m=>m.dead)).length;
@@ -782,7 +830,7 @@ function embEdit(n){let px=embPx(n).slice(),col=px[16*33+16],mir=true,mirY=false
  W2.querySelector('.x').onclick=()=>W2.remove();
  W2.querySelector('.rs').onclick=()=>{hist.push(px.slice());px=libEmb(n);paint();pals()};W2.querySelector('.sv').onclick=()=>{R.emb[n]=px;save();W2.remove();natBar();if(!SDL.hidden)drawSD()};
  OV.append(W2);W2.focus();paint();pals()}
-function moveF(f,to){if(!mayEnter(f.nat,to)){NOPE();draw();return}const go=()=>{if(inMap(f))withdraw(f);undo.push({f,from:f.cell});f.cell=to;capture(f);rsel=f.id;cell=to;layout();save();list2();cards();draw()};
+function moveF(f,to){if(!mayEnter(f.nat,to)){NOPE();draw();return}const go=()=>{if(inMap(f))withdraw(f);undo.push({f,from:f.cell});f.cell=to;capture(f);seatCiv(f);rsel=f.id;cell=to;layout();save();list2();cards();draw()};
  if(!inMap(f)){go();return}const C=mk('div','rcard rask');C.append(mk('div',null,`Pull ${f.n} out of ${mapName((f.men.find(m=>m.map)||f).map)}?`));const r=mk('div','g2');r.append(ubtn('Pull out','lite',()=>{C.remove();go()}),ubtn('Stay','',()=>{C.remove();draw()}));C.append(r);CARDS.prepend(C)}
 
 

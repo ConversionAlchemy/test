@@ -271,3 +271,18 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 <style>#sm .rsd .tiles .slot{width:auto;height:auto;aspect-ratio:1;background:#2a2a2a;box-shadow:inset 2px 2px 0 #0e0e0e,inset -2px -2px 0 #4a4a4a}#sm .rsd .tiles .slot canvas{width:62%!important;height:auto!important;max-width:none;max-height:none}#sm .rsd .tiles .slot b{font-size:15px;right:5px;bottom:1px}#sm .rsd .tiles .slot.on{background:#2e2e2e;box-shadow:inset 0 0 0 2px #d6b45a}#sm .rsd .tiles .slot.dead canvas{filter:grayscale(1);opacity:.45}#sm .rsd .tiles .slot.empty{cursor:default}#sm .rsd .tiles .slot.empty:hover{filter:none}#sm .rsd .gt em{font-style:normal;color:#8f8b80}</style>
 <style>#sm .rsd .tiles{grid-template-columns:repeat(8,1fr);gap:3px}#sm .rsd .tiles .slot b{font-size:13px;right:4px;bottom:0}#sm .rsd .tiles .slot canvas{width:54%!important;margin-bottom:8px}</style>
 <style>#sm .rsd .gt{width:auto;min-width:150px;max-width:300px}</style>
+<style>
+#sm .rtop{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:3;display:flex;align-items:center;gap:2px;padding:4px 6px;background:#1e1e1e;box-shadow:inset 2px 2px 0 #4a4a4a,inset -2px -2px 0 #101010;clip-path:polygon(4px 0,calc(100% - 4px) 0,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0 calc(100% - 4px),0 4px);white-space:nowrap}
+#sm .rtop[hidden]{display:none}
+#sm .rtop .tf{display:flex;align-items:center;gap:6px;padding:0 10px 0 2px;font-size:18px;color:#f2efe6}#sm .rtop .tf canvas{width:22px;height:22px;image-rendering:pixelated}
+#sm .rtop .ti{position:relative;display:flex;align-items:center;gap:6px;height:30px;padding:0 9px;background:none;border:0;border-left:2px solid #2e2e2e;color:#f2efe6;font:inherit;font-size:18px;cursor:pointer}
+#sm .rtop .ti:hover{background:#2a2a2a}#sm .rtop .ti.ro{cursor:default}#sm .rtop .ti.ro:hover{background:none}
+#sm .rtop .ti b{font-weight:normal}#sm .rtop .ti em{font-style:normal;color:#9cc87a;font-size:15px}#sm .rtop .ti.red b{color:#d9603b}
+#sm .rtop .tg{height:24px;padding:0 7px;font-size:14px;margin-right:4px;background:#262626;color:#8f8b80;border:0;box-shadow:inset 1px 1px 0 #3a3a3a,inset -1px -1px 0 #101010}#sm .rtop .tg.on{color:#9cc87a}
+#sm .rtop .tt{display:flex;align-items:center;gap:8px;padding-left:10px;border-left:2px solid #2e2e2e;font-size:18px;color:#c9c5ba}#sm .rtop .tt b{font-weight:normal}#sm .rtop .tt button{height:28px;padding:0 10px;font-size:16px}
+#sm .rtop .pop{position:absolute;left:50%;top:100%;font-style:normal;color:#9cc87a;font-size:17px;pointer-events:none;animation:rpop 1.4s steps(14) forwards}
+@keyframes rpop{from{transform:translate(-50%,0);opacity:1}to{transform:translate(-50%,14px);opacity:0}}
+#sm .rsd .rrec{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin:2px 0 8px}#sm .rsd .rrec button{display:flex;flex-direction:column;align-items:flex-start;padding:5px 7px;background:#232323;border:1px solid #2a2a2a;color:#f2efe6;font:inherit;cursor:pointer}
+#sm .rsd .rrec button b{font-weight:normal;font-size:17px}#sm .rsd .rrec button small{color:#8f8b80;font-size:14px}#sm .rsd .rrec button:hover{background:#2c2c2c}#sm .rsd .rrec button.off{opacity:.45;pointer-events:none}
+</style>
+<style>#sm .rtop{left:178px;transform:none}#sm .rtop .tf canvas{width:33px;height:33px}#sm .rtop .tf{padding-left:0}</style>

@@ -59,6 +59,35 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
   const out={self:shoot('enemy','Imperium'),ally:shoot('ally','Goldbank'),enemy:shoot('enemy','Goldbank')};REL[k]=old;return out`);
  ok('own side not hit',!r.self);ok('ally not hit',!r.ally);ok('enemy hit',r.enemy);
 
+ // economy: small treasuries, turn pay, manpower cap
+ r=await J(`const t=Object.keys(NATS).filter(alive).map(n=>R.tres[n]);return{max:Math.max(...t),min:Math.min(...t),mpOk:Object.keys(NATS).filter(alive).every(n=>R.mp[n]<=mpCap(n)),ars:R.ars.Astria}`);
+ ok('treasuries in the hundreds',r.max<=700&&r.min>=0,r.min+'–'+r.max);ok('manpower within its cap',r.mpOk);ok('arsenal starts stocked',r.ars===100,r.ars);
+ r=await J(`const n='Hoverlands',t0=R.tres[n],g=incomeOf(n),tu=R.turn;R.mp[n]=0;R.auto[n]=false;endTurn();const one=R.tres[n]-t0,m1=R.mp[n];for(let i=0;i<9;i++)endTurn();return{one,g,m1,gain:mpGain(n),cap:mpCap(n),mp:R.mp[n],turns:R.turn-tu,fallenPaid:Object.keys(R.fallen||{}).some(k=>incomeOf(k)>0&&R.tres[k]>0)}`);
+ ok('end turn pays the income',r.one===r.g&&r.g>0,r.one+' / '+r.g);ok('manpower grows by its gain',r.m1===r.gain,r.m1);ok('manpower stops at its cap',r.mp===r.cap,r.mp+' / '+r.cap);ok('turn counts up',r.turns===10);
+ // recruiting: own capital or governed seat only, paid in Solari and men
+ r=await J(`const n='Hoverlands',c=capCell(n);R.tres[n]=200;R.mp[n]=40;const f=recruit(n,c,'rifle');const out={ok:!!f,men:f&&f.men.length,tres:R.tres[n],mp:R.mp[n],look:f&&f.men[0].k};
+  out.poor=(R.tres[n]=10,!recruit(n,c,'guard'));R.tres[n]=500;out.foreign=!recruit(n,capCell('Astria'),'home');const seat=Object.values(R.prov).find(p=>p.nat===n&&p.cc!==c);const hp=holderOf(seat.cc);R.PP=R.PP.filter(q=>q!==hp);out.ungov=!recruit(n,seat.cc,'home');R.PP.push(hp);out.gov=!!recruit(n,seat.cc,'home');
+  out.lookOk=!!(WARD.has(out.look)||SPR[out.look]);return out`);
+ ok('recruit a Line squad at the capital',r.ok&&r.men===8&&r.tres===160&&r.mp===32,JSON.stringify(r));ok('recruits wear a real look',r.lookOk,r.look);ok('too poor: refused',r.poor);ok('foreign land: refused',r.foreign);ok('ungoverned seat: refused',r.ungov);ok('governed seat: allowed',r.gov);
+ r=await J(`const out={};for(const n of Object.keys(NATS).filter(alive))for(const t of['home','rifle','guard','civ']){const k=lookFor(n,t);if(!(WARD.has(k)||SPR[k]))out[n+':'+t]=k}return out`);ok('every nation has a look for every tier',!Object.keys(r).length,JSON.stringify(r));
+ // a civilian walked onto an empty seat of his own becomes its governor; civilians never take land
+ r=await J(`const n='Hoverlands',c=capCell(n);R.tres[n]=100;R.mp[n]=10;const seat=Object.values(R.prov).find(p=>p.nat===n&&p.cc!==c),hp=holderOf(seat.cc);R.PP=R.PP.filter(q=>q!==hp);const inc0=incomeOf(n);
+  const v=recruit(n,c,'civ');const civSoldier=soldiers(v);moveF(v,seat.cc);const h=holderOf(seat.cc);const o='Astria';R.rel[relKey(n,o)]='war';const v2=recruit(n,c,'civ');const ap=Object.values(R.prov).find(p=>p.nat===o&&p.cc!==capCell(o)&&!R.F.some(x=>x.cell===p.cc&&soldiers(x)));let took=null;if(ap){moveF(v2,ap.cc);took=ap.nat===n}
+  return{civSoldier,gov:!!h&&h.n===v.men[0].n,inF:R.F.includes(v),inc:[inc0,incomeOf(n)],took}`);
+ ok('civilian is not a soldier',r.civSoldier===0);ok('civilian becomes governor of an empty seat',r.gov&&!r.inF);ok('governing restores income',r.inc[1]>r.inc[0],r.inc.join(' → '));ok('civilians cannot take land',r.took!==true,String(r.took));
+ // ammunition: rounds spent in a map follow the man out, resupply draws them from the arsenal, auto buys crates
+ r=await J(`const n='Hoverlands',c=capCell(n);const f=R.F.find(x=>x.nat===n&&x.tier==='rifle');open();settle(c);sdPick.clear();for(const m of men(f))sdPick.add(m.id);enterSD();
+  const tk=bodies.filter(b=>b.rid&&men(f).some(m=>m.id===b.rid));for(const b of tk)for(const z of b.inv||[])if(z&&z.ammo!==undefined&&z.k!=='gold'){z.ammo=0;z.res=0}
+  withdraw(f);const sp=shortOf(f);R.ars[n]=1000;const a0=R.ars[n];const used=resupply(f,false);const full=men(f).every(m=>!m.spent)&&men(f).every(m=>!m.carry||spentOf(m.carry)===0);
+  for(const m of men(f)){m.spent=12;delete m.carry}R.ars[n]=0;R.tres[n]=100;R.auto[n]=true;endTurn();const auto=men(f).every(m=>!m.spent),crates=100+incomeOf(n)-R.tres[n];
+  for(const m of men(f))m.spent=5;open();settle(c);sdPick.clear();for(const m of men(f))sdPick.add(m.id);enterSD();const b2=bodies.find(b=>b.rid===men(f)[0].id),drained=spentOf(b2);withdraw(f);
+  return{tk:tk.length,sp,used,a:a0-R.ars[n],full,auto,crates,drained}`);
+ ok('spent rounds counted on leaving a map',r.tk===8&&r.sp>0,r.sp);ok('resupply draws exactly what was spent',r.used===r.sp,r.used+' / '+r.sp);ok('resupplied men are full',r.full);
+ ok('auto resupply buys crates at end turn',r.auto&&r.crates>0,'crates §'+r.crates);ok('a fresh deploy keeps the shortfall',r.drained>=4&&r.drained<=6,r.drained);
+ // the bar
+ r=await J(`nation='all';list2();const h0=TB.hidden;nation='Hoverlands';list2();const h1=TB.hidden,t=R.turn;TB.querySelector('.tt button').click();return{h0,h1,t:R.turn-t,items:TB.querySelectorAll('.ti').length}`);
+ ok('bar hidden for all nations, shown for one',r.h0&&!r.h1);ok('End turn button ends the turn',r.t===1);ok('bar shows its items',r.items===5,r.items);
+
  // everything survives a reload
  const before=await J(`save();return{pp:R.PP.length,fallen:R.fallen,own:OWN.filter(x=>x==='Astria').length}`);
  await p.reload();await p.waitForTimeout(2500);
