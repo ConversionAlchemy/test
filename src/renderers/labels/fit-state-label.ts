@@ -14,10 +14,97 @@ const LINE_HALF_HEIGHT = 0.55;
 const ONE_LINE_GAIN = 1.25;
 const SHORT_NAME_GAIN = 1.15;
 
+const ALT_POLES = 6;
+const BURG_PENALTY = 0.3; // each settlement under the label costs this share of its size
+
+/**
+ * Fit the label at the state's pole, and when settlements lie under it, also at other deep points of the state,
+ * keeping the one that is largest after a cost for each settlement it would cover; as atlases set area names
+ * clear of the towns, which take the eye first
+ */
 export function fitStateLabel(state: State, group: string): { pathPoints: Point[]; text: string; fontSize: number } {
+  const pole = state.pole || pack.cells.p[state.center];
+  const first = fitStateLabelAt(state, group, pole);
+  if (state.label?.text || !state.cells || !pack.burgs?.length) return first;
+  const lineHeight = (fit: typeof first) =>
+    (Number.parseFloat(getGroupStyle({ name: group, type: "state" }).attrs["font-size"]) || 22) *
+    (fit.fontSize / 100) *
+    fit.text.split("|").length *
+    LINE_HALF_HEIGHT;
+  const covered = (fit: typeof first) => countBurgsUnder(state.i, fit.pathPoints, lineHeight(fit));
+  const score = (fit: typeof first) => fit.fontSize * (1 - Math.min(0.9, BURG_PENALTY * covered(fit)));
+  if (!covered(first)) return first;
+  let best = first;
+  let bestScore = score(first);
+  for (const alt of getDeepPoints(state.i, ALT_POLES)) {
+    const fit = fitStateLabelAt(state, group, alt);
+    const value = score(fit);
+    if (value > bestScore) [best, bestScore] = [fit, value];
+  }
+  return best;
+}
+
+/** settlements of the state within a distance of the label's path */
+function countBurgsUnder(stateId: number, path: Point[], halfHeight: number): number {
+  if (path.length < 2) return 0;
+  let count = 0;
+  for (const burg of pack.burgs) {
+    if (!burg.i || burg.removed || burg.state !== stateId) continue;
+    for (let k = 0; k < path.length - 1; k++) {
+      if (distanceToSegment([burg.x, burg.y], path[k], path[k + 1]) < halfHeight) {
+        count++;
+        break;
+      }
+    }
+  }
+  return count;
+}
+
+function distanceToSegment([x, y]: Point, [x1, y1]: Point, [x2, y2]: Point): number {
+  const [dx, dy] = [x2 - x1, y2 - y1];
+  const t = dx || dy ? minmax(((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy), 0, 1) : 0;
+  return Math.hypot(x - x1 - t * dx, y - y1 - t * dy);
+}
+
+/** the state's cells furthest from its edge, spread apart, as other places its label could stand */
+function getDeepPoints(stateId: number, count: number): Point[] {
+  const { cells } = pack;
+  const depth = new Map<number, number>();
+  const queue: number[] = [];
+  for (let i = 0; i < cells.i.length; i++) {
+    if (cells.state[i] !== stateId) continue;
+    if (cells.c[i].some(n => cells.state[n] !== stateId)) {
+      depth.set(i, 0);
+      queue.push(i);
+    }
+  }
+  for (let q = 0; q < queue.length; q++) {
+    const i = queue[q];
+    for (const n of cells.c[i]) {
+      if (cells.state[n] !== stateId || depth.has(n)) continue;
+      depth.set(n, depth.get(i)! + 1);
+      queue.push(n);
+    }
+  }
+  const sorted = [...depth.entries()].filter(([, d]) => d > 0).sort((a, b) => b[1] - a[1]);
+  const picked: Point[] = [];
+  const minGap = (grid.spacing || 10) * 3;
+  for (const [cell] of sorted) {
+    const [x, y] = cells.p[cell];
+    if (picked.some(([px, py]) => Math.hypot(px - x, py - y) < minGap)) continue;
+    picked.push([x, y]);
+    if (picked.length >= count) break;
+  }
+  return picked;
+}
+
+function fitStateLabelAt(
+  state: State,
+  group: string,
+  pole: Point
+): { pathPoints: Point[]; text: string; fontSize: number } {
   const mode = options.map.labels.groups.find(option => option.name === group)?.mode || "auto";
   const fullName = state.fullName || state.name;
-  const pole = state.pole || pack.cells.p[state.center];
   const cellsNumber = state.cells;
   if (!cellsNumber) return { pathPoints: [], text: mode === "short" ? state.name : fullName, fontSize: 100 };
 
@@ -25,7 +112,7 @@ export function fitStateLabel(state: State, group: string): { pathPoints: Point[
   const baseFontSize = Number.parseFloat(groupStyle.attrs["font-size"]) || 22;
   const letterSpacing = groupStyle.attrs["letter-spacing"] || 0;
   const displayed = applyTextTransform(groupStyle.attrs.style); // uppercase runs wider than the stored name
-  const basePath = getRegionLabelPath(state.i, pack.cells.state, pole, cellsNumber, 0);
+  const basePath = getRegionLabelPath(state.i, pack.cells.state, pole as [number, number], cellsNumber, 0);
 
   const fitLines = (lines: string[], fixedFontSize?: number) => {
     const textWidth = Math.max(...lines.map(line => estimateTextWidth(displayed(line))), 1) * baseFontSize;
@@ -36,11 +123,11 @@ export function fitStateLabel(state: State, group: string): { pathPoints: Point[
 
     const initialFontSize = fixedFontSize ?? minmax(getFontSize(basePath.length), MIN_FONT_SIZE, MAX_FONT_SIZE);
     const offset = baseFontSize * (initialFontSize / 100) * lines.length * LINE_HALF_HEIGHT;
-    let fittedPath = getRegionLabelPath(state.i, pack.cells.state, pole, cellsNumber, offset);
+    let fittedPath = getRegionLabelPath(state.i, pack.cells.state, pole as [number, number], cellsNumber, offset);
 
     if (!fittedPath.length && initialFontSize > MIN_FONT_SIZE) {
       const minOffset = baseFontSize * (MIN_FONT_SIZE / 100) * lines.length * LINE_HALF_HEIGHT;
-      fittedPath = getRegionLabelPath(state.i, pack.cells.state, pole, cellsNumber, minOffset);
+      fittedPath = getRegionLabelPath(state.i, pack.cells.state, pole as [number, number], cellsNumber, minOffset);
     }
     if (!fittedPath.length) fittedPath = basePath;
 
