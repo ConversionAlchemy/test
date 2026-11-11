@@ -4391,8 +4391,8 @@ const placeOf=i=>{if(CELLB[i])return CELLB[i].n;const c=D.cells[i].c;let bb=null
 const cellXY=i=>CELLB[i]?[CELLB[i].x,CELLB[i].y]:D.cells[i].c;
 
 const EDK=D.burgs.find(b=>b.n==="Emperor's Dock");
-const HOLD={Havenport:['Havenport','Overbay','Smugglerskeep'],'Great Keys':['Great Keys'],Goldbank:['Goldbank','Goldtown','Carnival'],Portsbridge:['Portsbridge','Shantyport','Midway Trade Post','Codsbrook','Crossroads',"Willard's Pass",'Fumbleweed'],
- Sanctis:['Templewood','Holywell','Monestry','Turnpickle','Towerbay'],Astria:["Emperor's Dock"],Reapers:['Mudwater','Sweetwater','Crosshaven',"Willow's Ranch"]};
+const HOLD={Havenport:['Havenport','Overbay','Smugglerskeep','Towerbay','Turnpickle','Templewood'],'Great Keys':['Great Keys'],Goldbank:['Goldbank','Goldtown','Carnival','Holywell'],Portsbridge:['Portsbridge','Shantyport','Midway Trade Post','Codsbrook','Monestry','Crossroads',"Willard's Pass",'Fumbleweed'],
+ Astria:["Emperor's Dock"],Reapers:['Mudwater','Sweetwater','Crosshaven',"Willow's Ranch"]};
 const KEEP=new Set(['Aracia','Whitecoast','Lindale','Holverland']),OWN=(()=>{const O=D.cells.map(c=>land(c)&&ST[c.s]&&KEEP.has(ST[c.s].n)?ST[c.s].n:null),dist=D.cells.map(()=>1e9),Q=[];
  const at=n=>{let b=null,d=1e9;for(const o of D.burgs)if(o.n===n){const e=Math.hypot(o.x-BOXC[0],o.y-BOXC[1]);if(e<d){d=e;b=o}}return b};
  for(const nat in HOLD)for(const t of HOLD[nat]){const b=at(t);if(!b)continue;let bi=0,bd=1e9;D.cells.forEach((c,i)=>{const e=(c.c[0]-b.x)**2+(c.c[1]-b.y)**2;if(e<bd){bd=e;bi=i}});dist[bi]=0;O[bi]=nat;Q.push([0,bi,nat])}
@@ -4479,13 +4479,15 @@ function glyph(b,X,Y,z){const ink='#2a221c',cream='#efe5c8';g.lineWidth=1;
  g.fillStyle=ink;g.beginPath();g.arc(X,Y,1.9*z,0,7);g.fill();return 2*z}
 function anchorG(X,Y,z){g.strokeStyle='#2c4a63';g.lineWidth=1.2;g.beginPath();g.moveTo(X,Y-3.5*z);g.lineTo(X,Y+3*z);g.moveTo(X-2*z,Y-1.8*z);g.lineTo(X+2*z,Y-1.8*z);g.moveTo(X-3*z,Y+.5*z);g.quadraticCurveTo(X-3*z,Y+3.4*z,X,Y+3.2*z);g.quadraticCurveTo(X+3*z,Y+3.4*z,X+3*z,Y+.5*z);g.stroke()}
 const BOXES=[];let BURGPT=[];const fits=r=>!BOXES.some(o=>r[0]<o[2]&&r[2]>o[0]&&r[1]<o[3]&&r[3]>o[1]);
-function burgs(){BOXES.length=0;if(view.k>=CLOSE)placeClose();markBoxes();const z=Math.max(.75,Math.min(1.5,Math.sqrt(view.k/1.3)));
+// town names are faint at the widest view and come up to full as soon as you zoom in; nation names do the reverse
+let TA=1;const KFIT=()=>Math.min((VW-40)/(bx1-bx0+40),(VH-40)/(by1-by0+40));
+function burgs(){TA=.3+.7*Math.max(0,Math.min(1,(view.k-KFIT())/.45));BOXES.length=0;if(view.k>=CLOSE)placeClose();markBoxes();const z=Math.max(.75,Math.min(1.5,Math.sqrt(view.k/1.3)));
  const L=D.burgs.map((b,i)=>({b,r:b.cap?0:RANK[b.group]??3,v:RVI[i]})).filter(o=>o.v>.45).sort((a,b)=>a.r-b.r);
  BURGPT=L;for(const o of L){const[X,Y]=W2S(o.b.x,o.b.y);o.X=X;o.Y=Y;g.globalAlpha=Math.min(1,o.v*1.2);o.rad=glyph(o.b,X,Y,z);if(o.b.port)anchorG(X+o.rad+5*z,Y-o.rad-1,z*.9);g.globalAlpha=1;BOXES.push([X-o.rad,Y-o.rad,X+o.rad,Y+o.rad])}
  const SZ=[19,16,14,12.5,11.5];for(const o of L){if(o.r>=4&&view.k<1.6||o.r===3&&view.k<1.05)continue;const fs=SZ[o.r]*Math.min(1.25,Math.max(.85,Math.sqrt(view.k/1.4)));
   g.font=`${o.r>=3?'italic ':''}${fs}px ${o.r<=1?'"IM Fell English SC"':'"IM Fell English"'},Georgia,serif`;const w=g.measureText(o.b.n).width;
   for(const[ax,ay,al]of[[o.rad+4,fs*.35,'left'],[-o.rad-4,fs*.35,'right'],[-w/2,-o.rad-4,'left'],[-w/2,o.rad+fs*.85,'left']]){const x0=al==='left'?o.X+ax:o.X+ax-w,y0=o.Y+ay-fs*.8,r=[x0-1,y0,x0+w+1,y0+fs];if(!fits(r))continue;BOXES.push(r);
-   g.globalAlpha=Math.min(1,o.v*1.2);g.textAlign='left';g.lineJoin='round';g.strokeStyle='rgba(240,232,208,.85)';g.lineWidth=3.2;g.strokeText(o.b.n,x0,o.Y+ay);g.fillStyle=o.r<=1?'#2a1f18':'#3a2e24';g.fillText(o.b.n,x0,o.Y+ay);g.globalAlpha=1;break}}}
+   g.globalAlpha=Math.min(1,o.v*1.2)*TA;g.textAlign='left';g.lineJoin='round';g.strokeStyle='rgba(240,232,208,.85)';g.lineWidth=3.2;g.strokeText(o.b.n,x0,o.Y+ay);g.fillStyle=o.r<=1?'#2a1f18':'#3a2e24';g.fillText(o.b.n,x0,o.Y+ay);g.globalAlpha=1;break}}}
 // nation names: each set at the point deepest inside its land, as large as the land around it allows, on two lines if one is too cramped; worked out once in map units
 let LBL=null;
 function cellAt(x,y,h){if(h>=0&&inPoly(x,y,D.cells[h].p))return h;if(h>=0)for(const j of nb[h])if(inPoly(x,y,D.cells[j].p))return j;return near([x,y])}
@@ -4502,12 +4504,28 @@ function labels(){const out=[],deep=D.cells.map(()=>-1),Q=[];
      if(ok){if(!best||f>best.f)best={x:(lo+hi)/2,y,f,lines:lines.map(sp)};break}}}}
   if(best)out.push({...best,c:ownC(o)})}
  return out}
-function states(){if(!LBL)LBL=labels();for(const l of LBL){const fs=l.f*view.k;if(fs<9)continue;const k=Math.min(1,34/fs),F=fs*k,[X,Y]=W2S(l.x,l.y);g.font=`${F}px "IM Fell English SC",Georgia,serif`;g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
- const col=css(mixc(hex(l.c),[30,22,18],.62));l.lines.forEach((t,i)=>{const y=Y+(i-(l.lines.length-1)/2)*F*1.05;g.globalAlpha=.9;g.strokeStyle='rgba(244,238,222,.8)';g.lineWidth=Math.max(2.5,F*.16);g.strokeText(t,X,y);g.fillStyle=col;g.fillText(t,X,y)});g.globalAlpha=1;g.textAlign='left';g.textBaseline='alphabetic'}}
+// close in, each border carries both names, each just inside its own side and running along the line
+let BCH=null;
+function chains(){const by={};for(const e of E.values()){if(e.c.length<2)continue;const[i,j]=e.c,oa=OWN[i],ob=OWN[j];if(!oa||!ob||oa===ob||vis[i]<.9||vis[j]<.9)continue;const k=[oa,ob].sort().join('|');(by[k]||(by[k]=[])).push([e.a,e.b])}
+ const out=[];for(const k in by){const segs=by[k],ends=new Map(),key=p=>EK(p),used=new Set();segs.forEach((sg,n)=>{for(const p of sg){const q=key(p);(ends.get(q)||ends.set(q,[]).get(q)).push(n)}});
+  for(let n=0;n<segs.length;n++){if(used.has(n))continue;used.add(n);let L=[segs[n][0],segs[n][1]];for(const dir of[1,0]){for(;;){const tip=dir?L[L.length-1]:L[0],nx=(ends.get(key(tip))||[]).find(m=>!used.has(m));if(nx==null)break;used.add(nx);const[a,b]=segs[nx],o=key(a)===key(tip)?b:a;dir?L.push(o):L.unshift(o)}}out.push({nats:k.split('|'),pts:L})}}return out}
+function borderNames(al){if(!BCH)BCH=chains();g.save();g.globalAlpha=al;g.textAlign='center';g.textBaseline='middle';g.font='12px "IM Fell English SC",Georgia,serif';
+ for(const ch of BCH){const P=ch.pts.map(p=>W2S(p[0],p[1])),cum=[0];for(let i=1;i<P.length;i++)cum.push(cum[i-1]+Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]));const tot=cum[cum.length-1];
+  const at=d=>{let i=1;while(i<cum.length-1&&cum[i]<d)i++;const t=(d-cum[i-1])/((cum[i]-cum[i-1])||1);return[P[i-1][0]+(P[i][0]-P[i-1][0])*t,P[i-1][1]+(P[i][1]-P[i-1][1])*t]};
+  const names=ch.nats.map(n=>disp(n).toUpperCase().split('').join('\u2009')),w=Math.max(...names.map(t=>g.measureText(t).width))+24;if(tot<w)continue;
+  const n=Math.max(1,Math.floor(tot/(w+220)));for(let m=0;m<n;m++){const d=tot*(m+.5)/n,a=at(d-w/2),b=at(d+w/2),c=at(d);if(c[0]<-50||c[1]<-50||c[0]>VW+50||c[1]>VH+50)continue;
+   let ang=Math.atan2(b[1]-a[1],b[0]-a[0]);if(ang>Math.PI/2)ang-=Math.PI;else if(ang<-Math.PI/2)ang+=Math.PI;const nx=-Math.sin(ang),ny=Math.cos(ang);
+   // which nation lies on which side of the line
+   const[wx,wy]=S2W(c[0]+nx*8,c[1]+ny*8),side=OWN[cellAt(wx,wy,-1)];
+   ch.nats.forEach((nat,q)=>{const sg=(nat===side?1:-1),t=disp(nat).toUpperCase().split('').join('\u2009'),x=c[0]+nx*11*sg,y=c[1]+ny*11*sg;g.save();g.translate(x,y);g.rotate(ang);g.lineJoin='round';g.strokeStyle='rgba(244,238,222,.85)';g.lineWidth=3;g.strokeText(t,0,0);g.fillStyle=css(mixc(hex(ownC(nat)),[30,22,18],.62));g.fillText(t,0,0);g.restore()})}}
+ g.restore()}
+function states(){const far=Math.max(0,Math.min(1,(2.6-view.k)/.9)),near2=Math.max(0,Math.min(1,(view.k-1.9)/.7));if(near2>0)borderNames(near2);if(far<=0)return;
+ if(!LBL)LBL=labels();for(const l of LBL){const fs=l.f*view.k;if(fs<9)continue;const k=Math.min(1,34/fs),F=fs*k,[X,Y]=W2S(l.x,l.y);g.font=`${F}px "IM Fell English SC",Georgia,serif`;g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
+ const col=css(mixc(hex(l.c),[30,22,18],.62));l.lines.forEach((t,i)=>{const y=Y+(i-(l.lines.length-1)/2)*F*1.05;g.globalAlpha=.9*far;g.strokeStyle='rgba(244,238,222,.8)';g.lineWidth=Math.max(2.5,F*.16);g.strokeText(t,X,y);g.fillStyle=col;g.fillText(t,X,y)});g.globalAlpha=1;g.textAlign='left';g.textBaseline='alphabetic'}}
 
 // ---- nations, their forces and their people (game nation in brackets where it differs)
 const disp=n=>NATS[n]?NATS[n].n:n;
-const NATS={Astria:{n:'Astria',c:'#34405e',ring:[66,82,120],gold:18400,seat:"Emperor's Dock",gn:'Imperium'},Sanctis:{n:'Sanctis',c:'#8e5cc0',ring:[142,92,192],gold:21500,seat:'Templewood'},Goldbank:{n:"Aurum's Reach",c:'#afaa42',ring:[175,170,66],gold:52000,seat:'Goldbank'},'Great Keys':{n:"Great Keys",c:'#2f9e6e',ring:[56,160,112],gold:9600,seat:'Great Keys'},
+const NATS={Astria:{n:'Astria',c:'#34405e',ring:[66,82,120],gold:18400,seat:"Emperor's Dock",gn:'Imperium'},Goldbank:{n:"Aurum's Reach",c:'#afaa42',ring:[175,170,66],gold:52000,seat:'Goldbank'},'Great Keys':{n:"Great Keys",c:'#2f9e6e',ring:[56,160,112],gold:9600,seat:'Great Keys'},
  Havenport:{n:"Freefolk Confederation",c:'#4775de',ring:[86,126,214],gold:12300,seat:'Havenport'},Portsbridge:{n:"Portsbridge Trade Federation",c:'#c9a53c',ring:[214,180,80],gold:15800,seat:'Portsbridge'},Reapers:{n:"Reapers",c:'#4a5a2a',ring:[110,130,64],gold:2100,seat:'Mudwater'}};
 const LK={off:'Astrian Officer|n|iron|h',ln1:'Astrian Line|m|iron|h',ln2:'Astrian Line|t|iron|h',ln3:'Astrian Line|m|steel|h',ln4:'Astrian Line|n|iron|h',ln5:'Astrian Line|t|iron|b',gd1:'Astrian Guard|f|steel|h',gd2:'Astrian Guard|f|iron|h',cs:'Astrian Conscript'};
 const ROLE={off:'Officer',ln1:'Line',ln2:'Line',ln3:'Line',ln4:'Line',ln5:'Line',gd1:'Guard',gd2:'Guard',cs:'Conscript'};
