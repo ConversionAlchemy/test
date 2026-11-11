@@ -114,6 +114,26 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
  r3=await J(`return{sel:SELS.has('${r2.id}'),dlg:!SDL.hidden}`);ok('click selects a unit',r3.sel);ok('click opens no dialog',!r3.dlg);
  await p.mouse.dblclick(r2.x,r2.y);await p.waitForTimeout(300);r3=await J(`const o=!SDL.hidden;unsettle();return o`);ok('double click opens the place',r3);
 
+ // battle: marching into an enemy's cell opens the battle; auto-resolve, retreat and fight
+ const setup=`open();nation='all';R.cur='Astria';const o='Havenport';R.rel[relKey('Astria',o)]='war';const a=R.F.filter(f=>f.nat==='Astria'&&f.t==='squad'&&soldiers(f)&&!inMap(f));const f=a[0];f.mv=2;for(const m of f.men){m.dead=0;m.h=100;m.spent=0}
+  const to=nb[f.cell].find(j=>land(D.cells[j])&&!blocked(j)&&OWN[j]==='Astria'&&!R.F.some(x=>x.cell===j));const e={id:'fE'+Math.random(),t:'squad',nat:o,cell:to,n:'Raiders',men:Array.from({length:8},(_,i)=>({id:'mE'+i+Math.random(),k:'Marine',n:'E'+i,h:100}))};R.F.push(e);`;
+ r=await J(setup+`window.__b={f:f.id,e:e.id,to,from:f.cell};march([f],to);return 1`);await p.waitForTimeout(800);
+ r=await J(`const b=BT;return{open:!!b&&!BDL.hidden,cell:b&&b.c,btns:[...BDL.querySelectorAll('.sdf button')].map(x=>x.textContent)}`);ok('marching into an enemy opens the battle',r.open,JSON.stringify(r.btns));
+ await J(`[...BDL.querySelectorAll('.sdf button')].find(x=>x.textContent==='Auto-resolve').click();return 1`);await p.waitForTimeout(6000);
+ r=await J(`const b=BT,f=R.F.find(x=>x.id===__b.f),e=R.F.find(x=>x.id===__b.e);return{done:b&&b.done,rounds:b&&b.round,fl:f.men.filter(m=>m.dead).length,el:e.men.filter(m=>m.dead).length,fc:f.cell,ec:e.cell,to:__b.to,sp:men(f).concat(men(e)).some(m=>m.spent>0),
+   apart:!(soldiers(f)&&soldiers(e)&&f.cell===e.cell)}`);
+ ok('auto-resolve ends with a winner',!!r.done,r.done+' after '+r.rounds+' rounds');ok('both sides take losses',r.fl+r.el>0,r.fl+' / '+r.el);ok('the loser leaves the field',r.apart,JSON.stringify(r));ok('fighting spends rounds',r.sp);
+ await J(`[...BDL.querySelectorAll('.sdf button')].find(x=>x.textContent==='Close').click();return 1`);
+ r=await J(setup+`window.__b={f:f.id,e:e.id,to,from:f.cell};march([f],to);return 1`);await p.waitForTimeout(800);
+ await J(`[...BDL.querySelectorAll('.sdf button')].find(x=>x.textContent==='Retreat').click();return 1`);r=await J(`const f=R.F.find(x=>x.id===__b.f);return{back:f.cell===__b.from,closed:BDL.hidden}`);ok('retreat goes back where it came from',r.back&&r.closed);
+ r=await J(`const f=R.F.find(x=>x.id===__b.f);f.mv=2;march([f],__b.to);return 1`);await p.waitForTimeout(800);
+ await J(`[...BDL.querySelectorAll('.sdf button')].find(x=>x.textContent==='Fight').click();return 1`);await p.waitForTimeout(500);
+ r=await J(`const f=R.F.find(x=>x.id===__b.f),e=R.F.find(x=>x.id===__b.e),tf=bodies.filter(b=>men(f).some(m=>m.id===b.rid)),te=bodies.filter(b=>men(e).some(m=>m.id===b.rid));
+   return{map:curMap,inCell:(R.cm[__b.to]||[]).includes(curMap),nf:tf.length,ne:te.length,west:tf.every(b=>b.x<W/2),east:te.every(b=>b.x>W/2),region:!OV.hidden}`);
+ ok('fight opens the cell map with both sides',r.inCell&&r.nf>0&&r.ne>0&&!r.region,JSON.stringify(r));ok('attackers west, defenders east',r.west&&r.east);
+ r=await J(`open();const f=R.F.find(x=>x.id===__b.f),e=R.F.find(x=>x.id===__b.e);return{inMap:inMap(f)&&inMap(e),noBattle:!contested(__b.to,'Astria')}`);ok('armies in the map stay out of new battles',r.inMap&&r.noBattle);
+ r=await J(`return{mi:Math.round((bx1-bx0)*MI)}`);ok('region is fifty miles across',r.mi===50,r.mi);
+
  // everything survives a reload
  const before=await J(`save();return{pp:R.PP.length,fallen:R.fallen,own:OWN.filter(x=>x==='Astria').length}`);
  await p.reload();await p.waitForTimeout(2500);

@@ -289,6 +289,15 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 <style>#sm .rtop{left:178px;transform:none}#sm .rtop .tf canvas{width:33px;height:33px}#sm .rtop .tf{padding-left:0}</style>
 <style>#sm img.cn{width:12px;height:12px;image-rendering:pixelated;vertical-align:-1px;margin-right:3px}#sm .rstat img.cn{width:15px;height:15px}</style>
 <style>#sm .corner.rg .sig{display:none!important}#sm .corner.rg .slow{display:flex!important;top:4px}</style>
+<style>
+#sm .rbt{width:min(620px,calc(100% - 24px))}
+#sm .rbt .bsides{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#sm .rbt .bh{display:flex;align-items:center;gap:8px;margin-bottom:6px}#sm .rbt .bh canvas{width:33px;height:33px;image-rendering:pixelated}#sm .rbt .bh b{display:block;font-weight:normal;font-size:20px}#sm .rbt .bh small{color:#8f8b80;font-size:15px}
+#sm .rbt .brow{display:flex;gap:6px;padding:3px 6px;background:#232323;border:1px solid #2a2a2a;margin-bottom:2px;font-size:17px}#sm .rbt .brow em{font-style:normal;color:#8f8b80}#sm .rbt .brow.gone{opacity:.4}
+#sm .rbt .bbar{display:flex;height:8px;margin:10px 0 6px;background:#141414}#sm .rbt .bbar i{display:block;height:100%}
+#sm .rbt .blog{max-height:120px;overflow-y:auto;font-size:15px;color:#9a978e}
+#sm .rbt .sdf button{height:32px;padding:0 12px;font-size:17px}
+</style>
 <script>
 const T=16;
 const hh=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)};
@@ -4584,9 +4593,10 @@ const BOXES=[];let BURGPT=[];const fits=r=>!BOXES.some(o=>r[0]<o[2]&&r[2]>o[0]&&
 // zoom, as a share of the whole-region view, at which each rank of settlement shows its mark and its name
 const MARKAT=[0,0,1,1.1,1.3],NAMEAT=[0,.95,1.15,1.35,1.6],DOTAT=1.55;
 // closest zoom; one map unit is 3 miles of the world map over the region's 4.17 times detail
-const KMAX=3.6,MI=3/4.1744;
+// closest zoom; the whole region is about fifty miles across
+const KMAX=3.6,MI=50/(bx1-bx0);
 // Azgaar's scale bar: five alternate blocks and the distance over them, sized to a round number of miles
-function ruler(){const want=140/view.k*MI,st=[1,2,5,10,20,25,50,100],mi=st.find(v=>v>=want*.6)||100,w=mi/MI*view.k,X=VW-w-34,Y=VH-22;
+function ruler(){const want=140/view.k*MI,st=[.25,.5,1,2,5,10,20,25,50,100],mi=st.find(v=>v>=want*.6)||100,w=mi/MI*view.k,X=VW-w-34,Y=VH-22;
  g.save();g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle='rgba(20,20,20,.7)';g.fillRect(X-10,Y-22,w+38,32);for(let i=0;i<5;i++){g.fillStyle=i%2?'#2a221c':'#efe5c8';g.fillRect(X+i*w/5,Y,w/5,4)}g.strokeStyle='#efe5c8';g.lineWidth=1;g.strokeRect(X-.5,Y-.5,w+1,5);
  g.font='16px VT323,monospace';g.fillStyle='#efe5c8';g.textAlign='center';for(const[t,x]of[[0,X],[mi/2,X+w/2],[mi,X+w]])g.fillText(String(t),x,Y-5);g.textAlign='left';g.fillStyle='#9a978e';g.fillText('mi',X+w+8,Y+5);g.restore()}
 const KREF=1.1;let TA=1;const KFIT=()=>Math.min((VW-40)/(bx1-bx0+40),(VH-40)/(by1-by0+40));
@@ -4791,7 +4801,7 @@ function sync(){for(const f of [...R.F,...R.PP])for(const m of f.t==='person'?[f
 const inMap=f=>(f.t==='person'?[f]:f.men).some(m=>m.map&&!m.dead);
 function withdraw(f){for(const m of f.t==='person'?[f]:f.men){if(!m.map)continue;const q=findBody(m.id);delete m.map;if(!q||q[1].status==='dead')continue;const[mp,b,arr]=q;m.spent=spentOf(b);const i=arr.indexOf(b);if(i>=0)arr.splice(i,1);if(b.lab)b.lab.remove();if(mp===curMap)sel.delete(b);m.carry=b}save()}
 function spot(b,ax,ay,i){for(let r=0;r<40;r++){const n=Math.max(1,r*6);for(let j=0;j<n;j++){const a=j/n*Math.PI*2+i*.37,x=ax+Math.cos(a)*r*16,y=ay+Math.sin(a)*r*16;if(x<12||y<12||x>W-12||y>H-12)continue;b.x=x;b.y=y;if(!solidHits(b,0,0)&&!bodies.some(o=>o!==b&&o.type==='token'&&Math.hypot(o.x-x,o.y-y)<15))return}}}
-function deploy(list){const ex=(EXITS[curMap]||[]).find(x=>x.arrive),ax=ex?ex.arrive[0]:W/2,ay=ex?ex.arrive[1]:H/2;let i=0;
+function deploy(list,at){const ex=(EXITS[curMap]||[]).find(x=>x.arrive),ax=at?at[0]:ex?ex.arrive[0]:W/2,ay=at?at[1]:ex?ex.arrive[1]:H/2;let i=0;
  for(const[f,m]of list){const nat=NATS[f.nat].gn||f.nat;{if(m.dead||m.map)continue;let b=m.carry;
    if(b){bodies.push(b);if(b.lab)stage.appendChild(b.lab);else mkLabel(b);delete m.carry}else{const base=m.k.split('|')[0],u=CLSU[WARD.CLS[base]]||'civ';b=token(m.n,nat,u,ax,ay,false,undefined,m.k)}
    if(!m.carry&&m.spent)drain(b,m.spent);b.rid=m.id;spot(b,ax,ay,i++);if(m.ruler||m.gov){const ch=findChair();if(ch){b.x=(ch[0]+.5)*T;b.y=(ch[1]+.5)*T}}b.vx=b.vy=0;b.ang=Math.atan2(H/2-b.y,W/2-b.x);m.map=curMap}}
@@ -5088,7 +5098,38 @@ function reach(f){const out=new Map([[f.cell,{d:0,p:-1}]]),mv=mvOf(f),Q=[f.cell]
 let MARCH=null;
 function march(L,to){if(MARCH)return;const go=[];for(const f of L){const r=reach(f);if(!r.has(to)||to===f.cell)continue;const p=[];for(let c=to;c!==f.cell;c=r.get(c).p)p.unshift(c);undo.push({f,from:f.cell,mv:mvOf(f)});go.push({f,p})}
  if(!go.length){NOPE();return}MARCH=go;const step=()=>{let more=false;for(const g of MARCH){const c=g.p.shift();if(c==null)continue;g.f.cell=c;g.f.mv=mvOf(g.f)-1;capture(g.f);if(g.p.length)more=true;else seatCiv(g.f)}
-  sndT=0;edSnd('soft',1.3,.35);layout();draw();if(more)setTimeout(step,170);else{MARCH=null;save();list2();draw()}};step()}
+  sndT=0;edSnd('soft',1.3,.35);layout();draw();if(more)setTimeout(step,170);else{const cs=[...new Set(MARCH.map(g=>g.f.cell))];MARCH=null;save();list2();draw();for(const c of cs)if(contested(c,R.cur)){battle(c,R.cur);break}}};step()}
+// ---- battle: forces of nations at war in one cell meet; fight it out on the cell's map, let it be reckoned, or fall back
+const contested=(c,n)=>R.F.some(f=>f.cell===c&&f.nat===n&&soldiers(f)&&!inMap(f))&&R.F.some(f=>f.cell===c&&f.nat!==n&&soldiers(f)&&!inMap(f)&&atWar(n,f.nat));
+const CLW={civ:0,home:1,rifle:1.6,guard:2.4,shock:2.6,cmd:1.8};
+const manW=m=>(CLW[CLSU[WARD.CLS[m.k.split('|')[0]]]]??1.2)*(m.h/100)*((m.spent||0)>12?.8:1);
+function sides(c,n){const A=R.F.filter(f=>f.cell===c&&!inMap(f)&&soldiers(f)&&(f.nat===n||R.rel[relKey(f.nat,n)]==='ally')),D2=R.F.filter(f=>f.cell===c&&!inMap(f)&&soldiers(f)&&f.nat!==n&&atWar(n,f.nat));return[A,D2]}
+const strOf=(L,bonus=1)=>L.reduce((a,f)=>a+men(f).filter(m=>!m.map).reduce((b,m)=>b+manW(m),0)+(f.t==='vehicle'&&!f.wreck?6*f.hull/100:0),0)*bonus;
+const defBonus=c=>1+(D.cells[c].f||D.cells[c].h>=40?.2:0)+(seatCell(c)?.25:0);
+const BDL=mk('div','rsd rbt');BDL.hidden=true;OV.append(BDL);let BT=null;
+function battle(c,n){const[A,Dd]=sides(c,n);if(!A.length||!Dd.length)return;const dn=Dd[0].nat;BT={c,n,dn,A,D:Dd,a0:A.reduce((a,f)=>a+soldiers(f),0),d0:Dd.reduce((a,f)=>a+soldiers(f),0),log:[],done:false,round:0};drawBT()}
+function drawBT(){const b=BT;if(!b){BDL.hidden=true;return}BDL.hidden=false;const sa=strOf(b.A),sd=strOf(b.D,defBonus(b.c)),pa=Math.round(100*sa/(sa+sd||1));
+ BDL.innerHTML=`<div class="sdh"><div><b>Battle of ${placeOf(b.c)}</b><small>${land(D.cells[b.c])?terrainOf(D.cells[b.c]):''}${b.round?' · round '+b.round:''}</small></div></div><div class="sdb"><div class="bsides"></div><div class="bbar"><i style="width:${pa}%;background:${css(hex(ownC(b.n)))}"></i><i style="width:${100-pa}%;background:${css(hex(ownC(b.dn)))}"></i></div><div class="blog"></div></div><div class="sdf"></div>`;
+ const S=BDL.querySelector('.bsides');for(const[L,nat,n0]of[[b.A,b.n,b.a0],[b.D,b.dn,b.d0]]){const col=mk('div','bside'),h=mk('div','bh');if(NATS[nat])h.append(embCanvas(nat,1));const alive=L.reduce((a,f)=>a+soldiers(f),0);h.insertAdjacentHTML('beforeend',`<span><b>${disp(nat)}</b><small>${alive} of ${n0}${alive<n0?` · ${n0-alive} lost`:''}</small></span>`);col.append(h);
+  for(const f of L){const r=mk('div','brow'+(soldiers(f)?'':' gone'));r.innerHTML=`<span>${f.n}</span><em>(${soldiers(f)})</em>`;col.append(r)}S.append(col)}
+ const lg=BDL.querySelector('.blog');for(const t of b.log)lg.append(mk('div',null,t));lg.scrollTop=1e6;
+ const F=BDL.querySelector('.sdf');if(b.done){F.append(mk('span',null,b.done),ubtn('Close','lite',()=>{BT=null;drawBT();list2();cards();draw()}));return}if(b.run)return;
+ F.append(mk('span'),ubtn('Retreat','',()=>retreat()),ubtn('Auto-resolve','',()=>resolve()),ubtn('Fight','lite',()=>fight()))}
+// rounds of fire until one side breaks: each side's losses follow the other's strength; men fire their rounds as they go
+function resolve(){const b=BT;b.run=true;const bonus=defBonus(b.c),pickM=L=>{const P=[];for(const f of L)for(const m of men(f))if(!m.map)P.push(m);return P};
+ const hit=(L,k)=>{const P=pickM(L);let n=0;for(let i=0;i<k&&P.length;i++){const m=P.splice(Math.random()*P.length|0,1)[0];n++;if(Math.random()<.6){m.dead=1;m.h=0}else{m.h=Math.max(10,m.h-50)}}return n};
+ const tick=()=>{b.round++;const sa=strOf(b.A),sd=strOf(b.D,bonus),na=pickM(b.A).length,nd=pickM(b.D).length,r=()=>.7+Math.random()*.6,ka=Math.round(na*.3*sd/(sa+sd)*r()),kd=Math.round(nd*.3*sa/(sa+sd)*r());
+  const ha=hit(b.A,Math.max(sd>0?1:0,ka)),hd=hit(b.D,Math.max(sa>0?1:0,kd));for(const m of[...pickM(b.A),...pickM(b.D)])m.spent=(m.spent||0)+3;
+  b.log.push(`Round ${b.round} · ${disp(b.n)} −${ha} · ${disp(b.dn)} −${hd}`);sndT=0;edSnd('metal',.9+Math.random()*.3,.4);
+  const la=pickM(b.A).length,ld=pickM(b.D).length,early=b.round<2,brokeA=!early&&(la<b.a0*.45||strOf(b.A)<strOf(b.D,bonus)*.3),brokeD=!early&&(ld<b.d0*.45||strOf(b.D,bonus)<strOf(b.A)*.3);
+  if(brokeA||brokeD||b.round>=10){const win=brokeD&&!brokeA?'A':brokeA&&!brokeD?'D':la/b.a0>=ld/b.d0?'A':'D';b.run=false;finish(win)}else{drawBT();setTimeout(tick,420)}};drawBT();setTimeout(tick,250)}
+// the beaten side falls back to a friendly cell beside the field, or gives itself up
+function fallBack(L,c){let taken=0;for(const f of L){if(!soldiers(f))continue;const to=nb[c].find(j=>land(D.cells[j])&&!blocked(j)&&(OWN[j]===f.nat||R.rel[relKey(OWN[j],f.nat)]==='ally')&&!hostileAt(j,f.nat));if(to!=null){f.cell=to;f.mv=0}else for(const m of men(f)){m.dead=1;m.h=0;taken++}}return taken}
+function finish(w){const b=BT,[W,L]=w==='A'?[b.A,b.D]:[b.D,b.A],wn=w==='A'?b.n:b.dn;const tk=fallBack(L,b.c);for(const f of W)if(soldiers(f))capture(f);if(tk)b.log.push(`${disp(wn===b.n?b.dn:b.n)}: ${tk} cut off and taken`);b.done=disp(wn)+' holds '+placeOf(b.c);LBL=null;layout();save();drawBT();list2();draw()}
+function retreat(){const b=BT;for(const f of b.A){const u=[...undo].reverse().find(u=>u.f===f);f.cell=u?u.from:f.cell;if(!u)fallBack([f],b.c);f.mv=0}BT=null;drawBT();layout();save();list2();draw()}
+// fight it out: both sides on the cell's own map, the attackers from the west and the defenders from the east
+function fight(){const b=BT,c=b.c;if(!R.cm[c]||!R.cm[c].length)newMap(c);const id=R.cm[c][0];R.last[c]=id;const ga=[],gd=[];for(const f of b.A)for(const m of men(f))if(!m.map)ga.push([f,m]);for(const f of b.D)for(const m of men(f))if(!m.map)gd.push([f,m]);
+ BT=null;drawBT();unsettle();close();if(id!==curMap)goMap(id);stripCiv();const hs=holderOf(c);if(hs&&!hs.map)gd.push([hs,hs]);deploy(ga,[W*.18,H/2]);deploy(gd,[W*.82,H/2]);save()}
 function endTurn(){const n=R.cur,pay={};if(alive(n)){const g=incomeOf(n);R.tres[n]+=g;R.mp[n]=Math.min(mpCap(n),R.mp[n]+mpGain(n));pay[n]=g;if(R.auto[n])resupplyAll(n,true)}
  const K=Object.keys(NATS).filter(alive);let i=K.indexOf(n);const nx=K[(i+1)%K.length]||K[0];if(K.indexOf(nx)<=i||i<0)R.turn++;R.cur=nx;for(const f of R.F)if(f.nat===nx)f.mv=MOVES(f);
  SELS.clear();rsel=null;selMan=null;nation=nx;undo.length=0;sndT=0;edSnd('metal',1.2,.6);save();topBar(pay);list2();cards();draw()}
