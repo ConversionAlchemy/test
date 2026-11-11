@@ -350,7 +350,7 @@ function selRings(){for(const b of sel){if(b.hidden||!bodies.includes(b)||b.type
 // a chosen weapon or item: name and ammo above it and in the panel
 let isK='';function itemSel(){const w=sel.size===1?[...sel][0]:!sel.size&&!openCrate&&hover;if(!w||w.type!=='weapon'||!WP[w.kind]||!bodies.includes(w)){if(isK){isK='';if(UI.tool==='hand')head('hand')}return false}
  const q={k:w.kind,ammo:w.ammo,res:w.res,n:w.kind==='gold'?w.amt:1},k=JSON.stringify([w.id,w.ammo,w.res,w.amt]);HCO.style.left=Math.round(w.x*S)+'px';HCO.style.top=Math.round((w.y-8)*S)+'px';if(k===isK)return true;isK=k;
- if(hbK){HCX.innerHTML='';hbK=''}callout(q,'');if(UI.tool==='hand'){TH.innerHTML='';TH.append(hic(w.kind),mk('span',null,itemName(q)));const a=CAP[w.kind]?(w.ammo??CAP[w.kind])+' / '+(w.res||0):w.kind==='gold'?'§'+(w.amt||0):'';if(a)TH.append(mk('i','dim',a))}return true}
+ if(hbK){HCX.innerHTML='';hbK=''}callout(q,'');if(UI.tool==='hand'){TH.innerHTML='';TH.append(hic(w.kind),mk('span',null,itemName(q)));const a=CAP[w.kind]?(w.ammo??CAP[w.kind])+' / '+(w.res||0):w.kind==='gold'?String(w.amt||0):'';if(a)TH.append(mk('i','dim',a))}return true}
 function hotbar(){const tk=UI.tool==='hand'&&([...sel].filter(o=>o.type==='token')[0]||!sel.size&&!openCrate&&hover&&hover.type==='token'&&hover);const one=tk&&sel.size<=1&&tk.status!=='dead'&&bodies.includes(tk);if(!one&&!sel.size&&storePanel())return;
  if(!one&&itemSel())return;if(!one){if(hbK){HCX.innerHTML='';hbK='';if(UI.tool==='hand')head('hand')}hbId=null;return}
  const cs=tk.status==='free'?bodies.filter(o=>o.hidden&&o.inv&&near(tk,o)):[],c=cs[0]||null,k=JSON.stringify([tk.id,tk.si,tk.inv,tk.noAuto,tk.vip,tk.auto,tk.leader,tk.nat,cs.map(o=>[o.id,o.inv])]);

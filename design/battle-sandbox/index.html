@@ -287,6 +287,8 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .rsd .rrec button b{font-weight:normal;font-size:17px}#sm .rsd .rrec button small{color:#8f8b80;font-size:14px}#sm .rsd .rrec button:hover{background:#2c2c2c}#sm .rsd .rrec button.off{opacity:.45;pointer-events:none}
 </style>
 <style>#sm .rtop{left:178px;transform:none}#sm .rtop .tf canvas{width:33px;height:33px}#sm .rtop .tf{padding-left:0}</style>
+<style>#sm img.cn{width:12px;height:12px;image-rendering:pixelated;vertical-align:-1px;margin-right:3px}#sm .rstat img.cn{width:15px;height:15px}</style>
+<style>#sm .corner.rg .sig{display:none!important}#sm .corner.rg .slow{display:flex!important;top:4px}</style>
 <script>
 const T=16;
 const hh=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)};
@@ -4297,7 +4299,7 @@ function selRings(){for(const b of sel){if(b.hidden||!bodies.includes(b)||b.type
 // a chosen weapon or item: name and ammo above it and in the panel
 let isK='';function itemSel(){const w=sel.size===1?[...sel][0]:!sel.size&&!openCrate&&hover;if(!w||w.type!=='weapon'||!WP[w.kind]||!bodies.includes(w)){if(isK){isK='';if(UI.tool==='hand')head('hand')}return false}
  const q={k:w.kind,ammo:w.ammo,res:w.res,n:w.kind==='gold'?w.amt:1},k=JSON.stringify([w.id,w.ammo,w.res,w.amt]);HCO.style.left=Math.round(w.x*S)+'px';HCO.style.top=Math.round((w.y-8)*S)+'px';if(k===isK)return true;isK=k;
- if(hbK){HCX.innerHTML='';hbK=''}callout(q,'');if(UI.tool==='hand'){TH.innerHTML='';TH.append(hic(w.kind),mk('span',null,itemName(q)));const a=CAP[w.kind]?(w.ammo??CAP[w.kind])+' / '+(w.res||0):w.kind==='gold'?'§'+(w.amt||0):'';if(a)TH.append(mk('i','dim',a))}return true}
+ if(hbK){HCX.innerHTML='';hbK=''}callout(q,'');if(UI.tool==='hand'){TH.innerHTML='';TH.append(hic(w.kind),mk('span',null,itemName(q)));const a=CAP[w.kind]?(w.ammo??CAP[w.kind])+' / '+(w.res||0):w.kind==='gold'?String(w.amt||0):'';if(a)TH.append(mk('i','dim',a))}return true}
 function hotbar(){const tk=UI.tool==='hand'&&([...sel].filter(o=>o.type==='token')[0]||!sel.size&&!openCrate&&hover&&hover.type==='token'&&hover);const one=tk&&sel.size<=1&&tk.status!=='dead'&&bodies.includes(tk);if(!one&&!sel.size&&storePanel())return;
  if(!one&&itemSel())return;if(!one){if(hbK){HCX.innerHTML='';hbK='';if(UI.tool==='hand')head('hand')}hbId=null;return}
  const cs=tk.status==='free'?bodies.filter(o=>o.hidden&&o.inv&&near(tk,o)):[],c=cs[0]||null,k=JSON.stringify([tk.id,tk.si,tk.inv,tk.noAuto,tk.vip,tk.auto,tk.leader,tk.nat,cs.map(o=>[o.id,o.inv])]);
@@ -4559,9 +4561,10 @@ function territory(k){provLines(k);const H=HLh||HLpin;D.cells.forEach((c,i)=>{co
 function cellMarks(){const k=view.k;g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);
  // cells holding maps get a small corner tick; the picked cell is outlined
  for(const i in R.cm){if(!R.cm[i].length)continue;const c=D.cells[i];if(vis[i]<.5)continue;poly(c.p);g.strokeStyle='rgba(42,34,28,.55)';g.setLineDash([2/k,2/k]);g.lineWidth=1.1/k;g.stroke();g.setLineDash([])}
+ {const f=R.F.find(f=>f.id===rsel&&SELS.has(f.id))||R.F.find(f=>SELS.has(f.id));if(f&&f.nat===R.cur&&!MARCH){const r=reach(f);for(const[c,o]of r){if(c===f.cell)continue;poly(D.cells[c].p);g.fillStyle='rgba(140,214,120,.16)';g.fill();g.strokeStyle='rgba(140,214,120,.75)';g.lineWidth=1.2/k;g.stroke()}}}
  if(hov>=0){poly(D.cells[hov].p);g.fillStyle='rgba(255,250,235,.16)';g.fill();g.strokeStyle='rgba(255,250,235,.9)';g.lineWidth=1.4/k;g.stroke()}
  if(cell>=0){poly(D.cells[cell].p);g.strokeStyle='#f2efe6';g.lineWidth=2.2/k;g.stroke();g.strokeStyle='#141414';g.lineWidth=.8/k;g.stroke()}}
-function draw(){if(OV.hidden)return;ground();cellMarks();g.setTransform(dpr,0,0,dpr,0,0);voidFrame();seas();states();burgs();markers();roadDraft();tileDraft();g.setTransform(dpr,0,0,dpr,0,0);ruler();if(dragF)ghost()}
+function draw(){if(OV.hidden)return;ground();cellMarks();g.setTransform(dpr,0,0,dpr,0,0);voidFrame();seas();states();burgs();markers();roadDraft();tileDraft();g.setTransform(dpr,0,0,dpr,0,0);ruler();if(dragF)ghost();if(SBX){g.save();g.strokeStyle='rgba(242,239,230,.9)';g.lineWidth=1;g.setLineDash([4,3]);g.fillStyle='rgba(242,239,230,.08)';const X=Math.min(SBX.x0,SBX.x),Y=Math.min(SBX.y0,SBX.y),w=Math.abs(SBX.x-SBX.x0),h=Math.abs(SBX.y-SBX.y0);g.fillRect(X,Y,w,h);g.strokeRect(Math.round(X)+.5,Math.round(Y)+.5,Math.round(w),Math.round(h));g.restore()}}
 
 // ---- settlements: a glyph per kind, names sized by rank, ports marked
 // three sizes: the nation's seat is its Town, each province's seat a Village, the rest Hamlets (shrines and posts keep their own mark)
@@ -4810,8 +4813,8 @@ const rankF=f=>(f.id===rsel?1e4:0)+(f.fav?1e3:0)+soldiers(f);
 const shown=f=>f.show!==false&&(R.fallenOn||!fallen(f));
 const vfOk=f=>!vf||(vf==='sol'?f.t!=='vehicle':vf==='veh'&&f.t==='vehicle');
 const stackOf=G=>G.fs.filter(f=>shown(f)&&vfOk(f)).sort((a,b)=>(fallen(a)-fallen(b))||rankF(b)-rankF(a));
-function tok(m,X,Y,r,z,cnt){const on=rsel===m.id,dead=fallen(m),hv=hovT===m.id;g.globalAlpha=match(m)?1:.3;g.fillStyle='rgba(0,0,0,.4)';g.beginPath();g.arc(X+1.5,Y+2,r+2,0,7);g.fill();g.fillStyle=dead?'#3a3530':'#1e1e1e';g.beginPath();g.arc(X,Y,r+2,0,7);g.fill();g.strokeStyle=dead?'#77706a':css(NATS[m.nat].ring);g.lineWidth=3;g.beginPath();g.arc(X,Y,r,0,7);g.stroke();
- if(on||hv){g.strokeStyle=on?'#f2efe6':'rgba(242,239,230,.9)';g.lineWidth=on?1.5:2.5;if(hv&&!on){g.save();g.shadowColor='rgba(255,250,235,.8)';g.shadowBlur=8}g.beginPath();g.arc(X,Y,r+4.5,0,7);g.stroke();if(hv&&!on)g.restore()}
+function tok(m,X,Y,r,z,cnt){const on=rsel===m.id||SELS.has(m.id),dead=fallen(m),hv=hovT===m.id;g.globalAlpha=match(m)?1:.3;g.fillStyle='rgba(0,0,0,.4)';g.beginPath();g.arc(X+1.5,Y+2,r+2,0,7);g.fill();g.fillStyle=dead?'#3a3530':'#1e1e1e';g.beginPath();g.arc(X,Y,r+2,0,7);g.fill();g.strokeStyle=dead?'#77706a':css(NATS[m.nat].ring);g.lineWidth=3;g.beginPath();g.arc(X,Y,r,0,7);g.stroke();
+ if(on||hv){g.strokeStyle=on?'#8cd678':'rgba(242,239,230,.9)';g.lineWidth=on?2.5:2.5;if(hv&&!on){g.save();g.shadowColor='rgba(255,250,235,.8)';g.shadowBlur=8}g.beginPath();g.arc(X,Y,r+4.5,0,7);g.stroke();if(hv&&!on)g.restore()}
  const im=imgOf(m);if(im){g.save();g.beginPath();g.arc(X,Y,r-2,0,7);g.clip();g.imageSmoothingEnabled=false;if(dead)g.filter='grayscale(1) brightness(.7)';if(m.t==='vehicle'){const s=(2*r-6)/im.width;g.translate(X,Y);g.rotate(-Math.PI/2);g.drawImage(im,-im.width*s/2,-im.height*s/2,im.width*s,im.height*s)}else{const s=1.1*z;g.drawImage(im,X-im.width*s/2,Y-im.height*s/2,im.width*s,im.height*s)}g.restore()}
  if(dead){g.strokeStyle='#d9603b';g.lineWidth=2;g.beginPath();g.moveTo(X-5,Y-5);g.lineTo(X+5,Y+5);g.moveTo(X+5,Y-5);g.lineTo(X-5,Y+5);g.stroke()}
  else if(cnt!=null||m.t!=='unit'){g.font=`${Math.round(14*z)}px VT323`;const t=String(cnt??m.men.filter(x=>!x.dead).length),w=g.measureText(t).width+5;g.fillStyle='#f2efe6';g.fillRect(X+r-4,Y+r-9,w,11*z);g.fillStyle='#141414';g.fillText(t,X+r-1.5,Y+r+.5)}
@@ -4847,12 +4850,12 @@ const MAN=['..aa..','.aaaa.','..aa..','.aaaa.','aaaaaa','a.aa.a','.a..a.','.a..a
 function pixAt(rows,cols,X,Y,s){for(let y=0;y<rows.length;y++)for(let x=0;x<rows[y].length;x++){const k=rows[y][x];if(cols[k]){g.fillStyle=cols[k];g.fillRect(Math.round(X+(x-rows[y].length/2)*s),Math.round(Y+(y-rows.length/2)*s),Math.ceil(s),Math.ceil(s))}}}
 function mark(X,Y,r,z,ring,rows,cols,label,dim){g.globalAlpha=dim?.3:1;g.fillStyle='rgba(0,0,0,.4)';g.beginPath();g.arc(X+1.5,Y+2,r+2,0,7);g.fill();g.fillStyle='#1e1e1e';g.beginPath();g.arc(X,Y,r+2,0,7);g.fill();g.strokeStyle=ring;g.lineWidth=3;g.beginPath();g.arc(X,Y,r,0,7);g.stroke();
  pixAt(rows,cols,X,Y,1.6*z);g.font=`${Math.round(14*z)}px VT323`;const w=g.measureText(label).width+5;g.fillStyle='#f2efe6';g.fillRect(X+r-4,Y+r-9,w,11*z);g.fillStyle='#141414';g.fillText(label,X+r-1.5,Y+r+.5);g.globalAlpha=1}
-function totals(z,r){if(vf==='gold'){const v=cellGold();for(const c in v){const o=OWN[c],[X,Y0]=W2S(...cellXY(+c)),Y=Y0+r+8;mark(X,Y,r,z,'#c9a54a',COIN,COINC,money(v[c]),nation!=='all'&&o!==nation)}}
+function totals(z,r){if(vf==='gold'){const v=cellGold();for(const c in v){const o=OWN[c],[X,Y0]=W2S(...cellXY(+c)),Y=Y0+r+8;mark(X,Y,r,z,'#c9a54a',COIN,COINC,num(v[c]),nation!=='all'&&o!==nation)}}
  if(vf==='ppl'){const by={};for(const p of R.PP)if(!p.dead&&p.show!==false)(by[p.cell]||(by[p.cell]=[])).push(p);for(const c in by){const L=by[c],mine=L.filter(p=>nation==='all'||p.nat===nation),n0=L[0].nat,one=L.every(p=>p.nat===n0),[X,Y0]=W2S(...cellXY(+c)),Y=Y0+r+8;
   mark(X,Y,r,z,one&&NATS[n0]?css(NATS[n0].ring):'#c9c5ba',MAN,MANC,String((nation==='all'?L:mine).length||L.length),!mine.length)}}}
 function markers(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),r=10*z;for(const f of R.F)f.R=0;if(view.k>=CLOSE)leaders();totals(z,r);
- if(view.k/KREF<DOTAT){for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;const[X,Y]=W2S(G.x,G.y),dead=fs.every(fallen),on=fs.some(f=>f.id===rsel),hv=fs.some(f=>f.id===hovT),rr=on||hv?5.5:4.2;
-   g.globalAlpha=fs.some(match)?1:.3;g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.arc(X+1,Y+1.5,rr+1,0,7);g.fill();g.fillStyle=dead?'#77706a':NATS[G.nat].c;g.beginPath();g.arc(X,Y,rr,0,7);g.fill();g.strokeStyle=on?'#f2efe6':'#1e1a16';g.lineWidth=on?2:1.4;g.stroke();g.globalAlpha=1;G.R=[X-8,Y-8,X+8,Y+8]}return}
+ if(view.k/KREF<DOTAT){for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;const[X,Y]=W2S(G.x,G.y),dead=fs.every(fallen),on=fs.some(f=>f.id===rsel||SELS.has(f.id)),hv=fs.some(f=>f.id===hovT),rr=on||hv?5.5:4.2;
+   g.globalAlpha=fs.some(match)?1:.3;g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.arc(X+1,Y+1.5,rr+1,0,7);g.fill();g.fillStyle=dead?'#77706a':NATS[G.nat].c;g.beginPath();g.arc(X,Y,rr,0,7);g.fill();g.strokeStyle=on?'#8cd678':'#1e1a16';g.lineWidth=on?2.5:1.4;g.stroke();g.globalAlpha=1;G.R=[X-8,Y-8,X+8,Y+8]}return}
  for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;
   if(view.k>=CLOSE&&!G.stack){for(const f of fs)tok(f,f.SX,f.SY,r,z);continue}
   const n=view.k<1.7||G.stack&&view.k>=CLOSE?1:Math.min(2,fs.length),[X,Y]=view.k>=CLOSE&&G.stack?[G.SX,G.SY]:W2S(G.x,G.y);
@@ -4863,7 +4866,7 @@ function markBoxes(){const r=14;for(const G of GROUPS){const fs=stackOf(G);if(!f
 function ghost(){const[X,Y]=[dragF.mx,dragF.my],im=imgOf(dragF.f);g.globalAlpha=.75;g.fillStyle='#1e1e1e';g.beginPath();g.arc(X,Y,13,0,7);g.fill();g.strokeStyle='#f2efe6';g.lineWidth=2;g.stroke();if(im&&dragF.f.t!=='vehicle'){g.imageSmoothingEnabled=false;g.drawImage(im,X-im.width*.6,Y-im.height*.6,im.width*1.2,im.height*1.2)}g.globalAlpha=1}
 
 // ---- state of the panel
-let vf=null,hovT=null,nation='all',tab='mil',fil='all',sortBy='name',q='',place='all',rsel=null,selMan=null,cell=-1,hov=-1;const openP=new Set(),openF=new Set(),undo=[];
+let SELS=new Set(),SBX=null,vf=null,hovT=null,nation='all',tab='mil',fil='all',sortBy='name',q='',place='all',rsel=null,selMan=null,cell=-1,hov=-1;const openP=new Set(),openF=new Set(),undo=[];
 const placeKey=f=>f.cell;
 const match=f=>{if(nation!=='all'&&f.nat!==nation)return false;if(place!=='all'&&f.cell!==+place)return false;if(f.t==='person')return true;
  if(fil==='fav'&&!f.fav||fil==='hidden'&&f.show!==false||fil==='squads'&&f.t!=='squad'||fil==='vehicles'&&f.t!=='vehicle'||fil==='fallen'&&!fallen(f)&&!f.men.some(m=>m.dead))return false;
@@ -4906,17 +4909,17 @@ const IC={coin:[['.kkkk.','kyyyyk','kyykyk','kyykyk','kyyyyk','.kkkk.'],{k:'#2a2
  rnd:[['.k.','kyk','kyk','kwk','kwk','kwk'],{k:'#1a1a1a',y:'#d6b45a',w:'#8f8b80'}],sq:[['kkkkkk','kwwwwk','kwkkwk','kwkkwk','kwwwwk','kkkkkk'],{k:'#1a1a1a',w:'#c9c5ba'}],
  war:[['k....k','kk..kk','.kkkk.','..kk..','.kkkk.','kk..kk'],{k:'#d9603b'}],dip:[['kkkkkk','kwwwwk','kwkkwk','kwwwwk','kwkkwk','kkkkkk'],{k:'#1a1a1a',w:'#c9c5ba'}]};
 const ico=k=>pix(...IC[k],3);
-function topBar(pay){const n=nation;TB.hidden=!alive(n);if(TB.hidden)return;TB.innerHTML='';
+function topBar(pay){const n=R.cur;TB.hidden=!alive(n);if(TB.hidden)return;TB.innerHTML='';
  const it=(ic,val,gain,tip,fn,cls)=>{const d=mk('button','ti'+(cls?' '+cls:''));if(tip)d.title=tip;d.append(ico(ic));d.insertAdjacentHTML('beforeend',`<b>${val}</b>${gain?`<em>${gain}</em>`:''}`);if(fn)d.onclick=fn;else d.classList.add('ro');TB.append(d);return d};
  const fl=mk('span','tf');fl.append(embCanvas(n,1),mk('b',null,disp(n)));TB.append(fl);
- const cnt={Town:0,Village:0,Hamlet:0};for(const b of D.burgs){const c=near([b.x,b.y]);if(OWN[c]===n&&governed(c))cnt[STYPE(b)]++}const brk=k=>Object.keys(cnt).filter(t=>cnt[t]).map(t=>`${cnt[t]} ${t}${cnt[t]>1?'s':''} ${k==='g'?'§'+cnt[t]*INCOME[t]:'+'+cnt[t]*MPG[t]}`).join(' · ');
- const g=it('coin','§'+treasury(n),'+'+incomeOf(n),brk('g'));if(pay&&pay[n]){const q=mk('i','pop','+§'+pay[n]);g.append(q);setTimeout(()=>q.remove(),1400)}
+ const cnt={Town:0,Village:0,Hamlet:0};for(const b of D.burgs){const c=near([b.x,b.y]);if(OWN[c]===n&&governed(c))cnt[STYPE(b)]++}const brk=k=>Object.keys(cnt).filter(t=>cnt[t]).map(t=>`${cnt[t]} ${t}${cnt[t]>1?'s':''} ${k==='g'?cnt[t]*INCOME[t]:'+'+cnt[t]*MPG[t]}`).join(' · ');
+ const g=it('coin',num(treasury(n)),'+'+incomeOf(n),brk('g'));if(pay&&pay[n]){const q=mk('i','pop','+'+pay[n]);g.append(q);setTimeout(()=>q.remove(),1400)}
  it('man',R.mp[n],'+'+mpGain(n),brk('m')+' · max '+mpCap(n));
- const a=it('rnd',R.ars[n],'',null,()=>{if(R.tres[n]<CRATEP)return NOPE();R.tres[n]-=CRATEP;R.ars[n]+=CRATE;sndT=0;edSnd('wood',1,.7);save();topBar()});a.title='+'+CRATE+' · §'+CRATEP;
+ const a=it('rnd',R.ars[n],'',null,()=>{if(R.tres[n]<CRATEP)return NOPE();R.tres[n]-=CRATEP;R.ars[n]+=CRATE;sndT=0;edSnd('wood',1,.7);save();topBar()});a.title='+'+CRATE+' · '+CRATEP;
  const au=ubtn('Auto','tg'+(R.auto[n]?' on':''),()=>{R.auto[n]=!R.auto[n];save();topBar()});TB.append(au);
  const sq=R.F.filter(f=>f.nat===n&&f.t!=='unit'&&!fallen(f));it('sq',sq.length,'',sq.reduce((a,f)=>a+soldiers(f),0)+' men',()=>{tab='mil';list2()});
  const wars=Object.keys(NATS).filter(o=>o!==n&&alive(o)&&atWar(n,o));it(wars.length?'war':'dip',wars.length||'—','',wars.map(disp).join(', ')||null,()=>{tab='dip';list2()},wars.length?'red':'');
- const et=mk('span','tt');et.append(mk('b',null,'Turn '+R.turn),ubtn('End turn','lite',endTurn));TB.append(et)}
+ const et=mk('span','tt');et.append(mk('b',null,'Turn '+R.turn));TB.append(et)}
 
 let sdc=-1,sdPick=new Set(),sdMap=null,sdFil='all',sdOpen=new Set(),sdDrop=false,sdMenu=null,DRG=null,sdT=0;
 const CAP=f=>f.t==='vehicle'?6:8;
@@ -4966,7 +4969,7 @@ function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scr
  if(show('locals')&&out.length){hd('In the maps');for(const g2 of out)row(g2.key,natCol(g2.nat),`${disp(g2.nat)} <em>(${g2.men.length})</em>`,mapName(g2.map),g2.men,false,null)}
  if(show('prisoners')&&np){hd('Prisoners');for(const s of['Under escort','Chained','Tied','Held'])if(pris[s])row('pr'+c+s,'#77706a',`${s} <em>(${pris[s].length})</em>`,'',pris[s],false,null)}
  if(own&&sdFil==='all'&&alive(own)){const rc=canRecruit(own,c),sh=R.F.filter(f=>f.nat===own&&f.cell===c&&supplied(f)).reduce((a,f)=>a+shortOf(f),0);if(rc||sh){hd('Muster');const G=mk('div','rrec');
-  if(rc)for(const t of['home','rifle','guard','civ']){const b=ubtn('',R.tres[own]>=PRICE[t]&&R.mp[own]>=PMEN[t]?'':'off',()=>{if(recruit(own,c,t)){list2();cards();drawSD();draw();topBar()}});b.innerHTML=`<b>${TIERN[t]}</b><small>§${PRICE[t]} · ${PMEN[t]}</small>`;G.append(b)}
+  if(rc)for(const t of['home','rifle','guard','civ']){const b=ubtn('',R.tres[own]>=PRICE[t]&&R.mp[own]>=PMEN[t]?'':'off',()=>{if(recruit(own,c,t)){list2();cards();drawSD();draw();topBar()}});b.innerHTML=`<b>${TIERN[t]}</b><small>${icoH('coin')}${PRICE[t]} ${icoH('man')}${PMEN[t]}</small>`;G.append(b)}
   if(sh){const b=ubtn('',R.ars[own]+Math.floor(R.tres[own]/CRATEP)*CRATE>=sh?'':'off',()=>{resupplyAll(own,true,c);save();drawSD();topBar()});b.innerHTML=`<b>Resupply</b><small>${sh} rounds</small>`;G.append(b)}body.append(G)}}
  if(body.children.length===0)body.append(mk('div','none','—'));
  // Enter, with the map picker on its arrow
@@ -4987,7 +4990,7 @@ function enterSD(){const c=sdc,pk=[...R.F,...R.PP].filter(f=>f.cell===c&&(f.t===
  unsettle();close();if(id!==curMap)goMap(id);stripCiv();const hs=holderOf(c);if(hs&&id===(R.cm[c]||[])[0]&&!hs.map&&!go.some(x=>x[1]===hs))go.push([hs,hs]);deploy(go);sdPick.clear();save()}
 
 // ---- the side panel: nation strip, purse and counts, then forces and people by place
-const money=n=>'§'+(n>=1e4?(n/1e3).toFixed(n>=1e5?0:1)+'k':n.toLocaleString('en'));
+const num=n=>n>=1e4?(n/1e3).toFixed(n>=1e5?0:1)+'k':n.toLocaleString('en');let ICU={};const icoH=k=>`<img class="cn" src="${ICU[k]||(ICU[k]=pix(...IC[k],1).toDataURL())}">`,money=n=>icoH('coin')+num(n);
 const EYE=o=>`<svg width="16" height="12" viewBox="0 0 16 12"><path d="M1 6c2-4 12-4 14 0-2 4-12 4-14 0z" fill="none" stroke="currentColor" stroke-width="1.5"/>${o?'<circle cx="8" cy="6" r="2.2" fill="currentColor"/>':'<path d="M2 11L14 1" stroke="currentColor" stroke-width="1.5"/>'}</svg>`;
 const LOC='<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 0v3M7 11v3M0 7h3M11 7h3" stroke="currentColor" stroke-width="1.5"/></svg>';
 const SKULL='<svg width="14" height="14" viewBox="0 0 7 7" shape-rendering="crispEdges"><path d="M1 0h5v1h1v3h-1v1h-1v2h-3v-2h-1v-1h-1v-3h1z" fill="currentColor"/><path d="M2 2h1v1h-1zM4 2h1v1h-1z" fill="#1e1e1e"/></svg>';
@@ -5075,14 +5078,28 @@ function recruit(n,c,t){if(!canRecruit(n,c)||R.tres[n]<PRICE[t]||R.mp[n]<PMEN[t]
 // a civilian walked onto his own nation's empty seat takes the chair
 function seatCiv(f){if(!f.civ||OWN[f.cell]!==f.nat||!seatCell(f.cell)||holderOf(f.cell))return;const m=f.men[0];if(m.dead)return;R.F=R.F.filter(x=>x!==f);
  R.PP.push({...m,t:'person',nat:f.nat,cell:f.cell,gov:1,note:1,role:'Governor'});rsel=null}
-function endTurn(){const pay={};for(const n in NATS){if(!alive(n))continue;const g=incomeOf(n);R.tres[n]+=g;R.mp[n]=Math.min(mpCap(n),R.mp[n]+mpGain(n));pay[n]=g;if(R.auto[n])resupplyAll(n,true)}R.turn++;sndT=0;edSnd('metal',1.2,.6);save();topBar(pay);list2();cards();draw()}
+// ---- turns: one nation acts at a time; each force has its cells of movement for the turn, spent one cell at a time
+const MOVES=f=>f.t==='vehicle'?4:2,mvOf=f=>f.mv??MOVES(f);
+if(!R.cur||!alive(R.cur))R.cur=Object.keys(NATS).find(alive);
+const hostileAt=(c,n)=>R.F.some(x=>x.cell===c&&x.nat!==n&&soldiers(x)&&atWar(n,x.nat));
+// cells a force can reach this turn: land it may enter, stopping at the first cell held by an enemy
+function reach(f){const out=new Map([[f.cell,{d:0,p:-1}]]),mv=mvOf(f),Q=[f.cell];if(f.nat!==R.cur||inMap(f)||fallen(f))return out;
+ for(let q=0;q<Q.length;q++){const u=Q[q],d=out.get(u).d;if(d>=mv||u!==f.cell&&hostileAt(u,f.nat))continue;for(const v of nb[u]){if(out.has(v)||vis[v]<.5||blocked(v)||!mayEnter(f.nat,v))continue;out.set(v,{d:d+1,p:u});Q.push(v)}}return out}
+let MARCH=null;
+function march(L,to){if(MARCH)return;const go=[];for(const f of L){const r=reach(f);if(!r.has(to)||to===f.cell)continue;const p=[];for(let c=to;c!==f.cell;c=r.get(c).p)p.unshift(c);undo.push({f,from:f.cell,mv:mvOf(f)});go.push({f,p})}
+ if(!go.length){NOPE();return}MARCH=go;const step=()=>{let more=false;for(const g of MARCH){const c=g.p.shift();if(c==null)continue;g.f.cell=c;g.f.mv=mvOf(g.f)-1;capture(g.f);if(g.p.length)more=true;else seatCiv(g.f)}
+  sndT=0;edSnd('soft',1.3,.35);layout();draw();if(more)setTimeout(step,170);else{MARCH=null;save();list2();draw()}};step()}
+function endTurn(){const n=R.cur,pay={};if(alive(n)){const g=incomeOf(n);R.tres[n]+=g;R.mp[n]=Math.min(mpCap(n),R.mp[n]+mpGain(n));pay[n]=g;if(R.auto[n])resupplyAll(n,true)}
+ const K=Object.keys(NATS).filter(alive);let i=K.indexOf(n);const nx=K[(i+1)%K.length]||K[0];if(K.indexOf(nx)<=i||i<0)R.turn++;R.cur=nx;for(const f of R.F)if(f.nat===nx)f.mv=MOVES(f);
+ SELS.clear();rsel=null;selMan=null;nation=nx;undo.length=0;sndT=0;edSnd('metal',1.2,.6);save();topBar(pay);list2();cards();draw()}
+
 function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="tb all${nation==='all'?' on':''}"><span></span>All nations</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="tb${nation===n?' on':''}" title="${disp(n)}"><span></span><em>${disp(n)}</em></button>`).join('');Z('.rflags').querySelectorAll('.tb:not(.all) span').forEach(sp=>sp.append(embCanvas(sp.parentNode.dataset.n,22/33)));
  const fs=R.F.filter(f=>nation==='all'||f.nat===nation),ps=R.PP.filter(p=>!p.dead&&(nation==='all'||p.nat===nation)),gold=treasury(nation);
  const H=Z('.rname'),tools=`<span class="hb">${nation==='all'?'':`<button class="sq rsw" style="background:${NATS[nation].c}"></button>`}<button class="sq rter${R.terr!==false?' on':''}">⚑</button><button class="sq rfal${R.fallenOn?' on':''}">${SKULL}</button></span>`;
  if(nation==='all'){H.innerHTML=`<div class="rnm"><b>All nations</b></div>`+tools;Z('.rpick').hidden=true}else{const o=NATS[nation];H.innerHTML=`<span class="rfl"></span><div class="rnm"><b>${disp(nation)}</b><small>${o.pp?o.pp+' · ':''}${o.seat}</small></div>`+tools;
   const fl=embCanvas(nation,32/33);fl.onclick=()=>embEdit(nation);H.querySelector('.rfl').append(fl);
   const nb2=H.querySelector('.rnm b');nb2.ondblclick=()=>{const t=mk('input','rn');t.value=disp(nation);nb2.replaceWith(t);t.focus();t.select();const done=()=>{const v=t.value.trim();if(v){R.names[nation]=v;NATS[nation].n=v;LBL=null;save()}natBar();draw()};t.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')done();if(e.key==='Escape')natBar()};t.onblur=done}}
- Z('.rstat').innerHTML=[['gold','Treasury',money(gold)+`<em>+${money(incomeOf(nation))}</em>`],['sol','Soldiers',fs.reduce((a,f)=>a+soldiers(f),0)],['veh','Vehicles',fs.filter(f=>f.t==='vehicle'&&!f.wreck).length],['ppl','People',ps.length]].map(([v,a,b])=>`<button data-v="${v}" class="${vf===v?'on':''}"><small>${a}</small><b>${b}</b></button>`).join('');
+ Z('.rstat').innerHTML=[['gold','Treasury',money(gold)+`<em>+${num(incomeOf(nation))}</em>`],['sol','Soldiers',fs.reduce((a,f)=>a+soldiers(f),0)],['veh','Vehicles',fs.filter(f=>f.t==='vehicle'&&!f.wreck).length],['ppl','People',ps.length]].map(([v,a,b])=>`<button data-v="${v}" class="${vf===v?'on':''}"><small>${a}</small><b>${b}</b></button>`).join('');
  const seat=nation!=='all'&&near([BURG[NATS[nation].seat].x,BURG[NATS[nation].seat].y]);
  const pl=[...new Set([...fs,...R.PP.filter(p=>nation==='all'||p.nat===nation)].map(f=>f.cell))].sort((a,b)=>(b===seat)-(a===seat)||placeOf(a).localeCompare(placeOf(b)));if(place!=='all'&&!pl.includes(+place))place='all';
  Z('.rpl').innerHTML=`<option value="all">All places</option>`+pl.map(p=>`<option value="${p}"${p===+place?' selected':''}>${placeOf(p)}</option>`).join('');
@@ -5123,7 +5140,8 @@ function preview(){if(OV.hidden)return;const c=cell>=0?cell:-1,pg=PV.getContext(
  pg.setTransform(1,0,0,1,0,0);pg.clearRect(0,0,232,232);if(c<0)return;const[x,y]=cellXY(c),oct=r=>{const q=r*.414;pg.beginPath();pg.moveTo(116-q,116-r);pg.lineTo(116+q,116-r);pg.lineTo(116+r,116-q);pg.lineTo(116+r,116+q);pg.lineTo(116+q,116+r);pg.lineTo(116-q,116+r);pg.lineTo(116-r,116+q);pg.lineTo(116-r,116-q);pg.closePath()};
  pg.save();oct(104);pg.clip();g=pg;VW=VH=116;dpr=2;view={k:4.5,x:58-x*4.5,y:58-y*4.5};const BP=BURGPT;try{ground();cellMarks();g.setTransform(dpr,0,0,dpr,0,0);burgs()}finally{({g,VW,VH,dpr}=s);view=s.view;BURGPT=BP;pg.restore()}
  pg.setTransform(1,0,0,1,0,0);oct(105);pg.lineWidth=6;pg.strokeStyle='#101010';pg.stroke();oct(109);pg.lineWidth=3;pg.strokeStyle='#5a5a5a';pg.stroke()}
-const RED=CORN.querySelector('.red'),red0=RED.onclick;RED.onclick=()=>{if(OV.hidden)return red0();const u=undo.pop();if(!u)return NOPE();u.f.cell=u.from;layout();save();list2();cards();draw()};
+const SLOW=CORN.querySelector('.slow'),slow0=SLOW.onclick;SLOW.onclick=()=>{if(OV.hidden)return slow0();if(MARCH)return;endTurn()};
+const RED=CORN.querySelector('.red'),red0=RED.onclick;RED.onclick=()=>{if(OV.hidden)return red0();if(MARCH)return;const u=undo.pop();if(!u)return NOPE();u.f.cell=u.from;if(u.mv!=null)u.f.mv=u.mv;layout();save();list2();cards();draw()};
 
 // ---- open and close
 function size(){const r=VIEW.getBoundingClientRect();dpr=Math.min(2,devicePixelRatio||1);VW=r.width;VH=r.height;cv.width=VW*dpr;cv.height=VH*dpr}
@@ -5144,32 +5162,42 @@ function blocked(i){if(!BLOCK){const R0=new Set(D.burgs.map(b=>near([b.x,b.y])))
 cv.addEventListener('pointerdown',e=>{const[x,y]=xy(e);moved=0;cv.setPointerCapture(e.pointerId);
  if(rtool==='paint'){const i=near(S2W(x,y));if(vis[i]<.5||!land(D.cells[i]))return;painting=1;RUN.push(JSON.stringify(R.rd));if(RUN.length>60)RUN.shift();RRE.length=0;RB={g:e.button===2||rdDel?'erase':rdT,cells:[i]};if(RB.g==='erase')eraseRoad(i);draw();return}
  if(rtool==='tile'){const er=e.button===2||rErase;if(tileW===1&&er)return;if(tileW===2&&wmode==='name'&&!pwat&&!er)return;tiling=er?-1:1;tileAt(x,y);return}
- const f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f){if(e.button===2)return;dragF={f,x,y,mx:x,my:y,on:false};return}
- const G=GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]);if(G&&e.button!==2){settle(G.cell);return}
+ if(e.button===2){SBX={x0:x,y0:y,x,y};return}
+ const f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f){dragF={f,x,y,mx:x,my:y,on:false,many:SELS.has(f.id)&&SELS.size>1};return}
+ const G=GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]);if(G){const st=stackOf(G).filter(f=>!fallen(f));if(st.length){dragF={f:st[0],x,y,mx:x,my:y,on:false,many:true,G,st};return}}
  pan={x,y,vx:view.x,vy:view.y}});
 cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
+ if(SBX){SBX.x=x;SBX.y=y;draw();return}
  if(painting){const i=near(S2W(x,y)),L=RB.cells;if(i!==L[L.length-1]&&vis[i]>=.5&&land(D.cells[i])){if(RB.g==='erase'){L.push(i);eraseRoad(i)}else for(const j of linkCells(L[L.length-1],i))L.push(j)}draw();return}
  if(tiling){tileAt(x,y);return}
- if(dragF){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);dragF.mx=x;dragF.my=y;if(moved>6)dragF.on=true;if(dragF.on){const h=near(S2W(x,y));hov=blocked(h)?-1:h;draw()}return}
- if(pan){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);view.x=pan.vx+x-pan.x;view.y=pan.vy+y-pan.y;draw();return}
+ if(dragF){moved=Math.max(moved+Math.abs(e.movementX)+Math.abs(e.movementY),Math.hypot(x-dragF.x,y-dragF.y));dragF.mx=x;dragF.my=y;if(moved>6)dragF.on=true;if(dragF.on){const h=near(S2W(x,y));hov=blocked(h)?-1:h;draw()}return}
+ if(pan){moved=Math.max(moved+Math.abs(e.movementX)+Math.abs(e.movementY),Math.hypot(x-pan.x,y-pan.y));view.x=pan.vx+x-pan.x;view.y=pan.vy+y-pan.y;draw();return}
  const hf=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),hg=!hf&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),ht=hf?hf.id:hg?stackOf(hg)[0].id:null;
  if(ht!==hovT){hovT=ht;cv.style.cursor=ht?'pointer':'';draw()}
- if(ht){const f=R.F.find(f=>f.id===ht);TIP.innerHTML=hg?`${placeOf(hg.cell)} <span>· ${disp(hg.nat)} ${stackOf(hg).reduce((a,f)=>a+soldiers(f),0)}</span>`:`${f.n} <span>· ${fallen(f)?(f.wreck?'Wreck':'Fallen'):f.t==='vehicle'?'Vehicle':f.t==='unit'?f.men[0].role:soldiers(f)+' men'}</span>`;TIP.style.display='block';if(hov!==-1){hov=-1;draw()}return}
+ if(ht){const f=R.F.find(f=>f.id===ht);TIP.innerHTML=hg?`${placeOf(hg.cell)} <span>· ${disp(hg.nat)} ${stackOf(hg).reduce((a,f)=>a+soldiers(f),0)}</span>`:`${f.n} <span>· ${fallen(f)?(f.wreck?'Wreck':'Fallen'):f.t==='vehicle'?'Vehicle':f.t==='unit'?f.men[0].role:soldiers(f)+' men'}</span>`;if(f.nat===R.cur&&!fallen(f))TIP.insertAdjacentHTML('beforeend',` <span>· ${mvOf(f)}/${MOVES(f)}</span>`);TIP.style.display='block';if(hov!==-1){hov=-1;draw()}return}
  {const bh=burgAt(x,y),h=bh?hlOf(bh.b):null;if(!hlEq(h,HLh)){HLh=h;cv.style.cursor=h?'pointer':'';draw()}}
  const i=near(S2W(x,y)),c=D.cells[i];if(vis[i]<.5){if(hov!==-1){hov=-1;draw()}TIP.style.display='none';return}if(i!==hov){hov=i;draw()}
  const here=R.F.filter(f=>f.cell===i&&soldiers(f)),nats=[...new Set(here.map(f=>f.nat))].map(n=>disp(n)+' '+here.filter(f=>f.nat===n).reduce((a,f)=>a+soldiers(f),0)).join(', ');
  const isl=land(c)&&Object.values(R.isl).find(o=>o.c.includes(i)),bio=land(c)?(isl?isl.n+' · ':'')+terrainOf(c):R.seas[R.wc[i]]?R.seas[R.wc[i]].n:c.h>=14?'Coastal waters':'Open sea',maps=(R.cm[i]||[]).length;
  TIP.innerHTML=`${placeOf(i)} <span>· ${bio}${ST[c.s]&&land(c)?' · '+ST[c.s].n:''}${nats?' · '+nats:''}${maps?' · '+maps+(maps>1?' maps':' map'):''}</span>`;TIP.style.display='block'});
 cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
+ if(SBX){const b=SBX;SBX=null;const tiny=Math.abs(b.x-b.x0)<5&&Math.abs(b.y-b.y0)<5;
+  if(tiny){const ff=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(ff&&fallen(ff)){binAt(ff,x,y);draw();return}const mine=R.F.filter(f=>SELS.has(f.id)&&f.nat===R.cur);if(mine.length){march(mine,near(S2W(x,y)));return}}
+  const L=[...OV.querySelectorAll('.rgdel')];L.forEach(n=>n.remove());const i=near(S2W(x,y)),x0=Math.min(b.x0,b.x),x1=Math.max(b.x0,b.x),y0=Math.min(b.y0,b.y),y1=Math.max(b.y0,b.y);
+  const pickable=f=>!fallen(f)&&!f.civ&&f.show!==false&&(nation==='all'||f.nat===nation),at=f=>f.R?[f.X,f.Y]:W2S(...cellXY(f.cell));
+  const got=R.F.filter(f=>pickable(f)&&(tiny?f.cell===i:(([X,Y])=>X>=x0&&X<=x1&&Y>=y0&&Y<=y1)(at(f))));
+  if(!e.shiftKey)SELS.clear();for(const f of got)SELS.add(f.id);if(got.length){rsel=got[0].id;selMan=null;cell=got[0].cell}else if(tiny&&vis[i]>.5)cell=i;list2();cards();draw();return}
  if(painting){painting=0;if(RB.g!=='erase')addRoad(RB);else if(RUN.length&&RUN[RUN.length-1]===JSON.stringify(R.rd))RUN.pop();RB=null;draw();return}
  if(tiling){tiling=0;tilePlop();save();draw();return}
- if(dragF){const d=dragF;dragF=null;if(d.on){const to=near(S2W(x,y));if(to!==d.f.cell&&vis[to]>.5&&!blocked(to))moveF(d.f,to);else draw()}else pick(d.f,false);return}
- if(pan&&moved<4){const i=near(S2W(x,y)),b=burgAt(x,y);HLpin=b?hlOf(b.b):null;if(HLpin&&HLpin.nat&&NATS[HLpin.nat]){nation=HLpin.nat;place='all';rsel=null;selMan=null;openP.clear();openP.add(near([b.b.x,b.b.y]));natBar();list2();cards()}if(!b)draw();if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}pan=null});
-cv.addEventListener('dblclick',e=>{const[x,y]=xy(e),i=near(S2W(x,y));if(vis[i]>.5&&!R.F.some(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R))settle(i)});
+ if(dragF){const d=dragF;dragF=null;const add=e.shiftKey;if(!d.on){if(!add)SELS.clear();for(const f of d.st||[d.f])SELS.add(f.id);rsel=d.f.id;selMan=null;cell=d.f.cell;list2();draw();return}
+  const to=near(S2W(x,y)),L=d.st&&!SELS.has(d.f.id)?d.st:SELS.has(d.f.id)?R.F.filter(f=>SELS.has(f.id)):[d.f];if(!SELS.has(d.f.id)){SELS.clear();for(const f of L)SELS.add(f.id);rsel=d.f.id}hov=-1;march(L.filter(f=>f.nat===R.cur),to);draw();return}
+ if(pan&&moved<4){SELS.clear();const i=near(S2W(x,y)),b=burgAt(x,y);HLpin=b?hlOf(b.b):null;if(HLpin&&HLpin.nat&&NATS[HLpin.nat]){nation=HLpin.nat;place='all';rsel=null;selMan=null;openP.clear();openP.add(near([b.b.x,b.b.y]));natBar();list2();cards()}if(!b)draw();if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}pan=null});
+cv.addEventListener('dblclick',e=>{const[x,y]=xy(e),f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),G=!f&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),i=f?f.cell:G?G.cell:near(S2W(x,y));if(vis[i]>.5)settle(i)});
 addEventListener('keydown',e=>{if(OV.hidden||e.target.closest&&e.target.closest('input,textarea'))return;const k=e.key.toLowerCase();
  if((k==='n'||k==='p')&&!e.ctrlKey&&!e.metaKey){e.stopImmediatePropagation();e.preventDefault();setTool(k==='n'?'tile':'paint');return}
- if(e.key!=='Escape')return;e.stopImmediatePropagation();e.preventDefault();if(!SDL.hidden)unsettle();else if(rtool!=='cmd')setTool('cmd');else if(rsel)unpick()},true);
-cv.addEventListener('contextmenu',e=>{e.preventDefault();const[x,y]=xy(e),f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f&&fallen(f)){const b=ubtn('','sq red rgdel',()=>{b.remove();delF(f)});b.append(uicon('bin'));b.style.left=x+'px';b.style.top=y+'px';OV.append(b);setTimeout(()=>addEventListener('pointerdown',ev=>{if(ev.target!==b)b.remove()},{once:true}),0)}});
+ if(e.key!=='Escape')return;e.stopImmediatePropagation();e.preventDefault();if(!SDL.hidden)unsettle();else if(rtool!=='cmd')setTool('cmd');else if(rsel||SELS.size){SELS.clear();unpick()}},true);
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+function binAt(f,x,y){const b=ubtn('','sq red rgdel',()=>{b.remove();delF(f)});b.append(uicon('bin'));b.style.left=x+'px';b.style.top=y+'px';OV.append(b);setTimeout(()=>addEventListener('pointerdown',ev=>{if(ev.target!==b)b.remove()},{once:true}),0)}
 cv.addEventListener('pointerleave',()=>{hov=-1;hovT=null;HLh=null;TIP.style.display='none';draw()});
 cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=xy(e),f=Math.exp(-e.deltaY*.0015),[wx,wy]=S2W(x,y);view.k=Math.max(Math.min(.6,KFIT()*.9),Math.min(KMAX,view.k*f));view.x=x-wx*view.k;view.y=y-wy*view.k;draw()},{passive:false});
 // moving a force out of a cell whose map holds its men asks first, then brings the living out as they are
