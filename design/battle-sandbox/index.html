@@ -262,6 +262,12 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .rr .tx b em{font-style:normal;color:#8f8b82}#sm .rr .ic canvas[style]{max-width:32px;max-height:32px}#sm .rr .ic{width:32px;height:28px}
 #sm .zr [hidden]{display:none!important}#sm .rzd .rtabs{grid-template-columns:repeat(3,1fr)}#sm .rzd .rtabs button{font-size:17px;padding:0 2px}#sm .rr.dip{cursor:default;padding:3px 8px}#sm .rr.dip .ic{width:24px}#sm .rr.dip select{width:84px;height:26px;font-size:16px}#sm .rr.dip select.rwar{color:#e08a7a}#sm .rr.dip select.rally{color:#9cbbe8}
 #sm .rstat b em{font-style:normal;font-size:15px;color:#9fbf7f;margin-left:6px}
+#sm .rsd .tiles{grid-template-columns:repeat(4,1fr);gap:4px;margin:2px 0 8px 18px}
+#sm .rsd .ut{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;height:62px;padding:3px 4px;background:#1e1e1e;border:0;clip-path:polygon(3px 0,calc(100% - 3px) 0,100% 3px,100% calc(100% - 3px),calc(100% - 3px) 100%,3px 100%,0 calc(100% - 3px),0 3px);box-shadow:inset 2px 2px 0 #4a4a4a,inset -2px -2px 0 #141414}
+#sm .rsd .ut canvas{width:36px!important;height:31px!important}#sm .rsd .ut .un{font-size:15px;max-width:100%;text-align:center}#sm .rsd .ut small{display:none}#sm .rsd .ut .ub2{width:70%}
+#sm .rsd .ut.on{box-shadow:inset 0 0 0 2px #d6b45a}#sm .rsd .ut.empty{cursor:default;opacity:.6}#sm .rsd .gt b.nm{cursor:text}#sm .rsd .gt b.nm:hover{text-decoration:underline}
+#sm .ch .nm{cursor:text}#sm .ch .nm:hover{text-decoration:underline}#sm .ch input.rn{font:20px VT323,monospace;background:#141414;color:#f2efe6;border:1px solid #77736a;height:26px;min-width:0;flex:1}
+#sm .rsd [hidden]{display:none!important}
 </style>
 <script>
 const T=16;
@@ -4277,7 +4283,7 @@ function hotbar(){const tk=UI.tool==='hand'&&([...sel].filter(o=>o.type==='token
  const cs=tk.status==='free'?bodies.filter(o=>o.hidden&&o.inv&&near(tk,o)):[],c=cs[0]||null,k=JSON.stringify([tk.id,tk.si,tk.inv,tk.noAuto,tk.vip,tk.auto,tk.leader,tk.nat,cs.map(o=>[o.id,o.inv])]);
  if(k!==hbK){hbK=k;HCX.innerHTML='';
   const near0=[];for(const c of cs){cNorm(c);const h=mk('div','hlab',c.name||'Chest');const g=mk('div','hg g4');if(cT(c))for(const z of chSlots(c)){const d=slotEl(z&&z.q||null,null,false);if(z&&z.link)d.style.opacity=.35;if(z&&z.q)d.onpointerdown=e=>{e.preventDefault();moveItem(c,z.i,tk);lastHud='';hbK=''};g.append(d)}else{c.inv.forEach((q,i)=>{if(!q&&!c.table)return;const d=slotEl(q,null,false);if(q)d.onpointerdown=e=>{e.preventDefault();moveItem(c,i,tk);lastHud='';hbK=''};g.append(d)});padSlots(c,g)}const cp=mk('div','hpan wide');cp.append(g);near0.push(h,cp)}
-  TH.innerHTML='';{const ic=tokIcon(tk),nn=mk('span',null,tk.name);nn.style.color=natLabel(tk);TH.append(ic,nn)}const n=mk('i');const g1=mk('div','hg g4'),g2=mk('div','hg g4'),hp=mk('div','hpan wide');
+  TH.innerHTML='';{const ic=tokIcon(tk),nn=mk('span','nm',tk.name);nn.style.color=natLabel(tk);nn.title='';nn.onclick=()=>{const t=mk('input','rn');t.value=tk.name;nn.replaceWith(t);t.focus();t.select();const done=()=>{const v=t.value.trim();if(v)tk.name=v;if(tk.lab)tk.lab.textContent=tk.name;lastHud='';hbK=''};t.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')t.blur();if(e.key==='Escape'){t.value=tk.name;t.blur()}};t.onblur=done};TH.append(ic,nn)}const n=mk('i');const g1=mk('div','hg g4'),g2=mk('div','hg g4'),hp=mk('div','hpan wide');
   const g3=mk('div','hg g4');for(let i=0;i<INVN;i++){const d=slotEl(tk.inv[i],i<4?SILK[i]:null,i===tk.si);d.onpointerdown=e=>{e.preventDefault();if(!e.shiftKey&&tk.inv[i])SPD={tk,i,x:e.clientX,y:e.clientY};if(e.shiftKey){if(c)moveItem(tk,i,c);else dropSlot(tk,i)}else if(tk.inv[i]&&tk.inv[i].k==='note')readNote(tk,i);else selectSlot(tk,i);lastHud='';hbK=''};(i<4?g1:g3).append(d)}
   hp.style.cssText='flex-direction:column;align-items:stretch;gap:2px';hp.append(mk('div','hlab','Weapons'),g1,mk('div','hlab','Pack'),g3);
   const tg=(v,f)=>chk(v,()=>{f();sfx('flick');lastHud='';hbK=''});
@@ -4866,9 +4872,9 @@ function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scr
  const row=(key,col,title,sub,list,pickable,f)=>{const live=list.filter(m=>!m.dead&&!m.map),on=pickable&&live.length&&live.every(m=>sdPick.has(m.id)),part=pickable&&!on&&live.some(m=>sdPick.has(m.id)),op=sdOpen.has(key);
   const r=mk('div','gr'+(op?' op':''));r.innerHTML=`${pickable?`<span class="tk${on?' on':part?' part':''}"></span>`:'<span class="tk no"></span>'}<i style="background:${col}"></i><span class="gt"><b>${title}</b><small>${sub}</small></span><span class="ms"></span><span class="cr">${op?'▾':'▸'}</span>`;
   const ms=r.querySelector('.ms');for(const m of list)ms.append(mini(m,f,pickable));dropOn(r,f,null);
-  if(f&&f.t==='squad'){const nb=r.querySelector('.gt b');nb.ondblclick=e=>{e.stopPropagation();clearTimeout(sdT);const t=mk('input','rn');t.value=f.n;nb.replaceWith(t);t.focus();t.select();const done=()=>{f.n=t.value.trim()||f.n;save();list2();drawSD()};t.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter')done();if(ev.key==='Escape')drawSD()};t.onblur=done;t.onclick=ev=>ev.stopPropagation()}}
-  r.onclick=e=>{if(e.target.closest('input'))return;if(e.target.closest('.tk')){if(!pickable)return;for(const m of live)on?sdPick.delete(m.id):sdPick.add(m.id);drawSD();return}clearTimeout(sdT);sdT=setTimeout(()=>{op?sdOpen.delete(key):sdOpen.add(key);drawSD()},e.target.closest('.gt b')?230:0)};body.append(r);
-  if(op){const G=mk('div','tiles');for(const m of list)G.append(tile(m,pickable,f));dropOn(G,f,null);body.append(G)}};
+  if(op)r.querySelector('.ms').hidden=true;if(f&&f.t==='squad'){const nb=r.querySelector('.gt b');nb.classList.add('nm');nb.onclick=e=>{e.stopPropagation();clearTimeout(sdT);const t=mk('input','rn');t.value=f.n;nb.replaceWith(t);t.focus();t.select();const done=()=>{f.n=t.value.trim()||f.n;save();list2();drawSD()};t.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter')done();if(ev.key==='Escape')drawSD()};t.onblur=done;t.onclick=ev=>ev.stopPropagation()}}
+  r.onclick=e=>{if(e.target.closest('input'))return;if(e.target.closest('.tk')){if(!pickable)return;for(const m of live)on?sdPick.delete(m.id):sdPick.add(m.id);drawSD();return}clearTimeout(sdT);sdT=setTimeout(()=>{op?sdOpen.delete(key):sdOpen.add(key);drawSD()},0)};body.append(r);
+  if(op){const G=mk('div','tiles');for(const m of list)G.append(tile(m,pickable,f));if(f&&f.t==='squad')for(let k=list.length;k<8;k++)G.append(mk('div','ut empty'));dropOn(G,f,null);body.append(G)}};
  if(show('squads')&&sqs.length){hd(sb&&own?`Squads · garrison ${Math.min(GARR[STYPE(sb)],sqs.filter(f=>f.nat===own&&soldiers(f)).length)}/${GARR[STYPE(sb)]}`:'Squads');for(const f of sqs)row(f.id,NATS[f.nat].c,f.n,men(f).length+'/8'+(inMap(f)?' · in battle':''),f.men,true,f);
   const nr=mk('div','gr new','+ New squad'),nat0=(sqs.find(f=>f.nat===own)||sqs[0]).nat;nr.ondragover=e=>{if(DRG){e.preventDefault();nr.classList.add('ov')}};nr.ondragleave=()=>nr.classList.remove('ov');
   const mkSq=nat=>{const f={id:'f'+Date.now().toString(36),t:'squad',nat,cell:c,n:'New squad',men:[]};R.F.push(f);sdOpen.add(f.id);return f};
@@ -4998,7 +5004,7 @@ function fly(x,y,k1){k1=Math.min(KMAX,k1);const k0=view.k,cx=VW/2,cy=VH/2,sx=(cx
 
 // ---- the clock: on a map it opens the region; on the region it shows the picked cell and enters it
 const OCT=CORN.querySelector('.oct'),PV=mk('canvas','rgpv');PV.width=PV.height=232;OCT.append(PV);
-OCT.onclick=()=>{US.clock();if(!OV.hidden){if(!SDL.hidden)enterSD();else if(cell>=0)settle(cell);else NOPE();return}if(EM){aiWas=true;pickTool('hand');return}open()};
+OCT.onclick=()=>{US.clock();if(!OV.hidden){if(!SDL.hidden)enterSD();else if(cell>=0){settle(cell);enterSD()}else NOPE();return}if(EM){aiWas=true;pickTool('hand');return}open()};
 function preview(){if(OV.hidden)return;const c=cell>=0?cell:-1,pg=PV.getContext('2d'),s={g,VW,VH,dpr,view:{...view}};
  pg.setTransform(1,0,0,1,0,0);pg.clearRect(0,0,232,232);if(c<0)return;const[x,y]=cellXY(c),oct=r=>{const q=r*.414;pg.beginPath();pg.moveTo(116-q,116-r);pg.lineTo(116+q,116-r);pg.lineTo(116+r,116-q);pg.lineTo(116+r,116+q);pg.lineTo(116+q,116+r);pg.lineTo(116-q,116+r);pg.lineTo(116-r,116+q);pg.lineTo(116-r,116-q);pg.closePath()};
  pg.save();oct(104);pg.clip();g=pg;VW=VH=116;dpr=2;view={k:4.5,x:58-x*4.5,y:58-y*4.5};const BP=BURGPT;try{ground();cellMarks();g.setTransform(dpr,0,0,dpr,0,0);burgs()}finally{({g,VW,VH,dpr}=s);view=s.view;BURGPT=BP;pg.restore()}
