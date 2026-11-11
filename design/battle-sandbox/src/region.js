@@ -782,10 +782,11 @@ function blocked(i){if(!BLOCK){const R0=new Set(D.burgs.map(b=>near([b.x,b.y])))
 cv.addEventListener('pointerdown',e=>{const[x,y]=xy(e);moved=0;cv.setPointerCapture(e.pointerId);
  if(rtool==='paint'){const i=near(S2W(x,y));if(vis[i]<.5||!land(D.cells[i]))return;painting=1;RUN.push(JSON.stringify(R.rd));if(RUN.length>60)RUN.shift();RRE.length=0;RB={g:e.button===2||rdDel?'erase':rdT,cells:[i]};if(RB.g==='erase')eraseRoad(i);draw();return}
  if(rtool==='tile'){const er=e.button===2||rErase;if(tileW===1&&er)return;if(tileW===2&&wmode==='name'&&!pwat&&!er)return;tiling=er?-1:1;tileAt(x,y);return}
- if(e.button===2){SBX={x0:x,y0:y,x,y};return}
+ if(SPC||e.button===1){pan={x,y,vx:view.x,vy:view.y};cv.style.cursor='grabbing';return}
+ if(e.button===2){SBX={x0:x,y0:y,x,y,btn:2};return}
  const f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f){dragF={f,x,y,mx:x,my:y,on:false,many:SELS.has(f.id)&&SELS.size>1};return}
  const G=GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]);if(G){const st=stackOf(G).filter(f=>!fallen(f));if(st.length){dragF={f:st[0],x,y,mx:x,my:y,on:false,many:true,G,st};return}}
- pan={x,y,vx:view.x,vy:view.y}});
+ SBX={x0:x,y0:y,x,y,btn:0}});
 cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  if(SBX){SBX.x=x;SBX.y=y;draw();return}
  if(painting){const i=near(S2W(x,y)),L=RB.cells;if(i!==L[L.length-1]&&vis[i]>=.5&&land(D.cells[i])){if(RB.g==='erase'){L.push(i);eraseRoad(i)}else for(const j of linkCells(L[L.length-1],i))L.push(j)}draw();return}
@@ -802,6 +803,7 @@ cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  TIP.innerHTML=`${placeOf(i)} <span>· ${bio}${ST[c.s]&&land(c)?' · '+ST[c.s].n:''}${nats?' · '+nats:''}${maps?' · '+maps+(maps>1?' maps':' map'):''}</span>`;TIP.style.display='block'});
 cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
  if(SBX){const b=SBX;SBX=null;const tiny=Math.abs(b.x-b.x0)<5&&Math.abs(b.y-b.y0)<5;
+  if(tiny&&b.btn===0){clickAt(x,y);return}
   if(tiny){const ff=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(ff&&fallen(ff)){binAt(ff,x,y);draw();return}const mine=R.F.filter(f=>SELS.has(f.id)&&f.nat===R.cur);if(mine.length){march(mine,near(S2W(x,y)));return}}
   const L=[...OV.querySelectorAll('.rgdel')];L.forEach(n=>n.remove());const i=near(S2W(x,y)),x0=Math.min(b.x0,b.x),x1=Math.max(b.x0,b.x),y0=Math.min(b.y0,b.y),y1=Math.max(b.y0,b.y);
   const pickable=f=>!fallen(f)&&!f.civ&&f.show!==false&&(nation==='all'||f.nat===nation),at=f=>f.R?[f.X,f.Y]:W2S(...cellXY(f.cell));
@@ -811,14 +813,21 @@ cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
  if(tiling){tiling=0;tilePlop();save();draw();return}
  if(dragF){const d=dragF;dragF=null;const add=e.shiftKey;if(!d.on){if(!add)SELS.clear();for(const f of d.st||[d.f])SELS.add(f.id);rsel=d.f.id;selMan=null;cell=d.f.cell;list2();draw();return}
   const to=near(S2W(x,y)),L=d.st&&!SELS.has(d.f.id)?d.st:SELS.has(d.f.id)?R.F.filter(f=>SELS.has(f.id)):[d.f];if(!SELS.has(d.f.id)){SELS.clear();for(const f of L)SELS.add(f.id);rsel=d.f.id}hov=-1;march(L.filter(f=>f.nat===R.cur),to);draw();return}
- if(pan&&moved<4){SELS.clear();const i=near(S2W(x,y)),b=burgAt(x,y);HLpin=b?hlOf(b.b):null;if(HLpin&&HLpin.nat&&NATS[HLpin.nat]){nation=HLpin.nat;place='all';rsel=null;selMan=null;openP.clear();openP.add(near([b.b.x,b.b.y]));natBar();list2();cards()}if(!b)draw();if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}pan=null});
+ if(pan){pan=null;cv.style.cursor=SPC?'grab':'';return}});
+function clickAt(x,y){SELS.clear();const i=near(S2W(x,y)),b=burgAt(x,y);HLpin=b?hlOf(b.b):null;if(HLpin&&HLpin.nat&&NATS[HLpin.nat]){nation=HLpin.nat;place='all';rsel=null;selMan=null;openP.clear();openP.add(near([b.b.x,b.b.y]));natBar();list2();cards()}if(!b)draw();if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}
 cv.addEventListener('dblclick',e=>{const[x,y]=xy(e),f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),G=!f&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),i=f?f.cell:G?G.cell:near(S2W(x,y));if(vis[i]>.5)settle(i)});
 addEventListener('keydown',e=>{if(OV.hidden||e.target.closest&&e.target.closest('input,textarea'))return;const k=e.key.toLowerCase();
  if((k==='n'||k==='p')&&!e.ctrlKey&&!e.metaKey){e.stopImmediatePropagation();e.preventDefault();setTool(k==='n'?'tile':'paint');return}
  if(e.key!=='Escape')return;e.stopImmediatePropagation();e.preventDefault();if(!SDL.hidden)unsettle();else if(rtool!=='cmd')setTool('cmd');else if(rsel||SELS.size){SELS.clear();unpick()}},true);
 cv.addEventListener('contextmenu',e=>e.preventDefault());
+let SPC=false,EDG=null;
+addEventListener('keydown',e=>{if(OV.hidden||e.code!=='Space'||e.target.closest&&e.target.closest('input,textarea'))return;e.preventDefault();e.stopImmediatePropagation();if(!SPC){SPC=true;cv.style.cursor='grab'}},true);
+addEventListener('keyup',e=>{if(e.code!=='Space'||!SPC)return;e.preventDefault();e.stopImmediatePropagation();SPC=false;if(!pan)cv.style.cursor=''},true);
+// resting the cursor within a few pixels of the map's edge scrolls that way
+const EDGE=18;function edgeTick(){if(!EDG||OV.hidden||pan||SBX||dragF){EDG=null;return}const{x,y}=EDG,dx=x<EDGE?1:x>VW-EDGE?-1:0,dy=y<EDGE?1:y>VH-EDGE?-1:0;if(!dx&&!dy){EDG=null;return}view.x+=dx*9;view.y+=dy*9;draw();requestAnimationFrame(edgeTick)}
+cv.addEventListener('pointermove',e=>{const[x,y]=xy(e),on=x<EDGE||y<EDGE||x>VW-EDGE||y>VH-EDGE;if(on&&!EDG){EDG={x,y};requestAnimationFrame(edgeTick)}else if(on)EDG.x=x,EDG.y=y;else EDG=null});
 function binAt(f,x,y){const b=ubtn('','sq red rgdel',()=>{b.remove();delF(f)});b.append(uicon('bin'));b.style.left=x+'px';b.style.top=y+'px';OV.append(b);setTimeout(()=>addEventListener('pointerdown',ev=>{if(ev.target!==b)b.remove()},{once:true}),0)}
-cv.addEventListener('pointerleave',()=>{hov=-1;hovT=null;HLh=null;TIP.style.display='none';draw()});
+cv.addEventListener('pointerleave',()=>{EDG=null;hov=-1;hovT=null;HLh=null;TIP.style.display='none';draw()});
 cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=xy(e),f=Math.exp(-e.deltaY*.0015),[wx,wy]=S2W(x,y);view.k=Math.max(Math.min(.6,KFIT()*.9),Math.min(KMAX,view.k*f));view.x=x-wx*view.k;view.y=y-wy*view.k;draw()},{passive:false});
 // moving a force out of a cell whose map holds its men asks first, then brings the living out as they are
 function paintAt(x,y){const i=near(S2W(x,y)),cl=()=>{sndT=0;edSnd(tiling>0?'soft':'erase',1.1,.45)};if(tileW===2){if(land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pwat:null;if((R.wc[i]||null)===v)return;if(v)R.wc[i]=v;else delete R.wc[i];SL=null;cl();draw();return}if(!land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pnat:null;if(OWN[i]===v)return;cl();OWN[i]=v;provFix(i);R.own[i]=v||'';LBL=null;BCH=null;draw()}

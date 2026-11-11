@@ -134,6 +134,17 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
  r=await J(`open();const f=R.F.find(x=>x.id===__b.f),e=R.F.find(x=>x.id===__b.e);return{inMap:inMap(f)&&inMap(e),noBattle:!contested(__b.to,'Astria')}`);ok('armies in the map stay out of new battles',r.inMap&&r.noBattle);
  r=await J(`return{mi:Math.round((bx1-bx0)*MI)}`);ok('region is fifty miles across',r.mi===50,r.mi);
 
+ // panning only with Space, the middle button or the map's edge; a left drag on open ground boxes forces
+ r=await J(`open();BT=null;drawBT();SELS.clear();R.cur='Astria';nation='Astria';const ed=near([BURG["Emperor's Dock"].x,BURG["Emperor's Dock"].y]);const[x,y]=cellXY(ed);view.k=2;view.x=VW/2-x*view.k;view.y=VH/2-y*view.k;draw();const b=cv.getBoundingClientRect(),[X,Y]=W2S(x,y);
+  return{X:X+b.left,Y:Y+b.top,L:b.left,T:b.top,W:VW,H:VH,vx:view.x,n:R.F.filter(f=>f.cell===ed&&f.nat==='Astria'&&!fallen(f)&&f.show!==false&&!f.civ).length}`);
+ await p.mouse.move(r.X-60,r.Y-60);await p.mouse.down();await p.mouse.move(r.X+60,r.Y+60,{steps:6});await p.mouse.up();
+ let q=await J(`return{sel:SELS.size,vx:view.x}`);ok('left drag on open ground boxes forces',q.sel>0,q.sel);ok('left drag does not pan',Math.abs(q.vx-r.vx)<1);
+ await p.keyboard.down('Space');await p.mouse.move(r.X,r.Y);await p.mouse.down();await p.mouse.move(r.X+80,r.Y,{steps:5});await p.mouse.up();await p.keyboard.up('Space');
+ q=await J(`return{vx:view.x,slow:typeof slowMo!=='undefined'?slowMo:null}`);ok('Space and drag pans',Math.abs(q.vx-r.vx-80)<2,(q.vx-r.vx).toFixed(1));ok('Space on the region does not slow time',!q.slow);
+ const v0=await J(`return view.x`);await p.mouse.move(r.L+r.W/2,r.T+r.H/2);await p.mouse.move(r.L+4,r.T+r.H/2,{steps:3});await p.waitForTimeout(400);const v1=await J(`return view.x`);await p.mouse.move(r.L+r.W/2,r.T+r.H/2);
+ ok('cursor at the left edge scrolls the map',v1-v0>20,(v1-v0).toFixed(0));
+ const y1=await J(`return view.x`);await p.waitForTimeout(300);const y2=await J(`return view.x`);ok('scrolling stops off the edge',y1===y2);
+
  // everything survives a reload
  const before=await J(`save();return{pp:R.PP.length,fallen:R.fallen,own:OWN.filter(x=>x==='Astria').length}`);
  await p.reload();await p.waitForTimeout(2500);
