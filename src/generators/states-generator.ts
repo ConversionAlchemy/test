@@ -178,6 +178,8 @@ const DEFAULT_TAX_BY_FORM: Record<string, TaxBases> = {
 };
 const DEFAULT_TAX: TaxBases = DEFAULT_TAX_BY_FORM.Monarchy;
 
+const ISLE_CLAIM_SIZE = 24; // islands of up to this many cells go to the nearest state
+
 class StatesModule {
   regenerate(): { warning?: string; error?: string } {
     const { warning, error, states } = this.recreate();
@@ -380,6 +382,7 @@ class StatesModule {
     pack.states = this.createStates();
     this.expandStates();
     this.normalize();
+    this.claimIsles();
     this.getPoles();
     this.findNeighbors();
     this.assignColors();
@@ -471,6 +474,32 @@ class StatesModule {
       cells.state[i] = cells.state[adversaries[0]];
     }
     TIME && console.timeEnd("normalizeStates");
+  }
+
+  /** A small island no state reached belongs to the state of the nearest land; neither a lock nor a culture stops it */
+  claimIsles() {
+    const { cells, features } = pack;
+    const owned = [...cells.i].filter(i => cells.h[i] >= 20 && cells.state[i]);
+    if (!owned.length) return;
+    const tree = quadtree(owned.map(i => [...cells.p[i], i] as [number, number, number]));
+    const byFeature = new Map<number, number[]>();
+    for (const i of cells.i) {
+      if (cells.h[i] < 20) continue;
+      const list = byFeature.get(cells.f[i]) ?? [];
+      list.push(i);
+      byFeature.set(cells.f[i], list);
+    }
+    for (const [featureId, list] of byFeature) {
+      const feature = features[featureId];
+      if (feature?.type !== "island" || list.length > ISLE_CLAIM_SIZE) continue;
+      if (list.some(i => cells.state[i])) continue;
+      const [x, y] = cells.p[list[0]];
+      const nearest = tree.find(x, y);
+      if (!nearest) continue;
+      const state = cells.state[nearest[2]];
+      if (pack.states[state]?.lock) continue;
+      for (const i of list) cells.state[i] = state;
+    }
   }
 
   // calculate pole of inaccessibility for each state
