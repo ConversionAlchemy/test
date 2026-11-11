@@ -31,8 +31,8 @@ function buildRoad(){paintAll((cx,cy)=>{if(cx>=13&&cx<=15&&cy>=8&&cy<=9)return '
 function unitsRoad(){container(13,8,[{k:'gold',n:100},{k:'musket',n:3,ammo:12,res:24},{k:'grenade',n:4}],'Company wagon');
  U('Factor Mercer','Portsbridge','civ',16.6,9,RT,'pistol');U('Ames','Portsbridge','civ',12.4,9.5,RT,null,'Company Clerk');
  U('Holt','Portsbridge','home',13.5,7.4,RT);U('Pike','Portsbridge','home',14.5,10.6,RT);U('Sorrel','Portsbridge','rifle',11.2,8.2,RT);U('Wren','Portsbridge','rifle',18.4,10.2,RT);U('Brannock','Portsbridge','guard',19.6,8.4,RT);
- U('Gull','Reapers','home',7.5,14.4,UP,'pistol');U('Mott','Reapers','home',6.2,13.6,UP,'spear');U('Rask','Reapers','guard',16.5,14.2,UP);U('Teague','Reapers','shock',17.8,13.6,UP,'spear');U('Brine','Reapers','home',23.5,15.4,UP,'blunder');
- U('Skiff','Reapers','cmd',21.5,3.2,DN,'pistol');U('Bones','Reapers','rifle',25.5,1.6,DN)}
+ U('Gull','Marshmen','home',7.5,14.4,UP,'pistol');U('Mott','Marshmen','home',6.2,13.6,UP,'spear');U('Rask','Marshmen','guard',16.5,14.2,UP);U('Teague','Marshmen','shock',17.8,13.6,UP,'spear');U('Brine','Marshmen','home',23.5,15.4,UP,'blunder');
+ U('Skiff','Marshmen','cmd',21.5,3.2,DN,'pistol');U('Bones','Marshmen','rifle',25.5,1.6,DN)}
 function buildAlley(){paintAll((cx,cy)=>{if(cy===0||cy===CH-1)return cy===CH-1&&cx===15?'stone.grey.quarter':cy===0?'stone.grey.block.w':'wood.oak.boards.w';
  if(cy>=1&&cy<=3)return cx===0||cx===CW-1?'stone.grey.block.w':cy===2&&cx>=4&&cx<=7?'table':cx===16&&cy===1||cx===17&&cy===1?'chest':'wood.teak.planks';
  if(cy===4)return cx===10||cx===11?'stone.grey.quarter':'stone.grey.block.w';
@@ -40,9 +40,9 @@ function buildAlley(){paintAll((cx,cy)=>{if(cy===0||cy===CH-1)return cy===CH-1&&
 function unitsAlley(){dbl(2,160,72,191,64,0,2,false);slab(2,240,CH*T-8,0);
  container(2,5,[{k:'spear',n:2}]);container(19,8,[]);container(16,1,[{k:'gold',n:100}],'Guild chest');
  U('Aldo','Great Keys','civ',9.2,6.4,RT,null);U('Mabb','Great Keys','civ',12.6,7.4,LF,null);U('Corr','Great Keys','civ',10.4,7.8,UP,'spear','Fisher');U('Wynn','Great Keys','civ',8,5.6,DN,null,'Fisher');
- U('Gull','Reapers','home',11,6.2,LF,null);U('Rask','Reapers','home',13.4,6,LF,'spear');U('Pell','Havenport','civ',7.6,7.6,RT,null);
+ U('Gull','Marshmen','home',11,6.2,LF,null);U('Rask','Marshmen','home',13.4,6,LF,'spear');U('Pell','Havenport','civ',7.6,7.6,RT,null);
  U('Ivo','Great Keys','home',10.5,4.6,DN);U('Sten','Great Keys','home',11.6,3.2,DN);U('Dorn','Great Keys','guard',11,2,DN);U('Lark','Great Keys','rifle',20.4,6,LF);
- U('Cutter','Reapers','rifle',1.4,7,RT,'pistol')}
+ U('Cutter','Marshmen','rifle',1.4,7,RT,'pistol')}
 function buildStock(){paintAll((cx,cy)=>{const E=cx===0||cx===CW-1||cy===0||cy===CH-1;
  if(E)return cy===CH-1&&(cx===12||cx===13)||cx===0&&cy===9?'stone.grey.slabs':'stone.grey.block.w';
  if(cy<=4)return cx===6||cx===12||cx===18?'metal.iron.rivet.w':'stone.grey.slabs';if(cy===5)return cx===3||cx===9||cx===15||cx===21?'stone.grey.slabs':'metal.iron.rivet.w';
@@ -50,7 +50,7 @@ function buildStock(){paintAll((cx,cy)=>{const E=cx===0||cx===CW-1||cy===0||cy==
 function unitsStock(){for(const x of [3,9,15,21]){const d=slab(3,x*T,5*T+8,0);d.locked=true}dbl(3,192,248,223,240,0,2,true);slab(2,8,9*T,1);
  container(1,13,[{k:'musket',n:2,ammo:12,res:12}]);container(24,10,[{k:'musket',n:3,ammo:12,res:24},{k:'spear',n:3}]);container(20,13,[{k:'gold',n:100}],'Bond chest');container(3,11,[]);
  cap(U('Tobin','Havenport','civ',2,2,DN,null),'chain');cap(U('Wynn','Great Keys','civ',4.6,3.4,UP,null,'Fisher'));
- cap(U('Gull','Reapers','home',8,2,DN,null),'chain');cap(U('Rask','Reapers','rifle',10.8,2.2,DN,null),'chain');cap(U('Crow','Reapers','home',9.5,4,UP,null));
+ cap(U('Gull','Marshmen','home',8,2,DN,null),'chain');cap(U('Rask','Marshmen','rifle',10.8,2.2,DN,null),'chain');cap(U('Crow','Marshmen','home',9.5,4,UP,null));
  cap(U('Edda',null,'civ',14,2,DN,null),'rope');cap(U('Hob',null,'civ',16.6,3.6,UP,null));
  cap(U('Mabb','Great Keys','civ',20,2,DN,null),'rope');cap(U('Corr','Great Keys','civ',23,2.4,DN,null,'Fisher'),'chain');cap(U('Lysander',null,'civ',22,4,UP,null,'Noble'));
  // drawn up in three ranks for inspection, facing the gate

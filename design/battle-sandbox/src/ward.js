@@ -188,7 +188,7 @@ const RP=['Thug','Cutthroat','Raider','Blademaster','Ravager'];
 const IMP_ARCH=['Conscript','Officer','Musketeer','Praetorian','Shocktrooper','Commando','Imperial Striped Guard'];
 const AST=n=>n.startsWith('Astrian ');
 // Imperium is Astria: its four soldier types and the Imperial civilians
-const FACTIONS={Imperium:['Astrian Officer','Astrian Conscript','Astrian Line','Astrian Guard',...Object.keys(TAG).filter(n=>CLS[n]==='Civilian'&&!AST(n)&&!IMP_ARCH.includes(n)&&!GB.includes(n)&&!RP.includes(n)&&!SN.includes(n)&&!HV.includes(n)&&!PB.includes(n)&&!GK.includes(n)&&!Object.values(TAG).some(t=>t.alt===n))],Goldbank:GB,Reapers:RP,Sanctis:SN,Havenport:HV,Portsbridge:PB,'Great Keys':GK},NEXT=[];
+const FACTIONS={Imperium:['Astrian Officer','Astrian Conscript','Astrian Line','Astrian Guard',...Object.keys(TAG).filter(n=>CLS[n]==='Civilian'&&!AST(n)&&!IMP_ARCH.includes(n)&&!GB.includes(n)&&!RP.includes(n)&&!SN.includes(n)&&!HV.includes(n)&&!PB.includes(n)&&!GK.includes(n)&&!Object.values(TAG).some(t=>t.alt===n))],Goldbank:GB,Marshmen:RP,Sanctis:SN,Havenport:HV,Portsbridge:PB,'Great Keys':GK},NEXT=[];
 const UNITS=[...new Set(Object.values(FACTIONS).flat())];
 // the spawn's sprite as rows of [colour, metal?, material, metal name]; front at the top like the old sprites
 function grid(n,sp,cond=4){const S=P[sp.alt?TAG[n].alt+(sp.dv!=null&&TAG[TAG[n].alt].dresses?'#'+sp.dv:''):sp.dv!=null?n+'#'+sp.dv:n];if(sp.alt&&TAG[n].altBare)sp={...sp,nohelm:1};

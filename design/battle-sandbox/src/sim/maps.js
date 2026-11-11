@@ -28,7 +28,7 @@ const EXITS={vault:[{dir:'w',cell:[0,25],to:'count',arrive:[22,408],label:'Count
 const STATE={},PEND={};
 function saveMap(){for(const b of bodies)if(b.lab)b.lab.remove();for(const e of document.querySelectorAll('#sm .xlab'))e.remove();
  STATE[curMap]={VEH,rep:[...REP],wear:{tw:[...TW],ht:[...HT]},CW,CH,map,UND,OM,DS0,alarm,bodies,parts,FX:{...FX},whOn,hzOn,a:{SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG,TF,SF,SS,ST,BURN,TRK,FH,FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}}}
-function loadMap(m){const q=STATE[m];delete STATE[m];CW=q.CW;CH=q.CH;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
+function loadMap(m){const q=STATE[m];delete STATE[m];for(const b of q.bodies)if(b.nat==='Reapers')b.nat='Marshmen';CW=q.CW;CH=q.CH;W=CW*T;H=CH*T;BW=W/2;BH=H/2;N=W*H;NB=BW*BH;cv.width=W;cv.height=H;img=ctx.createImageData(W,H);out=new Uint32Array(img.data.buffer);
  ({SH,GOLD,floor,sol,shp,scol,crk,slabG,GT,SHN,DS,NOD,OBJ,OBJC,SCH,DMG=new Uint8Array(N),TF,SF,SS,ST,BURN,TRK=new Float32Array(NB),FH=new Float32Array(NB),FV,SV,DV,TMP,WH,fxLow,fxTop,fxA,HZ,OPEN,LR,LG,LB,LT}=q.a);TW.clear();HT.clear();if(q.wear&&q.wear.tw){for(const[k,v]of q.wear.tw)TW.set(k,v);for(const[k,v]of q.wear.ht)HT.set(k,v)}for(const k in q.FX)FX[k]=q.FX[k];
  map=q.map;UND=q.UND||[];OM=q.OM;DS0=q.DS0;ds0Need=false;alarm=q.alarm;bodies=q.bodies;VEH=q.VEH||[];parts=q.parts;whOn=q.whOn;hzOn=q.hzOn;solDirty=true;fxDirty=true;camInit=true;REP.clear();for(const v of q.rep||[])REP.add(v);edgeMask();setTimeout(fit,0);
  for(const b of bodies)if(b.lab)stage.appendChild(b.lab);arrivals();exitLabels()}
@@ -50,7 +50,7 @@ function unitsCount(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;retu
  cc(8,16,[{k:'musket',n:6,ammo:12,res:24},{k:'pistol',n:4,ammo:18,res:18}],'Rifle rack');cc(14,16,[{k:'grenade',n:6}],'Grenade chest');cc(14,18,[{k:'bomb',n:2}],'Heavy chest');cc(14,20,[{k:'mbox',n:6},{k:'pbox',n:4}],'Ammo chest');cc(14,22,[{k:'blunder',n:2,ammo:8,res:16}],'Chest');
  cc(0,15,[{k:'musket',n:2,ammo:12,res:12}],'Guard rack');cc(6,15,[{k:'grenade',n:2}],'Guard chest');cc(2,16,[],'Guard table');cc(32,3,[{k:'gold',n:100}],'Red room table');cc(2,3,[],'Green room table');
  cc(29,15,[{k:'gold',n:100}],'Black shelf');cc(29,23,[{k:'gold',n:100}],'Black shelf');cc(31,19,[{k:'gold',n:100},{k:'sspear',n:1,ammo:4,res:4},{k:'rod',n:1,ammo:3,res:9}],'Black deals');
- face(token('Lord Vane','Goldbank','civ',X(31)+8,72,false,'pistol'),0);face(token('Corvo','Reapers','home',X(35)+8,72,false,'blunder'),Math.PI);
+ face(token('Lord Vane','Goldbank','civ',X(31)+8,72,false,'pistol'),0);face(token('Corvo','Marshmen','home',X(35)+8,72,false,'blunder'),Math.PI);
  face(token('Archivist Lell','Goldbank','civ',X(10)+8,56,false,null),dn);face(token('Clerk Amsel','Goldbank','civ',X(16)+8,56,false,null),dn);face(token('Clerk Toll','Goldbank','civ',X(20)+8,104,false,null),up);
  face(token('Master Orsk','Goldbank','civ',X(21)+8,19*16+8,false,'pistol'),up);
  face(token('Sgt. Brant','Goldbank','guard',X(3)+8,18*16+8,true),Math.PI);face(token('Wells','Goldbank','guard',X(5)+8,17*16+8,true),Math.PI);face(token('Kerr','Goldbank','rifle',X(11)+8,20*16+8),up);face(token('Ode','Goldbank','rifle',X(18)+8,12*16+8),0);
@@ -74,11 +74,11 @@ function buildRange(){map=Array.from({length:CH},()=>Array(CW).fill('grass'));
 function unitsRange(){const face=t=>{t.ang=Math.PI;return t};
  for(const[n,u,y]of[['Vey','home',40],['Oren','home',72],['Pip','civ',104],['Lask','guard',136],['Hale','rifle',176],['Isk','rifle',256]])token(n,'Imperium',u,56,y,false,n==='Lask'?'rod':null);
  {const w=weapon('rod',92,70,0);w.ammo=3;w.res=15}container(5,8,[{k:'rbox',n:6}]);container(5,18,[{k:'musket',n:4,ammo:12,res:24}]);container(5,21,[{k:'grenade',n:8}]);container(5,24,[{k:'bomb',n:4}]);
- for(const[n,u,y]of[['Silas','civ',26],['Gull','home',47],['Rask','rifle',68],['Brant','guard',89],['Tam','shock',110],['Mira','cmd',131]])face(token(n,'Reapers',u,208,y,false,null));
- face(token('Dunn','Reapers','home',584,176,false,null));
- RLANE.forEach((t,i)=>{const y=13*16+i*48+16;face(token(['Ade','Bel','Cole','Dace','Eel','Fenn','Gale','Hart'][i],'Reapers','rifle',280,y,false,null));if(t==='door'){const d=slab(3,180,y-16,1,32,8);d.locked=true}});
+ for(const[n,u,y]of[['Silas','civ',26],['Gull','home',47],['Rask','rifle',68],['Brant','guard',89],['Tam','shock',110],['Mira','cmd',131]])face(token(n,'Marshmen',u,208,y,false,null));
+ face(token('Dunn','Marshmen','home',584,176,false,null));
+ RLANE.forEach((t,i)=>{const y=13*16+i*48+16;face(token(['Ade','Bel','Cole','Dace','Eel','Fenn','Gale','Hart'][i],'Marshmen','rifle',280,y,false,null));if(t==='door'){const d=slab(3,180,y-16,1,32,8);d.locked=true}});
  for(const[x,y,k]of[[408,248,'grenade'],[440,248,'bomb'],[408,600,'grenade'],[440,600,'bomb'],[520,392,'grenade'],[552,392,'bomb'],[536,456,'grenade']])weapon(k,x,y,0);
- barricade(2,392,312);barricade(3,456,312);barricade(3,560,560,32,8);for(const t of bodies)if(t.type==='token'&&t.nat==='Reapers')tie(t,t.unit==='guard'||t.unit==='shock'||t.unit==='cmd'||['Bel','Dace','Fenn','Hart'].includes(t.name)?'chain':'rope');}
+ barricade(2,392,312);barricade(3,456,312);barricade(3,560,560,32,8);for(const t of bodies)if(t.type==='token'&&t.nat==='Marshmen')tie(t,t.unit==='guard'||t.unit==='shock'||t.unit==='cmd'||['Bel','Dace','Fenn','Hart'].includes(t.name)?'chain':'rope');}
 function buildVault(){map=Array.from({length:CH},()=>Array(CW).fill('stone.gold.block.w'));
  const F=(cx,cy)=>{if(cy>=39&&cy<=45)return cx>=1&&cx<=4&&cy>=41&&cy<=44?(cx>=2&&cx<=3&&cy>=42&&cy<=43?'bush':'grass'):'stone.grey.quarter';if(cy===46)return 'bush';if(cy===38)return cx>=13?'stone.aur.block':'stone.gold.block.w';if(cx<=2||cy<=1)return 'stone.gold.block.w';
   if(cy>=2&&cy<=6&&cx>=8)return cy>=4&&cy<=5&&cx>=13?'gtable':cx===10&&cy===4?'stone.aur.block.w':cy===2&&(cx<=10||cx>=13)?'schest':'stone.aur.block';if(cy===7)return cx>=13?'stone.aur.block':'stone.gold.block.w';
@@ -98,7 +98,7 @@ function unitsVault(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;retu
  container(22,10,[{k:'gold',n:100},{k:'grenade',n:3}]);container(5,10,[]);container(5,33,[]);container(22,33,[{k:'gold',n:100}]);for(const o of bodies){if(o.type==='slab')goldify(o);if(o.kind==='crate')o.metal=true}
  // the crew: a commando with a blunderbuss, grenades and heavy grenades, two riflemen, and two heavier hands in front of them
  for(const[n,u,x,y,w,k,l]of[['Rask','cmd',240,640,'blunder',[{k:'grenade',n:4},{k:'bomb',n:3}],undefined],['Mott','rifle',205,640,'musket',[{k:'grenade',n:2}],undefined],['Hook','rifle',275,640,'musket',[{k:'grenade',n:2}],undefined],
-  ['Brann','guard',222,668,'blunder',[{k:'grenade',n:2}],'Raider'],['Cole','shock',258,668,'spear',[],'Blademaster']]){const t=face(token(n,'Reapers',u,x,y,false,w,l),up);t.inv=[t.inv[0],t.inv[1]||null,k[0]||null,k[1]||null,...t.inv.slice(4)];kitSnap(t)}{const r=bodies.find(o=>o.name==='Rask');sel.clear();sel.add(r);r.direct=true}
+  ['Brann','guard',222,668,'blunder',[{k:'grenade',n:2}],'Raider'],['Cole','shock',258,668,'spear',[],'Blademaster']]){const t=face(token(n,'Marshmen',u,x,y,false,w,l),up);t.inv=[t.inv[0],t.inv[1]||null,k[0]||null,k[1]||null,...t.inv.slice(4)];kitSnap(t)}{const r=bodies.find(o=>o.name==='Rask');sel.clear();sel.add(r);r.direct=true}
  face(token('Pell','Goldbank','rifle',200,560),dn);face(token('Bryn','Goldbank','rifle',280,560),dn);
  face(token('Master Corwin','Goldbank','civ',90,560,false,'pistol'),0);face(token('Ines','Goldbank','civ',380,580,false,null),Math.PI);
  face(token('Ansel','Goldbank','civ',120,388,false,null),dn);face(token('Hesta','Goldbank','civ',360,388,false,null),dn);

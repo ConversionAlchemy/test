@@ -12,7 +12,7 @@ const vis=D.cells.map((c,i)=>{const dx=Math.max(bx0-c.c[0],0,c.c[0]-bx1),dy=Math
 const shade=D.cells.map((c,i)=>{let s=0;for(const j of nb[i]){const o=D.cells[j],dx=o.c[0]-c.c[0],dy=o.c[1]-c.c[1],l=Math.hypot(dx,dy)||1;s+=(c.h-o.h)*(-dx-dy)/l/1.41}return Math.max(-1,Math.min(1,s/(nb[i].length||1)/7))});
 const BIO={6:[150,166,108],8:[128,150,98],4:[198,193,146],12:[142,155,118],9:[112,128,94],5:[176,186,112],3:[204,198,140],0:[0,0,0]};
 function fillOf(c,i){if(!land(c)){const t=Math.min(1,c.h/19);return mixc([38,62,84],[70,108,128],Math.pow(t,2.2))}
- let b=BIO[c.b]||mixc(hex(D.biomes[c.b].c),PAPER,.5);b=mixc(b,PAPER,.18);const hh=(c.h-20)/80;if(c.h>=62)b=mixc(b,[168,158,140],Math.min(1,(c.h-62)/18));b=mixc(b,[236,230,210],hh*.25);
+ let b=BIO[c.b]||mixc(hex(D.biomes[c.b].c),PAPER,.5);b=mixc(b,PAPER,.18);if(c.f)b=mixc(b,[48,74,44],.62);const hh=(c.h-20)/80;if(c.h>=62)b=mixc(b,[168,158,140],Math.min(1,(c.h-62)/18));b=mixc(b,[236,230,210],hh*.25);
  const s=shade[i];return s>0?mixc(b,[250,244,226],s*.35):mixc(b,[60,58,48],-s*.45)}
 const FILL=D.cells.map((c,i)=>{const f=vis[i],base=fillOf(c,i),grey=(base[0]+base[1]+base[2])/3;return mixc(mixc(base,[grey,grey,grey],(1-f)*.85),VOID,(1-f)*.6)});
 const ST=Object.fromEntries(D.states.filter(s=>s.c).map(s=>[s.i,s]));
@@ -25,8 +25,8 @@ const placeOf=i=>{if(CELLB[i])return CELLB[i].n;const c=D.cells[i].c;let bb=null
 const cellXY=i=>CELLB[i]?[CELLB[i].x,CELLB[i].y]:D.cells[i].c;
 
 const EDK=D.burgs.find(b=>b.n==="Emperor's Dock");
-const HOLD={Havenport:['Havenport','Overbay','Smugglerskeep','Towerbay','Turnpickle','Templewood'],'Great Keys':['Great Keys'],Goldbank:['Goldbank','Goldtown','Carnival','Holywell'],Portsbridge:['Portsbridge','Shantyport','Midway Trade Post','Codsbrook','Monestry','Crossroads',"Willard's Pass",'Fumbleweed'],
- Astria:["Emperor's Dock"],Reapers:['Mudwater',"Bog's Keep",'Crosshaven',"Willow's Ranch"]};
+const HOLD={Havenport:['Havenport','Overbay','Smugglerskeep','Towerbay','Templewood'],'Great Keys':['Great Keys'],Goldbank:['Goldbank','Goldtown','Carnival','Holywell'],Portsbridge:['Portsbridge','Shantyport','Codsbrook','Monestry','Crossroads',"Willard's Pass",'Fumbleweed'],
+ Astria:["Emperor's Dock"],Reapers:['Mudwater',"Bog's Keep",'Shadowtower',"Willow's Ranch"]};
 const KEEP=new Set(['Aracia','Whitecoast','Lindale','Holverland']),OWN=(()=>{const O=D.cells.map(c=>land(c)&&ST[c.s]&&KEEP.has(ST[c.s].n)?ST[c.s].n:null),dist=D.cells.map(()=>1e9),Q=[];
  const at=n=>{let b=null,d=1e9;for(const o of D.burgs)if(o.n===n){const e=Math.hypot(o.x-BOXC[0],o.y-BOXC[1]);if(e<d){d=e;b=o}}return b};
  for(const nat in HOLD)for(const t of HOLD[nat]){const b=at(t);if(!b)continue;let bi=0,bd=1e9;D.cells.forEach((c,i)=>{const e=(c.c[0]-b.x)**2+(c.c[1]-b.y)**2;if(e<bd){bd=e;bi=i}});dist[bi]=0;O[bi]=nat;Q.push([0,bi,nat])}
@@ -49,12 +49,14 @@ const TEX={
  rain:(X,Y)=>{const b=pv(X/4,Y/4,26,32),c=pv(X/2,Y/2,27,64);let k=.9+pf(X,Y,8,28)*.14;if(b>.62)k*=1.1;else if(b<.36)k*=.72;if(c>.75)k*=1.06;return k},
  taiga:(X,Y)=>{let k=.95+pf(X,Y,8,36)*.12;if(th(X>>1,Y>>1,37)>.86)k*=.66;else if(th(X>>1,(Y>>1)+1,37)>.86)k*=1.12;return k},
  wet:(X,Y)=>{let k=1+(pf(X,Y,16,30)-.5)*.16;const p=pf(X,Y,32,31);if(p>.6)k*=1.12+(p-.6);const r=pv(X/8,Y,32,16,128);if(r>.72&&(Y&3)===0)k*=.72;else if(r>.72&&(Y&3)===1)k*=1.1;return k},
+ forest:(X,Y)=>{const a=pv(X/3,Y/3,60,43),b=pv(X/6,Y/6,61,22);let k=.78+a*.5;if(a<.3)k*=.62;else if(a>.72)k*=1.12;if(b<.28)k*=.82;if(th(X,Y,62)>.97)k*=1.12;return k},
  rock:(X,Y)=>{const f=pf(X,Y,8,50),d=pf(X,Y,2,51);let k=.82+f*.32+(d-.5)*.12;const cr=Math.abs(pv(X/16,Y/16,52,8)-.5),on=pv(X/8,Y/8,54,16)>.55;if(on&&cr<.02)k*=.74;else if(on&&cr<.035)k*=1.1;if(th(X,Y,53)>.985)k*=1.15;return k},
  sea:(X,Y)=>{const w=Math.sin((Y+pv(X/32,Y/32,90,4)*14)/16*Math.PI*2),n=pv(X/16,Y/8,91,8,16);let k=1+(pf(X,Y,32,92)-.5)*.08;if(w>.88&&n>.55)k*=1.14;else if(w<-.9&&n>.6)k*=.94;return k},
  paper:(X,Y)=>1+(th(X,Y,95)-.5)*.1+(pf(X,Y,32,96)-.5)*.12};
 let PAT=null;function pats(){PAT={};for(const k in TEX){const c=mk('canvas');c.width=c.height=TS;const x=c.getContext('2d'),im=x.createImageData(TS,TS);for(let Y=0;Y<TS;Y++)for(let X=0;X<TS;X++){const v=Math.max(0,Math.min(255,128*TEX[k](X,Y))),o=(Y*TS+X)*4;im.data[o]=im.data[o+1]=im.data[o+2]=v;im.data[o+3]=255}x.putImageData(im,0,0);PAT[k]=c}}
-const KIND=D.cells.map(c=>!land(c)?null:c.h>=58?'rock':c.b===4||c.b===3?'grass':c.b===6||c.b===5?'wood':c.b===8||c.b===7?'rain':c.b===9?'taiga':c.b===12?'wet':'grass');
-const STR={grass:.7,wood:.95,rain:.95,taiga:.9,wet:.8,rock:.9};
+const terrainOf=c=>c.f?'Woods':c.h>=66?'Mountains':c.h>=58?'Hills':D.biomes[c.b].n;
+const KIND=D.cells.map(c=>!land(c)?null:c.f?'forest':c.h>=58?'rock':c.b===4||c.b===3?'grass':c.b===6||c.b===5?'wood':c.b===8||c.b===7?'rain':c.b===9?'taiga':c.b===12?'wet':'grass');
+const STR={forest:1,grass:.7,wood:.95,rain:.95,taiga:.9,wet:.8,rock:.9};
 const OFF=D.cells.map((c,i)=>{const a=(hash(i+7)-.5)*(KIND[i]==='wet'?.25:3.1),s=.42;return new DOMMatrix([Math.cos(a)*s,Math.sin(a)*s,-Math.sin(a)*s,Math.cos(a)*s,hash(i+3)*60,hash(i+5)*60])});
 
 // ---- drawing; g, VW, VH and view can be pointed at the clock's preview too
@@ -161,7 +163,7 @@ function states(){const far=Math.max(0,Math.min(1,(2.6-view.k)/.9)),near2=Math.m
 // ---- nations, their forces and their people (game nation in brackets where it differs)
 const disp=n=>NATS[n]?NATS[n].n:n;
 const NATS={Astria:{n:'Astria',pp:'Astrians',c:'#34405e',ring:[66,82,120],gold:18400,seat:"Emperor's Dock",gn:'Imperium'},Goldbank:{n:"Aurum's Reach",c:'#afaa42',ring:[175,170,66],gold:52000,seat:'Goldbank'},'Great Keys':{n:"Great Keys",c:'#2f9e6e',ring:[56,160,112],gold:9600,seat:'Great Keys'},
- Havenport:{n:"Freefolk Lands",pp:'Freefolk',c:'#4775de',ring:[86,126,214],gold:12300,seat:'Havenport'},Portsbridge:{n:"Portsbridge Trade Federation",c:'#c9a53c',ring:[214,180,80],gold:15800,seat:'Portsbridge'},Reapers:{n:"The Marsh",pp:'Marshmen',c:'#4a5a2a',ring:[110,130,64],gold:2100,seat:'Mudwater'}};
+ Havenport:{n:"Freefolk Lands",pp:'Freefolk',c:'#4775de',ring:[86,126,214],gold:12300,seat:'Havenport'},Portsbridge:{n:"Portsbridge Trade Federation",c:'#c9a53c',ring:[214,180,80],gold:15800,seat:'Portsbridge'},Reapers:{n:"The Marsh",pp:'Marshmen',gn:'Marshmen',c:'#4a5a2a',ring:[110,130,64],gold:2100,seat:'Mudwater'}};
 const LK={off:'Astrian Officer|n|iron|h',ln1:'Astrian Line|m|iron|h',ln2:'Astrian Line|t|iron|h',ln3:'Astrian Line|m|steel|h',ln4:'Astrian Line|n|iron|h',ln5:'Astrian Line|t|iron|b',gd1:'Astrian Guard|f|steel|h',gd2:'Astrian Guard|f|iron|h',cs:'Astrian Conscript'};
 const ROLE={off:'Officer',ln1:'Line',ln2:'Line',ln3:'Line',ln4:'Line',ln5:'Line',gd1:'Guard',gd2:'Guard',cs:'Conscript'};
 const NAMES=['Hale','Voss','Marr','Cobb','Rook','Tenn','Ashby','Pike','Dunn','Fell','Garr','Holt','Keane','Lowe','Mace','Orr','Pell','Quill','Rand','Sedge','Thorn','Vale','Wick','Yarrow','Strand','Calder','Hask','Brin','Cade','Dorr','Esk','Fenn','Gale','Hume','Ivo','Jory','Kell','Lusk','Moss','Nash','Odell','Prew','Rusk','Sallow','Tull','Ure','Varn','Wade'];
@@ -182,10 +184,10 @@ function seed(){let nid=0;const F=[],PP=[],cellOf=at=>near([BURG[at].x,BURG[at].
  pp('Great Keys','Great Keys','Keeper of the Keys','Ilse Varrow','Keeper of the Keys',1);pp('Great Keys','Great Keys','Ironkey Guildmaster','Bram Ironkey','Ironkey Guildmaster',1);pp('Great Keys','Great Keys','Brasskey Guildmaster','Odo Brasskey','Brasskey Guildmaster',1);for(const k of['Ironkey Guildmember','Brasskey Guildmember','Ironkey Guildmember'])pp('Great Keys','Great Keys',k,null,'Guildmember');
  sq('Havenport','Havenport','Harbour Guard',rep('Harbour Guard',8));sq('Havenport','Havenport','Marines',rep('Marine',8));sq('Havenport','Overbay','Harbour Watch',rep('Harbour Watch',6));
  pp('Havenport','Havenport','Harbourmaster','Harbourmaster Quint','Harbourmaster',1);for(const k of['Sailor','Sailor','Dockhand','Dockhand','Smuggler'])pp('Havenport','Havenport',k,null,k);
- sq('Portsbridge','Portsbridge','Company Guard',rep('Company Guard',8));sq('Portsbridge','Portsbridge','2nd Company Guard',rep('Company Guard',8));sq('Portsbridge','Shantyport','Enforcement',['Enforcement Officer',...rep('Police Officer',4)]);sq('Portsbridge','Midway Trade Post','Bailiffs',rep('Bailiff',4));
+ sq('Portsbridge','Portsbridge','Company Guard',rep('Company Guard',8));sq('Portsbridge','Portsbridge','2nd Company Guard',rep('Company Guard',8));sq('Portsbridge','Shantyport','Enforcement',['Enforcement Officer',...rep('Police Officer',4)]);sq('Portsbridge','Shantyport','Bailiffs',rep('Bailiff',4));
  pp('Portsbridge','Portsbridge','Director','Director Halvard Penn','Director',1);pp('Portsbridge','Portsbridge','Boardsman','Cyril Moss','Boardsman',1);pp('Portsbridge','Portsbridge','Shareholder',null,'Shareholder');for(const k of['Company Clerk','Townsman','Townsman'])pp('Portsbridge','Portsbridge',k,null,k);
  sq('Reapers','Mudwater','Mudwater Band',['Ravager','Raider','Raider','Thug','Thug','Cutthroat','Raider','Thug']);sq('Reapers',"Willow's Ranch",'Ranch Raiders',rep('Raider',6));sq('Reapers','Smugglerskeep','Keep Cutthroats',[...rep('Cutthroat',5),'Thug','Thug']);sq('Reapers',"Bog's Keep","Bog's Keep Thugs",rep('Thug',5));
- lone('Reapers','Portsbridge','Raider','Brann','Raider');lone('Reapers','Portsbridge','Blademaster','Cole','Blademaster');lone('Reapers','Crosshaven','Ravager','Sable','Ravager');pp('Reapers','Mudwater','Ravager','Mordecai Skell','Warlord',1);
+ lone('Reapers','Portsbridge','Raider','Brann','Raider');lone('Reapers','Portsbridge','Blademaster','Cole','Blademaster');lone('Reapers','Shadowtower','Ravager','Sable','Ravager');pp('Reapers','Mudwater','Ravager','Mordecai Skell','Warlord',1);
  // maps already built for these places
  const cm={};const put=(at,ids)=>{cm[cellOf(at)]=ids};put('Goldbank',['bank','vault','count']);put(ED,['stock','range','yard','circuit']);put('Crossroads',['road']);put('Great Keys',['alley']);
  return{v:1,F,PP,cm,gold:Object.fromEntries(Object.entries(NATS).map(([n,o])=>[n,o.gold])),nid,mname:{},last:{}}}
@@ -194,7 +196,10 @@ let R=LS.get('bs.region',null);if(!R||R.v!==1)R=seed();
 // settlements moved onto their cell centres when the roads were relaid: what stood at the old cell follows them
 const MOVED={"Portsbridge":[859.1,388.3],"Overbay":[602.7,308.2],"Rannoch":[1048.4,53.1],"Stonehaven Clach":[1032.9,6.8],"Shantyport":[836.9,283.1],"Havenport":[497.9,322.7],"Fumbleweed":[838.6,438.7],"Great Keys":[538,438.6],"Bog's Keep":[958.3,353.1]};
 function moveCell(R,o,n){if(o===n)return;for(const f of[...R.F,...R.PP])if(f.cell===o)f.cell=n;if(R.cm[o]){R.cm[n]=[...(R.cm[n]||[]),...R.cm[o]];delete R.cm[o]}if(R.last[o]){R.last[n]=R.last[o];delete R.last[o]}}
-function migrate(R){if(!R.gk2){moveCell(R,near([524.5,396.7]),near(MOVED['Great Keys']));R.gk2=1}if(!R.roads2){for(const n in MOVED)if(BURG[n])moveCell(R,near(MOVED[n]),near([BURG[n].x,BURG[n].y]));for(const c of[625,680,681])moveCell(R,c,624);R.roads2=1}return R}
+function migrate(R){if(!R.gk2){moveCell(R,near([524.5,396.7]),near(MOVED['Great Keys']));R.gk2=1}if(!R.roads2){for(const n in MOVED)if(BURG[n])moveCell(R,near(MOVED[n]),near([BURG[n].x,BURG[n].y]));for(const c of[625,680,681])moveCell(R,c,624);R.roads2=1}
+ if(!R.towns3){for(const[x,y,n]of[[873.4,322.2,'Shantyport'],[1079.6,583,'Shadowtower'],[403.8,578.1,'Quayside'],[656.4,319.8,'Overbay'],[941.3,682.9,'Wetmarket']])moveCell(R,near([x,y]),near([BURG[n].x,BURG[n].y]));
+  for(let c=0;c<D.cells.length;c++)if(!land(D.cells[c])&&R.F.concat(R.PP).some(f=>f.cell===c)){const to=[...nb[c]].filter(j=>land(D.cells[j])).sort((a,b)=>D.cells[b].h-D.cells[a].h)[0];if(to!=null)moveCell(R,c,to)}R.towns3=1}
+ return R}
 migrate(R);
 R.col=R.col||{};R.names=R.names||{};R.own=R.own||{};R.emb=R.emb||{};for(const f of R.F)if(f.n==='Sweetwater Thugs')f.n="Bog's Keep Thugs";
 const save=()=>{const c=JSON.parse(JSON.stringify(R,(k,v)=>k==='carry'?undefined:v));LS.set('bs.region',c)};
@@ -343,7 +348,7 @@ function tile(m,pickable,f){const d=mk('div','ut'+(sdPick.has(m.id)?' on':'')+(m
  d.onclick=e=>{e.stopPropagation();if(!pickable||m.dead||m.map)return;sdPick.has(m.id)?sdPick.delete(m.id):sdPick.add(m.id);drawSD()};dragSrc(d,m,f);dropOn(d,f,m);return d}
 function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scrollTop||0,c=sdc,cl=D.cells[c],own=OWN[c],maps=R.cm[c]||[];
  const fs=R.F.filter(f=>f.cell===c),sqs=fs.filter(f=>f.t==='squad'),cars=fs.filter(f=>f.t==='vehicle'),ppl=[...R.PP.filter(p=>p.cell===c),...fs.filter(f=>f.t==='unit').map(f=>({...f.men[0],note:1,nat:f.nat}))],{out,pris}=locals(c),np=Object.values(pris).reduce((a,L)=>a+L.length,0);
- SDL.innerHTML=`<div class="sdh"><span class="sfl"></span><div><b>${placeOf(c)}</b><small>${own?disp(own):'Unclaimed'} · ${land(cl)?D.biomes[cl.b].n:'Sea'}</small></div><button class="x">×</button></div>`;SDL.querySelector('.x').onclick=unsettle;{const sf=SDL.querySelector('.sfl');if(own&&NATS[own])sf.append(embCanvas(own,1));else sf.innerHTML=`<i style="display:block;width:33px;height:33px;background:${own?ownC(own):'#555'};border:1px solid #000"></i>`}
+ SDL.innerHTML=`<div class="sdh"><span class="sfl"></span><div><b>${placeOf(c)}</b><small>${own?disp(own):'Unclaimed'} · ${land(cl)?terrainOf(cl):'Sea'}</small></div><button class="x">×</button></div>`;SDL.querySelector('.x').onclick=unsettle;{const sf=SDL.querySelector('.sfl');if(own&&NATS[own])sf.append(embCanvas(own,1));else sf.innerHTML=`<i style="display:block;width:33px;height:33px;background:${own?ownC(own):'#555'};border:1px solid #000"></i>`}
  const ch=mk('div','sdc');ch.innerHTML=[['all','All',0],['squads','Squads',sqs.length],['vehicles','Vehicles',cars.length],['people','People',ppl.length],['locals','In the maps',out.reduce((a,g)=>a+g.men.length,0)],['prisoners','Prisoners',np]].filter(([k,,n])=>k==='all'||n).map(([k,t,n])=>`<button data-f="${k}" class="${sdFil===k?'on':''}">${t}${n?` <em>${n}</em>`:''}</button>`).join('');
  ch.onclick=e=>{const x=e.target.closest('button');if(x){sdFil=x.dataset.f;drawSD()}};SDL.append(ch);
  const body=mk('div','sdb');SDL.append(body);const hd=t=>body.append(mk('div','sec',t)),show=k=>sdFil==='all'||sdFil===k;
@@ -456,7 +461,10 @@ document.fonts&&document.fonts.ready.then(()=>draw());
 
 // ---- input: tokens pick and drag a force to another cell, stacks and towns open that place, cells pick themselves
 const xy=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
-let pan=null,dragF=null,moved=0;
+let pan=null,dragF=null,moved=0,BLOCK=null;
+// a force can't be sent into water, or into woods and high ground off the roads
+function blocked(i){if(!BLOCK){const R0=new Set(D.burgs.map(b=>near([b.x,b.y])));for(const r of D.routes){if(r.g==='searoutes')continue;let h=-1;for(let k=0;k<r.pts.length-1;k++){const a=r.pts[k],b=r.pts[k+1];for(let t=0;t<8;t++){h=cellAt(a[0]+(b[0]-a[0])*t/8,a[1]+(b[1]-a[1])*t/8,h);R0.add(h)}}}
+ BLOCK=D.cells.map((c,j)=>!land(c)||(c.f||c.h>=58)&&!R0.has(j))}return BLOCK[i]}
 cv.addEventListener('pointerdown',e=>{const[x,y]=xy(e);moved=0;cv.setPointerCapture(e.pointerId);
  if(paintOn&&nation!=='all'){painting=e.button===2?-1:1;paintAt(x,y);return}
  const f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f){if(e.button===2)return;dragF={f,x,y,mx:x,my:y,on:false};return}
@@ -464,18 +472,18 @@ cv.addEventListener('pointerdown',e=>{const[x,y]=xy(e);moved=0;cv.setPointerCapt
  pan={x,y,vx:view.x,vy:view.y}});
 cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  if(painting){paintAt(x,y);return}
- if(dragF){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);dragF.mx=x;dragF.my=y;if(moved>6)dragF.on=true;if(dragF.on){hov=near(S2W(x,y));draw()}return}
+ if(dragF){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);dragF.mx=x;dragF.my=y;if(moved>6)dragF.on=true;if(dragF.on){const h=near(S2W(x,y));hov=blocked(h)?-1:h;draw()}return}
  if(pan){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);view.x=pan.vx+x-pan.x;view.y=pan.vy+y-pan.y;draw();return}
  const hf=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),hg=!hf&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),ht=hf?hf.id:hg?stackOf(hg)[0].id:null;
  if(ht!==hovT){hovT=ht;cv.style.cursor=ht?'pointer':'';draw()}
  if(ht){const f=R.F.find(f=>f.id===ht);TIP.innerHTML=hg?`${placeOf(hg.cell)} <span>· ${disp(hg.nat)} ${stackOf(hg).reduce((a,f)=>a+soldiers(f),0)}</span>`:`${f.n} <span>· ${fallen(f)?(f.wreck?'Wreck':'Fallen'):f.t==='vehicle'?'Carrier':f.t==='unit'?f.men[0].role:soldiers(f)+' men'}</span>`;TIP.style.display='block';TIP.style.left=Math.min(x+14,VW-TIP.offsetWidth-8)+'px';TIP.style.top=(y+16)+'px';if(hov!==-1){hov=-1;draw()}return}
  const i=near(S2W(x,y)),c=D.cells[i];if(vis[i]<.5){if(hov!==-1){hov=-1;draw()}TIP.style.display='none';return}if(i!==hov){hov=i;draw()}
  const here=R.F.filter(f=>f.cell===i&&soldiers(f)),nats=[...new Set(here.map(f=>f.nat))].map(n=>disp(n)+' '+here.filter(f=>f.nat===n).reduce((a,f)=>a+soldiers(f),0)).join(', ');
- const bio=land(c)?D.biomes[c.b].n:c.h>=14?'Coastal waters':'Open sea',maps=(R.cm[i]||[]).length;
+ const bio=land(c)?terrainOf(c):c.h>=14?'Coastal waters':'Open sea',maps=(R.cm[i]||[]).length;
  TIP.innerHTML=`${placeOf(i)} <span>· ${bio}${ST[c.s]&&land(c)?' · '+ST[c.s].n:''}${nats?' · '+nats:''}${maps?' · '+maps+(maps>1?' maps':' map'):''}</span>`;TIP.style.display='block';TIP.style.left=Math.min(x+14,VW-TIP.offsetWidth-8)+'px';TIP.style.top=(y+16)+'px'});
 cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
  if(painting){painting=0;LBL=null;BCH=null;save();draw();return}
- if(dragF){const d=dragF;dragF=null;if(d.on){const to=near(S2W(x,y));if(to!==d.f.cell&&vis[to]>.5)moveF(d.f,to);else draw()}else pick(d.f,false);return}
+ if(dragF){const d=dragF;dragF=null;if(d.on){const to=near(S2W(x,y));if(to!==d.f.cell&&vis[to]>.5&&!blocked(to))moveF(d.f,to);else draw()}else pick(d.f,false);return}
  if(pan&&moved<4){const i=near(S2W(x,y)),b=BURGPT.find(o=>Math.hypot(x-o.X,y-o.Y)<Math.max(9,o.rad+3));if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}pan=null});
 cv.addEventListener('dblclick',e=>{const[x,y]=xy(e),i=near(S2W(x,y));if(vis[i]>.5&&!R.F.some(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R))settle(i)});
 addEventListener('keydown',e=>{if(OV.hidden||e.key!=='Escape'||e.target.closest&&e.target.closest('input'))return;e.stopImmediatePropagation();e.preventDefault();if(!SDL.hidden)unsettle();else if(paintOn){paintOn=false;cv.style.cursor='';natBar()}else if(rsel)unpick()},true);
