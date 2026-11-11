@@ -19,9 +19,10 @@ const placeOf=i=>{if(CELLB[i])return CELLB[i].n;const c=D.cells[i].c;let bb=null
 const cellXY=i=>CELLB[i]?[CELLB[i].x,CELLB[i].y]:D.cells[i].c;
 
 const EDK=D.burgs.find(b=>b.n==="Emperor's Dock");
-const HOLD={Havenport:['Havenport','Overbay','Smugglerskeep','Towerbay','Templewood'],'Great Keys':['Great Keys'],Goldbank:['Goldbank','Goldtown','Carnival','Holywell'],Portsbridge:['Portsbridge','Shantyport','Codsbrook','Monestry','Crossroads',"Willard's Pass",'Fumbleweed'],
+const HOLD={Havenport:['Havenport','Overbay','Smugglerskeep','Towerbay','Templewood'],'Great Keys':['Great Keys'],Portsbridge:['Goldbank','Goldtown','Carnival','Holywell','Portsbridge','Shantyport','Codsbrook','Monestry','Crossroads',"Willard's Pass",'Fumbleweed'],
  Astria:["Emperor's Dock"],Reapers:['Mudwater',"Bog's Keep",'Shadowtower',"Willow's Ranch"]};
-const KEEP=new Set(['Aracia','Whitecoast','Lindale','Holverland']),OWN=(()=>{const O=D.cells.map(c=>land(c)&&ST[c.s]&&KEEP.has(ST[c.s].n)?ST[c.s].n:null),dist=D.cells.map(()=>1e9),Q=[];
+// lands beyond the close-up keep the nation drawn for them; inside it the old states pass to the nations that replaced them
+const KEEPN={Aracia:'Old Kingdoms',Whitecoast:'Whitecoast',Lindale:'Reapers',Holverland:'Hoverlands'},KEEP=new Set(Object.values(KEEPN)),OWN=(()=>{const O=D.cells.map(c=>!land(c)?null:c.o?c.o:ST[c.s]&&KEEPN[ST[c.s].n]||null),dist=D.cells.map(()=>1e9),Q=[];
  const at=n=>{let b=null,d=1e9;for(const o of D.burgs)if(o.n===n){const e=Math.hypot(o.x-BOXC[0],o.y-BOXC[1]);if(e<d){d=e;b=o}}return b};
  for(const nat in HOLD)for(const t of HOLD[nat]){const b=at(t);if(!b)continue;let bi=0,bd=1e9;D.cells.forEach((c,i)=>{const e=(c.c[0]-b.x)**2+(c.c[1]-b.y)**2;if(e<bd){bd=e;bi=i}});dist[bi]=0;O[bi]=nat;Q.push([0,bi,nat])}
  // Great Keys keeps to its own ground: its city and the cells touching it
@@ -34,14 +35,14 @@ let g=cv.getContext('2d'),dpr=1;let VW=1,VH=1;
 const ZR=mk('div','zr');ZR.hidden=true;SIDE0.append(ZR);
 
 // ---- terrain: what each cell is and how it plays; the Tiler sets it
-const TT={deep:{n:'Deep sea',w:1,h:4,p:['#7898a2','#7e9ea8','#85a4ad','#9db8be']},sea:{n:'Sea',w:1,h:12,p:['#88a8b0','#8eaeb5','#95b3ba','#abc4c8']},shallow:{n:'Shallows',w:1,h:18,p:['#9ebcbd','#a5c2c2','#adc8c7']},
+const TT={ice:{n:'Ice',w:1,h:6,p:['#c9d6d8','#d6e1e2','#e2eaea','#edf2f1']},deep:{n:'Deep sea',w:1,h:4,p:['#7898a2','#7e9ea8','#85a4ad','#9db8be']},sea:{n:'Sea',w:1,h:12,p:['#88a8b0','#8eaeb5','#95b3ba','#abc4c8']},shallow:{n:'Shallows',w:1,h:18,p:['#9ebcbd','#a5c2c2','#adc8c7']},
  plains:{n:'Plains',h:30,b:4,p:['#7b7f47','#83874d','#8b8e53','#93955a','#9d9d61']},dry:{n:'Dry plains',h:30,b:3,p:['#8b8350','#958c57','#9e955e','#a89d65','#b2a56d']},
  marsh:{n:'Marsh',h:24,b:12,p:['#6a7450','#717b55','#78825b','#5f7672','#6a817b','#555e3c']},woods:{n:'Woods',h:34,b:6,f:1,p:['#3c4524','#566131','#68733a','#7a8644','#8d984f']},
  hills:{n:'Hills',h:60,b:4,p:['#6f7042','#7a7a48','#85844f','#908d56','#9b975e']},mountains:{n:'Mountains',h:72,b:4,p:['#4e4a42','#6c675d','#787267','#837d71','#8f897c','#a8a295']}};
-const TTL=['plains','dry','marsh','woods','hills','mountains'],TTW=['shallow','sea','deep'];
-const terOf=c=>c.h<20?(c.h<8?'deep':c.h<15?'sea':'shallow'):c.f?'woods':c.h>=66?'mountains':c.h>=58?'hills':c.b===12?'marsh':c.b>=1&&c.b<=3?'dry':'plains';
+const TTL=['plains','dry','marsh','woods','hills','mountains'],TTW=['shallow','sea','deep','ice'];
+const terOf=c=>c.ice?'ice':c.h<20?(c.h<8?'deep':c.h<15?'sea':'shallow'):c.f?'woods':c.h>=66?'mountains':c.h>=58?'hills':c.b===12?'marsh':c.b>=1&&c.b<=3?'dry':'plains';
 for(const c of D.cells)c.t=terOf(c);
-function setTer(c,t){const T=TT[t],was=land(c);c.t=t;c.f=T.f||0;c.b=T.w?0:T.b;if(T.w||!was||t==='hills'||t==='mountains'||c.h>=58)c.h=T.h}
+function setTer(c,t){const T=TT[t],was=land(c);c.t=t;c.ice=t==='ice'?1:0;c.f=T.f||0;c.b=T.w?0:T.b;if(T.w||!was||t==='hills'||t==='mountains'||c.h>=58)c.h=T.h}
 const terrainOf=c=>TT[c.t].n;
 // a cell that turns to water belongs to no one; new land joins the nation most around it
 function ownFix(i){if(!land(D.cells[i])){OWN[i]=null;return}if(OWN[i])return;const n={};for(const j of nb[i])if(OWN[j])n[OWN[j]]=(n[OWN[j]]||0)+1;OWN[i]=Object.keys(n).sort((a,b)=>n[b]-n[a])[0]||null}
@@ -78,12 +79,16 @@ function terTile(t){if(TILE[t])return TILE[t];const TP=t==='woods'?63:64;const P
 const COASTP={foam:hex('#dfe9e5'),band:hex('#bcd3d1'),rip:hex('#ccdfdc'),shore:.82};
 let TC=null;
 // cells by bucket, so a pixel finds its cell quickly; each pixel takes the cell under a slightly wandering point, so borders fray
-const BK=24,BKT=new Map();D.cells.forEach((c,i)=>{const k=(Math.floor(c.c[0]/BK))+','+(Math.floor(c.c[1]/BK));(BKT.get(k)||BKT.set(k,[]).get(k)).push(i)});
-const cellPx=(x,y)=>{const gx=Math.floor(x/BK),gy=Math.floor(y/BK);let bi=-1,bd=1e18;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const L=BKT.get((gx+a)+','+(gy+b));if(L)for(const i of L){const c=D.cells[i].c,d=(c[0]-x)**2+(c[1]-y)**2;if(d<bd){bd=d;bi=i}}}return bi<0?near([x,y]):bi};
+const BK=24,BGX=Math.floor(bx0/BK)-2,BGY=Math.floor(by0/BK)-2,BW=Math.ceil((bx1-bx0)/BK)+5,BH=Math.ceil((by1-by0)/BK)+5,BKT=Array.from({length:BW*BH},()=>[]);
+D.cells.forEach((c,i)=>{const gx=Math.floor(c.c[0]/BK)-BGX,gy=Math.floor(c.c[1]/BK)-BGY;if(gx>=0&&gy>=0&&gx<BW&&gy<BH)BKT[gy*BW+gx].push(i)});
+const CX=Float64Array.from(D.cells,c=>c.c[0]),CY=Float64Array.from(D.cells,c=>c.c[1]);
+const cellPx=(x,y)=>{const gx=Math.floor(x/BK)-BGX,gy=Math.floor(y/BK)-BGY;let bi=-1,bd=1e18;for(let b=gy-1;b<=gy+1;b++){if(b<0||b>=BH)continue;for(let a=gx-1;a<=gx+1;a++){if(a<0||a>=BW)continue;const L=BKT[b*BW+a];for(let k=0;k<L.length;k++){const i=L[k],dx=CX[i]-x,dy=CY[i]-y,d=dx*dx+dy*dy;if(d<bd){bd=d;bi=i}}}}return bi<0?near([x,y]):bi};
 const DM=12,RAISE={woods:2,mountains:5,hills:1};
-function terrain(){if(TC)return TC;const x0=Math.floor(bx0-130),y0=Math.floor(by0-130),W=Math.ceil(bx1-bx0+260),H=Math.ceil(by1-by0+260),cv2=mk('canvas');cv2.width=W;cv2.height=H;
+function terrain(){if(TC)return TC;const x0=Math.floor(bx0-8),y0=Math.floor(by0-8),W=Math.ceil(bx1-bx0+16),H=Math.ceil(by1-by0+16),cv2=mk('canvas');cv2.width=W;cv2.height=H;
  const ctx=cv2.getContext('2d');TC={cv:cv2,ctx,x0,y0,W,H,CI:new Int32Array(W*H),img:ctx.createImageData(W,H)};
- for(let y=0;y<H;y++)for(let x=0;x<W;x++){const X=x0+x,Y=y0+y;TC.CI[y*W+x]=cellPx(X+(pv(X/4,Y/4,81,1e6)-.5)*6,Y+(pv(X/4,Y/4,82,1e6)-.5)*6)}
+ const lw=(W>>2)+3,lh=(H>>2)+3,LA=new Float32Array(lw*lh),LB=new Float32Array(lw*lh);for(let j=0;j<lh;j++)for(let i=0;i<lw;i++){LA[j*lw+i]=th(i,j,81)-.5;LB[j*lw+i]=th(i,j,82)-.5}
+ const lat=(L,x,y)=>{const u=x/4,v=y/4,i=u|0,j=v|0,fu=smt(u-i),fv=smt(v-j),o=j*lw+i,a=L[o],b=L[o+1],c=L[o+lw],d=L[o+lw+1];return a+(b-a)*fu+(c-a)*fv+(a-b-c+d)*fu*fv};
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++)TC.CI[y*W+x]=cellPx(x0+x+lat(LA,x,y)*6,y0+y+lat(LB,x,y)*6)
  paintRect(0,0,W,H);return TC}
 // repaint a box of pixels; the shore distance is measured with a margin so a box can be redone on its own
 function paintRect(ax,ay,bx,by){const{W,H,CI,x0,y0,img}=TC,o=img.data;ax=Math.max(0,ax|0);ay=Math.max(0,ay|0);bx=Math.min(W,Math.ceil(bx));by=Math.min(H,Math.ceil(by));
@@ -95,7 +100,7 @@ function paintRect(ax,ay,bx,by){const{W,H,CI,x0,y0,img}=TC,o=img.data;ax=Math.ma
  for(let y=ay;y<by;y++)for(let x=ax;x<bx;x++){const j=y*W+x,l=(y-my)*w+x-mx,X=x0+x,Y=y0+y,c=D.cells[CI[j]],T=terTile(c.t),k=T.A[wr(Y,T.s)*T.s+wr(X,T.s)],dth=B4[(y&3)*4+(x&3)]/16;let col=T.P[Math.min(k,T.P.length-1)];
   if(LD[l]){if(DW[l]===0)col=col.map(v=>v*COASTP.shore);const rz=RAISE[c.t]||0;if(rz<3){for(let d=1;d<=5;d++){const q2=CI[Math.max(0,y-d)*W+Math.max(0,x-d)];if((RAISE[D.cells[q2].t]||0)>rz&&d<=(RAISE[D.cells[q2].t])){col=col.map(v=>v*(.66+d*.06));break}}}}
   else{const d=DW[l];if(d<1.2)col=COASTP.foam;else if(d<3)col=COASTP.band;else if(d>=4&&d<5)col=COASTP.rip;else if(d<8&&dth<(8-d)/6)col=COASTP.band}
-  const dx=Math.max(bx0-X,0,X-bx1),dy=Math.max(by0-Y,0,Y-by1),v=Math.max(0,1-Math.hypot(dx,dy)/110+(pv(X/9,Y/9,91,1e6)-.5)*.25);
+  const dx=Math.max(bx0-X,0,X-bx1),dy=Math.max(by0-Y,0,Y-by1),v=dx||dy?Math.max(0,1-Math.hypot(dx,dy)/110+(pv(X/9,Y/9,91,1e6)-.5)*.25):1;
   if(v<1){const grey=(col[0]+col[1]+col[2])/3,f=Math.round((1-v)*6+dth-.5)/6;col=col.map(c2=>c2+(grey-c2)*f*.8);col=col.map((c2,q2)=>c2+(VOID[q2]-c2)*Math.min(1,f*1.05))}
   o[j*4]=col[0];o[j*4+1]=col[1];o[j*4+2]=col[2];o[j*4+3]=255}
  TC.ctx.putImageData(img,0,0,ax,ay,bx-ax,by-ay)}
@@ -161,11 +166,11 @@ const KMAX=3.6,MI=3/4.1744;
 function ruler(){const want=140/view.k*MI,st=[1,2,5,10,20,25,50,100],mi=st.find(v=>v>=want*.6)||100,w=mi/MI*view.k,X=VW-w-34,Y=VH-22;
  g.save();g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle='rgba(20,20,20,.7)';g.fillRect(X-10,Y-22,w+38,32);for(let i=0;i<5;i++){g.fillStyle=i%2?'#2a221c':'#efe5c8';g.fillRect(X+i*w/5,Y,w/5,4)}g.strokeStyle='#efe5c8';g.lineWidth=1;g.strokeRect(X-.5,Y-.5,w+1,5);
  g.font='16px VT323,monospace';g.fillStyle='#efe5c8';g.textAlign='center';for(const[t,x]of[[0,X],[mi/2,X+w/2],[mi,X+w]])g.fillText(String(t),x,Y-5);g.textAlign='left';g.fillStyle='#9a978e';g.fillText('mi',X+w+8,Y+5);g.restore()}
-let TA=1;const KFIT=()=>Math.min((VW-40)/(bx1-bx0+40),(VH-40)/(by1-by0+40));
-function burgs(){TA=.3+.7*Math.max(0,Math.min(1,(view.k-KFIT())/.45));BOXES.length=0;if(view.k>=CLOSE)placeClose();if(view.k/KFIT()>=DOTAT)markBoxes();const z=Math.max(.75,Math.min(1.5,Math.sqrt(view.k/1.3)));
+const KREF=1.1;let TA=1;const KFIT=()=>Math.min((VW-40)/(bx1-bx0+40),(VH-40)/(by1-by0+40));
+function burgs(){TA=.3+.7*Math.max(0,Math.min(1,(view.k-KREF)/.45));BOXES.length=0;if(view.k>=CLOSE)placeClose();if(view.k/KREF>=DOTAT)markBoxes();const z=Math.max(.75,Math.min(1.5,Math.sqrt(view.k/1.3)));
  const L=D.burgs.map((b,i)=>({b,r:b.cap?0:RANK[b.group]??3,v:RVI[i]})).filter(o=>o.v>.45).sort((a,b)=>a.r-b.r);
- BURGPT=L;const fg=view.k/KFIT();for(const o of L){const ga=o.r<=1?1:Math.max(0,Math.min(1,(fg-MARKAT[o.r])/.2));if(ga<=0){o.rad=0;continue}const[X,Y]=W2S(o.b.x,o.b.y);o.X=X;o.Y=Y;g.globalAlpha=Math.min(1,o.v*1.2)*ga;o.rad=glyph(o.b,X,Y,z);if(o.b.port)anchorG(X+o.rad+5*z,Y-o.rad-1,z*.9);g.globalAlpha=1;BOXES.push([X-o.rad,Y-o.rad,X+o.rad,Y+o.rad])}
- const SZ=[19,16,14,12.5,11.5],fz=view.k/KFIT();for(const o of L){const na=o.r===0?1:Math.max(0,Math.min(1,(fz-NAMEAT[o.r])/.25));if(na<=0)continue;const fs=SZ[o.r]*Math.min(1.25,Math.max(.85,Math.sqrt(view.k/1.4)));
+ BURGPT=L;const fg=view.k/KREF;for(const o of L){const ga=o.r<=1?1:Math.max(0,Math.min(1,(fg-MARKAT[o.r])/.2));if(ga<=0){o.rad=0;continue}const[X,Y]=W2S(o.b.x,o.b.y);o.X=X;o.Y=Y;g.globalAlpha=Math.min(1,o.v*1.2)*ga;o.rad=glyph(o.b,X,Y,z);if(o.b.port)anchorG(X+o.rad+5*z,Y-o.rad-1,z*.9);g.globalAlpha=1;BOXES.push([X-o.rad,Y-o.rad,X+o.rad,Y+o.rad])}
+ const SZ=[19,16,14,12.5,11.5],fz=view.k/KREF;for(const o of L){const na=o.r===0?1:Math.max(0,Math.min(1,(fz-NAMEAT[o.r])/.25));if(na<=0)continue;const fs=SZ[o.r]*Math.min(1.25,Math.max(.85,Math.sqrt(view.k/1.4)));
   g.font=`${o.r>=3?'italic ':''}${fs}px ${o.r<=1?'"IM Fell English SC"':'"IM Fell English"'},Georgia,serif`;const w=g.measureText(o.b.n).width;
   for(const[ax,ay,al]of[[o.rad+4,fs*.35,'left'],[-o.rad-4,fs*.35,'right'],[-w/2,-o.rad-4,'left'],[-w/2,o.rad+fs*.85,'left']]){const x0=al==='left'?o.X+ax:o.X+ax-w,y0=o.Y+ay-fs*.8,r=[x0-1,y0,x0+w+1,y0+fs];if(!fits(r))continue;BOXES.push(r);
    g.globalAlpha=Math.min(1,o.v*1.2)*(o.r===0?TA:1)*na;g.textAlign='left';g.lineJoin='round';g.strokeStyle='rgba(240,232,208,.85)';g.lineWidth=3.2;g.strokeText(o.b.n,x0,o.Y+ay);g.fillStyle=o.r<=1?'#2a1f18':'#3a2e24';g.fillText(o.b.n,x0,o.Y+ay);g.globalAlpha=1;break}}}
@@ -182,7 +187,7 @@ function labels(){const out=[],deep=D.cells.map(()=>-1),Q=[];
  for(const o in by){const name=disp(o);if(D.burgs.some(b=>b.n===name))continue;const L=by[o],mx=L.reduce((a,i)=>a+CEN[i][0],0)/L.length,my=L.reduce((a,i)=>a+CEN[i][1],0)/L.length;
   const top=Math.max(...L.map(i=>deep[i])),cand=L.filter(i=>deep[i]>=top-2).sort((a,b)=>deep[b]-deep[a]||Math.hypot(CEN[a][0]-mx,CEN[a][1]-my)-Math.hypot(CEN[b][0]-mx,CEN[b][1]-my));let best=null;
   for(const h of cand.slice(0,14)){const[x,y]=CEN[h],words=name.toUpperCase().split(' '),opts=[[words.join(' ')]];if(words.length>1){let k=1,d=1e9;for(let t=1;t<words.length;t++){const v=Math.abs(words.slice(0,t).join(' ').length-words.slice(t).join(' ').length);if(v<d){d=v;k=t}}opts.push([words.slice(0,k).join(' '),words.slice(k).join(' ')])}
-   for(const lines of opts){for(let f=22;f>=5;f-=.5){cx.font=`${f}px "IM Fell English SC",Georgia,serif`;const sp=t=>t.split('').join(' '),w=Math.max(...lines.map(t=>cx.measureText(sp(t)).width)),hh=f*1.05*lines.length;
+   for(const lines of opts){for(let f=Math.min(46,10+Math.sqrt(L.length)*1.6);f>=5;f-=.5){cx.font=`${f}px "IM Fell English SC",Georgia,serif`;const sp=t=>t.split('').join(' '),w=Math.max(...lines.map(t=>cx.measureText(sp(t)).width)),hh=f*1.05*lines.length;
      let ok=true,lo=-1e9,hi=1e9;for(const dy of[-hh/2,0,hh/2]){const[a,b]=span(o,x,y+dy,h);lo=Math.max(lo,a);hi=Math.min(hi,b);if(hi-lo<w*1.08){ok=false;break}}
      if(ok){const cx2=(lo+hi)/2,sc=f*(1-Math.min(.9,.3*under(cx2-w/2,y-hh/2,cx2+w/2,y+hh/2))+.02*deep[h]);if(!best||sc>best.sc)best={x:cx2,y,f,lines:lines.map(sp),sc};break}}}}
   if(best)out.push({...best,c:ownC(o)})}
@@ -210,26 +215,28 @@ function states(){const far=Math.max(0,Math.min(1,(2.6-view.k)/.9)),near2=Math.m
 let SL=null;
 function seaLabels(){const out=[];const by={};for(const k in R.wc)if(R.seas[R.wc[k]]&&!land(D.cells[k]))(by[R.wc[k]]||(by[R.wc[k]]=[])).push(+k);
  for(const id in by){const C=new Set(by[id]),dp=new Map(),Q=[];for(const i of C)if(nb[i].some(j=>!C.has(j))){dp.set(i,0);Q.push(i)}for(let q=0;q<Q.length;q++)for(const j of nb[Q[q]])if(C.has(j)&&!dp.has(j)){dp.set(j,dp.get(Q[q])+1);Q.push(j)}
-  const md=Math.max(...dp.values()),top=[...C].filter(i=>dp.get(i)===md);let x=0,y=0;for(const i of top){x+=CEN[i][0]/top.length;y+=CEN[i][1]/top.length}out.push({n:R.seas[id].n,x,y,sz:C.size})}return out}
-function isles(){const f=view.k/KFIT();for(const id in R.isl){const o=R.isl[id],a=Math.max(0,Math.min(1,(f-1.05)/.3));if(a<=0)continue;if(!o.p){let x=0,y=0;for(const i of o.c){x+=CEN[i][0];y+=CEN[i][1]}o.p=[x/o.c.length,y/o.c.length]}
+  const md=Math.max(...dp.values()),top=[...C].filter(i=>dp.get(i)===md);let x=0,y=0;for(const i of top){x+=CEN[i][0]/top.length;y+=CEN[i][1]/top.length}if(!out.some(o=>Math.hypot(o.x-x,o.y-y)<60))out.push({n:R.seas[id].n,x,y,sz:C.size})}return out}
+function isles(){const f=view.k/KREF;for(const id in R.isl){const o=R.isl[id],a=Math.max(0,Math.min(1,(f-1.05)/.3));if(a<=0)continue;if(!o.p){let x=0,y=0;for(const i of o.c){x+=CEN[i][0];y+=CEN[i][1]}o.p=[x/o.c.length,y/o.c.length]}
   const[X,Y]=W2S(...o.p),fs=Math.max(10,Math.min(14,9*Math.sqrt(view.k)));const own=OWN[o.c[0]],col=own?css(mixc(hex(ownC(own)),[30,22,18],.6)):'#3a2e24';
   g.font=`${fs}px "IM Fell English SC",Georgia,serif`;g.letterSpacing=(fs*.12).toFixed(1)+'px';g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';g.globalAlpha=.9*a;g.strokeStyle='rgba(244,238,222,.8)';g.lineWidth=2.6;g.strokeText(o.n,X,Y);g.fillStyle=col;g.fillText(o.n,X,Y);g.globalAlpha=1;g.letterSpacing='0px';g.textAlign='left';g.textBaseline='alphabetic'}}
-function seas(){isles();if(!SL)SL=seaLabels();const f=view.k/KFIT();for(const l of SL){const a=Math.max(0,Math.min(1,(f-(l.sz>25?.9:1.25))/.3));if(a<=0)continue;const[X,Y]=W2S(l.x,l.y),fs=Math.max(11,Math.min(17,(10+Math.sqrt(l.sz)*1.1)*Math.sqrt(view.k/2)));
+function regions(){const a=Math.max(0,Math.min(1,(1.05-view.k/KREF)/.35));if(a<=0||!D.regions)return;for(const r of D.regions){const[X,Y]=W2S(r.x,r.y),fs=Math.max(18,34*view.k/.6*.5);
+  g.font=`italic ${fs}px "IM Fell English",Georgia,serif`;g.letterSpacing=(fs*.3).toFixed(1)+'px';g.textAlign='center';g.textBaseline='middle';g.globalAlpha=.55*a;g.fillStyle='#2a221c';g.fillText(r.n.toUpperCase(),X,Y);g.globalAlpha=1;g.letterSpacing='0px';g.textAlign='left';g.textBaseline='alphabetic'}}
+function seas(){isles();regions();if(!SL)SL=seaLabels();const f=view.k/KREF;for(const l of SL){const a=Math.max(0,Math.min(1,(f-(l.sz>25?.9:1.25))/.3));if(a<=0)continue;const[X,Y]=W2S(l.x,l.y),fs=Math.max(11,Math.min(17,(10+Math.sqrt(l.sz)*1.1)*Math.sqrt(view.k/2)));
   g.font=`italic ${fs}px "IM Fell English",Georgia,serif`;g.letterSpacing=(fs*.18).toFixed(1)+'px';g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';g.globalAlpha=.9*a;g.strokeStyle='rgba(226,236,236,.6)';g.lineWidth=2.6;g.strokeText(l.n,X,Y);g.fillStyle='#365563';g.fillText(l.n,X,Y);g.globalAlpha=1;g.letterSpacing='0px';g.textAlign='left';g.textBaseline='alphabetic'}}
 
 // ---- nations, their forces and their people (game nation in brackets where it differs)
 const disp=n=>NATS[n]?NATS[n].n:n;
-const NATS={Astria:{n:'Astria',pp:'Astrians',c:'#34405e',ring:[66,82,120],gold:18400,seat:"Emperor's Dock",gn:'Imperium'},Goldbank:{n:"Aurum's Reach",c:'#afaa42',ring:[175,170,66],gold:52000,seat:'Goldbank'},'Great Keys':{n:"Great Keys",c:'#2f9e6e',ring:[56,160,112],gold:9600,seat:'Great Keys'},
+const NATS={Astria:{n:'Imperial Astria',pp:'Astrians',c:'#34405e',ring:[66,82,120],gold:18400,seat:'Ularam',gn:'Imperium'},'Old Kingdoms':{n:'Old Kingdoms',c:'#9b3f6e',ring:[176,96,138],gold:30000,seat:'Highcrown'},Hoverlands:{n:'Hoverlands',c:'#5b57c9',ring:[120,116,214],gold:24000,seat:'Caer Holvar'},Whitecoast:{n:'Whitecoast',c:'#d26aa0',ring:[226,140,184],gold:8000,seat:'White Wall'},'Great Keys':{n:"Great Keys",c:'#2f9e6e',ring:[56,160,112],gold:9600,seat:'Great Keys'},
  Havenport:{n:"Freefolk Lands",pp:'Freefolk',c:'#4775de',ring:[86,126,214],gold:12300,seat:'Havenport'},Portsbridge:{n:"Portsbridge Trade Federation",c:'#c9a53c',ring:[214,180,80],gold:15800,seat:'Portsbridge'},Reapers:{n:"The Marsh",pp:'Marshmen',gn:'Marshmen',c:'#4a5a2a',ring:[110,130,64],gold:2100,seat:'Mudwater'}};
 const LK={off:'Astrian Officer|n|iron|h',ln1:'Astrian Line|m|iron|h',ln2:'Astrian Line|t|iron|h',ln3:'Astrian Line|m|steel|h',ln4:'Astrian Line|n|iron|h',ln5:'Astrian Line|t|iron|b',gd1:'Astrian Guard|f|steel|h',gd2:'Astrian Guard|f|iron|h',cs:'Astrian Conscript'};
 const ROLE={off:'Officer',ln1:'Line',ln2:'Line',ln3:'Line',ln4:'Line',ln5:'Line',gd1:'Guard',gd2:'Guard',cs:'Conscript'};
 const NAMES=['Hale','Voss','Marr','Cobb','Rook','Tenn','Ashby','Pike','Dunn','Fell','Garr','Holt','Keane','Lowe','Mace','Orr','Pell','Quill','Rand','Sedge','Thorn','Vale','Wick','Yarrow','Strand','Calder','Hask','Brin','Cade','Dorr','Esk','Fenn','Gale','Hume','Ivo','Jory','Kell','Lusk','Moss','Nash','Odell','Prew','Rusk','Sallow','Tull','Ure','Varn','Wade'];
 function seed(){let nid=0;const F=[],PP=[],cellOf=at=>near([BURG[at].x,BURG[at].y]);
  const P=(k,o={})=>{const i=nid++;return{id:'m'+i,k:LK[k]||k,n:o.n||(k==='off'?'Lt. ':'')+NAMES[(i*7)%NAMES.length],role:o.role||ROLE[k]||k,h:100,note:o.note}};
- const sq=(nat,at,n,keys,o={})=>F.push({id:'f'+F.length,t:'squad',nat,cell:cellOf(at),n,men:keys.map(k=>P(k)),fav:o.fav,show:o.show});
+ const sq=(nat,at,n,keys,o={})=>(nat=nat==='Goldbank'?'Portsbridge':nat,F.push({id:'f'+F.length,t:'squad',nat,cell:cellOf(at),n,men:keys.map(k=>P(k)),fav:o.fav,show:o.show}));
  const car=(nat,at,n,k,hull,crew,cargo,o={})=>F.push({id:'f'+F.length,t:'vehicle',nat,cell:cellOf(at),n,k,hull,men:crew.map(k=>P(k)),cargo,wreck:hull===0,fav:o.fav});
  const lone=(nat,at,k,n,role)=>F.push({id:'f'+F.length,t:'unit',nat,cell:cellOf(at),n,men:[P(k,{n,role})]});
- const pp=(nat,at,k,n,role,note)=>PP.push({...P(k,{n,role,note}),t:'person',nat,cell:cellOf(at)});
+ const pp=(nat,at,k,n,role,note)=>PP.push({...P(k,{n,role,note}),t:'person',nat:nat==='Goldbank'?'Portsbridge':nat,cell:cellOf(at)});
  const rep=(k,n)=>Array(n).fill(k),LINE=['off','ln3','ln1','ln1','ln2','ln5','ln4','ln2'],GUARD=['off','gd1','gd2','gd1','gd2','gd1','gd2','gd1'],CONS=['off',...rep('cs',7)],ED="Emperor's Dock";
  ['1st','2nd','3rd','4th','5th','6th','7th'].forEach((o,i)=>sq('Astria',ED,o+' Line',LINE,{fav:i===0}));
  sq('Astria',ED,'1st Guard',GUARD,{fav:1});sq('Astria',ED,'2nd Guard',GUARD);sq('Astria',ED,'Dock Conscripts',CONS);sq('Astria',ED,'Gate Conscripts',CONS);sq('Astria','Crossroads','Road Picket',rep('cs',5),{show:false});
@@ -258,6 +265,7 @@ function migrate(R){if(!R.gk2){moveCell(R,near([524.5,396.7]),near(MOVED['Great 
   for(let c=0;c<D.cells.length;c++)if(!land(D.cells[c])&&R.F.concat(R.PP).some(f=>f.cell===c)){const to=[...nb[c]].filter(j=>land(D.cells[j])).sort((a,b)=>D.cells[b].h-D.cells[a].h)[0];if(to!=null)moveCell(R,c,to)}R.towns3=1}
  return R}
 migrate(R);
+for(const f of[...R.F,...R.PP])if(f.nat==='Goldbank')f.nat='Portsbridge';if(R.gold&&R.gold.Goldbank){R.gold.Portsbridge=(R.gold.Portsbridge||0)+R.gold.Goldbank;delete R.gold.Goldbank}if(R.own)for(const k in R.own)if(R.own[k]==='Goldbank')R.own[k]='Portsbridge';
 R.col=R.col||{};R.names=R.names||{};R.own=R.own||{};R.emb=R.emb||{};R.ter=R.ter||{};R.seas=R.seas||{};R.wc=R.wc||{};if(R.rt){D.routes.length=0;D.routes.push(...R.rt);rvCalc()}for(const f of R.F)if(f.n==='Sweetwater Thugs')f.n="Bog's Keep Thugs";
 const save=()=>{const c=JSON.parse(JSON.stringify(R,(k,v)=>k==='carry'?undefined:v));LS.set('bs.region',c)};
 const ringOf=c=>mixc(hex(c),[255,255,255],.18);
@@ -271,7 +279,7 @@ if(!R.bays1){const seen=new Set();for(let i=0;i<D.cells.length;i++){if(land(D.ce
   if(C.length>60||C.some(j=>vis[j]<.9))continue;const cx=C.reduce((a,j)=>a+D.cells[j].c[0],0)/C.length,cy=C.reduce((a,j)=>a+D.cells[j].c[1],0)/C.length;let bn=null,bd=1e9;for(const b of D.burgs){const d=Math.hypot(b.x-cx,b.y-cy);if(d<bd){bd=d;bn=b.n}}if(!bn)continue;
   const base=bn.replace(/'s$/,''),F=/bay$/i.test(base)?['{n} Water','{n} Mere']:['{n} Bay','Bay of {n}','{n} Mere','{n} Sound'],id='w'+i;R.seas[id]={n:F[Math.floor(hash(i+3)*F.length)].replace('{n}',base)};for(const j of C)R.wc[j]=id}R.bays1=1}
 // ---- flags: each nation's square pixel emblem, the Fluoria library's or the one painted here
-const EMK={Astria:'astia',Goldbank:'goldbank',Havenport:'havenport',Portsbridge:'portsbridge','Great Keys':'great keys',Reapers:'reapers'};
+const EMK={Astria:'astia','Old Kingdoms':'aracia',Hoverlands:'holverland',Whitecoast:'whitecoast',Havenport:'havenport',Portsbridge:'portsbridge','Great Keys':'great keys',Reapers:'reapers'};
 const libEmb=n=>{const e=RGE[EMK[n]];return e?[...e.i].map(ch=>e.p[ch.charCodeAt(0)-48]):Array(33*33).fill('#000000').map((c,i)=>{const x=i%33,y=i/33|0;return x&&y&&x<32&&y<32?NATS[n].c:c})};
 const embPx=n=>R.emb[n]||libEmb(n);
 function embCanvas(n,s,px){const c=mk('canvas','emb');c.width=c.height=33;const x=c.getContext('2d'),im=x.createImageData(33,33),P=px||embPx(n);P.forEach((h,i)=>{const v=hex(h);im.data.set([v[0],v[1],v[2],255],i*4)});x.putImageData(im,0,0);c.style.width=c.style.height=33*s+'px';return c}
@@ -348,7 +356,7 @@ function totals(z,r){if(vf==='gold'){const v=cellGold();for(const c in v){const 
  if(vf==='ppl'){const by={};for(const p of R.PP)if(!p.dead&&p.show!==false)(by[p.cell]||(by[p.cell]=[])).push(p);for(const c in by){const L=by[c],mine=L.filter(p=>nation==='all'||p.nat===nation),n0=L[0].nat,one=L.every(p=>p.nat===n0),[X,Y0]=W2S(...cellXY(+c)),Y=Y0+r+8;
   mark(X,Y,r,z,one&&NATS[n0]?css(NATS[n0].ring):'#c9c5ba',MAN,MANC,String((nation==='all'?L:mine).length||L.length),!mine.length)}}}
 function markers(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),r=10*z;for(const f of R.F)f.R=0;if(view.k>=CLOSE)leaders();totals(z,r);
- if(view.k/KFIT()<DOTAT){for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;const[X,Y]=W2S(G.x,G.y),dead=fs.every(fallen),on=fs.some(f=>f.id===rsel),hv=fs.some(f=>f.id===hovT),rr=on||hv?5.5:4.2;
+ if(view.k/KREF<DOTAT){for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;const[X,Y]=W2S(G.x,G.y),dead=fs.every(fallen),on=fs.some(f=>f.id===rsel),hv=fs.some(f=>f.id===hovT),rr=on||hv?5.5:4.2;
    g.globalAlpha=fs.some(match)?1:.3;g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.arc(X+1,Y+1.5,rr+1,0,7);g.fill();g.fillStyle=dead?'#77706a':NATS[G.nat].c;g.beginPath();g.arc(X,Y,rr,0,7);g.fill();g.strokeStyle=on?'#f2efe6':'#1e1a16';g.lineWidth=on?2:1.4;g.stroke();g.globalAlpha=1;G.R=[X-8,Y-8,X+8,Y+8]}return}
  for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;
   if(view.k>=CLOSE&&!G.stack){for(const f of fs)tok(f,f.SX,f.SY,r,z);continue}
@@ -585,7 +593,7 @@ addEventListener('keydown',e=>{if(OV.hidden||e.target.closest&&e.target.closest(
  if(e.key!=='Escape')return;e.stopImmediatePropagation();e.preventDefault();if(!SDL.hidden)unsettle();else if(rtool!=='cmd')setTool('cmd');else if(rsel)unpick()},true);
 cv.addEventListener('contextmenu',e=>{e.preventDefault();const[x,y]=xy(e),f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f&&fallen(f)){const b=ubtn('Delete','red rgdel',()=>{b.remove();delF(f)});b.style.left=x+'px';b.style.top=y+'px';OV.append(b);setTimeout(()=>addEventListener('pointerdown',ev=>{if(ev.target!==b)b.remove()},{once:true}),0)}});
 cv.addEventListener('pointerleave',()=>{hov=-1;hovT=null;TIP.style.display='none';draw()});
-cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=xy(e),f=Math.exp(-e.deltaY*.0015),[wx,wy]=S2W(x,y);view.k=Math.max(.6,Math.min(KMAX,view.k*f));view.x=x-wx*view.k;view.y=y-wy*view.k;draw()},{passive:false});
+cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=xy(e),f=Math.exp(-e.deltaY*.0015),[wx,wy]=S2W(x,y);view.k=Math.max(Math.min(.6,KFIT()*.9),Math.min(KMAX,view.k*f));view.x=x-wx*view.k;view.y=y-wy*view.k;draw()},{passive:false});
 // moving a force out of a cell whose map holds its men asks first, then brings the living out as they are
 function paintAt(x,y){const i=near(S2W(x,y));if(tileW===2){if(land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pwat:null;if((R.wc[i]||null)===v)return;if(v)R.wc[i]=v;else delete R.wc[i];SL=null;draw();return}if(!land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pnat:null;if(OWN[i]===v)return;OWN[i]=v;R.own[i]=v||'';LBL=null;BCH=null;draw()}
 // ---- roads: drawn cell to cell over land, joining a road already in the end cell; erasing cuts the roads in a cell
