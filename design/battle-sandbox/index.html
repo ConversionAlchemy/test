@@ -4544,17 +4544,18 @@ function draw(){if(OV.hidden)return;ground();cellMarks();g.setTransform(dpr,0,0,
 const RANK={capital:0,city:1,village:1,town:2,fort:3,monastery:3,trading_post:3,caravanserai:3,hamlet:3};
 const STYPE=b=>b.cap||b.group==='capital'?'Town':b.group==='village'?'Village':'Hamlet',GARR={Town:4,Village:1,Hamlet:0},INCOME={Town:500,Village:120,Hamlet:25};
 function glyph(b,X,Y,z){const ink='#2a221c',cream='#efe5c8';g.lineWidth=1;
- if(b.group==='capital'||b.cap){g.fillStyle=ink;g.beginPath();g.arc(X,Y,6*z,0,7);g.fill();g.fillStyle=cream;g.beginPath();g.arc(X,Y,3.6*z,0,7);g.fill();g.fillStyle=ink;g.beginPath();g.arc(X,Y,1.7*z,0,7);g.fill();if(b.walls){g.strokeStyle=ink;g.beginPath();g.arc(X,Y,8.2*z,0,7);g.stroke()}return 8*z}
- if(b.group==='city'||b.group==='village'){const s=5*z;g.fillStyle=ink;g.fillRect(X-s,Y-s,2*s,2*s);g.fillStyle=cream;g.fillRect(X-s+2*z,Y-s+2*z,2*s-4*z,2*s-4*z);g.fillStyle=ink;g.fillRect(X-1.2*z,Y-1.2*z,2.4*z,2.4*z);if(b.walls)for(const[a,c]of[[-1,-1],[1,-1],[1,1],[-1,1]])g.fillRect(X+a*s-1.6*z,Y+c*s-1.6*z,3.2*z,3.2*z);return s+2}
- if(b.group==='town'||b.group==='fort'||b.group==='hamlet'){const s=(b.group==='hamlet'?2.6:3.4)*z;g.fillStyle=cream;g.fillRect(X-s-1,Y-s-1,2*s+2,2*s+2);g.fillStyle=ink;g.fillRect(X-s,Y-s,2*s,2*s);if(b.walls){g.strokeStyle=ink;g.strokeRect(X-s-2.5,Y-s-2.5,2*s+5,2*s+5)}return s+1}
+ const q=v=>Math.round(v),box=(s,f,o)=>{const x=q(X-s),y=q(Y-s),w=q(2*s);if(o){g.fillStyle=o;g.fillRect(x-1,y-1,w+2,w+2)}g.fillStyle=f;g.fillRect(x,y,w,w)};
+ if(b.group==='capital'||b.cap){const s=5*z;box(s,'#7a2a22',ink);if(b.walls){g.strokeStyle=ink;g.strokeRect(q(X-s)-3.5,q(Y-s)-3.5,q(2*s)+7,q(2*s)+7)}return s+2}
+ if(b.group==='city'||b.group==='village'){const s=3.4*z;box(s,cream,ink);if(b.walls){g.strokeStyle=ink;g.strokeRect(q(X-s)-3.5,q(Y-s)-3.5,q(2*s)+7,q(2*s)+7)}return s+1}
+ if(b.group==='town'||b.group==='fort'||b.group==='hamlet'){const s=2.4*z;box(s,ink);if(b.walls){g.strokeStyle=ink;g.strokeRect(q(X-s)-2.5,q(Y-s)-2.5,q(2*s)+5,q(2*s)+5)}return s+1}
  if(b.group==='monastery'){g.strokeStyle=ink;g.lineWidth=1.6*z;g.beginPath();g.moveTo(X,Y-4*z);g.lineTo(X,Y+4*z);g.moveTo(X-2.6*z,Y-1.4*z);g.lineTo(X+2.6*z,Y-1.4*z);g.stroke();return 4*z}
  if(b.group==='trading_post'||b.group==='caravanserai'){const s=3.4*z;g.fillStyle=ink;g.beginPath();g.moveTo(X,Y-s);g.lineTo(X+s,Y);g.lineTo(X,Y+s);g.lineTo(X-s,Y);g.closePath();g.fill();g.fillStyle=cream;g.fillRect(X-1,Y-1,2,2);return s}
-  g.fillStyle=ink;g.beginPath();g.arc(X,Y,1.9*z,0,7);g.fill();return 2*z}
+  g.fillStyle=ink;g.fillRect(q(X-1.8*z),q(Y-1.8*z),q(3.6*z),q(3.6*z));return 2*z}
 function anchorG(X,Y,z){g.strokeStyle='#2c4a63';g.lineWidth=1.2;g.beginPath();g.moveTo(X,Y-3.5*z);g.lineTo(X,Y+3*z);g.moveTo(X-2*z,Y-1.8*z);g.lineTo(X+2*z,Y-1.8*z);g.moveTo(X-3*z,Y+.5*z);g.quadraticCurveTo(X-3*z,Y+3.4*z,X,Y+3.2*z);g.quadraticCurveTo(X+3*z,Y+3.4*z,X+3*z,Y+.5*z);g.stroke()}
 const BOXES=[];let BURGPT=[];const fits=r=>!BOXES.some(o=>r[0]<o[2]&&r[2]>o[0]&&r[1]<o[3]&&r[3]>o[1]);
 // town names are faint at the widest view and come up to full as soon as you zoom in; nation names do the reverse
 // zoom, as a share of the whole-region view, at which each rank of settlement shows its mark and its name
-const MARKAT=[0,0,1.15,1.45,1.7],NAMEAT=[0,1.1,1.45,1.9,2.4],DOTAT=1.55;
+const MARKAT=[0,0,1,1.1,1.3],NAMEAT=[0,.95,1.15,1.35,1.6],DOTAT=1.55;
 // closest zoom; one map unit is 3 miles of the world map over the region's 4.17 times detail
 const KMAX=3.6,MI=3/4.1744;
 // Azgaar's scale bar: five alternate blocks and the distance over them, sized to a round number of miles
@@ -4603,8 +4604,8 @@ function borderNames(al){if(!BCH)BCH=[...E.values()].filter(e=>{if(e.c.length<2)
   const C0=W2S(CEN[e.cells[0]][0],CEN[e.cells[0]][1]),s0=Math.sign((C0[0]-c[0])*nx+(C0[1]-c[1])*ny)||1;
   e.nats.forEach((nat,q)=>{const sg=q===0?s0:-s0,x=c[0]+nx*9*sg,y=c[1]+ny*9*sg;g.save();g.translate(x,y);g.rotate(ang);g.lineJoin='round';g.strokeStyle='rgba(244,238,222,.85)';g.lineWidth=3;g.strokeText(T2[q],0,0);g.fillStyle=css(mixc(hex(ownC(nat)),[30,22,18],.62));g.fillText(T2[q],0,0);g.restore()})}
  g.restore()}
-function states(){const far=Math.max(0,Math.min(1,(2.6-view.k)/.9)),near2=Math.max(0,Math.min(1,(view.k-3)/.5));if(near2>0)borderNames(near2);if(far<=0)return;
- if(!LBL)LBL=labels();for(const l of LBL){const fs=l.f*view.k;if(fs<9)continue;const k=Math.min(1,34/fs),F=fs*k,[X,Y]=W2S(l.x,l.y);g.font=`${F}px "IM Fell English SC",Georgia,serif`;g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
+function states(){const far=Math.max(0,Math.min(1,(2.1-view.k)/.6)),near2=Math.max(0,Math.min(1,(view.k-3)/.5));if(near2>0)borderNames(near2);if(far<=0)return;
+ if(!LBL)LBL=labels();for(const l of LBL){const fs=l.f*Math.sqrt(view.k*KREF);if(fs<9)continue;const k=Math.min(1,24/fs),F=fs*k,[X,Y]=W2S(l.x,l.y);g.font=`${F}px "IM Fell English SC",Georgia,serif`;g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
  const col=css(mixc(hex(l.c),[30,22,18],.62));l.lines.forEach((t,i)=>{const y=Y+(i-(l.lines.length-1)/2)*F*1.05;g.globalAlpha=.9*far;g.strokeStyle='rgba(244,238,222,.8)';g.lineWidth=Math.max(2.5,F*.16);g.strokeText(t,X,y);g.fillStyle=col;g.fillText(t,X,y)});g.globalAlpha=1;g.textAlign='left';g.textBaseline='alphabetic'}}
 
 let SL=null;
@@ -4799,7 +4800,7 @@ function totals(z,r){if(vf==='gold'){const v=cellGold();for(const c in v){const 
   mark(X,Y,r,z,one&&NATS[n0]?css(NATS[n0].ring):'#c9c5ba',MAN,MANC,String((nation==='all'?L:mine).length||L.length),!mine.length)}}}
 function markers(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),r=10*z;for(const f of R.F)f.R=0;if(view.k>=CLOSE)leaders();totals(z,r);
  if(view.k/KREF<DOTAT){for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;const[X,Y]=W2S(G.x,G.y),dead=fs.every(fallen),on=fs.some(f=>f.id===rsel),hv=fs.some(f=>f.id===hovT),rr=on||hv?5.5:4.2;
-   g.globalAlpha=fs.some(match)?1:.3;g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.arc(X+1,Y+1.5,rr+1,0,7);g.fill();g.fillStyle=dead?'#77706a':NATS[G.nat].c;g.beginPath();g.arc(X,Y,rr,0,7);g.fill();g.strokeStyle=on?'#f2efe6':'#1e1a16';g.lineWidth=on?2:1.4;g.stroke();g.globalAlpha=1;G.R=[X-8,Y-8,X+8,Y+8]}return}
+   g.globalAlpha=fs.some(match)?1:.3;const q=Math.round,x=q(X-rr),y=q(Y-rr),w=q(2*rr);g.fillStyle='rgba(0,0,0,.35)';g.fillRect(x+1,y+2,w+2,w+2);g.fillStyle=on?'#f2efe6':'#1e1a16';g.fillRect(x-1,y-1,w+2,w+2);g.fillStyle=dead?'#77706a':NATS[G.nat].c;g.fillRect(x+(on?1:0),y+(on?1:0),w-(on?2:0),w-(on?2:0));g.globalAlpha=1;G.R=[X-8,Y-8,X+8,Y+8]}return}
  for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;
   if(view.k>=CLOSE&&!G.stack){for(const f of fs)tok(f,f.SX,f.SY,r,z);continue}
   const n=view.k<1.7||G.stack&&view.k>=CLOSE?1:Math.min(2,fs.length),[X,Y]=view.k>=CLOSE&&G.stack?[G.SX,G.SY]:W2S(G.x,G.y);
