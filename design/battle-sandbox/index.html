@@ -261,6 +261,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .remb-ed .eh .hb{display:flex;gap:3px}#sm .remb-ed .eh .sq{width:30px;height:30px;font-size:18px;padding:0;text-align:center}#sm .remb-ed .eh .sq.sz{width:auto;padding:0 8px}#sm .remb-ed:focus{outline:none}
 #sm .rr .tx b em{font-style:normal;color:#8f8b82}#sm .rr .ic canvas[style]{max-width:32px;max-height:32px}#sm .rr .ic{width:32px;height:28px}
 #sm .zr [hidden]{display:none!important}#sm .rzd .rtabs{grid-template-columns:repeat(3,1fr)}#sm .rzd .rtabs button{font-size:17px;padding:0 2px}#sm .rr.dip{cursor:default;padding:3px 8px}#sm .rr.dip .ic{width:24px}#sm .rr.dip select{width:84px;height:26px;font-size:16px}#sm .rr.dip select.rwar{color:#e08a7a}#sm .rr.dip select.rally{color:#9cbbe8}
+#sm .rstat b em{font-style:normal;font-size:15px;color:#9fbf7f;margin-left:6px}
 </style>
 <script>
 const T=16;
@@ -4533,15 +4534,16 @@ function cellMarks(){const k=view.k;g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dp
 function draw(){if(OV.hidden)return;ground();cellMarks();g.setTransform(dpr,0,0,dpr,0,0);voidFrame();seas();states();burgs();markers();roadDraft();tileDraft();g.setTransform(dpr,0,0,dpr,0,0);ruler();if(dragF)ghost()}
 
 // ---- settlements: a glyph per kind, names sized by rank, ports marked
-const RANK={capital:0,city:1,town:2,fort:2,monastery:3,trading_post:3,caravanserai:3,village:3,hamlet:4};
+// three sizes: the nation's seat is its Town, each province's seat a Village, the rest Hamlets (shrines and posts keep their own mark)
+const RANK={capital:0,city:1,village:1,town:2,fort:3,monastery:3,trading_post:3,caravanserai:3,hamlet:3};
+const STYPE=b=>b.cap||b.group==='capital'?'Town':b.group==='village'?'Village':'Hamlet',GARR={Town:4,Village:1,Hamlet:0},INCOME={Town:500,Village:120,Hamlet:25};
 function glyph(b,X,Y,z){const ink='#2a221c',cream='#efe5c8';g.lineWidth=1;
  if(b.group==='capital'||b.cap){g.fillStyle=ink;g.beginPath();g.arc(X,Y,6*z,0,7);g.fill();g.fillStyle=cream;g.beginPath();g.arc(X,Y,3.6*z,0,7);g.fill();g.fillStyle=ink;g.beginPath();g.arc(X,Y,1.7*z,0,7);g.fill();if(b.walls){g.strokeStyle=ink;g.beginPath();g.arc(X,Y,8.2*z,0,7);g.stroke()}return 8*z}
- if(b.group==='city'){const s=5*z;g.fillStyle=ink;g.fillRect(X-s,Y-s,2*s,2*s);g.fillStyle=cream;g.fillRect(X-s+2*z,Y-s+2*z,2*s-4*z,2*s-4*z);g.fillStyle=ink;g.fillRect(X-1.2*z,Y-1.2*z,2.4*z,2.4*z);if(b.walls)for(const[a,c]of[[-1,-1],[1,-1],[1,1],[-1,1]])g.fillRect(X+a*s-1.6*z,Y+c*s-1.6*z,3.2*z,3.2*z);return s+2}
- if(b.group==='town'||b.group==='fort'){const s=3.4*z;g.fillStyle=cream;g.fillRect(X-s-1,Y-s-1,2*s+2,2*s+2);g.fillStyle=ink;g.fillRect(X-s,Y-s,2*s,2*s);if(b.walls){g.strokeStyle=ink;g.strokeRect(X-s-2.5,Y-s-2.5,2*s+5,2*s+5)}return s+1}
+ if(b.group==='city'||b.group==='village'){const s=5*z;g.fillStyle=ink;g.fillRect(X-s,Y-s,2*s,2*s);g.fillStyle=cream;g.fillRect(X-s+2*z,Y-s+2*z,2*s-4*z,2*s-4*z);g.fillStyle=ink;g.fillRect(X-1.2*z,Y-1.2*z,2.4*z,2.4*z);if(b.walls)for(const[a,c]of[[-1,-1],[1,-1],[1,1],[-1,1]])g.fillRect(X+a*s-1.6*z,Y+c*s-1.6*z,3.2*z,3.2*z);return s+2}
+ if(b.group==='town'||b.group==='fort'||b.group==='hamlet'){const s=(b.group==='hamlet'?2.6:3.4)*z;g.fillStyle=cream;g.fillRect(X-s-1,Y-s-1,2*s+2,2*s+2);g.fillStyle=ink;g.fillRect(X-s,Y-s,2*s,2*s);if(b.walls){g.strokeStyle=ink;g.strokeRect(X-s-2.5,Y-s-2.5,2*s+5,2*s+5)}return s+1}
  if(b.group==='monastery'){g.strokeStyle=ink;g.lineWidth=1.6*z;g.beginPath();g.moveTo(X,Y-4*z);g.lineTo(X,Y+4*z);g.moveTo(X-2.6*z,Y-1.4*z);g.lineTo(X+2.6*z,Y-1.4*z);g.stroke();return 4*z}
  if(b.group==='trading_post'||b.group==='caravanserai'){const s=3.4*z;g.fillStyle=ink;g.beginPath();g.moveTo(X,Y-s);g.lineTo(X+s,Y);g.lineTo(X,Y+s);g.lineTo(X-s,Y);g.closePath();g.fill();g.fillStyle=cream;g.fillRect(X-1,Y-1,2,2);return s}
- if(b.group==='village'){g.fillStyle=ink;for(const[a,c]of[[-2.2,1],[2.2,1],[0,-2]])g.fillRect(X+a*z-1.3*z,Y+c*z-1.3*z,2.6*z,2.6*z);return 4*z}
- g.fillStyle=ink;g.beginPath();g.arc(X,Y,1.9*z,0,7);g.fill();return 2*z}
+  g.fillStyle=ink;g.beginPath();g.arc(X,Y,1.9*z,0,7);g.fill();return 2*z}
 function anchorG(X,Y,z){g.strokeStyle='#2c4a63';g.lineWidth=1.2;g.beginPath();g.moveTo(X,Y-3.5*z);g.lineTo(X,Y+3*z);g.moveTo(X-2*z,Y-1.8*z);g.lineTo(X+2*z,Y-1.8*z);g.moveTo(X-3*z,Y+.5*z);g.quadraticCurveTo(X-3*z,Y+3.4*z,X,Y+3.2*z);g.quadraticCurveTo(X+3*z,Y+3.4*z,X+3*z,Y+.5*z);g.stroke()}
 const BOXES=[];let BURGPT=[];const fits=r=>!BOXES.some(o=>r[0]<o[2]&&r[2]>o[0]&&r[1]<o[3]&&r[3]>o[1]);
 // town names are faint at the widest view and come up to full as soon as you zoom in; nation names do the reverse
@@ -4702,7 +4704,7 @@ function provIndex(){PROV=D.cells.map(()=>null);for(const id in R.prov)for(const
 provIndex();
 // the settlements take their rank from the provinces: one city per nation, one town per province
 {const seats=new Set(Object.keys(NATS).map(n=>NATS[n].seat)),pc=new Set(Object.values(R.prov).map(p=>p.cap));
- for(const b of D.burgs){if(!OWN[near([b.x,b.y])])continue;if(seats.has(b.n)){b.cap=1;b.group='capital'}else if(pc.has(b.n)){b.cap=0;b.group='town'}else{b.cap=0;if(b.group==='town'||b.group==='city'||b.group==='capital')b.group='village'}}}
+ for(const b of D.burgs){if(!OWN[near([b.x,b.y])])continue;if(seats.has(b.n)){b.cap=1;b.group='capital'}else if(pc.has(b.n)){b.cap=0;b.group='village'}else{b.cap=0;if(!['monastery','trading_post','caravanserai'].includes(b.group))b.group='hamlet'}}}
 // a painted cell leaves its province for one of its new nation's beside it
 function provFix(i){const was=PROV[i];if(was&&R.prov[was]&&R.prov[was].nat===OWN[i])return;if(was&&R.prov[was])R.prov[was].c=R.prov[was].c.filter(c=>c!==i);PROV[i]=null;
  const to=nb[i].map(j=>PROV[j]).find(p=>p&&R.prov[p]&&R.prov[p].nat===OWN[i]);if(to){R.prov[to].c.push(i);PROV[i]=to}for(const k in R.prov)R.prov[k].p=null}
@@ -4857,7 +4859,7 @@ function tile(m,pickable,f){const d=mk('div','ut'+(sdPick.has(m.id)?' on':'')+(m
  d.onclick=e=>{e.stopPropagation();if(!pickable||m.dead||m.map)return;sdPick.has(m.id)?sdPick.delete(m.id):sdPick.add(m.id);drawSD()};dragSrc(d,m,f);dropOn(d,f,m);return d}
 function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scrollTop||0,c=sdc,cl=D.cells[c],own=OWN[c],maps=R.cm[c]||[];
  const fs=R.F.filter(f=>f.cell===c),sqs=fs.filter(f=>f.t==='squad'),cars=fs.filter(f=>f.t==='vehicle'),ppl=[...R.PP.filter(p=>p.cell===c),...fs.filter(f=>f.t==='unit').map(f=>({...f.men[0],note:1,nat:f.nat}))],{out,pris}=locals(c),np=Object.values(pris).reduce((a,L)=>a+L.length,0);
- SDL.innerHTML=`<div class="sdh"><span class="sfl"></span><div><b>${placeOf(c)}</b><small>${own?disp(own):'Unclaimed'} · ${land(cl)?terrainOf(cl):'Sea'}</small></div><button class="x">×</button></div>`;SDL.querySelector('.x').onclick=unsettle;{const sf=SDL.querySelector('.sfl');if(own&&NATS[own])sf.append(embCanvas(own,1));else sf.innerHTML=`<i style="display:block;width:33px;height:33px;background:${own?ownC(own):'#555'};border:1px solid #000"></i>`}
+ const sb=D.burgs.find(b=>near([b.x,b.y])===c);SDL.innerHTML=`<div class="sdh"><span class="sfl"></span><div><b>${placeOf(c)}</b><small>${own?disp(own):'Unclaimed'} · ${sb?STYPE(sb)+' · ':''}${land(cl)?terrainOf(cl):'Sea'}${sb&&own?' · '+money(INCOME[STYPE(sb)])+' a turn':''}</small></div><button class="x">×</button></div>`;SDL.querySelector('.x').onclick=unsettle;{const sf=SDL.querySelector('.sfl');if(own&&NATS[own])sf.append(embCanvas(own,1));else sf.innerHTML=`<i style="display:block;width:33px;height:33px;background:${own?ownC(own):'#555'};border:1px solid #000"></i>`}
  const ch=mk('div','sdc');ch.innerHTML=[['all','All',0],['squads','Squads',sqs.length],['vehicles','Vehicles',cars.length],['people','People',ppl.length],['locals','In the maps',out.reduce((a,g)=>a+g.men.length,0)],['prisoners','Prisoners',np]].filter(([k,,n])=>k==='all'||n).map(([k,t,n])=>`<button data-f="${k}" class="${sdFil===k?'on':''}">${t}${n?` <em>${n}</em>`:''}</button>`).join('');
  ch.onclick=e=>{const x=e.target.closest('button');if(x){sdFil=x.dataset.f;drawSD()}};SDL.append(ch);
  const body=mk('div','sdb');SDL.append(body);const hd=t=>body.append(mk('div','sec',t)),show=k=>sdFil==='all'||sdFil===k;
@@ -4867,7 +4869,7 @@ function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scr
   if(f&&f.t==='squad'){const nb=r.querySelector('.gt b');nb.ondblclick=e=>{e.stopPropagation();clearTimeout(sdT);const t=mk('input','rn');t.value=f.n;nb.replaceWith(t);t.focus();t.select();const done=()=>{f.n=t.value.trim()||f.n;save();list2();drawSD()};t.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter')done();if(ev.key==='Escape')drawSD()};t.onblur=done;t.onclick=ev=>ev.stopPropagation()}}
   r.onclick=e=>{if(e.target.closest('input'))return;if(e.target.closest('.tk')){if(!pickable)return;for(const m of live)on?sdPick.delete(m.id):sdPick.add(m.id);drawSD();return}clearTimeout(sdT);sdT=setTimeout(()=>{op?sdOpen.delete(key):sdOpen.add(key);drawSD()},e.target.closest('.gt b')?230:0)};body.append(r);
   if(op){const G=mk('div','tiles');for(const m of list)G.append(tile(m,pickable,f));dropOn(G,f,null);body.append(G)}};
- if(show('squads')&&sqs.length){hd('Squads');for(const f of sqs)row(f.id,NATS[f.nat].c,f.n,men(f).length+'/8'+(inMap(f)?' · in battle':''),f.men,true,f);
+ if(show('squads')&&sqs.length){hd(sb&&own?`Squads · garrison ${Math.min(GARR[STYPE(sb)],sqs.filter(f=>f.nat===own&&soldiers(f)).length)}/${GARR[STYPE(sb)]}`:'Squads');for(const f of sqs)row(f.id,NATS[f.nat].c,f.n,men(f).length+'/8'+(inMap(f)?' · in battle':''),f.men,true,f);
   const nr=mk('div','gr new','+ New squad'),nat0=(sqs.find(f=>f.nat===own)||sqs[0]).nat;nr.ondragover=e=>{if(DRG){e.preventDefault();nr.classList.add('ov')}};nr.ondragleave=()=>nr.classList.remove('ov');
   const mkSq=nat=>{const f={id:'f'+Date.now().toString(36),t:'squad',nat,cell:c,n:'New squad',men:[]};R.F.push(f);sdOpen.add(f.id);return f};
   nr.ondrop=e=>{e.preventDefault();if(!DRG)return;const{m,f:from}=DRG;DRG=null;moveMan(m,from,mkSq(from.nat));drawSD();draw()};nr.onclick=()=>{mkSq(nat0);save();drawSD()};body.append(nr)}
@@ -4953,13 +4955,14 @@ Z('.rchips').onclick=e=>{const b=e.target.closest('button');if(!b)return;fil=b.d
 Z('.rso').onchange=e=>{sortBy=e.target.value;list2()};
 Z('.rpl').onchange=e=>{place=e.target.value;if(place!=='all'){openP.add(+place);const[x,y]=cellXY(+place);fly(x,y,Math.max(view.k,2.6))}list2();draw()};
 Z('.rq').oninput=e=>{q=e.target.value.trim().toLowerCase();list2();draw()};
+const incomeOf=n=>D.burgs.reduce((a,b)=>{const o=OWN[near([b.x,b.y])];return o&&(n==='all'||o===n)?a+INCOME[STYPE(b)]:a},0);
 function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="tb all${nation==='all'?' on':''}"><span></span>All nations</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="tb${nation===n?' on':''}" title="${disp(n)}"><span></span><em>${disp(n)}</em></button>`).join('');Z('.rflags').querySelectorAll('.tb:not(.all) span').forEach(sp=>sp.append(embCanvas(sp.parentNode.dataset.n,22/33)));
  const fs=R.F.filter(f=>nation==='all'||f.nat===nation),ps=R.PP.filter(p=>!p.dead&&(nation==='all'||p.nat===nation)),gold=treasury(nation);
  const H=Z('.rname'),tools=`<span class="hb">${nation==='all'?'':`<button class="sq rsw" style="background:${NATS[nation].c}"></button>`}<button class="sq rter${R.terr!==false?' on':''}">⚑</button><button class="sq rfal${R.fallenOn?' on':''}">${SKULL}</button></span>`;
  if(nation==='all'){H.innerHTML=`<div class="rnm"><b>All nations</b></div>`+tools;Z('.rpick').hidden=true}else{const o=NATS[nation];H.innerHTML=`<span class="rfl"></span><div class="rnm"><b>${disp(nation)}</b><small>${o.pp?o.pp+' · ':''}${o.seat}</small></div>`+tools;
   const fl=embCanvas(nation,32/33);fl.onclick=()=>embEdit(nation);H.querySelector('.rfl').append(fl);
   const nb2=H.querySelector('.rnm b');nb2.ondblclick=()=>{const t=mk('input','rn');t.value=disp(nation);nb2.replaceWith(t);t.focus();t.select();const done=()=>{const v=t.value.trim();if(v){R.names[nation]=v;NATS[nation].n=v;LBL=null;save()}natBar();draw()};t.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')done();if(e.key==='Escape')natBar()};t.onblur=done}}
- Z('.rstat').innerHTML=[['gold','Treasury',money(gold)],['sol','Soldiers',fs.reduce((a,f)=>a+soldiers(f),0)],['veh','Vehicles',fs.filter(f=>f.t==='vehicle'&&!f.wreck).length],['ppl','People',ps.length]].map(([v,a,b])=>`<button data-v="${v}" class="${vf===v?'on':''}"><small>${a}</small><b>${b}</b></button>`).join('');
+ Z('.rstat').innerHTML=[['gold','Treasury',money(gold)+`<em>+${money(incomeOf(nation))}</em>`],['sol','Soldiers',fs.reduce((a,f)=>a+soldiers(f),0)],['veh','Vehicles',fs.filter(f=>f.t==='vehicle'&&!f.wreck).length],['ppl','People',ps.length]].map(([v,a,b])=>`<button data-v="${v}" class="${vf===v?'on':''}"><small>${a}</small><b>${b}</b></button>`).join('');
  const seat=nation!=='all'&&near([BURG[NATS[nation].seat].x,BURG[NATS[nation].seat].y]);
  const pl=[...new Set([...fs,...R.PP.filter(p=>nation==='all'||p.nat===nation)].map(f=>f.cell))].sort((a,b)=>(b===seat)-(a===seat)||placeOf(a).localeCompare(placeOf(b)));if(place!=='all'&&!pl.includes(+place))place='all';
  Z('.rpl').innerHTML=`<option value="all">All places</option>`+pl.map(p=>`<option value="${p}"${p===+place?' selected':''}>${placeOf(p)}</option>`).join('');
@@ -5051,10 +5054,12 @@ cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=xy(e),f=Math.exp(-
 // moving a force out of a cell whose map holds its men asks first, then brings the living out as they are
 function paintAt(x,y){const i=near(S2W(x,y)),cl=()=>{sndT=0;edSnd(tiling>0?'soft':'erase',1.1,.45)};if(tileW===2){if(land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pwat:null;if((R.wc[i]||null)===v)return;if(v)R.wc[i]=v;else delete R.wc[i];SL=null;cl();draw();return}if(!land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pnat:null;if(OWN[i]===v)return;cl();OWN[i]=v;provFix(i);R.own[i]=v||'';LBL=null;BCH=null;draw()}
 // ---- roads: drawn cell to cell over land, joining a road already in the end cell; erasing cuts the roads in a cell
-function linkCells(a,b){const prev=new Map([[a,-1]]),Q=[a];for(let q=0;q<Q.length&&!prev.has(b);q++)for(const j of nb[Q[q]])if(!prev.has(j)&&land(D.cells[j])){prev.set(j,Q[q]);Q.push(j)}if(!prev.has(b))return[];const out=[];for(let c=b;c!==a;c=prev.get(c))out.unshift(c);return out}
+function linkCells(a,b){const prev=new Map([[a,-1]]),Q=[a];for(let q=0;q<Q.length&&!prev.has(b);q++)for(const j of nb[Q[q]])if(!prev.has(j)&&land(D.cells[j])&&crossable(Q[q],j)){prev.set(j,Q[q]);Q.push(j)}if(!prev.has(b))return[];const out=[];for(let c=b;c!==a;c=prev.get(c))out.unshift(c);return out}
 // a road is a set of links between neighbouring cells; each cell draws its piece: from its centre to the middle of each linked wall
 // where it holds a settlement, ends or branches, else straight from wall to wall
-const lk=(a,b)=>a<b?a+'-'+b:b+'-'+a,EMID=new Map();for(const e of E.values())if(e.c.length===2)EMID.set(lk(e.c[0],e.c[1]),[(e.a[0]+e.b[0])/2,(e.a[1]+e.b[1])/2]);
+const lk=(a,b)=>a<b?a+'-'+b:b+'-'+a,EMID=new Map(),WALLMIN=8;for(const e of E.values())if(e.c.length===2&&Math.hypot(e.b[0]-e.a[0],e.b[1]-e.a[1])>=WALLMIN)EMID.set(lk(e.c[0],e.c[1]),[(e.a[0]+e.b[0])/2,(e.a[1]+e.b[1])/2]);
+// a road crosses only a wall long enough for its midpoint to sit clear of the corners
+const crossable=(a,b)=>EMID.has(lk(a,b));
 const BURGC=new Map(D.burgs.map(b=>[near([b.x,b.y]),[b.x,b.y]]));
 function roadsFrom(routes){const rd={};for(const r of routes){if(r.g==='searoutes'||r.pts.length<2)continue;let prev=-1,h=-1;
   for(let k=0;k<r.pts.length-1;k++){const a=r.pts[k],b=r.pts[k+1];for(let t=0;t<=10;t++){h=cellAt(a[0]+(b[0]-a[0])*t/10,a[1]+(b[1]-a[1])*t/10,h);if(h===prev||!land(D.cells[h]))continue;
@@ -5064,19 +5069,19 @@ function roadsFrom(routes){const rd={};for(const r of routes){if(r.g==='searoute
 const ROADPASS=i=>{const c=D.cells[i];return land(c)&&!c.ice&&!c.f&&c.h<66||BURGC.has(i)};
 function roadPath(src,isEnd,rd){const dist=new Map([[src,0]]),prev=new Map(),Q=[[0,src]];
  while(Q.length){let bi=0;for(let k=1;k<Q.length;k++)if(Q[k][0]<Q[bi][0])bi=k;const[d,u]=Q[bi];Q[bi]=Q[Q.length-1];Q.pop();if(d>dist.get(u))continue;if(u!==src&&isEnd(u)){const p=[u];while(p[p.length-1]!==src)p.push(prev.get(p[p.length-1]));return p.reverse()}
-  for(const v of nb[u]){if(!ROADPASS(v))continue;const c=D.cells[v],w=Math.hypot(CEN[v][0]-CEN[u][0],CEN[v][1]-CEN[u][1])*(c.h>=58?3:1)*(rd[lk(u,v)]?.35:1),nd=d+w;if(nd<(dist.get(v)??1e18)){dist.set(v,nd);prev.set(v,u);Q.push([nd,v])}}}return null}
+  for(const v of nb[u]){if(!ROADPASS(v)||!crossable(u,v))continue;const c=D.cells[v],w=Math.hypot(CEN[v][0]-CEN[u][0],CEN[v][1]-CEN[u][1])*(c.h>=58?3:1)*(rd[lk(u,v)]?.35:1),nd=d+w;if(nd<(dist.get(v)??1e18)){dist.set(v,nd);prev.set(v,u);Q.push([nd,v])}}}return null}
 function genRoads(){const rd={},on=new Set(),lay=(p,t)=>{for(let k=1;k<p.length;k++){const key=lk(p[k-1],p[k]);if(t==='roads'||!rd[key])rd[key]=t;on.add(p[k-1]);on.add(p[k])}};
  const rk=b=>b.cap?0:RANK[b.group]??3,B=D.burgs.map(b=>({b,c:near([b.x,b.y]),r:rk(b)})).filter(o=>land(D.cells[o.c]));
- const hubs=B.filter(o=>o.r<=1).sort((a,b)=>a.r-b.r),done=new Set();
+ const hubs=B.filter(o=>o.r===0),done=new Set();
  while(hubs.some(h=>!done.has(h.c))){const seed=hubs.find(h=>!done.has(h.c));done.add(seed.c);on.add(seed.c);
   for(;;){const left=new Set(hubs.filter(h=>!done.has(h.c)).map(h=>h.c));if(!left.size)break;let best=null;
    for(const h of hubs){if(!done.has(h.c))continue;const p=roadPath(h.c,u=>left.has(u),rd);if(p&&(!best||p.length<best.length))best=p}
    if(!best)break;lay(best,'roads');done.add(best[best.length-1])}}
- for(const o of B.filter(o=>o.r>=2).sort((a,b)=>a.r-b.r)){if(on.has(o.c))continue;const p=roadPath(o.c,u=>on.has(u),rd);if(p)lay(p,'trails');else on.add(o.c)}
+ for(const o of B.filter(o=>o.r>=1).sort((a,b)=>a.r-b.r)){if(on.has(o.c))continue;const p=roadPath(o.c,u=>on.has(u),rd);if(p)lay(p,'trails');else on.add(o.c)}
  // the links asked for by name
  for(const[a,b]of[["Emperor's Dock",'Wetmarket'],['Goldtown','Crossroads'],['Crossroads',"Willard's Pass"]]){if(!BURG[a]||!BURG[b])continue;const ca=near([BURG[a].x,BURG[a].y]),cb=near([BURG[b].x,BURG[b].y]),p=roadPath(ca,u=>u===cb,rd);if(p)lay(p,'roads')}
  return rd}
-if(!R.rd||R.rdGen!==2){R.rd=genRoads();R.rdGen=2}
+if(!R.rd||R.rdGen!==4){R.rd=genRoads();R.rdGen=4}
 
 let SEG=null;
 function roadSegs(){const deg={};for(const key in R.rd){const[a,b]=key.split('-').map(Number);(deg[a]||(deg[a]=[])).push([b,R.rd[key]]);(deg[b]||(deg[b]=[])).push([a,R.rd[key]])}
@@ -5092,7 +5097,7 @@ function roadMask(){const{W,H,x0,y0}=TC,M=new Uint8Array(W*H);SEG=roadSegs();
  for(const[p,q,t]of SEG)if(t==='roads')walk(p,q,(x,y)=>{stamp(x+1,y+1,0,0,1,1);stamp(x,y,0,0,4)});
  TC.RM=M}
 function roadsDone(){SEG=null;BLOCK=null;if(TC){roadMask();paintRect(0,0,TC.W,TC.H)}save()}
-function addRoad(rb){const L=rb.cells.filter(i=>land(D.cells[i]));for(let k=1;k<L.length;k++)if(L[k]!==L[k-1]&&nb[L[k]].includes(L[k-1]))R.rd[lk(L[k-1],L[k])]=rb.g;roadsDone()}
+function addRoad(rb){const L=rb.cells.filter(i=>land(D.cells[i]));for(let k=1;k<L.length;k++)if(L[k]!==L[k-1]&&crossable(L[k],L[k-1]))R.rd[lk(L[k-1],L[k])]=rb.g;roadsDone()}
 function eraseRoad(i){let hit=false;for(const key in R.rd){const[a,b]=key.split('-').map(Number);if(a===i||b===i){delete R.rd[key];hit=true}}if(hit)roadsDone()}
 function roadDraft(){if(!RB||RB.g==='erase'||RB.cells.length<2)return;const k=view.k;g.save();g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);g.beginPath();const L=RB.cells;
  for(let n=0;n<L.length;n++){const p=BURGC.get(L[n])||D.cells[L[n]].c;n?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])}g.setLineDash([3/k,3/k]);g.strokeStyle='rgba(52,36,22,.9)';g.lineWidth=(RB.g==='roads'?4:2.6)/k;g.stroke();g.restore()}
