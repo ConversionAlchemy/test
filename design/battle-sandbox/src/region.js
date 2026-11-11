@@ -192,8 +192,16 @@ function seed(){let nid=0;const F=[],PP=[],cellOf=at=>near([BURG[at].x,BURG[at].
 let R=LS.get('bs.region',null);if(!R||R.v!==1)R=seed();
 // regions saved before Great Keys moved to the coast bring its forces, people and maps along
 function migrate(R){if(R.gk2)return R;const o=near([524.5,396.7]),n=near([BURG['Great Keys'].x,BURG['Great Keys'].y]);if(o!==n){for(const f of[...R.F,...R.PP])if(f.cell===o)f.cell=n;if(R.cm[o]){R.cm[n]=[...(R.cm[n]||[]),...R.cm[o]];delete R.cm[o]}if(R.last[o]){R.last[n]=R.last[o];delete R.last[o]}}R.gk2=1;return R}
-migrate(R);for(const f of R.F)if(f.n==='Sweetwater Thugs')f.n="Bog's Keep Thugs";
+migrate(R);
+R.col=R.col||{};R.names=R.names||{};R.own=R.own||{};R.emb=R.emb||{};for(const f of R.F)if(f.n==='Sweetwater Thugs')f.n="Bog's Keep Thugs";
 const save=()=>{const c=JSON.parse(JSON.stringify(R,(k,v)=>k==='carry'?undefined:v));LS.set('bs.region',c)};
+const ringOf=c=>mixc(hex(c),[255,255,255],.18);
+for(const n in R.col)if(NATS[n]){NATS[n].c=R.col[n];NATS[n].ring=ringOf(R.col[n])}for(const n in R.names)if(NATS[n])NATS[n].n=R.names[n];for(const k in R.own)OWN[k]=R.own[k]||null;
+// ---- flags: each nation's square pixel emblem, the Fluoria library's or the one painted here
+const EMK={Astria:'astia',Goldbank:'goldbank',Havenport:'havenport',Portsbridge:'portsbridge','Great Keys':'great keys',Reapers:'reapers'};
+const libEmb=n=>{const e=RGE[EMK[n]];return e?[...e.i].map(ch=>e.p[ch.charCodeAt(0)-48]):Array(33*33).fill('#000000').map((c,i)=>{const x=i%33,y=i/33|0;return x&&y&&x<32&&y<32?NATS[n].c:c})};
+const embPx=n=>R.emb[n]||libEmb(n);
+function embCanvas(n,s,px){const c=mk('canvas','emb');c.width=c.height=33;const x=c.getContext('2d'),im=x.createImageData(33,33),P=px||embPx(n);P.forEach((h,i)=>{const v=hex(h);im.data.set([v[0],v[1],v[2],255],i*4)});x.putImageData(im,0,0);c.style.width=c.style.height=33*s+'px';return c}
 const ALLF=()=>R.F,men=f=>f.men.filter(m=>!m.dead),soldiers=f=>f.t==='vehicle'?0:men(f).length,fallen=f=>f.wreck||f.t!=='vehicle'&&f.men.length&&!men(f).length;
 const lead=f=>men(f)[0]||f.men[0]||{k:f.k,h:0},hpOf=f=>f.t==='vehicle'?f.hull:Math.round(men(f).reduce((a,m)=>a+m.h,0)/(men(f).length||1));
 
@@ -314,7 +322,7 @@ function tile(m,pickable,f){const d=mk('div','ut'+(sdPick.has(m.id)?' on':'')+(m
  d.onclick=e=>{e.stopPropagation();if(!pickable||m.dead||m.map)return;sdPick.has(m.id)?sdPick.delete(m.id):sdPick.add(m.id);drawSD()};dragSrc(d,m,f);dropOn(d,f,m);return d}
 function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scrollTop||0,c=sdc,cl=D.cells[c],own=OWN[c],maps=R.cm[c]||[];
  const fs=R.F.filter(f=>f.cell===c),sqs=fs.filter(f=>f.t==='squad'),cars=fs.filter(f=>f.t==='vehicle'),ppl=[...R.PP.filter(p=>p.cell===c),...fs.filter(f=>f.t==='unit').map(f=>({...f.men[0],note:1,nat:f.nat}))],{out,pris}=locals(c),np=Object.values(pris).reduce((a,L)=>a+L.length,0);
- SDL.innerHTML=`<div class="sdh"><i style="background:${own?ownC(own):'#555'}"></i><div><b>${placeOf(c)}</b><small>${own?disp(own):'Unclaimed'} · ${land(cl)?D.biomes[cl.b].n:'Sea'}</small></div><button class="x">×</button></div>`;SDL.querySelector('.x').onclick=unsettle;
+ SDL.innerHTML=`<div class="sdh"><span class="sfl"></span><div><b>${placeOf(c)}</b><small>${own?disp(own):'Unclaimed'} · ${land(cl)?D.biomes[cl.b].n:'Sea'}</small></div><button class="x">×</button></div>`;SDL.querySelector('.x').onclick=unsettle;{const sf=SDL.querySelector('.sfl');if(own&&NATS[own])sf.append(embCanvas(own,1));else sf.innerHTML=`<i style="display:block;width:33px;height:33px;background:${own?ownC(own):'#555'};border:1px solid #000"></i>`}
  const ch=mk('div','sdc');ch.innerHTML=[['all','All',0],['squads','Squads',sqs.length],['vehicles','Carriers',cars.length],['people','People',ppl.length],['locals','In the maps',out.reduce((a,g)=>a+g.men.length,0)],['prisoners','Prisoners',np]].filter(([k,,n])=>k==='all'||n).map(([k,t,n])=>`<button data-f="${k}" class="${sdFil===k?'on':''}">${t}${n?` <em>${n}</em>`:''}</button>`).join('');
  ch.onclick=e=>{const x=e.target.closest('button');if(x){sdFil=x.dataset.f;drawSD()}};SDL.append(ch);
  const body=mk('div','sdb');SDL.append(body);const hd=t=>body.append(mk('div','sec',t)),show=k=>sdFil==='all'||sdFil===k;
@@ -353,9 +361,13 @@ const money=n=>'§'+(n>=1e4?(n/1e3).toFixed(n>=1e5?0:1)+'k':n.toLocaleString('en
 const EYE=o=>`<svg width="16" height="12" viewBox="0 0 16 12"><path d="M1 6c2-4 12-4 14 0-2 4-12 4-14 0z" fill="none" stroke="currentColor" stroke-width="1.5"/>${o?'<circle cx="8" cy="6" r="2.2" fill="currentColor"/>':'<path d="M2 11L14 1" stroke="currentColor" stroke-width="1.5"/>'}</svg>`;
 const LOC='<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 0v3M7 11v3M0 7h3M11 7h3" stroke="currentColor" stroke-width="1.5"/></svg>';
 const SKULL='<svg width="14" height="14" viewBox="0 0 7 7" shape-rendering="crispEdges"><path d="M1 0h5v1h1v3h-1v1h-1v2h-3v-2h-1v-1h-1v-3h1z" fill="currentColor"/><path d="M2 2h1v1h-1zM4 2h1v1h-1z" fill="#1e1e1e"/></svg>';
-ZR.innerHTML=`<div class="rnat"><div class="rflags"></div><button class="rter">⚑</button><button class="rfal">${SKULL}</button></div><div class="rname"></div><div class="rstat"></div><div class="rtabs"><button data-t="mil">Military</button><button data-t="ppl">People</button></div><input class="rq" placeholder="Search"><div class="rchips"></div><div class="rsels"><select class="rpl"></select><select class="rso"><option value="name">Name</option><option value="size">Size</option><option value="hp">Health</option></select></div><div class="rlist"></div>`;
+ZR.innerHTML=`<div class="rnat"><div class="rflags"></div><button class="rter">⚑</button><button class="rfal">${SKULL}</button></div><div class="rname"></div><div class="rpick" hidden></div><div class="rstat"></div><div class="rtabs"><button data-t="mil">Military</button><button data-t="ppl">People</button></div><input class="rq" placeholder="Search"><div class="rchips"></div><div class="rsels"><select class="rpl"></select><select class="rso"><option value="name">Name</option><option value="size">Size</option><option value="hp">Health</option></select></div><div class="rlist"></div>`;
 const Z=s=>ZR.querySelector(s);
-Z('.rflags').onclick=e=>{const b=e.target.closest('button');if(!b)return;nation=b.dataset.n;place='all';rsel=null;selMan=null;openP.clear();if(nation!=='all'){const s=BURG[NATS[nation].seat];openP.add(near([s.x,s.y]));fly(s.x,s.y,Math.max(view.k,1.6))}list2();cards();draw()};
+const NCOL=['#1e40ff','#e8101e','#ffe600','#00c853','#ff7a00','#e0119d','#00d4ff','#7b2cff','#a8ff00','#b0002a','#f2f2f2','#1a1a1a','#6b7a3a','#4a5d7e','#9c4a2b','#b8a272','#3d7a74','#6e4a6b','#4f6b45','#7d8a96','#b08532','#8a3b36','#2c3a57','#8f8578'];
+const BRUSH='<svg width="14" height="14" viewBox="0 0 7 7" shape-rendering="crispEdges"><path d="M5 0h2v2h-1v1h-1v1h-1v-1h-1v-1h1v-1h1z" fill="currentColor"/><path d="M1 4h2v2h-1v1h-2v-2h1z" fill="currentColor"/></svg>';
+let paintOn=false,painting=0;
+Z('.rpick').onclick=e=>{const b=e.target.closest('button');if(!b||nation==='all')return;const c=b.dataset.c;R.col[nation]=c;NATS[nation].c=c;NATS[nation].ring=ringOf(c);LBL=null;save();Z('.rpick').hidden=true;natBar();list2();draw();preview();if(!SDL.hidden)drawSD()};
+Z('.rflags').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.n==='all')paintOn=false;nation=b.dataset.n;place='all';rsel=null;selMan=null;openP.clear();if(nation!=='all'){const s=BURG[NATS[nation].seat];openP.add(near([s.x,s.y]));fly(s.x,s.y,Math.max(view.k,1.6))}list2();cards();draw()};
 Z('.rter').onclick=()=>{R.terr=R.terr===false;save();natBar();draw();preview()};
 Z('.rfal').onclick=()=>{R.fallenOn=!R.fallenOn;save();list2();draw()};
 Z('.rtabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;list2()};
@@ -363,10 +375,14 @@ Z('.rchips').onclick=e=>{const b=e.target.closest('button');if(!b)return;fil=b.d
 Z('.rso').onchange=e=>{sortBy=e.target.value;list2()};
 Z('.rpl').onchange=e=>{place=e.target.value;if(place!=='all'){openP.add(+place);const[x,y]=cellXY(+place);fly(x,y,Math.max(view.k,2.6))}list2();draw()};
 Z('.rq').oninput=e=>{q=e.target.value.trim().toLowerCase();list2();draw()};
-function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="${nation==='all'?'on':''}">All</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="${nation===n?'on':''}" title="${disp(n)}"><i style="background:${NATS[n].c}"></i></button>`).join('');
+function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="${nation==='all'?'on':''}">All</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="fl${nation===n?' on':''}" title="${disp(n)}"></button>`).join('');Z('.rflags').querySelectorAll('.fl').forEach(b=>b.append(embCanvas(b.dataset.n,26/33)));
  Z('.rfal').classList.toggle('on',!!R.fallenOn);Z('.rter').classList.toggle('on',R.terr!==false);
  const fs=R.F.filter(f=>nation==='all'||f.nat===nation),ps=R.PP.filter(p=>!p.dead&&(nation==='all'||p.nat===nation)),gold=nation==='all'?Object.values(R.gold).reduce((a,n)=>a+n,0):R.gold[nation];
- Z('.rname').innerHTML=nation==='all'?'All nations':`<i style="background:${NATS[nation].c}"></i>${disp(nation)}<small>${NATS[nation].seat}</small>`;
+ if(nation==='all'){Z('.rname').innerHTML='All nations';Z('.rpick').hidden=true}else{const H=Z('.rname');H.innerHTML=`<span class="rfl"></span><div class="rnm"><b>${disp(nation)}</b><small>${NATS[nation].seat}</small></div><button class="rsw" style="background:${NATS[nation].c}"></button><button class="rbr${paintOn?' on':''}">${BRUSH}</button>`;
+  const fl=embCanvas(nation,54/33);fl.onclick=()=>embEdit(nation);H.querySelector('.rfl').append(fl);
+  const nb2=H.querySelector('.rnm b');nb2.ondblclick=()=>{const t=mk('input','rn');t.value=disp(nation);nb2.replaceWith(t);t.focus();t.select();const done=()=>{const v=t.value.trim();if(v){R.names[nation]=v;NATS[nation].n=v;LBL=null;save()}natBar();draw()};t.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')done();if(e.key==='Escape')natBar()};t.onblur=done};
+  H.querySelector('.rsw').onclick=()=>{const P=Z('.rpick');P.hidden=!P.hidden;if(!P.hidden)P.innerHTML=NCOL.map(c=>`<button data-c="${c}" style="background:${c}" class="${c===NATS[nation].c?'on':''}"></button>`).join('')};
+  H.querySelector('.rbr').onclick=()=>{paintOn=!paintOn;cv.style.cursor=paintOn?'crosshair':'';natBar()}}
  Z('.rstat').innerHTML=[['Treasury',money(gold)],['Soldiers',fs.reduce((a,f)=>a+soldiers(f),0)],['Carriers',fs.filter(f=>f.t==='vehicle'&&!f.wreck).length],['People',ps.length]].map(([a,b])=>`<div><small>${a}</small><b>${b}</b></div>`).join('');
  const seat=nation!=='all'&&near([BURG[NATS[nation].seat].x,BURG[NATS[nation].seat].y]);
  const pl=[...new Set([...fs,...R.PP.filter(p=>nation==='all'||p.nat===nation)].map(f=>f.cell))].sort((a,b)=>(b===seat)-(a===seat)||placeOf(a).localeCompare(placeOf(b)));if(place!=='all'&&!pl.includes(+place))place='all';
@@ -418,10 +434,12 @@ document.fonts&&document.fonts.ready.then(()=>draw());
 const xy=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
 let pan=null,dragF=null,moved=0;
 cv.addEventListener('pointerdown',e=>{const[x,y]=xy(e);moved=0;cv.setPointerCapture(e.pointerId);
+ if(paintOn&&nation!=='all'){painting=e.button===2?-1:1;paintAt(x,y);return}
  const f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f){if(e.button===2)return;dragF={f,x,y,mx:x,my:y,on:false};return}
  const G=GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]);if(G&&e.button!==2){settle(G.cell);return}
  pan={x,y,vx:view.x,vy:view.y}});
 cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
+ if(painting){paintAt(x,y);return}
  if(dragF){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);dragF.mx=x;dragF.my=y;if(moved>6)dragF.on=true;if(dragF.on){hov=near(S2W(x,y));draw()}return}
  if(pan){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);view.x=pan.vx+x-pan.x;view.y=pan.vy+y-pan.y;draw();return}
  const hf=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),hg=!hf&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),ht=hf?hf.id:hg?stackOf(hg)[0].id:null;
@@ -432,14 +450,28 @@ cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  const bio=land(c)?D.biomes[c.b].n:c.h>=14?'Coastal waters':'Open sea',maps=(R.cm[i]||[]).length;
  TIP.innerHTML=`${placeOf(i)} <span>· ${bio}${ST[c.s]&&land(c)?' · '+ST[c.s].n:''}${nats?' · '+nats:''}${maps?' · '+maps+(maps>1?' maps':' map'):''}</span>`;TIP.style.display='block';TIP.style.left=Math.min(x+14,VW-TIP.offsetWidth-8)+'px';TIP.style.top=(y+16)+'px'});
 cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
+ if(painting){painting=0;LBL=null;BCH=null;save();draw();return}
  if(dragF){const d=dragF;dragF=null;if(d.on){const to=near(S2W(x,y));if(to!==d.f.cell&&vis[to]>.5)moveF(d.f,to);else draw()}else pick(d.f,false);return}
  if(pan&&moved<4){const i=near(S2W(x,y)),b=BURGPT.find(o=>Math.hypot(x-o.X,y-o.Y)<Math.max(9,o.rad+3));if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}pan=null});
 cv.addEventListener('dblclick',e=>{const[x,y]=xy(e),i=near(S2W(x,y));if(vis[i]>.5&&!R.F.some(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R))settle(i)});
-addEventListener('keydown',e=>{if(OV.hidden||e.key!=='Escape'||e.target.closest&&e.target.closest('input'))return;e.stopImmediatePropagation();e.preventDefault();if(!SDL.hidden)unsettle();else if(rsel)unpick()},true);
+addEventListener('keydown',e=>{if(OV.hidden||e.key!=='Escape'||e.target.closest&&e.target.closest('input'))return;e.stopImmediatePropagation();e.preventDefault();if(!SDL.hidden)unsettle();else if(paintOn){paintOn=false;cv.style.cursor='';natBar()}else if(rsel)unpick()},true);
 cv.addEventListener('contextmenu',e=>{e.preventDefault();const[x,y]=xy(e),f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f&&fallen(f)){const b=ubtn('Delete','red rgdel',()=>{b.remove();delF(f)});b.style.left=x+'px';b.style.top=y+'px';OV.append(b);setTimeout(()=>addEventListener('pointerdown',ev=>{if(ev.target!==b)b.remove()},{once:true}),0)}});
 cv.addEventListener('pointerleave',()=>{hov=-1;hovT=null;TIP.style.display='none';draw()});
 cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=xy(e),f=Math.exp(-e.deltaY*.0015),[wx,wy]=S2W(x,y);view.k=Math.max(.6,Math.min(8,view.k*f));view.x=x-wx*view.k;view.y=y-wy*view.k;draw()},{passive:false});
 // moving a force out of a cell whose map holds its men asks first, then brings the living out as they are
+function paintAt(x,y){const i=near(S2W(x,y));if(!land(D.cells[i])||vis[i]<.5)return;const v=painting>0?nation:null;if(OWN[i]===v)return;OWN[i]=v;R.own[i]=v||'';LBL=null;BCH=null;draw()}
+// ---- the flag editor: the nation's emblem on a 33-pixel grid inside its fixed black border; mirror paints both halves, right-click takes a colour
+function embEdit(n){let px=embPx(n).slice(),col=px[16*33+16],mir=true,down=0;const W2=mk('div','remb-ed'),S=12;
+ W2.innerHTML=`<div class="eh"><b>${disp(n)}</b><button class="mi on">⇋</button><button class="x">×</button></div><div class="eb"><canvas width="${33*S}" height="${33*S}"></canvas><div class="pal"></div></div><div class="ebf"><button class="rs">Library</button><span></span><button class="sv lite">Save</button></div>`;
+ const c=W2.querySelector('canvas'),x=c.getContext('2d'),pal=W2.querySelector('.pal');
+ const paint=()=>{x.clearRect(0,0,c.width,c.height);px.forEach((h,i)=>{x.fillStyle=h;x.fillRect((i%33)*S,(i/33|0)*S,S,S)});x.strokeStyle='rgba(255,255,255,.06)';for(let k=1;k<33;k++){x.beginPath();x.moveTo(k*S+.5,0);x.lineTo(k*S+.5,33*S);x.moveTo(0,k*S+.5);x.lineTo(33*S,k*S+.5);x.stroke()}};
+ const pals=()=>{const L=[...new Set([...px.filter((h,i)=>{const a=i%33,b=i/33|0;return a&&b&&a<32&&b<32}),'#000000','#eee5cd',...NCOL])];pal.innerHTML=L.map(h=>`<button data-c="${h}" style="background:${h}" class="${h===col?'on':''}"></button>`).join('')};
+ const at=e=>{const r=c.getBoundingClientRect(),a=Math.floor((e.clientX-r.left)/r.width*33),b=Math.floor((e.clientY-r.top)/r.height*33);if(a<1||b<1||a>31||b>31)return;if(down===2){col=px[b*33+a];pals();return}px[b*33+a]=col;if(mir)px[b*33+32-a]=col;paint()};
+ c.oncontextmenu=e=>e.preventDefault();c.onpointerdown=e=>{down=e.button===2?2:1;c.setPointerCapture(e.pointerId);at(e)};c.onpointermove=e=>{if(down===1)at(e)};c.onpointerup=()=>{down=0;pals()};
+ pal.onclick=e=>{const b=e.target.closest('button');if(b){col=b.dataset.c;pals()}};
+ W2.querySelector('.mi').onclick=e=>{mir=!mir;e.currentTarget.classList.toggle('on',mir)};W2.querySelector('.x').onclick=()=>W2.remove();
+ W2.querySelector('.rs').onclick=()=>{px=libEmb(n);paint();pals()};W2.querySelector('.sv').onclick=()=>{R.emb[n]=px;save();W2.remove();natBar();if(!SDL.hidden)drawSD()};
+ OV.append(W2);paint();pals()}
 function moveF(f,to){const go=()=>{if(inMap(f))withdraw(f);undo.push({f,from:f.cell});f.cell=to;rsel=f.id;cell=to;layout();save();list2();cards();draw()};
  if(!inMap(f)){go();return}const C=mk('div','rcard rask');C.append(mk('div',null,`Pull ${f.n} out of ${mapName((f.men.find(m=>m.map)||f).map)}?`));const r=mk('div','g2');r.append(ubtn('Pull out','lite',()=>{C.remove();go()}),ubtn('Stay','',()=>{C.remove();draw()}));C.append(r);CARDS.prepend(C)}
 
