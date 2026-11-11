@@ -25,7 +25,15 @@ const placeOf=i=>{if(CELLB[i])return CELLB[i].n;const c=D.cells[i].c;let bb=null
 const cellXY=i=>CELLB[i]?[CELLB[i].x,CELLB[i].y]:D.cells[i].c;
 
 const EDK=D.burgs.find(b=>b.n==="Emperor's Dock");
-const OWN=D.cells.map(c=>!land(c)?null:Math.hypot(c.c[0]-EDK.x,c.c[1]-EDK.y)<34?'Astria':ST[c.s]?ST[c.s].n:null);
+const HOLD={Havenport:['Havenport','Overbay','Smugglerskeep'],'Great Keys':['Great Keys'],Goldbank:['Goldbank','Goldtown','Carnival'],Portsbridge:['Portsbridge','Shantyport','Midway Trade Post','Codsbrook','Crossroads',"Willard's Pass",'Fumbleweed'],
+ Sanctis:['Templewood','Holywell','Monestry','Turnpickle','Towerbay'],Astria:["Emperor's Dock"],Reapers:['Mudwater','Sweetwater','Crosshaven',"Willow's Ranch"]};
+const KEEP=new Set(['Aracia','Whitecoast','Lindale','Holverland']),OWN=(()=>{const O=D.cells.map(c=>land(c)&&ST[c.s]&&KEEP.has(ST[c.s].n)?ST[c.s].n:null),dist=D.cells.map(()=>1e9),Q=[];
+ const at=n=>{let b=null,d=1e9;for(const o of D.burgs)if(o.n===n){const e=Math.hypot(o.x-BOXC[0],o.y-BOXC[1]);if(e<d){d=e;b=o}}return b};
+ for(const nat in HOLD)for(const t of HOLD[nat]){const b=at(t);if(!b)continue;let bi=0,bd=1e9;D.cells.forEach((c,i)=>{const e=(c.c[0]-b.x)**2+(c.c[1]-b.y)**2;if(e<bd){bd=e;bi=i}});dist[bi]=0;O[bi]=nat;Q.push([0,bi,nat])}
+ // Great Keys keeps to its own ground: its city and the cells touching it
+ while(Q.length){Q.sort((a,b)=>b[0]-a[0]);const[d,i,nat]=Q.pop();if(d>dist[i])continue;const lim=nat==='Great Keys'?14:1e9;
+  for(const j of nb[i]){const c=D.cells[j];if(!land(c)||O[j]&&KEEP.has(O[j]))continue;const nd=d+Math.hypot(c.c[0]-D.cells[i].c[0],c.c[1]-D.cells[i].c[1]);if(nd<dist[j]&&nd<=lim){dist[j]=nd;O[j]=nat;Q.push([nd,j,nat])}}}
+ return O})();
 // ---- overlay over the map view, a zone in the side panel
 const OV=mk('div','rgo');OV.hidden=true;const cv=mk('canvas'),TIP=mk('div','rgtip'),CARDS=mk('div','rgcards');OV.append(cv,TIP,CARDS);VIEW.append(OV);
 let g=cv.getContext('2d'),dpr=1;let VW=1,VH=1;
@@ -112,13 +120,14 @@ function burgs(){BOXES.length=0;if(view.k>=CLOSE)placeClose();markBoxes();const 
   g.font=`${o.r>=3?'italic ':''}${fs}px ${o.r<=1?'"IM Fell English SC"':'"IM Fell English"'},Georgia,serif`;const w=g.measureText(o.b.n).width;
   for(const[ax,ay,al]of[[o.rad+4,fs*.35,'left'],[-o.rad-4,fs*.35,'right'],[-w/2,-o.rad-4,'left'],[-w/2,o.rad+fs*.85,'left']]){const x0=al==='left'?o.X+ax:o.X+ax-w,y0=o.Y+ay-fs*.8,r=[x0-1,y0,x0+w+1,y0+fs];if(!fits(r))continue;BOXES.push(r);
    g.globalAlpha=Math.min(1,o.v*1.2);g.textAlign='left';g.lineJoin='round';g.strokeStyle='rgba(240,232,208,.85)';g.lineWidth=3.2;g.strokeText(o.b.n,x0,o.Y+ay);g.fillStyle=o.r<=1?'#2a1f18':'#3a2e24';g.fillText(o.b.n,x0,o.Y+ay);g.globalAlpha=1;break}}}
-function states(){const acc={};D.cells.forEach((c,i)=>{if(!land(c)||!ST[c.s]||vis[i]<.9)return;const a=acc[c.s]||(acc[c.s]={x:0,y:0,n:0});a.x+=c.c[0];a.y+=c.c[1];a.n++});
- for(const s in acc){const a=acc[s];if(a.n<14)continue;const[X,Y]=W2S(a.x/a.n,a.y/a.n),st=ST[s],fs=Math.min(30,Math.max(15,Math.sqrt(a.n)*1.6*Math.sqrt(view.k/1.4)));
+function states(){const acc={};D.cells.forEach((c,i)=>{const o=OWN[i];if(!land(c)||!o||vis[i]<.9)return;const a=acc[o]||(acc[o]={x:0,y:0,n:0});a.x+=c.c[0];a.y+=c.c[1];a.n++});
+ for(const s in acc){const a=acc[s];if(a.n<(s==='Great Keys'?1:14))continue;const[X,Y]=W2S(a.x/a.n,a.y/a.n),st={n:disp(s),c:ownC(s)},fs=Math.min(30,Math.max(15,Math.sqrt(a.n)*1.6*Math.sqrt(view.k/1.4)));
   g.font=`${fs}px "IM Fell English SC",Georgia,serif`;const t=st.n.toUpperCase().split('').join(' ');g.textAlign='center';g.globalAlpha=.55;g.strokeStyle='rgba(240,232,208,.6)';g.lineWidth=3;g.strokeText(t,X,Y);g.fillStyle=css(mixc(hex(st.c),[40,30,25],.55));g.fillText(t,X,Y);g.globalAlpha=1;g.textAlign='left'}}
 
 // ---- nations, their forces and their people (game nation in brackets where it differs)
-const NATS={Astria:{c:'#34405e',ring:[66,82,120],gold:18400,seat:"Emperor's Dock",gn:'Imperium'},Goldbank:{c:'#afaa42',ring:[175,170,66],gold:52000,seat:'Goldbank'},'Great Keys':{c:'#2f9e6e',ring:[56,160,112],gold:9600,seat:'Great Keys'},
- Havenport:{c:'#4775de',ring:[86,126,214],gold:12300,seat:'Havenport'},Portsbridge:{c:'#c9a53c',ring:[214,180,80],gold:15800,seat:'Portsbridge'},Reapers:{c:'#4a5a2a',ring:[110,130,64],gold:2100,seat:'Mudwater'}};
+const disp=n=>NATS[n]?NATS[n].n:n;
+const NATS={Astria:{n:'Astria',c:'#34405e',ring:[66,82,120],gold:18400,seat:"Emperor's Dock",gn:'Imperium'},Sanctis:{n:'Sanctis',c:'#8e5cc0',ring:[142,92,192],gold:21500,seat:'Templewood'},Goldbank:{n:"Aurum's Reach",c:'#afaa42',ring:[175,170,66],gold:52000,seat:'Goldbank'},'Great Keys':{n:"Great Keys",c:'#2f9e6e',ring:[56,160,112],gold:9600,seat:'Great Keys'},
+ Havenport:{n:"Freefolk Confederation",c:'#4775de',ring:[86,126,214],gold:12300,seat:'Havenport'},Portsbridge:{n:"Portsbridge Trade Federation",c:'#c9a53c',ring:[214,180,80],gold:15800,seat:'Portsbridge'},Reapers:{n:"Reapers",c:'#4a5a2a',ring:[110,130,64],gold:2100,seat:'Mudwater'}};
 const LK={off:'Astrian Officer|n|iron|h',ln1:'Astrian Line|m|iron|h',ln2:'Astrian Line|t|iron|h',ln3:'Astrian Line|m|steel|h',ln4:'Astrian Line|n|iron|h',ln5:'Astrian Line|t|iron|b',gd1:'Astrian Guard|f|steel|h',gd2:'Astrian Guard|f|iron|h',cs:'Astrian Conscript'};
 const ROLE={off:'Officer',ln1:'Line',ln2:'Line',ln3:'Line',ln4:'Line',ln5:'Line',gd1:'Guard',gd2:'Guard',cs:'Conscript'};
 const NAMES=['Hale','Voss','Marr','Cobb','Rook','Tenn','Ashby','Pike','Dunn','Fell','Garr','Holt','Keane','Lowe','Mace','Orr','Pell','Quill','Rand','Sedge','Thorn','Vale','Wick','Yarrow','Strand','Calder','Hask','Brin','Cade','Dorr','Esk','Fenn','Gale','Hume','Ivo','Jory','Kell','Lusk','Moss','Nash','Odell','Prew','Rusk','Sallow','Tull','Ure','Varn','Wade'];
@@ -147,6 +156,9 @@ function seed(){let nid=0;const F=[],PP=[],cellOf=at=>near([BURG[at].x,BURG[at].
  const cm={};const put=(at,ids)=>{cm[cellOf(at)]=ids};put('Goldbank',['bank','vault','count']);put(ED,['stock','range','yard','circuit']);put('Crossroads',['road']);put('Great Keys',['alley']);
  return{v:1,F,PP,cm,gold:Object.fromEntries(Object.entries(NATS).map(([n,o])=>[n,o.gold])),nid,mname:{},last:{}}}
 let R=LS.get('bs.region',null);if(!R||R.v!==1)R=seed();
+// regions saved before Great Keys moved to the coast bring its forces, people and maps along
+function migrate(R){if(R.gk2)return R;const o=near([524.5,396.7]),n=near([BURG['Great Keys'].x,BURG['Great Keys'].y]);if(o!==n){for(const f of[...R.F,...R.PP])if(f.cell===o)f.cell=n;if(R.cm[o]){R.cm[n]=[...(R.cm[n]||[]),...R.cm[o]];delete R.cm[o]}if(R.last[o]){R.last[n]=R.last[o];delete R.last[o]}}R.gk2=1;return R}
+migrate(R);
 const save=()=>{const c=JSON.parse(JSON.stringify(R,(k,v)=>k==='carry'?undefined:v));LS.set('bs.region',c)};
 const ALLF=()=>R.F,men=f=>f.men.filter(m=>!m.dead),soldiers=f=>f.t==='vehicle'?0:men(f).length,fallen=f=>f.wreck||f.t!=='vehicle'&&f.men.length&&!men(f).length;
 const lead=f=>men(f)[0]||f.men[0]||{k:f.k,h:0},hpOf=f=>f.t==='vehicle'?f.hull:Math.round(men(f).reduce((a,m)=>a+m.h,0)/(men(f).length||1));
@@ -235,7 +247,7 @@ function cards(){CARDS.innerHTML='';const cur=R.F.find(f=>f.id===rsel)||R.PP.fin
    if(mm){const b=mk('div','rbig');b.append(sprBig(mm.k,3));const d=mk('div');d.innerHTML=`<b>${mm.n}</b><small>${mm.role}</small><div class="rrow"><span>Health</span><span>${mm.dead?'Dead':mm.h+'%'}</span></div>${bar(mm.dead?0:mm.h,hc(mm.h))}`;b.append(d);C.append(b)}}
   if(fallen(cur)||cur.t==='person'&&cur.dead){const x=ubtn('Delete','red',()=>{delF(cur)});C.append(x)}
   CARDS.append(C)}}
-const ownerOf=i=>{const f=R.F.find(f=>f.cell===i);if(f)return f.nat;const b=CELLB[i];const st=b&&ST[b.s];return st&&NATS[st.n]?st.n:'Reapers'};
+const ownerOf=i=>{const f=R.F.find(f=>f.cell===i);if(f)return f.nat;return NATS[OWN[i]]?OWN[i]:'Reapers'};
 const mapName=id=>R.mname[id]||(MODS.maps[id]&&MODS.maps[id].name)||TITLE[id]||id;
 function renameMap(id,n){R.mname[id]=n;if(MODS.maps[id]){MODS.maps[id].name=n;saveMods();regMap(id);fillMapSel()}save()}
 function dropMap(c,id){R.cm[c]=(R.cm[c]||[]).filter(x=>x!==id);if(R.last[c]===id)delete R.last[c];if(MODS.maps[id]&&!Object.values(R.cm).some(L=>L.includes(id))){delete MODS.maps[id];delete STATE[id];saveMods();fillMapSel()}save()}
@@ -268,7 +280,7 @@ function tile(m,pickable,f){const d=mk('div','ut'+(sdPick.has(m.id)?' on':'')+(m
  d.onclick=e=>{e.stopPropagation();if(!pickable||m.dead||m.map)return;sdPick.has(m.id)?sdPick.delete(m.id):sdPick.add(m.id);drawSD()};dragSrc(d,m,f);dropOn(d,f,m);return d}
 function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scrollTop||0,c=sdc,cl=D.cells[c],own=OWN[c],maps=R.cm[c]||[];
  const fs=R.F.filter(f=>f.cell===c),sqs=fs.filter(f=>f.t==='squad'),cars=fs.filter(f=>f.t==='vehicle'),ppl=[...R.PP.filter(p=>p.cell===c),...fs.filter(f=>f.t==='unit').map(f=>({...f.men[0],note:1,nat:f.nat}))],{out,pris}=locals(c),np=Object.values(pris).reduce((a,L)=>a+L.length,0);
- SDL.innerHTML=`<div class="sdh"><i style="background:${own?ownC(own):'#555'}"></i><div><b>${placeOf(c)}</b><small>${own||'Unclaimed'} · ${land(cl)?D.biomes[cl.b].n:'Sea'}</small></div><button class="x">×</button></div>`;SDL.querySelector('.x').onclick=unsettle;
+ SDL.innerHTML=`<div class="sdh"><i style="background:${own?ownC(own):'#555'}"></i><div><b>${placeOf(c)}</b><small>${own?disp(own):'Unclaimed'} · ${land(cl)?D.biomes[cl.b].n:'Sea'}</small></div><button class="x">×</button></div>`;SDL.querySelector('.x').onclick=unsettle;
  const ch=mk('div','sdc');ch.innerHTML=[['all','All',0],['squads','Squads',sqs.length],['vehicles','Carriers',cars.length],['people','People',ppl.length],['locals','In the maps',out.reduce((a,g)=>a+g.men.length,0)],['prisoners','Prisoners',np]].filter(([k,,n])=>k==='all'||n).map(([k,t,n])=>`<button data-f="${k}" class="${sdFil===k?'on':''}">${t}${n?` <em>${n}</em>`:''}</button>`).join('');
  ch.onclick=e=>{const x=e.target.closest('button');if(x){sdFil=x.dataset.f;drawSD()}};SDL.append(ch);
  const body=mk('div','sdb');SDL.append(body);const hd=t=>body.append(mk('div','sec',t)),show=k=>sdFil==='all'||sdFil===k;
@@ -284,7 +296,7 @@ function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scr
   nr.ondrop=e=>{e.preventDefault();if(!DRG)return;const{m,f:from}=DRG;DRG=null;moveMan(m,from,mkSq(from.nat));drawSD();draw()};nr.onclick=()=>{mkSq(nat0);save();drawSD()};body.append(nr)}
  if(show('vehicles')&&cars.length){hd('Carriers');for(const f of cars)row(f.id,NATS[f.nat].c,f.n,f.wreck?'Wreck':f.men.length+'/6 aboard · hull '+f.hull+'%',f.men,!f.wreck,f)}
  if(show('people')&&ppl.length){hd('People');const nt=ppl.filter(p=>p.note),fk=ppl.filter(p=>!p.note),col=own?ownC(own):'#555';if(nt.length)row('pn'+c,col,'Notables',String(nt.length),nt,true,null);if(fk.length)row('pf'+c,col,'Townsfolk',String(fk.length),fk,true,null)}
- if(show('locals')&&out.length){hd('In the maps');for(const g2 of out)row(g2.key,natCol(g2.nat),g2.nat,mapName(g2.map),g2.men,false,null)}
+ if(show('locals')&&out.length){hd('In the maps');for(const g2 of out)row(g2.key,natCol(g2.nat),disp(g2.nat),mapName(g2.map),g2.men,false,null)}
  if(show('prisoners')&&np){hd('Prisoners');for(const s of['Under escort','Chained','Tied','Held'])if(pris[s])row('pr'+c+s,'#77706a',s,String(pris[s].length),pris[s],false,null)}
  if(body.children.length===0)body.append(mk('div','none','—'));
  // Enter, with the map picker on its arrow
@@ -317,10 +329,10 @@ Z('.rchips').onclick=e=>{const b=e.target.closest('button');if(!b)return;fil=b.d
 Z('.rso').onchange=e=>{sortBy=e.target.value;list2()};
 Z('.rpl').onchange=e=>{place=e.target.value;if(place!=='all'){openP.add(+place);const[x,y]=cellXY(+place);fly(x,y,Math.max(view.k,2.6))}list2();draw()};
 Z('.rq').oninput=e=>{q=e.target.value.trim().toLowerCase();list2();draw()};
-function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="${nation==='all'?'on':''}">All</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="${nation===n?'on':''}" title="${n}"><i style="background:${NATS[n].c}"></i></button>`).join('');
+function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="${nation==='all'?'on':''}">All</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="${nation===n?'on':''}" title="${disp(n)}"><i style="background:${NATS[n].c}"></i></button>`).join('');
  Z('.rfal').classList.toggle('on',!!R.fallenOn);Z('.rter').classList.toggle('on',R.terr!==false);
  const fs=R.F.filter(f=>nation==='all'||f.nat===nation),ps=R.PP.filter(p=>!p.dead&&(nation==='all'||p.nat===nation)),gold=nation==='all'?Object.values(R.gold).reduce((a,n)=>a+n,0):R.gold[nation];
- Z('.rname').innerHTML=nation==='all'?'All nations':`<i style="background:${NATS[nation].c}"></i>${nation}<small>${NATS[nation].seat}</small>`;
+ Z('.rname').innerHTML=nation==='all'?'All nations':`<i style="background:${NATS[nation].c}"></i>${disp(nation)}<small>${NATS[nation].seat}</small>`;
  Z('.rstat').innerHTML=[['Treasury',money(gold)],['Soldiers',fs.reduce((a,f)=>a+soldiers(f),0)],['Carriers',fs.filter(f=>f.t==='vehicle'&&!f.wreck).length],['People',ps.length]].map(([a,b])=>`<div><small>${a}</small><b>${b}</b></div>`).join('');
  const seat=nation!=='all'&&near([BURG[NATS[nation].seat].x,BURG[NATS[nation].seat].y]);
  const pl=[...new Set([...fs,...R.PP.filter(p=>nation==='all'||p.nat===nation)].map(f=>f.cell))].sort((a,b)=>(b===seat)-(a===seat)||placeOf(a).localeCompare(placeOf(b)));if(place!=='all'&&!pl.includes(+place))place='all';
@@ -380,9 +392,9 @@ cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  if(pan){moved+=Math.abs(e.movementX)+Math.abs(e.movementY);view.x=pan.vx+x-pan.x;view.y=pan.vy+y-pan.y;draw();return}
  const hf=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),hg=!hf&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),ht=hf?hf.id:hg?stackOf(hg)[0].id:null;
  if(ht!==hovT){hovT=ht;cv.style.cursor=ht?'pointer':'';draw()}
- if(ht){const f=R.F.find(f=>f.id===ht);TIP.innerHTML=hg?`${placeOf(hg.cell)} <span>· ${hg.nat} ${stackOf(hg).reduce((a,f)=>a+soldiers(f),0)}</span>`:`${f.n} <span>· ${fallen(f)?(f.wreck?'Wreck':'Fallen'):f.t==='vehicle'?'Carrier':f.t==='unit'?f.men[0].role:soldiers(f)+' men'}</span>`;TIP.style.display='block';TIP.style.left=Math.min(x+14,VW-TIP.offsetWidth-8)+'px';TIP.style.top=(y+16)+'px';if(hov!==-1){hov=-1;draw()}return}
+ if(ht){const f=R.F.find(f=>f.id===ht);TIP.innerHTML=hg?`${placeOf(hg.cell)} <span>· ${disp(hg.nat)} ${stackOf(hg).reduce((a,f)=>a+soldiers(f),0)}</span>`:`${f.n} <span>· ${fallen(f)?(f.wreck?'Wreck':'Fallen'):f.t==='vehicle'?'Carrier':f.t==='unit'?f.men[0].role:soldiers(f)+' men'}</span>`;TIP.style.display='block';TIP.style.left=Math.min(x+14,VW-TIP.offsetWidth-8)+'px';TIP.style.top=(y+16)+'px';if(hov!==-1){hov=-1;draw()}return}
  const i=near(S2W(x,y)),c=D.cells[i];if(vis[i]<.5){if(hov!==-1){hov=-1;draw()}TIP.style.display='none';return}if(i!==hov){hov=i;draw()}
- const here=R.F.filter(f=>f.cell===i&&soldiers(f)),nats=[...new Set(here.map(f=>f.nat))].map(n=>n+' '+here.filter(f=>f.nat===n).reduce((a,f)=>a+soldiers(f),0)).join(', ');
+ const here=R.F.filter(f=>f.cell===i&&soldiers(f)),nats=[...new Set(here.map(f=>f.nat))].map(n=>disp(n)+' '+here.filter(f=>f.nat===n).reduce((a,f)=>a+soldiers(f),0)).join(', ');
  const bio=land(c)?D.biomes[c.b].n:c.h>=14?'Coastal waters':'Open sea',maps=(R.cm[i]||[]).length;
  TIP.innerHTML=`${placeOf(i)} <span>· ${bio}${ST[c.s]&&land(c)?' · '+ST[c.s].n:''}${nats?' · '+nats:''}${maps?' · '+maps+(maps>1?' maps':' map'):''}</span>`;TIP.style.display='block';TIP.style.left=Math.min(x+14,VW-TIP.offsetWidth-8)+'px';TIP.style.top=(y+16)+'px'});
 cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
@@ -433,5 +445,5 @@ function psg(){const c=Object.keys(R.cm).find(k=>R.cm[k].includes(curMap)),other
   r.append(mk('span',null,DIRW[o.dir]+(per[o.dir]>1?' '+idx[o.dir]:'')),s2);PSG.append(r)}}
 setInterval(psg,400);
 // ---- saved games carry the region with them
-window.REGION={ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=v;R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
+window.REGION={ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=migrate(v);R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
 })();
