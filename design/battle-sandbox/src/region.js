@@ -143,17 +143,18 @@ let BCH=null;
 function chains(){const by={};for(const e of E.values()){if(e.c.length<2)continue;const[i,j]=e.c,oa=OWN[i],ob=OWN[j];if(!oa||!ob||oa===ob||vis[i]<.9||vis[j]<.9)continue;const k=[oa,ob].sort().join('|');(by[k]||(by[k]=[])).push([e.a,e.b])}
  const out=[];for(const k in by){const segs=by[k],ends=new Map(),key=p=>EK(p),used=new Set();segs.forEach((sg,n)=>{for(const p of sg){const q=key(p);(ends.get(q)||ends.set(q,[]).get(q)).push(n)}});
   for(let n=0;n<segs.length;n++){if(used.has(n))continue;used.add(n);let L=[segs[n][0],segs[n][1]];for(const dir of[1,0]){for(;;){const tip=dir?L[L.length-1]:L[0],nx=(ends.get(key(tip))||[]).find(m=>!used.has(m));if(nx==null)break;used.add(nx);const[a,b]=segs[nx],o=key(a)===key(tip)?b:a;dir?L.push(o):L.unshift(o)}}out.push({nats:k.split('|'),pts:L})}}return out}
-function borderNames(al){if(!BCH)BCH=chains();g.save();g.globalAlpha=al;g.textAlign='center';g.textBaseline='middle';g.font='12px "IM Fell English SC",Georgia,serif';
- for(const ch of BCH){const P=ch.pts.map(p=>W2S(p[0],p[1])),cum=[0];for(let i=1;i<P.length;i++)cum.push(cum[i-1]+Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]));const tot=cum[cum.length-1];
-  const at=d=>{let i=1;while(i<cum.length-1&&cum[i]<d)i++;const t=(d-cum[i-1])/((cum[i]-cum[i-1])||1);return[P[i-1][0]+(P[i][0]-P[i-1][0])*t,P[i-1][1]+(P[i][1]-P[i-1][1])*t]};
-  const names=ch.nats.map(n=>disp(n).toUpperCase().split('').join('\u2009')),w=Math.max(...names.map(t=>g.measureText(t).width))+24;if(tot<w)continue;
-  const n=Math.max(1,Math.floor(tot/(w+220)));for(let m=0;m<n;m++){const d=tot*(m+.5)/n,a=at(d-w/2),b=at(d+w/2),c=at(d);if(c[0]<-50||c[1]<-50||c[0]>VW+50||c[1]>VH+50)continue;
-   let ang=Math.atan2(b[1]-a[1],b[0]-a[0]);if(ang>Math.PI/2)ang-=Math.PI;else if(ang<-Math.PI/2)ang+=Math.PI;const nx=-Math.sin(ang),ny=Math.cos(ang);
-   // which nation lies on which side of the line
-   const[wx,wy]=S2W(c[0]+nx*8,c[1]+ny*8),side=OWN[cellAt(wx,wy,-1)];
-   ch.nats.forEach((nat,q)=>{const sg=(nat===side?1:-1),t=disp(nat).toUpperCase().split('').join('\u2009'),x=c[0]+nx*11*sg,y=c[1]+ny*11*sg;g.save();g.translate(x,y);g.rotate(ang);g.lineJoin='round';g.strokeStyle='rgba(244,238,222,.85)';g.lineWidth=3;g.strokeText(t,0,0);g.fillStyle=css(mixc(hex(ownC(nat)),[30,22,18],.62));g.fillText(t,0,0);g.restore()})}}
+function borderNames(al){if(!BCH)BCH=[...E.values()].filter(e=>{if(e.c.length<2)return false;const[i,j]=e.c,oa=OWN[i],ob=OWN[j];return oa&&ob&&oa!==ob&&vis[i]>=.9&&vis[j]>=.9}).map(e=>({a:e.a,b:e.b,nats:[OWN[e.c[0]],OWN[e.c[1]]],cells:e.c}));
+ g.save();g.globalAlpha=al;g.textAlign='center';g.textBaseline='middle';g.font='12px "IM Fell English SC",Georgia,serif';const put=[];
+ // a name goes on a single straight cell edge long enough to carry it, one pair of names per stretch of border
+ for(const e of BCH){const A=W2S(e.a[0],e.a[1]),B=W2S(e.b[0],e.b[1]),c=[(A[0]+B[0])/2,(A[1]+B[1])/2],L=Math.hypot(B[0]-A[0],B[1]-A[1]);if(c[0]<0||c[1]<0||c[0]>VW||c[1]>VH)continue;
+  const T2=e.nats.map(n=>disp(n).toUpperCase().split('').join(' ')),w=Math.max(...T2.map(t=>g.measureText(t).width))+10;if(L<w)continue;
+  const key=e.nats.slice().sort().join('|');if(put.some(p=>p.k===key&&Math.hypot(p.x-c[0],p.y-c[1])<320))continue;put.push({k:key,x:c[0],y:c[1]});
+  let ang=Math.atan2(B[1]-A[1],B[0]-A[0]);if(ang>Math.PI/2)ang-=Math.PI;else if(ang<-Math.PI/2)ang+=Math.PI;const nx=-Math.sin(ang),ny=Math.cos(ang);
+  // the first cell's middle tells which side is whose
+  const C0=W2S(CEN[e.cells[0]][0],CEN[e.cells[0]][1]),s0=Math.sign((C0[0]-c[0])*nx+(C0[1]-c[1])*ny)||1;
+  e.nats.forEach((nat,q)=>{const sg=q===0?s0:-s0,x=c[0]+nx*9*sg,y=c[1]+ny*9*sg;g.save();g.translate(x,y);g.rotate(ang);g.lineJoin='round';g.strokeStyle='rgba(244,238,222,.85)';g.lineWidth=3;g.strokeText(T2[q],0,0);g.fillStyle=css(mixc(hex(ownC(nat)),[30,22,18],.62));g.fillText(T2[q],0,0);g.restore()})}
  g.restore()}
-function states(){const far=Math.max(0,Math.min(1,(2.6-view.k)/.9)),near2=Math.max(0,Math.min(1,(view.k-1.9)/.7));if(near2>0)borderNames(near2);if(far<=0)return;
+function states(){const far=Math.max(0,Math.min(1,(2.6-view.k)/.9)),near2=Math.max(0,Math.min(1,(view.k-4)/1.2));if(near2>0)borderNames(near2);if(far<=0)return;
  if(!LBL)LBL=labels();for(const l of LBL){const fs=l.f*view.k;if(fs<9)continue;const k=Math.min(1,34/fs),F=fs*k,[X,Y]=W2S(l.x,l.y);g.font=`${F}px "IM Fell English SC",Georgia,serif`;g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
  const col=css(mixc(hex(l.c),[30,22,18],.62));l.lines.forEach((t,i)=>{const y=Y+(i-(l.lines.length-1)/2)*F*1.05;g.globalAlpha=.9*far;g.strokeStyle='rgba(244,238,222,.8)';g.lineWidth=Math.max(2.5,F*.16);g.strokeText(t,X,y);g.fillStyle=col;g.fillText(t,X,y)});g.globalAlpha=1;g.textAlign='left';g.textBaseline='alphabetic'}}
 
