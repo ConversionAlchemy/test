@@ -4500,7 +4500,7 @@ function paintRect(ax,ay,bx,by){const{W,H,CI,x0,y0,img}=TC,o=img.data;ax=Math.ma
   else{const d=DW[l];if(d<1.2)col=COASTP.foam;else if(d<3)col=COASTP.band;else if(d>=4&&d<5)col=COASTP.rip;else if(d<8&&dth<(8-d)/6)col=COASTP.band}
   const dx=Math.max(bx0-X,0,X-bx1),dy=Math.max(by0-Y,0,Y-by1),v=dx||dy?Math.max(0,1-Math.hypot(dx,dy)/110+(pv(X/9,Y/9,91,1e6)-.5)*.25):1;
   if(v<1){const grey=(col[0]+col[1]+col[2])/3,f=Math.round((1-v)*6+dth-.5)/6;col=col.map(c2=>c2+(grey-c2)*f*.8);col=col.map((c2,q2)=>c2+(VOID[q2]-c2)*Math.min(1,f*1.05))}
-  const rm=TC.RM&&TC.RM[j];if(rm)col=hex(rm===4?RDC.road:rm===2?RDC.trail:null)||col.map(v=>v*.78);
+  const rm=TC.RM&&TC.RM[j];if(rm)col=rm===2?mixc(hex(RDC.road),col,.5):hex(rm===4?RDC.road:null)||col.map(v=>v*.78);
   o[j*4]=col[0];o[j*4+1]=col[1];o[j*4+2]=col[2];o[j*4+3]=255}
  TC.ctx.putImageData(img,0,0,ax,ay,bx-ax,by-ay)}
 // after a cell changes: its pixels and the shore around them
@@ -4527,10 +4527,14 @@ function ground(){const k=view.k;g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle=css
  if(R.terr===false)for(const e of E.values()){if(e.c.length<2)continue;const[a,b]=e.c.map(i=>D.cells[i]),v=Math.min(vis[e.c[0]],vis[e.c[1]]);if(v<=.05||!land(a)||!land(b)||a.s===b.s||!(ST[a.s]||ST[b.s]))continue;g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);g.setLineDash([3.5/k,2.5/k]);g.strokeStyle=`rgba(70,40,40,${.7*v})`;g.lineWidth=1.4/k;g.stroke();g.setLineDash([])}
  for(const r of D.rivers){if(r.pts.length<2)continue;const v=vis[near(r.pts[r.pts.length>>1])];if(v<=.05)continue;line(r.pts);g.strokeStyle=`rgba(96,138,152,${v})`;g.lineWidth=Math.max(.6,Math.min(3,(r.w||1)*.9))/Math.sqrt(k)*1.2;g.stroke()}
  // far out a road's pixels are under a screen pixel: drawn as fine lines in the same colours until they can be seen
- if(k<1.4){if(!SEG)SEG=roadSegs();const a=Math.min(1,(1.4-k)/.4);g.globalAlpha=a;for(const t of['trails','roads']){g.beginPath();for(const[p,q,u]of SEG)if(u===t){g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1])}g.strokeStyle=t==='roads'?RDC.road:RDC.trail;g.lineWidth=(t==='roads'?1.6:1.1)/k;if(t==='trails')g.setLineDash([2/k,2/k]);g.stroke();g.setLineDash([])}g.globalAlpha=1}}
+ if(k<1.4){if(!SEG)SEG=roadSegs();const a=Math.min(1,(1.4-k)/.4);g.globalAlpha=a;for(const t of['trails','roads']){g.beginPath();for(const[p,q,u]of SEG)if(u===t){g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1])}g.strokeStyle=t==='roads'?RDC.road:css(mixc(hex(RDC.road),[128,118,80],.5));g.lineWidth=(t==='roads'?1.6:1.1)/k;g.stroke();g.setLineDash([])}g.globalAlpha=1}}
 const ownC=n=>n&&(NATS[n]?NATS[n].c:(D.states.find(s=>s.n===n)||{}).c||'#777777');
-function provLines(k){if(k<.9)return;g.save();g.setLineDash([2.5/k,2/k]);g.lineWidth=1.1/k;for(const e of E.values()){if(e.c.length<2)continue;const[i,j]=e.c;if(!OWN[i]||OWN[i]!==OWN[j]||PROV[i]===PROV[j])continue;g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);g.strokeStyle=css(mixc(hex(ownC(OWN[i])),[30,22,18],.45),.75);g.stroke()}g.restore()}
-function territory(k){provLines(k);D.cells.forEach((c,i)=>{const o=OWN[i];if(!o||vis[i]<.05)return;poly(c.p);g.fillStyle=css(hex(ownC(o)),.13*vis[i]);g.fill()});
+function provLines(k){if(k<.9)return;g.save();g.lineWidth=2.5/k;g.lineCap='round';for(const e of E.values()){if(e.c.length<2)continue;const[i,j]=e.c;if(!OWN[i]||OWN[i]!==OWN[j]||PROV[i]===PROV[j])continue;g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);g.strokeStyle=css(mixc(hex(ownC(OWN[i])),[128,118,80],.6));g.stroke()}g.restore()}
+// hovered or clicked seat: its province (or nation) stands out, the rest dim
+let HLh=null,HLpin=null;const hlOf=b=>{const c=near([b.x,b.y]);return b.cap?{nat:OWN[c]}:b.group==='village'&&PROV[c]!=null?{prov:PROV[c]}:null},hlEq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const burgAt=(x,y)=>BURGPT.find(o=>o.rad&&Math.hypot(x-o.X,y-o.Y)<Math.max(9,o.rad+3));
+function territory(k){provLines(k);const H=HLh||HLpin;D.cells.forEach((c,i)=>{const o=OWN[i];if(!o||vis[i]<.05)return;poly(c.p);g.fillStyle=css(hex(ownC(o)),.13*vis[i]);g.fill();
+ if(H){const on=H.nat?o===H.nat:PROV[i]===H.prov;if(!on){g.fillStyle=`rgba(28,22,18,${.17*vis[i]})`;g.fill()}else if(H.prov!=null){g.fillStyle=css(hex(ownC(o)),.14*vis[i]);g.fill()}}});
  for(const e of E.values()){if(e.c.length<2)continue;const[i,j]=e.c,oa=OWN[i],ob=OWN[j];if(oa===ob)continue;const v=Math.min(vis[i],vis[j]);if(v<=.05)continue;
   for(const[s2,o]of[[i,oa],[j,ob]]){if(!o)continue;g.save();poly(D.cells[s2].p);g.clip();g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);g.strokeStyle=css(hex(ownC(o)),.8*v);g.lineWidth=5/k;g.stroke();g.restore()}
   if(oa&&ob){g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);g.strokeStyle=`rgba(40,30,25,${.65*v})`;g.lineWidth=1.1/k;g.stroke()}}}
@@ -5045,6 +5049,7 @@ cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  const hf=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),hg=!hf&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),ht=hf?hf.id:hg?stackOf(hg)[0].id:null;
  if(ht!==hovT){hovT=ht;cv.style.cursor=ht?'pointer':'';draw()}
  if(ht){const f=R.F.find(f=>f.id===ht);TIP.innerHTML=hg?`${placeOf(hg.cell)} <span>· ${disp(hg.nat)} ${stackOf(hg).reduce((a,f)=>a+soldiers(f),0)}</span>`:`${f.n} <span>· ${fallen(f)?(f.wreck?'Wreck':'Fallen'):f.t==='vehicle'?'Vehicle':f.t==='unit'?f.men[0].role:soldiers(f)+' men'}</span>`;TIP.style.display='block';if(hov!==-1){hov=-1;draw()}return}
+ {const bh=burgAt(x,y),h=bh?hlOf(bh.b):null;if(!hlEq(h,HLh)){HLh=h;cv.style.cursor=h?'pointer':'';draw()}}
  const i=near(S2W(x,y)),c=D.cells[i];if(vis[i]<.5){if(hov!==-1){hov=-1;draw()}TIP.style.display='none';return}if(i!==hov){hov=i;draw()}
  const here=R.F.filter(f=>f.cell===i&&soldiers(f)),nats=[...new Set(here.map(f=>f.nat))].map(n=>disp(n)+' '+here.filter(f=>f.nat===n).reduce((a,f)=>a+soldiers(f),0)).join(', ');
  const isl=land(c)&&Object.values(R.isl).find(o=>o.c.includes(i)),bio=land(c)?(isl?isl.n+' · ':'')+terrainOf(c):R.seas[R.wc[i]]?R.seas[R.wc[i]].n:c.h>=14?'Coastal waters':'Open sea',maps=(R.cm[i]||[]).length;
@@ -5053,13 +5058,13 @@ cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
  if(painting){painting=0;if(RB.g!=='erase')addRoad(RB);else if(RUN.length&&RUN[RUN.length-1]===JSON.stringify(R.rd))RUN.pop();RB=null;draw();return}
  if(tiling){tiling=0;tilePlop();save();draw();return}
  if(dragF){const d=dragF;dragF=null;if(d.on){const to=near(S2W(x,y));if(to!==d.f.cell&&vis[to]>.5&&!blocked(to))moveF(d.f,to);else draw()}else pick(d.f,false);return}
- if(pan&&moved<4){const i=near(S2W(x,y)),b=BURGPT.find(o=>o.rad&&Math.hypot(x-o.X,y-o.Y)<Math.max(9,o.rad+3));if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}pan=null});
+ if(pan&&moved<4){const i=near(S2W(x,y)),b=burgAt(x,y);HLpin=b?hlOf(b.b):null;if(HLpin&&HLpin.nat&&NATS[HLpin.nat]){nation=HLpin.nat;place='all';rsel=null;selMan=null;openP.clear();openP.add(near([b.b.x,b.b.y]));natBar();list2();cards()}if(!b)draw();if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}pan=null});
 cv.addEventListener('dblclick',e=>{const[x,y]=xy(e),i=near(S2W(x,y));if(vis[i]>.5&&!R.F.some(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R))settle(i)});
 addEventListener('keydown',e=>{if(OV.hidden||e.target.closest&&e.target.closest('input,textarea'))return;const k=e.key.toLowerCase();
  if((k==='n'||k==='p')&&!e.ctrlKey&&!e.metaKey){e.stopImmediatePropagation();e.preventDefault();setTool(k==='n'?'tile':'paint');return}
  if(e.key!=='Escape')return;e.stopImmediatePropagation();e.preventDefault();if(!SDL.hidden)unsettle();else if(rtool!=='cmd')setTool('cmd');else if(rsel)unpick()},true);
 cv.addEventListener('contextmenu',e=>{e.preventDefault();const[x,y]=xy(e),f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f&&fallen(f)){const b=ubtn('','sq red rgdel',()=>{b.remove();delF(f)});b.append(uicon('bin'));b.style.left=x+'px';b.style.top=y+'px';OV.append(b);setTimeout(()=>addEventListener('pointerdown',ev=>{if(ev.target!==b)b.remove()},{once:true}),0)}});
-cv.addEventListener('pointerleave',()=>{hov=-1;hovT=null;TIP.style.display='none';draw()});
+cv.addEventListener('pointerleave',()=>{hov=-1;hovT=null;HLh=null;TIP.style.display='none';draw()});
 cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=xy(e),f=Math.exp(-e.deltaY*.0015),[wx,wy]=S2W(x,y);view.k=Math.max(Math.min(.6,KFIT()*.9),Math.min(KMAX,view.k*f));view.x=x-wx*view.k;view.y=y-wy*view.k;draw()},{passive:false});
 // moving a force out of a cell whose map holds its men asks first, then brings the living out as they are
 function paintAt(x,y){const i=near(S2W(x,y)),cl=()=>{sndT=0;edSnd(tiling>0?'soft':'erase',1.1,.45)};if(tileW===2){if(land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pwat:null;if((R.wc[i]||null)===v)return;if(v)R.wc[i]=v;else delete R.wc[i];SL=null;cl();draw();return}if(!land(D.cells[i])||vis[i]<.5)return;const v=tiling>0?pnat:null;if(OWN[i]===v)return;cl();OWN[i]=v;provFix(i);R.own[i]=v||'';LBL=null;BCH=null;draw()}
@@ -5103,7 +5108,7 @@ const RDC={road:'#ece6d4',edge:'#5d5140',trail:'#8d6f4c',tedge:'#7d6c50'};
 function roadMask(){const{W,H,x0,y0}=TC,M=new Uint8Array(W*H);SEG=roadSegs();
  const stamp=(x,y,lo,hi,v,only)=>{for(let b=lo;b<=hi;b++)for(let a=lo;a<=hi;a++){const X=Math.floor(x)+a-x0,Y=Math.floor(y)+b-y0;if(X<0||Y<0||X>=W||Y>=H)continue;const j=Y*W+X;if(!only||M[j]<v)M[j]=Math.max(M[j],v)}};
  const walk=(p,q,f)=>{const n=Math.ceil(Math.hypot(q[0]-p[0],q[1]-p[1])*2)||1;for(let k=0;k<=n;k++)f(p[0]+(q[0]-p[0])*k/n,p[1]+(q[1]-p[1])*k/n)};
- for(const[p,q,t]of SEG)if(t==='trails'){let n=0;walk(p,q,(x,y)=>{if((n++>>2)%2===0)stamp(x,y,0,0,2)})}
+ for(const[p,q,t]of SEG)if(t==='trails')walk(p,q,(x,y)=>stamp(x,y,0,0,2));
  for(const[p,q,t]of SEG)if(t==='roads')walk(p,q,(x,y)=>{stamp(x+1,y+1,0,0,1,1);stamp(x,y,0,0,4)});
  TC.RM=M}
 function roadsDone(){SEG=null;BLOCK=null;if(TC){roadMask();paintRect(0,0,TC.W,TC.H)}save()}
