@@ -353,7 +353,9 @@ function feller(p,mp){const n=p.nat,tally={},add=(k,v)=>{if(k!==n&&atWar(k,n))ta
 // a painted cell leaves its province for one of its new nation's beside it
 function provFix(i){const was=PROV[i];if(was&&R.prov[was]&&R.prov[was].nat===OWN[i])return;if(was&&R.prov[was])R.prov[was].c=R.prov[was].c.filter(c=>c!==i);PROV[i]=null;
  const to=nb[i].map(j=>PROV[j]).find(p=>p&&R.prov[p]&&R.prov[p].nat===OWN[i]);if(to){R.prov[to].c.push(i);PROV[i]=to}for(const k in R.prov)R.prov[k].p=null}
-const mapHeld=(c,n)=>{const g=NATS[n]&&NATS[n].gn||(n==='Portsbridge'?'Goldbank':n);return(R.cm[c]||[]).some(id=>(id===curMap?bodies:STATE[id]&&STATE[id].bodies||[]).some(b=>b.type==='token'&&!b.rid&&b.unit!=='civ'&&b.status==='free'&&(b.nat===n||b.nat===g)))};
+// a map never opened is opened once out of sight so its own garrison counts
+function probe(id){if(id===curMap||STATE[id]||!TITLE[id]&&!(MODS.maps&&MODS.maps[id]))return;const cur=curMap;goMap(id);goMap(cur)}
+const mapHeld=(c,n)=>{const g=NATS[n]&&NATS[n].gn||(n==='Portsbridge'?'Goldbank':n);for(const id of R.cm[c]||[])probe(id);return(R.cm[c]||[]).some(id=>(id===curMap?bodies:STATE[id]&&STATE[id].bodies||[]).some(b=>b.type==='token'&&!b.rid&&b.unit!=='civ'&&b.status==='free'&&(b.nat===n||b.nat===g)))};
 // war: holding a province's seat with men, against a nation you are at war with and with none of theirs left there, takes the province
 function capture(f){const p=Object.values(R.prov).find(p=>p.cc===f.cell);if(!p||p.nat===f.nat||!soldiers(f)||!atWar(f.nat,p.nat))return;if(R.F.some(x=>x.cell===f.cell&&x.nat===p.nat&&soldiers(x))||mapHeld(f.cell,p.nat))return;
  const was=p.nat,lost=R.PP.filter(q=>q.cell===f.cell&&q.nat===was);R.PP=R.PP.filter(q=>!lost.includes(q));if(lost.some(q=>q.ruler)){capitulate(was,f.nat);return}
@@ -490,7 +492,11 @@ function delF(f){if(f.t==='person')R.PP=R.PP.filter(p=>p!==f);else R.F=R.F.filte
 const SDL=mk('div','rsd');SDL.hidden=true;OV.append(SDL);
 let sdc=-1,sdPick=new Set(),sdMap=null,sdFil='all',sdOpen=new Set(),sdDrop=false,sdMenu=null,DRG=null,sdT=0;
 const CAP=f=>f.t==='vehicle'?6:8;
-function settle(c){if(sdc!==c){sdPick=new Set();sdOpen=new Set();sdFil='all'}sdc=c;cell=c;const L=R.cm[c]||[];sdMap=L.includes(R.last[c])?R.last[c]:L[0]||null;sdDrop=false;sdMenu=null;SDL.hidden=false;
+// a seat whose first map has no chair gets a keep or fort of its own put first
+function seatMap(c){if(!(OWN[c]&&capCell(OWN[c])===c||seatCell(c)))return;const L=R.cm[c]||[];if(!L.length)return;const id=L[0];R.chairs=R.chairs||{};
+ if(R.chairs[id]===undefined){if(id===curMap)R.chairs[id]=!!findChair();else{const cur=curMap;goMap(id);R.chairs[id]=!!findChair();goMap(cur)}}
+ if(!R.chairs[id]){const nid=newMap(c);R.cm[c]=[nid,...R.cm[c].filter(x=>x!==nid)];R.chairs[nid]=true;save()}}
+function settle(c){seatMap(c);if(sdc!==c){sdPick=new Set();sdOpen=new Set();sdFil='all'}sdc=c;cell=c;const L=R.cm[c]||[];sdMap=L.includes(R.last[c])?R.last[c]:L[0]||null;sdDrop=false;sdMenu=null;SDL.hidden=false;
  const f=R.F.find(f=>f.id===rsel&&f.cell===c);if(f)for(const m of men(f))sdPick.add(m.id);drawSD();preview();draw()}
 function unsettle(){SDL.hidden=true;sdc=-1;draw()}
 const linksOf=(id,L)=>(EXITS[id]||[]).filter(x=>x.to&&L.includes(x.to)).map(x=>mapName(x.to));
@@ -528,7 +534,7 @@ function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scr
   const mkSq=nat=>{const f={id:'f'+Date.now().toString(36),t:'squad',nat,cell:c,n:'New squad',men:[]};R.F.push(f);sdOpen.add(f.id);return f};
   nr.ondrop=e=>{e.preventDefault();if(!DRG)return;const{m,f:from}=DRG;DRG=null;moveMan(m,from,mkSq(from.nat));drawSD();draw()};nr.onclick=()=>{mkSq(nat0);save();drawSD()};body.append(nr)}
  if(show('vehicles')&&cars.length){hd('Vehicles');for(const f of cars)row(f.id,NATS[f.nat].c,`${f.n} <em>(${f.men.length})</em>`,f.wreck?'Wreck':'Hull '+f.hull+'%',f.men,!f.wreck,f)}
- if(show('people')&&ppl.length){hd('People');const nt=ppl.filter(p=>p.note),fk=ppl.filter(p=>!p.note),col=own?ownC(own):'#555';if(nt.length)row('pn'+c,col,`Notables <em>(${nt.length})</em>`,'',nt,true,null);if(fk.length)row('pf'+c,col,`Townsfolk <em>(${fk.length})</em>`,'',fk,true,null)}
+ if(show('people')&&ppl.length){hd('People');const nt=ppl.filter(p=>p.note),fk=ppl.filter(p=>!p.note),col=own?ownC(own):'#555';if(nt.length)row('pn'+c,col,`Court <em>(${nt.length})</em>`,'',nt,true,null);if(fk.length)row('pf'+c,col,`Townsfolk <em>(${fk.length})</em>`,'',fk,true,null)}
  if(show('locals')&&out.length){hd('In the maps');for(const g2 of out)row(g2.key,natCol(g2.nat),`${disp(g2.nat)} <em>(${g2.men.length})</em>`,mapName(g2.map),g2.men,false,null)}
  if(show('prisoners')&&np){hd('Prisoners');for(const s of['Under escort','Chained','Tied','Held'])if(pris[s])row('pr'+c+s,'#77706a',`${s} <em>(${pris[s].length})</em>`,'',pris[s],false,null)}
  if(body.children.length===0)body.append(mk('div','none','—'));
