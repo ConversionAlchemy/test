@@ -147,6 +147,14 @@ export function foldMap(): FoldReport {
     burg.x = x;
     burg.y = y;
   }
+  // routes still end where the settlements stood; sea lanes only at their ends
+  for (const route of pack.routes ?? []) {
+    const sea = route.group === "searoutes";
+    for (const point of sea ? [route.points[0], route.points.at(-1)!] : route.points) {
+      const burg = pack.burgs[cells.burg[mainCell(point[2])]];
+      if (burg?.i && !burg.removed) [point[0], point[1]] = [burg.x, burg.y];
+    }
+  }
   for (const state of pack.states ?? [])
     for (const regiment of state.military ?? []) if (isSliver(regiment.cell)) regiment.cell = mainCell(regiment.cell);
   for (const marker of pack.markers ?? []) if (isSliver(marker.cell)) marker.cell = mainCell(marker.cell);

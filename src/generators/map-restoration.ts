@@ -134,6 +134,10 @@ class MapRestorationModule {
     this.restoreRoutes(parent, projection, features); // before the states: a new capital connects to the roads
     this.restoreCultures(parent, projection);
     const strayed = this.restoreBurgs(parent, projection, scale);
+    if (scale > 1) {
+      Routes.refine(); // the parent's straight lines would cross the finer coast
+      Routes.sync();
+    }
     this.restoreStates(parent, projection, strayed);
     this.restoreProvinces(parent, projection, strayed);
     States.findNeighbors();

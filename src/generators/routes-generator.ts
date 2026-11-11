@@ -1,5 +1,5 @@
 import Alea from "alea";
-import { curveCatmullRom, line } from "d3";
+import { curveCatmullRom, line, quadtree } from "d3";
 import Delaunator from "delaunator";
 import { replaceWholeWord } from "@/utils/languageUtils";
 import { requireName, requireOneOf } from "@/utils/validationUtils";
@@ -15,6 +15,9 @@ const ROUTES_SHARP_ANGLE = 135;
 const ROUTES_VERY_SHARP_ANGLE = 115;
 
 export const MIN_PASSABLE_SEA_TEMP = -4;
+const ROUTE_REUSE_MODIFIER = 0.3; // a new land route would rather follow an existing one than run beside it
+const REDUNDANT_DETOUR = 1.35; // a trail is dropped when the network already links its ends within this detour
+const RELAX_PASSES = 4;
 const RIVER_TYPE_MODIFIER = 1.5;
 const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
   "-1": 1, // coastline
@@ -201,6 +204,7 @@ type RiverRun = {
 
 class RoutesModule {
   private connections: Map<string, boolean> = new Map();
+  private adjacency: Map<number, Set<number>> = new Map();
   private riverEdges: Map<number, Map<number, RiverEdge>> = new Map();
   private riversById: Map<number, River> = new Map();
   private riverGeometryCache: Map<number, { points: Point[]; anchorIndices: number[] }> = new Map();
@@ -223,6 +227,7 @@ class RoutesModule {
   generate(lockedRoutes: Route[] = [], randomSeed?: number) {
     Math.random = Alea(randomSeed ?? options.map.seed);
     this.connections = new Map();
+    this.adjacency = new Map();
     this.buildRiverEdges();
     lockedRoutes.forEach((route: Route) => {
       this.addConnections(route.points.map(p => p[2]));
@@ -308,7 +313,7 @@ class RoutesModule {
     const distanceCost = distanceSquared(pack.cells.p[current], pack.cells.p[next]);
     const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1];
     const heightModifier = 1 + Math.max(pack.cells.h[next] - 25, 25) / 25; // [1, 3];
-    const connectionModifier = this.connections.has(`${current}-${next}`) ? 0.5 : 1;
+    const connectionModifier = this.connections.has(`${current}-${next}`) ? ROUTE_REUSE_MODIFIER : 1;
     const burgModifier = pack.cells.burg[next] ? 1 : 3;
 
     const pathCost = distanceCost * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
@@ -443,14 +448,58 @@ class RoutesModule {
   }
 
   private addConnections(segment: number[]) {
-    for (let i = 0; i < segment.length; i++) {
-      const cellId = segment[i];
-      const nextCellId = segment[i + 1];
-      if (nextCellId) {
-        this.connections.set(`${cellId}-${nextCellId}`, true);
-        this.connections.set(`${nextCellId}-${cellId}`, true);
+    for (let i = 0; i < segment.length - 1; i++) this.linkCells(segment[i], segment[i + 1]);
+  }
+
+  private linkCells(a: number, b: number) {
+    if (a === b) return;
+    this.connections.set(`${a}-${b}`, true);
+    this.connections.set(`${b}-${a}`, true);
+    if (!this.adjacency.has(a)) this.adjacency.set(a, new Set());
+    if (!this.adjacency.has(b)) this.adjacency.set(b, new Set());
+    this.adjacency.get(a)!.add(b);
+    this.adjacency.get(b)!.add(a);
+  }
+
+  private pathLength(cells: number[]) {
+    const { p } = pack.cells;
+    let length = 0;
+    for (let i = 1; i < cells.length; i++)
+      length += Math.hypot(p[cells[i]][0] - p[cells[i - 1]][0], p[cells[i]][1] - p[cells[i - 1]][1]);
+    return length;
+  }
+
+  /** Distances over the existing network from a cell, up to a limit */
+  private networkDistances(start: number, limit: number) {
+    const { p } = pack.cells;
+    const dist = new Map<number, number>([[start, 0]]);
+    const queue = new window.FlatQueue();
+    queue.push(start, 0);
+    while (queue.length) {
+      const d = queue.peekValue();
+      const current = queue.pop();
+      if (d > (dist.get(current) ?? Infinity)) continue;
+      for (const next of this.adjacency.get(current) ?? []) {
+        if (pack.cells.h[next] < 20) continue; // a sea lane does not stand in for a land route
+        const nd = d + Math.hypot(p[next][0] - p[current][0], p[next][1] - p[current][1]);
+        if (nd > limit || nd >= (dist.get(next) ?? Infinity)) continue;
+        dist.set(next, nd);
+        queue.push(next, nd);
       }
     }
+    return dist;
+  }
+
+  /** A new segment adds nothing when the network already links its ends, and every burg on it, by a short detour */
+  private isRedundant(segment: number[]) {
+    if (segment.length < 2) return true;
+    const start = segment[0];
+    const end = segment.at(-1)!;
+    if (!this.adjacency.has(start) || !this.adjacency.has(end)) return false;
+    const limit = this.pathLength(segment) * REDUNDANT_DETOUR;
+    const dist = this.networkDistances(start, limit);
+    if (!dist.has(end)) return false;
+    return segment.every(cellId => !pack.cells.burg[cellId] || dist.has(cellId));
   }
 
   private generateTrails() {
@@ -460,13 +509,16 @@ class RoutesModule {
 
     for (const [key, featureBurgs] of Object.entries(burgsByFeature)) {
       const points = featureBurgs.map(burg => [burg.x, burg.y] as Point);
-      const urquhartEdges = this.calculateUrquhartEdges(points);
+      const urquhartEdges = this.calculateUrquhartEdges(points).sort(
+        (a, b) => distanceSquared(points[a[0]], points[a[1]]) - distanceSquared(points[b[0]], points[b[1]])
+      );
       urquhartEdges.forEach(([fromId, toId]) => {
         const start = featureBurgs[fromId].cell;
         const exit = featureBurgs[toId].cell;
 
         const segments = this.findPathSegments({ isWater: false, start, exit });
         for (const segment of segments) {
+          if (this.isRedundant(segment)) continue;
           this.addConnections(segment);
           trails.push({ feature: Number(key), cells: segment } as Route);
         }
@@ -669,7 +721,28 @@ class RoutesModule {
       }
     }
 
+    this.relax(data, points);
     return data; // [[x, y, cell], [x, y, cell]];
+  }
+
+  /** Straighten zigzags from cell to cell: a pass-through point drifts towards its neighbours' midpoint while it stays in its cell */
+  private relax(data: number[][], points: Point[]) {
+    const { burg } = pack.cells;
+    const free = (i: number) => {
+      const cellId = data[i][2];
+      return !burg[cellId] && (this.adjacency.get(cellId)?.size ?? 0) <= 2;
+    };
+    for (let pass = 0; pass < RELAX_PASSES; pass++) {
+      for (let i = 1; i < data.length - 1; i++) {
+        if (!free(i)) continue;
+        const [x, y, cellId] = data[i];
+        const newX = rn((x + (data[i - 1][0] + data[i + 1][0]) / 2) / 2, 2);
+        const newY = rn((y + (data[i - 1][1] + data[i + 1][1]) / 2) / 2, 2);
+        if (Pack.findCell(newX, newY) !== cellId) continue;
+        data[i] = [newX, newY, cellId];
+        points[cellId] = [newX, newY];
+      }
+    }
   }
 
   // merge routes so that the last cell of one route is the first cell of the next route
@@ -723,6 +796,198 @@ class RoutesModule {
     }
 
     return routes;
+  }
+
+  /**
+   * Lay the land routes again on a finer graph, as after a submap: each route still links the burgs it linked,
+   * but along the land of the new cells instead of the parent's straight lines; unlocked trails that only repeat a road are dropped
+   */
+  refine(): void {
+    const { cells, burgs } = pack;
+    this.connections = new Map();
+    this.adjacency = new Map();
+    this.buildRiverEdges();
+    const kept = pack.routes.filter(route => route.group === "searoutes");
+    for (const route of kept) this.addConnections(route.points.map(point => point[2]));
+    const seaEdges = new Set(this.connections.keys());
+
+    const living = burgs.filter(burg => burg.i && !burg.removed);
+    const burgTree = quadtree(living.map(burg => [burg.x, burg.y, burg.cell] as [number, number, number]));
+    const reach = grid.spacing * 2;
+    const nearBurgCell = (x: number, y: number, radius: number) => burgTree.find(x, y, radius)?.[2];
+    const routePoints = quadtree(
+      pack.routes
+        .filter(route => route.group !== "searoutes")
+        .flatMap(route => route.points.map(([x, y]) => [x, y, route.i] as [number, number, number]))
+    );
+    const joinsOther = (route: Route, x: number, y: number, r: number) => {
+      let found = false;
+      routePoints.visit((node, x0, y0, x1, y1) => {
+        if (found || x0 > x + r || x1 < x - r || y0 > y + r || y1 < y - r) return true;
+        if (!("length" in node)) {
+          for (let leaf: typeof node | undefined = node; leaf; leaf = leaf.next) {
+            const [px, py, id] = leaf.data;
+            if (id !== route.i && (px - x) ** 2 + (py - y) ** 2 <= r * r) found = true;
+          }
+        }
+        return found;
+      });
+      return found;
+    };
+    const rank = (group: string) => (group === "roads" ? 0 : 1);
+    const relaid = pack.routes.filter(route => !kept.includes(route)).sort((a, b) => rank(a.group) - rank(b.group));
+
+    const pieces: Record<string, (Route & { cells: number[] })[]> = {};
+    for (const route of relaid) {
+      const waypoints = this.getWaypoints(route, nearBurgCell, joinsOther, reach);
+      for (let k = 0; k < waypoints.length - 1; k++) {
+        const segments = this.findPathSegments({ isWater: false, start: waypoints[k], exit: waypoints[k + 1] });
+        for (const segment of segments) {
+          if (route.group !== "roads" && !route.lock && this.isRedundant(segment)) continue;
+          this.addConnections(segment);
+          if (!pieces[route.group]) pieces[route.group] = [];
+          pieces[route.group].push({ ...route, cells: segment, merged: false });
+        }
+      }
+    }
+
+    this.trimDeadEnds(Object.values(pieces).flat(), reach, seaEdges);
+
+    // a burg the relaid lines pass by gets its own short trail
+    const getCost = this.createCostEvaluator({ isWater: false });
+    const onNetwork = (cellId: number) =>
+      cells.h[cellId] >= 20 && [...(this.adjacency.get(cellId) ?? [])].some(next => cells.h[next] >= 20);
+    for (const burg of living) {
+      if (cells.h[burg.cell] < 20 || onNetwork(burg.cell)) continue;
+      const path = findPath(burg.cell, onNetwork, getCost, pack);
+      if (!path) continue;
+      this.addConnections(path);
+      if (!pieces.trails) pieces.trails = [];
+      pieces.trails.push({ group: "trails", feature: cells.f[burg.cell], cells: path.reverse() } as Route & {
+        cells: number[];
+      });
+    }
+
+    this.cutCorners(Object.values(pieces).flat());
+    this.trimDeadEnds(Object.values(pieces).flat(), reach, seaEdges);
+
+    const pointsArray = this.preparePointsArray();
+    const routes: Route[] = kept.map(route => ({ ...route }));
+    const named = new Set<string>();
+    for (const [group, groupPieces] of Object.entries(pieces)) {
+      for (const piece of this.mergeRoutes(groupPieces.filter(piece => piece.cells.length > 1))) {
+        if (piece.merged) continue;
+        const points = this.getPoints(group, piece.cells!, pointsArray);
+        const first = !named.has(piece.name ?? "");
+        named.add(piece.name ?? "");
+        const { cells: _cells, merged: _merged, label, ...rest } = piece;
+        const name = rest.name ?? this.generateName({ group, points });
+        routes.push({ ...rest, name, points, tags: rest.tags ?? [], ...(first && label ? { label } : {}) });
+      }
+    }
+    pack.routes = routes.map((route, i) => ({ ...route, i }));
+    cells.routes = this.buildLinks(pack.routes);
+  }
+
+  /** Cut route ends that lead nowhere: not to a burg, another route or off the map */
+  private trimDeadEnds(pieces: { cells?: number[] }[], reach: number, seaEdges: Set<string>) {
+    const { burg, p, h } = pack.cells;
+    const { width, height } = options.map.graph;
+    const loose = (cellId: number) => {
+      const [x, y] = p[cellId];
+      const offMap = x < reach || y < reach || x > width - reach || y > height - reach;
+      const landLinks = [...(this.adjacency.get(cellId) ?? [])].filter(
+        next => h[next] >= 20 && !seaEdges.has(`${cellId}-${next}`)
+      ).length;
+      return !burg[cellId] && !offMap && landLinks <= 1;
+    };
+    const unlink = (a: number, b: number) => {
+      this.connections.delete(`${a}-${b}`);
+      this.connections.delete(`${b}-${a}`);
+      this.adjacency.get(a)?.delete(b);
+      this.adjacency.get(b)?.delete(a);
+    };
+    let trimmed = true;
+    while (trimmed) {
+      trimmed = false;
+      for (const piece of pieces) {
+        const cells = piece.cells!;
+        while (cells.length > 1 && loose(cells.at(-1)!)) {
+          unlink(cells.at(-1)!, cells.at(-2)!);
+          cells.pop();
+          trimmed = true;
+        }
+        while (cells.length > 1 && loose(cells[0])) {
+          unlink(cells[0], cells[1]);
+          cells.shift();
+          trimmed = true;
+        }
+      }
+    }
+    for (let i = pieces.length - 1; i >= 0; i--) if (pieces[i].cells!.length < 2) pieces[i].cells = [];
+  }
+
+  /** A route that steps past a cell and back, as just beyond a burg, goes straight between the two neighbours */
+  private cutCorners(pieces: { cells?: number[] }[]) {
+    const { burg, c, h } = pack.cells;
+    for (const [cellId, links] of this.adjacency) {
+      if (burg[cellId] || h[cellId] < 20) continue;
+      const land = [...links].filter(next => h[next] >= 20);
+      if (land.length !== 2 || links.size !== 2) continue;
+      const [a, b] = land;
+      if (!c[a].includes(b)) continue;
+      const holders = pieces.filter(piece => piece.cells!.includes(cellId));
+      const inner = holders.find(piece => {
+        const i = piece.cells!.indexOf(cellId);
+        return i > 0 && i < piece.cells!.length - 1;
+      });
+      if (this.connections.has(`${a}-${b}`) || inner) {
+        // the neighbours are linked already, or one route runs through: the step aside goes
+        for (const piece of holders) piece.cells!.splice(piece.cells!.indexOf(cellId), 1);
+      } else if (holders.length === 2) {
+        const [first, second] = holders.map(piece =>
+          piece.cells![0] === cellId ? piece.cells!.reverse() : piece.cells!
+        );
+        first.pop();
+        second.pop();
+        first.push(...second.reverse());
+        second.length = 0;
+      } else continue;
+      this.connections.delete(`${cellId}-${a}`);
+      this.connections.delete(`${a}-${cellId}`);
+      this.connections.delete(`${cellId}-${b}`);
+      this.connections.delete(`${b}-${cellId}`);
+      this.adjacency.get(a)?.delete(cellId);
+      this.adjacency.get(b)?.delete(cellId);
+      links.clear();
+      this.linkCells(a, b);
+    }
+  }
+
+  /** The cells a relaid route must pass: the burgs at and along it, or its own land ends */
+  private getWaypoints(
+    route: Route,
+    nearBurgCell: (x: number, y: number, r: number) => number | undefined,
+    joinsOther: (route: Route, x: number, y: number, r: number) => boolean,
+    reach: number
+  ) {
+    const { h } = pack.cells;
+    const onLand = route.points.filter(point => h[point[2]] >= 20);
+    if (onLand.length < 2) return [];
+    const waypoints: number[] = [];
+    const add = (cellId: number | undefined) => {
+      if (cellId !== undefined && waypoints.at(-1) !== cellId) waypoints.push(cellId);
+    };
+    // a loose end is kept where it joins another route or runs off the map, else it would stop at a shore
+    const { width, height } = options.map.graph;
+    const offMap = (x: number, y: number) => x < reach || y < reach || x > width - reach || y > height - reach;
+    const joins = (x: number, y: number) => joinsOther(route, x, y, reach / 2);
+    const end = ([x, y, cellId]: number[]) =>
+      nearBurgCell(x, y, reach) ?? (offMap(x, y) || joins(x, y) ? cellId : undefined);
+    add(end(onLand[0]));
+    for (const [x, y] of onLand.slice(1, -1)) add(nearBurgCell(x, y, reach / 2));
+    add(end(onLand.at(-1)!));
+    return waypoints.filter((cellId, i) => waypoints.indexOf(cellId) === i);
   }
 
   // direction-aware river graph derived from pack.rivers
@@ -1063,13 +1328,13 @@ class RoutesModule {
   // run on map load to restore connections based on routes data
   sync() {
     this.connections = new Map();
+    this.adjacency = new Map();
     this.buildRiverEdges();
     for (const route of pack.routes) {
       for (let i = 0; i < route.points.length - 1; i++) {
         const cellId = route.points[i][2];
         const nextCellId = route.points[i + 1][2];
-        this.connections.set(`${cellId}-${nextCellId}`, true);
-        this.connections.set(`${nextCellId}-${cellId}`, true);
+        this.linkCells(cellId, nextCellId);
       }
     }
   }

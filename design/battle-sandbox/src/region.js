@@ -37,7 +37,7 @@ const KEEP=new Set(['Aracia','Whitecoast','Lindale','Holverland']),OWN=(()=>{con
 // ---- overlay over the map view, a zone in the side panel
 const OV=mk('div','rgo');OV.hidden=true;const cv=mk('canvas'),TIP=mk('div','rgtip'),CARDS=mk('div','rgcards');OV.append(cv,TIP,CARDS);VIEW.append(OV);
 let g=cv.getContext('2d'),dpr=1;let VW=1,VH=1;
-const ZR=mk('div','zone zr');ZR.hidden=true;SIDE0.append(ZR);
+const ZR=mk('div','zr');ZR.hidden=true;SIDE0.append(ZR);
 
 // ---- textures: the floor materials' noise made to tile, one tile per kind of ground, each cell its own offset
 const TS=128,smt=t=>t*t*(3-2*t),th=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)},wr=(v,P)=>((v%P)+P)%P;
@@ -160,8 +160,8 @@ function states(){const far=Math.max(0,Math.min(1,(2.6-view.k)/.9)),near2=Math.m
 
 // ---- nations, their forces and their people (game nation in brackets where it differs)
 const disp=n=>NATS[n]?NATS[n].n:n;
-const NATS={Astria:{n:'Astria',c:'#34405e',ring:[66,82,120],gold:18400,seat:"Emperor's Dock",gn:'Imperium'},Goldbank:{n:"Aurum's Reach",c:'#afaa42',ring:[175,170,66],gold:52000,seat:'Goldbank'},'Great Keys':{n:"Great Keys",c:'#2f9e6e',ring:[56,160,112],gold:9600,seat:'Great Keys'},
- Havenport:{n:"Freefolk Lands",c:'#4775de',ring:[86,126,214],gold:12300,seat:'Havenport'},Portsbridge:{n:"Portsbridge Trade Federation",c:'#c9a53c',ring:[214,180,80],gold:15800,seat:'Portsbridge'},Reapers:{n:"Reapers",c:'#4a5a2a',ring:[110,130,64],gold:2100,seat:'Mudwater'}};
+const NATS={Astria:{n:'Astria',pp:'Astrians',c:'#34405e',ring:[66,82,120],gold:18400,seat:"Emperor's Dock",gn:'Imperium'},Goldbank:{n:"Aurum's Reach",c:'#afaa42',ring:[175,170,66],gold:52000,seat:'Goldbank'},'Great Keys':{n:"Great Keys",c:'#2f9e6e',ring:[56,160,112],gold:9600,seat:'Great Keys'},
+ Havenport:{n:"Freefolk Lands",pp:'Freefolk',c:'#4775de',ring:[86,126,214],gold:12300,seat:'Havenport'},Portsbridge:{n:"Portsbridge Trade Federation",c:'#c9a53c',ring:[214,180,80],gold:15800,seat:'Portsbridge'},Reapers:{n:"The Marsh",pp:'Marshmen',c:'#4a5a2a',ring:[110,130,64],gold:2100,seat:'Mudwater'}};
 const LK={off:'Astrian Officer|n|iron|h',ln1:'Astrian Line|m|iron|h',ln2:'Astrian Line|t|iron|h',ln3:'Astrian Line|m|steel|h',ln4:'Astrian Line|n|iron|h',ln5:'Astrian Line|t|iron|b',gd1:'Astrian Guard|f|steel|h',gd2:'Astrian Guard|f|iron|h',cs:'Astrian Conscript'};
 const ROLE={off:'Officer',ln1:'Line',ln2:'Line',ln3:'Line',ln4:'Line',ln5:'Line',gd1:'Guard',gd2:'Guard',cs:'Conscript'};
 const NAMES=['Hale','Voss','Marr','Cobb','Rook','Tenn','Ashby','Pike','Dunn','Fell','Garr','Holt','Keane','Lowe','Mace','Orr','Pell','Quill','Rand','Sedge','Thorn','Vale','Wick','Yarrow','Strand','Calder','Hask','Brin','Cade','Dorr','Esk','Fenn','Gale','Hume','Ivo','Jory','Kell','Lusk','Moss','Nash','Odell','Prew','Rusk','Sallow','Tull','Ure','Varn','Wade'];
@@ -191,7 +191,10 @@ function seed(){let nid=0;const F=[],PP=[],cellOf=at=>near([BURG[at].x,BURG[at].
  return{v:1,F,PP,cm,gold:Object.fromEntries(Object.entries(NATS).map(([n,o])=>[n,o.gold])),nid,mname:{},last:{}}}
 let R=LS.get('bs.region',null);if(!R||R.v!==1)R=seed();
 // regions saved before Great Keys moved to the coast bring its forces, people and maps along
-function migrate(R){if(R.gk2)return R;const o=near([524.5,396.7]),n=near([BURG['Great Keys'].x,BURG['Great Keys'].y]);if(o!==n){for(const f of[...R.F,...R.PP])if(f.cell===o)f.cell=n;if(R.cm[o]){R.cm[n]=[...(R.cm[n]||[]),...R.cm[o]];delete R.cm[o]}if(R.last[o]){R.last[n]=R.last[o];delete R.last[o]}}R.gk2=1;return R}
+// settlements moved onto their cell centres when the roads were relaid: what stood at the old cell follows them
+const MOVED={"Portsbridge":[859.1,388.3],"Overbay":[602.7,308.2],"Rannoch":[1048.4,53.1],"Stonehaven Clach":[1032.9,6.8],"Shantyport":[836.9,283.1],"Havenport":[497.9,322.7],"Fumbleweed":[838.6,438.7],"Great Keys":[538,438.6],"Bog's Keep":[958.3,353.1]};
+function moveCell(R,o,n){if(o===n)return;for(const f of[...R.F,...R.PP])if(f.cell===o)f.cell=n;if(R.cm[o]){R.cm[n]=[...(R.cm[n]||[]),...R.cm[o]];delete R.cm[o]}if(R.last[o]){R.last[n]=R.last[o];delete R.last[o]}}
+function migrate(R){if(!R.gk2){moveCell(R,near([524.5,396.7]),near(MOVED['Great Keys']));R.gk2=1}if(!R.roads2){for(const n in MOVED)if(BURG[n])moveCell(R,near(MOVED[n]),near([BURG[n].x,BURG[n].y]));for(const c of[625,680,681])moveCell(R,c,624);R.roads2=1}return R}
 migrate(R);
 R.col=R.col||{};R.names=R.names||{};R.own=R.own||{};R.emb=R.emb||{};for(const f of R.F)if(f.n==='Sweetwater Thugs')f.n="Bog's Keep Thugs";
 const save=()=>{const c=JSON.parse(JSON.stringify(R,(k,v)=>k==='carry'?undefined:v));LS.set('bs.region',c)};
@@ -224,7 +227,7 @@ const CAR={};for(const k in RGS){const i=new Image();i.onload=()=>{CAR[k]=i;draw
 const imgOf=f=>f.t==='vehicle'?CAR[f.k]:spr(lead(f).k);
 function sprBig(k,s){const src=k==='car'||k==='carW'?CAR[k]:spr(k),c=mk('canvas');if(!src)return c;c.width=src.width*s;c.height=src.height*s;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(src,0,0,c.width,c.height);return c}
 
-// ---- markers: far out one stacked icon per nation per cell, then two, close in one per squad or carrier
+// ---- markers: far out one stacked icon per nation per cell, then two, close in one per squad or vehicle
 const CLOSE=2.4;let GROUPS=[];
 function layout(){GROUPS=[];const by={};for(const f of R.F){if(!f.men.length&&!f.wreck)continue;(by[f.cell]||(by[f.cell]={}))[f.nat]=1}
  for(const c in by){const[bx,byy]=cellXY(+c),ns=Object.keys(by[c]),used=[];ns.forEach(n=>{const fs=R.F.filter(f=>f.cell===+c&&f.nat===n),cols=Math.ceil(Math.sqrt(fs.length)),rows=Math.ceil(fs.length/cols),sp=13,hw=(cols-1)/2*sp,hh=(rows-1)/2*sp,d=13+Math.hypot(hw,hh);
@@ -232,7 +235,8 @@ function layout(){GROUPS=[];const by={};for(const f of R.F){if(!f.men.length&&!f
   const cx=bx+Math.cos(a)*d,cy=byy+Math.sin(a)*d;GROUPS.push({stack:false,cell:+c,nat:n,x:bx+Math.cos(a)*15,y:byy+Math.sin(a)*13,fs});fs.forEach((f,i)=>{f.x=cx+(i%cols)*sp-hw;f.y=cy+Math.floor(i/cols)*sp-hh})})}}
 const rankF=f=>(f.id===rsel?1e4:0)+(f.fav?1e3:0)+soldiers(f);
 const shown=f=>f.show!==false&&(R.fallenOn||!fallen(f));
-const stackOf=G=>G.fs.filter(shown).sort((a,b)=>(fallen(a)-fallen(b))||rankF(b)-rankF(a));
+const vfOk=f=>!vf||(vf==='sol'?f.t!=='vehicle':vf==='veh'&&f.t==='vehicle');
+const stackOf=G=>G.fs.filter(f=>shown(f)&&vfOk(f)).sort((a,b)=>(fallen(a)-fallen(b))||rankF(b)-rankF(a));
 function tok(m,X,Y,r,z,cnt){const on=rsel===m.id,dead=fallen(m),hv=hovT===m.id;g.globalAlpha=match(m)?1:.3;g.fillStyle='rgba(0,0,0,.4)';g.beginPath();g.arc(X+1.5,Y+2,r+2,0,7);g.fill();g.fillStyle=dead?'#3a3530':'#1e1e1e';g.beginPath();g.arc(X,Y,r+2,0,7);g.fill();g.strokeStyle=dead?'#77706a':css(NATS[m.nat].ring);g.lineWidth=3;g.beginPath();g.arc(X,Y,r,0,7);g.stroke();
  if(on||hv){g.strokeStyle=on?'#f2efe6':'rgba(242,239,230,.9)';g.lineWidth=on?1.5:2.5;if(hv&&!on){g.save();g.shadowColor='rgba(255,250,235,.8)';g.shadowBlur=8}g.beginPath();g.arc(X,Y,r+4.5,0,7);g.stroke();if(hv&&!on)g.restore()}
  const im=imgOf(m);if(im){g.save();g.beginPath();g.arc(X,Y,r-2,0,7);g.clip();g.imageSmoothingEnabled=false;if(dead)g.filter='grayscale(1) brightness(.7)';if(m.t==='vehicle'){const s=(2*r-6)/im.width;g.translate(X,Y);g.rotate(-Math.PI/2);g.drawImage(im,-im.width*s/2,-im.height*s/2,im.width*s,im.height*s)}else{const s=1.1*z;g.drawImage(im,X-im.width*s/2,Y-im.height*s/2,im.width*s,im.height*s)}g.restore()}
@@ -256,7 +260,24 @@ function placeClose(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),S
 // a faint line ties a block to its town when they sit apart
 function leaders(){g.save();g.strokeStyle='rgba(30,24,18,.45)';g.lineWidth=1.3;g.setLineDash([3,3]);for(const k of BLOCKS){if(!k.B)continue;const dx=k.x-k.B[0],dy=k.y-k.B[1],d=Math.hypot(dx,dy);if(d<k.w/2+18)continue;
   const t=Math.min(1,Math.max(0,1-Math.min(k.w/2/Math.abs(dx||1e-9),k.h/2/Math.abs(dy||1e-9))*1));g.beginPath();g.moveTo(k.B[0]+dx/d*7,k.B[1]+dy/d*7);g.lineTo(k.B[0]+dx*t,k.B[1]+dy*t);g.stroke()}g.restore()}
-function markers(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),r=10*z;for(const f of R.F)f.R=0;if(view.k>=CLOSE)leaders();
+// ---- treasury: the Solari lying in a nation's maps, on floors, tables and in chests; what people carry is their own
+const GOLD0={road:100,alley:100,vault:1400,count:500,stock:100}; // the built-in maps before anyone opens them
+const goldLive=a=>{let s=0;for(const b of a||[]){if(b.type==='token')continue;if(b.type==='weapon'&&b.kind==='gold')s+=b.amt||0;if(b.inv)for(const q of b.inv)if(q&&q.k==='gold')s+=q.n||0}return s};
+const goldDef=a=>{let s=0;for(const o of a||[]){if(o.t==='u')continue;if(o.t==='w'&&o.kind==='gold')s+=o.amt||0;for(const q of o.inv||[])if(q&&q.k==='gold')s+=q.n||0}return s};
+const mapGold=id=>id===curMap?goldLive(bodies):STATE[id]?goldLive(STATE[id].bodies):MODS.maps[id]?goldDef(MODS.maps[id].bodies):GOLD0[id]||0;
+let GC=null;
+function cellGold(){if(GC&&performance.now()-GC.t<1500)return GC.v;const v={};for(const c in R.cm){const n=(R.cm[c]||[]).reduce((a,id)=>a+mapGold(id),0);if(n)v[c]=n}GC={t:performance.now(),v};return v}
+const treasury=n=>{const v=cellGold();let s=0;for(const c in v)if(n==='all'?NATS[OWN[c]]:OWN[c]===n)s+=v[c];return s};
+// the Treasury and People totals show as their own marks in place of the forces
+const COIN=['..aaaa..','.abbbba.','abbccbba','abccccba','abbccbba','.abbbba.','..aaaa..'],COINC={a:'#7a5a1c',b:'#e3c463',c:'#f6e6a4'};
+const MAN=['..aa..','.aaaa.','..aa..','.aaaa.','aaaaaa','a.aa.a','.a..a.','.a..a.'],MANC={a:'#eee5cd'};
+function pix(rows,cols,X,Y,s){for(let y=0;y<rows.length;y++)for(let x=0;x<rows[y].length;x++){const k=rows[y][x];if(cols[k]){g.fillStyle=cols[k];g.fillRect(Math.round(X+(x-rows[y].length/2)*s),Math.round(Y+(y-rows.length/2)*s),Math.ceil(s),Math.ceil(s))}}}
+function mark(X,Y,r,z,ring,rows,cols,label,dim){g.globalAlpha=dim?.3:1;g.fillStyle='rgba(0,0,0,.4)';g.beginPath();g.arc(X+1.5,Y+2,r+2,0,7);g.fill();g.fillStyle='#1e1e1e';g.beginPath();g.arc(X,Y,r+2,0,7);g.fill();g.strokeStyle=ring;g.lineWidth=3;g.beginPath();g.arc(X,Y,r,0,7);g.stroke();
+ pix(rows,cols,X,Y,1.6*z);g.font=`${Math.round(14*z)}px VT323`;const w=g.measureText(label).width+5;g.fillStyle='#f2efe6';g.fillRect(X+r-4,Y+r-9,w,11*z);g.fillStyle='#141414';g.fillText(label,X+r-1.5,Y+r+.5);g.globalAlpha=1}
+function totals(z,r){if(vf==='gold'){const v=cellGold();for(const c in v){const o=OWN[c],[X,Y0]=W2S(...cellXY(+c)),Y=Y0+r+8;mark(X,Y,r,z,'#c9a54a',COIN,COINC,money(v[c]),nation!=='all'&&o!==nation)}}
+ if(vf==='ppl'){const by={};for(const p of R.PP)if(!p.dead&&p.show!==false)(by[p.cell]||(by[p.cell]=[])).push(p);for(const c in by){const L=by[c],mine=L.filter(p=>nation==='all'||p.nat===nation),n0=L[0].nat,one=L.every(p=>p.nat===n0),[X,Y0]=W2S(...cellXY(+c)),Y=Y0+r+8;
+  mark(X,Y,r,z,one&&NATS[n0]?css(NATS[n0].ring):'#c9c5ba',MAN,MANC,String((nation==='all'?L:mine).length||L.length),!mine.length)}}}
+function markers(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),r=10*z;for(const f of R.F)f.R=0;if(view.k>=CLOSE)leaders();totals(z,r);
  for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;
   if(view.k>=CLOSE&&!G.stack){for(const f of fs)tok(f,f.SX,f.SY,r,z);continue}
   const n=view.k<1.7||G.stack&&view.k>=CLOSE?1:Math.min(2,fs.length),[X,Y]=view.k>=CLOSE&&G.stack?[G.SX,G.SY]:W2S(G.x,G.y);
@@ -267,7 +288,7 @@ function markBoxes(){const r=14;for(const G of GROUPS){const fs=stackOf(G);if(!f
 function ghost(){const[X,Y]=[dragF.mx,dragF.my],im=imgOf(dragF.f);g.globalAlpha=.75;g.fillStyle='#1e1e1e';g.beginPath();g.arc(X,Y,13,0,7);g.fill();g.strokeStyle='#f2efe6';g.lineWidth=2;g.stroke();if(im&&dragF.f.t!=='vehicle'){g.imageSmoothingEnabled=false;g.drawImage(im,X-im.width*.6,Y-im.height*.6,im.width*1.2,im.height*1.2)}g.globalAlpha=1}
 
 // ---- state of the panel
-let hovT=null,nation='all',tab='mil',fil='all',sortBy='name',q='',place='all',rsel=null,selMan=null,cell=-1,hov=-1;const openP=new Set(),openF=new Set(),undo=[];
+let vf=null,hovT=null,nation='all',tab='mil',fil='all',sortBy='name',q='',place='all',rsel=null,selMan=null,cell=-1,hov=-1;const openP=new Set(),openF=new Set(),undo=[];
 const placeKey=f=>f.cell;
 const match=f=>{if(nation!=='all'&&f.nat!==nation)return false;if(place!=='all'&&f.cell!==+place)return false;if(f.t==='person')return true;
  if(fil==='fav'&&!f.fav||fil==='hidden'&&f.show!==false||fil==='squads'&&f.t!=='squad'||fil==='vehicles'&&f.t!=='vehicle'||fil==='fallen'&&!fallen(f)&&!f.men.some(m=>m.dead))return false;
@@ -323,7 +344,7 @@ function tile(m,pickable,f){const d=mk('div','ut'+(sdPick.has(m.id)?' on':'')+(m
 function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scrollTop||0,c=sdc,cl=D.cells[c],own=OWN[c],maps=R.cm[c]||[];
  const fs=R.F.filter(f=>f.cell===c),sqs=fs.filter(f=>f.t==='squad'),cars=fs.filter(f=>f.t==='vehicle'),ppl=[...R.PP.filter(p=>p.cell===c),...fs.filter(f=>f.t==='unit').map(f=>({...f.men[0],note:1,nat:f.nat}))],{out,pris}=locals(c),np=Object.values(pris).reduce((a,L)=>a+L.length,0);
  SDL.innerHTML=`<div class="sdh"><span class="sfl"></span><div><b>${placeOf(c)}</b><small>${own?disp(own):'Unclaimed'} · ${land(cl)?D.biomes[cl.b].n:'Sea'}</small></div><button class="x">×</button></div>`;SDL.querySelector('.x').onclick=unsettle;{const sf=SDL.querySelector('.sfl');if(own&&NATS[own])sf.append(embCanvas(own,1));else sf.innerHTML=`<i style="display:block;width:33px;height:33px;background:${own?ownC(own):'#555'};border:1px solid #000"></i>`}
- const ch=mk('div','sdc');ch.innerHTML=[['all','All',0],['squads','Squads',sqs.length],['vehicles','Carriers',cars.length],['people','People',ppl.length],['locals','In the maps',out.reduce((a,g)=>a+g.men.length,0)],['prisoners','Prisoners',np]].filter(([k,,n])=>k==='all'||n).map(([k,t,n])=>`<button data-f="${k}" class="${sdFil===k?'on':''}">${t}${n?` <em>${n}</em>`:''}</button>`).join('');
+ const ch=mk('div','sdc');ch.innerHTML=[['all','All',0],['squads','Squads',sqs.length],['vehicles','Vehicles',cars.length],['people','People',ppl.length],['locals','In the maps',out.reduce((a,g)=>a+g.men.length,0)],['prisoners','Prisoners',np]].filter(([k,,n])=>k==='all'||n).map(([k,t,n])=>`<button data-f="${k}" class="${sdFil===k?'on':''}">${t}${n?` <em>${n}</em>`:''}</button>`).join('');
  ch.onclick=e=>{const x=e.target.closest('button');if(x){sdFil=x.dataset.f;drawSD()}};SDL.append(ch);
  const body=mk('div','sdb');SDL.append(body);const hd=t=>body.append(mk('div','sec',t)),show=k=>sdFil==='all'||sdFil===k;
  const row=(key,col,title,sub,list,pickable,f)=>{const live=list.filter(m=>!m.dead&&!m.map),on=pickable&&live.length&&live.every(m=>sdPick.has(m.id)),part=pickable&&!on&&live.some(m=>sdPick.has(m.id)),op=sdOpen.has(key);
@@ -336,7 +357,7 @@ function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scr
   const nr=mk('div','gr new','+ New squad'),nat0=(sqs.find(f=>f.nat===own)||sqs[0]).nat;nr.ondragover=e=>{if(DRG){e.preventDefault();nr.classList.add('ov')}};nr.ondragleave=()=>nr.classList.remove('ov');
   const mkSq=nat=>{const f={id:'f'+Date.now().toString(36),t:'squad',nat,cell:c,n:'New squad',men:[]};R.F.push(f);sdOpen.add(f.id);return f};
   nr.ondrop=e=>{e.preventDefault();if(!DRG)return;const{m,f:from}=DRG;DRG=null;moveMan(m,from,mkSq(from.nat));drawSD();draw()};nr.onclick=()=>{mkSq(nat0);save();drawSD()};body.append(nr)}
- if(show('vehicles')&&cars.length){hd('Carriers');for(const f of cars)row(f.id,NATS[f.nat].c,f.n,f.wreck?'Wreck':f.men.length+'/6 aboard · hull '+f.hull+'%',f.men,!f.wreck,f)}
+ if(show('vehicles')&&cars.length){hd('Vehicles');for(const f of cars)row(f.id,NATS[f.nat].c,f.n,f.wreck?'Wreck':f.men.length+'/6 aboard · hull '+f.hull+'%',f.men,!f.wreck,f)}
  if(show('people')&&ppl.length){hd('People');const nt=ppl.filter(p=>p.note),fk=ppl.filter(p=>!p.note),col=own?ownC(own):'#555';if(nt.length)row('pn'+c,col,'Notables',String(nt.length),nt,true,null);if(fk.length)row('pf'+c,col,'Townsfolk',String(fk.length),fk,true,null)}
  if(show('locals')&&out.length){hd('In the maps');for(const g2 of out)row(g2.key,natCol(g2.nat),disp(g2.nat),mapName(g2.map),g2.men,false,null)}
  if(show('prisoners')&&np){hd('Prisoners');for(const s of['Under escort','Chained','Tied','Held'])if(pris[s])row('pr'+c+s,'#77706a',s,String(pris[s].length),pris[s],false,null)}
@@ -361,34 +382,37 @@ const money=n=>'§'+(n>=1e4?(n/1e3).toFixed(n>=1e5?0:1)+'k':n.toLocaleString('en
 const EYE=o=>`<svg width="16" height="12" viewBox="0 0 16 12"><path d="M1 6c2-4 12-4 14 0-2 4-12 4-14 0z" fill="none" stroke="currentColor" stroke-width="1.5"/>${o?'<circle cx="8" cy="6" r="2.2" fill="currentColor"/>':'<path d="M2 11L14 1" stroke="currentColor" stroke-width="1.5"/>'}</svg>`;
 const LOC='<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 0v3M7 11v3M0 7h3M11 7h3" stroke="currentColor" stroke-width="1.5"/></svg>';
 const SKULL='<svg width="14" height="14" viewBox="0 0 7 7" shape-rendering="crispEdges"><path d="M1 0h5v1h1v3h-1v1h-1v2h-3v-2h-1v-1h-1v-3h1z" fill="currentColor"/><path d="M2 2h1v1h-1zM4 2h1v1h-1z" fill="#1e1e1e"/></svg>';
-ZR.innerHTML=`<div class="rnat"><div class="rflags"></div><button class="rter">⚑</button><button class="rfal">${SKULL}</button></div><div class="rname"></div><div class="rpick" hidden></div><div class="rstat"></div><div class="rtabs"><button data-t="mil">Military</button><button data-t="ppl">People</button></div><input class="rq" placeholder="Search"><div class="rchips"></div><div class="rsels"><select class="rpl"></select><select class="rso"><option value="name">Name</option><option value="size">Size</option><option value="hp">Health</option></select></div><div class="rlist"></div>`;
+ZR.innerHTML=`<div class="zone rzn"><div class="tgrid rflags"></div></div><div class="zone rzd"><div class="ch rname"></div><div class="rpick" hidden></div><div class="rstat"></div><div class="rtabs"><button data-t="mil">Military</button><button data-t="ppl">People</button></div><input class="rq" placeholder="Search"><div class="rchips"></div><div class="rsels"><select class="rpl"></select><select class="rso"><option value="name">Name</option><option value="size">Size</option><option value="hp">Health</option></select></div><div class="rlist"></div></div>`;
 const Z=s=>ZR.querySelector(s);
 const NCOL=['#1e40ff','#e8101e','#ffe600','#00c853','#ff7a00','#e0119d','#00d4ff','#7b2cff','#a8ff00','#b0002a','#f2f2f2','#1a1a1a','#6b7a3a','#4a5d7e','#9c4a2b','#b8a272','#3d7a74','#6e4a6b','#4f6b45','#7d8a96','#b08532','#8a3b36','#2c3a57','#8f8578'];
 const BRUSH='<svg width="14" height="14" viewBox="0 0 7 7" shape-rendering="crispEdges"><path d="M5 0h2v2h-1v1h-1v1h-1v-1h-1v-1h1v-1h1z" fill="currentColor"/><path d="M1 4h2v2h-1v1h-2v-2h1z" fill="currentColor"/></svg>';
 let paintOn=false,painting=0;
 Z('.rpick').onclick=e=>{const b=e.target.closest('button');if(!b||nation==='all')return;const c=b.dataset.c;R.col[nation]=c;NATS[nation].c=c;NATS[nation].ring=ringOf(c);LBL=null;save();Z('.rpick').hidden=true;natBar();list2();draw();preview();if(!SDL.hidden)drawSD()};
 Z('.rflags').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.n==='all')paintOn=false;nation=b.dataset.n;place='all';rsel=null;selMan=null;openP.clear();if(nation!=='all'){const s=BURG[NATS[nation].seat];openP.add(near([s.x,s.y]));fly(s.x,s.y,Math.max(view.k,1.6))}list2();cards();draw()};
-Z('.rter').onclick=()=>{R.terr=R.terr===false;save();natBar();draw();preview()};
-Z('.rfal').onclick=()=>{R.fallenOn=!R.fallenOn;save();list2();draw()};
+// the header's buttons and the totals are drawn anew each time: one listener for them
+Z('.rname').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.classList.contains('rter')){R.terr=R.terr===false;save();natBar();draw();preview()}
+ else if(b.classList.contains('rfal')){R.fallenOn=!R.fallenOn;save();list2();draw()}
+ else if(b.classList.contains('rsw')){const P=Z('.rpick');P.hidden=!P.hidden;if(!P.hidden)P.innerHTML=NCOL.map(c=>`<button data-c="${c}" style="background:${c}" class="${c===NATS[nation].c?'on':''}"></button>`).join('')}
+ else if(b.classList.contains('rbr')){paintOn=!paintOn;cv.style.cursor=paintOn?'crosshair':'';natBar()}});
+Z('.rstat').onclick=e=>{const b=e.target.closest('button');if(!b)return;vf=vf===b.dataset.v?null:b.dataset.v;natBar();draw()};
 Z('.rtabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;list2()};
 Z('.rchips').onclick=e=>{const b=e.target.closest('button');if(!b)return;fil=b.dataset.f;list2();draw()};
 Z('.rso').onchange=e=>{sortBy=e.target.value;list2()};
 Z('.rpl').onchange=e=>{place=e.target.value;if(place!=='all'){openP.add(+place);const[x,y]=cellXY(+place);fly(x,y,Math.max(view.k,2.6))}list2();draw()};
 Z('.rq').oninput=e=>{q=e.target.value.trim().toLowerCase();list2();draw()};
-function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="${nation==='all'?'on':''}">All</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="fl${nation===n?' on':''}" title="${disp(n)}"></button>`).join('');Z('.rflags').querySelectorAll('.fl').forEach(b=>b.append(embCanvas(b.dataset.n,26/33)));
- Z('.rfal').classList.toggle('on',!!R.fallenOn);Z('.rter').classList.toggle('on',R.terr!==false);
- const fs=R.F.filter(f=>nation==='all'||f.nat===nation),ps=R.PP.filter(p=>!p.dead&&(nation==='all'||p.nat===nation)),gold=nation==='all'?Object.values(R.gold).reduce((a,n)=>a+n,0):R.gold[nation];
- if(nation==='all'){Z('.rname').innerHTML='All nations';Z('.rpick').hidden=true}else{const H=Z('.rname');H.innerHTML=`<span class="rfl"></span><div class="rnm"><b>${disp(nation)}</b><small>${NATS[nation].seat}</small></div><button class="rsw" style="background:${NATS[nation].c}"></button><button class="rbr${paintOn?' on':''}">${BRUSH}</button>`;
-  const fl=embCanvas(nation,54/33);fl.onclick=()=>embEdit(nation);H.querySelector('.rfl').append(fl);
-  const nb2=H.querySelector('.rnm b');nb2.ondblclick=()=>{const t=mk('input','rn');t.value=disp(nation);nb2.replaceWith(t);t.focus();t.select();const done=()=>{const v=t.value.trim();if(v){R.names[nation]=v;NATS[nation].n=v;LBL=null;save()}natBar();draw()};t.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')done();if(e.key==='Escape')natBar()};t.onblur=done};
-  H.querySelector('.rsw').onclick=()=>{const P=Z('.rpick');P.hidden=!P.hidden;if(!P.hidden)P.innerHTML=NCOL.map(c=>`<button data-c="${c}" style="background:${c}" class="${c===NATS[nation].c?'on':''}"></button>`).join('')};
-  H.querySelector('.rbr').onclick=()=>{paintOn=!paintOn;cv.style.cursor=paintOn?'crosshair':'';natBar()}}
- Z('.rstat').innerHTML=[['Treasury',money(gold)],['Soldiers',fs.reduce((a,f)=>a+soldiers(f),0)],['Carriers',fs.filter(f=>f.t==='vehicle'&&!f.wreck).length],['People',ps.length]].map(([a,b])=>`<div><small>${a}</small><b>${b}</b></div>`).join('');
+function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="tb all${nation==='all'?' on':''}"><span></span>All nations</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="tb${nation===n?' on':''}" title="${disp(n)}"><span></span><em>${disp(n)}</em></button>`).join('');Z('.rflags').querySelectorAll('.tb:not(.all) span').forEach(sp=>sp.append(embCanvas(sp.parentNode.dataset.n,22/33)));
+ const fs=R.F.filter(f=>nation==='all'||f.nat===nation),ps=R.PP.filter(p=>!p.dead&&(nation==='all'||p.nat===nation)),gold=treasury(nation);
+ const H=Z('.rname'),tools=`<span class="hb">${nation==='all'?'':`<button class="sq rsw" style="background:${NATS[nation].c}"></button><button class="sq rbr${paintOn?' on':''}">${BRUSH}</button>`}<button class="sq rter${R.terr!==false?' on':''}">⚑</button><button class="sq rfal${R.fallenOn?' on':''}">${SKULL}</button></span>`;
+ if(nation==='all'){H.innerHTML=`<div class="rnm"><b>All nations</b></div>`+tools;Z('.rpick').hidden=true}else{const o=NATS[nation];H.innerHTML=`<span class="rfl"></span><div class="rnm"><b>${disp(nation)}</b><small>${o.pp?o.pp+' · ':''}${o.seat}</small></div>`+tools;
+  const fl=embCanvas(nation,32/33);fl.onclick=()=>embEdit(nation);H.querySelector('.rfl').append(fl);
+  const nb2=H.querySelector('.rnm b');nb2.ondblclick=()=>{const t=mk('input','rn');t.value=disp(nation);nb2.replaceWith(t);t.focus();t.select();const done=()=>{const v=t.value.trim();if(v){R.names[nation]=v;NATS[nation].n=v;LBL=null;save()}natBar();draw()};t.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')done();if(e.key==='Escape')natBar()};t.onblur=done}}
+ Z('.rstat').innerHTML=[['gold','Treasury',money(gold)],['sol','Soldiers',fs.reduce((a,f)=>a+soldiers(f),0)],['veh','Vehicles',fs.filter(f=>f.t==='vehicle'&&!f.wreck).length],['ppl','People',ps.length]].map(([v,a,b])=>`<button data-v="${v}" class="${vf===v?'on':''}"><small>${a}</small><b>${b}</b></button>`).join('');
  const seat=nation!=='all'&&near([BURG[NATS[nation].seat].x,BURG[NATS[nation].seat].y]);
  const pl=[...new Set([...fs,...R.PP.filter(p=>nation==='all'||p.nat===nation)].map(f=>f.cell))].sort((a,b)=>(b===seat)-(a===seat)||placeOf(a).localeCompare(placeOf(b)));if(place!=='all'&&!pl.includes(+place))place='all';
  Z('.rpl').innerHTML=`<option value="all">All places</option>`+pl.map(p=>`<option value="${p}"${p===+place?' selected':''}>${placeOf(p)}</option>`).join('');
  Z('.rtabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
- const F=tab==='mil'?[['all','All'],['fav','★'],['squads','Squads'],['vehicles','Carriers'],['hidden','Hidden'],['fallen','Fallen']]:[['all','All'],['fav','★'],['notables','Notables'],['folk','Townsfolk'],['fallen','Fallen']];if(!F.some(x=>x[0]===fil))fil='all';
+ const F=tab==='mil'?[['all','All'],['fav','★'],['squads','Squads'],['vehicles','Vehicles'],['hidden','Hidden'],['fallen','Fallen']]:[['all','All'],['fav','★'],['notables','Notables'],['folk','Townsfolk'],['fallen','Fallen']];if(!F.some(x=>x[0]===fil))fil='all';
  Z('.rchips').innerHTML=F.map(([k,n])=>`<button data-f="${k}" class="${fil===k?'on':''}">${n}</button>`).join('')}
 const srt=(a,b)=>sortBy==='name'?a.n.localeCompare(b.n):sortBy==='size'?(b.men?b.men.length:0)-(a.men?a.men.length:0):sortBy==='hp'?(a.t==='person'?a.h:hpOf(a))-(b.t==='person'?b.h:hpOf(b)):0;
 function list2(){natBar();const box=Z('.rlist');box.innerHTML='';const L=tab==='mil'?R.F.filter(match):R.PP.filter(pmatch);
