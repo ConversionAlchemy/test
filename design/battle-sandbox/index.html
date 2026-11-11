@@ -4412,10 +4412,10 @@ let g=cv.getContext('2d'),dpr=1;let VW=1,VH=1;
 const ZR=mk('div','zr');ZR.hidden=true;SIDE0.append(ZR);
 
 // ---- terrain: what each cell is and how it plays; the Tiler sets it
-const TT={deep:{n:'Deep sea',w:1,h:4,p:['#7898a2','#7e9ea8','#85a4ad']},sea:{n:'Sea',w:1,h:12,p:['#88a8b0','#8eaeb5','#95b3ba']},shallow:{n:'Shallows',w:1,h:18,p:['#9ebcbd','#a5c2c2','#adc8c7']},
+const TT={deep:{n:'Deep sea',w:1,h:4,p:['#7898a2','#7e9ea8','#85a4ad','#9db8be']},sea:{n:'Sea',w:1,h:12,p:['#88a8b0','#8eaeb5','#95b3ba','#abc4c8']},shallow:{n:'Shallows',w:1,h:18,p:['#9ebcbd','#a5c2c2','#adc8c7']},
  plains:{n:'Plains',h:30,b:4,p:['#7b7f47','#83874d','#8b8e53','#93955a','#9d9d61']},dry:{n:'Dry plains',h:30,b:3,p:['#8b8350','#958c57','#9e955e','#a89d65','#b2a56d']},
- marsh:{n:'Marsh',h:24,b:12,p:['#6a7450','#717b55','#78825b','#5f7672','#6a817b','#555e3c']},woods:{n:'Woods',h:34,b:6,f:1,p:['#3f4b2d','#4b5a33','#58693a','#667841','#73854a']},
- hills:{n:'Hills',h:60,b:4,p:['#6f7042','#7a7a48','#85844f','#908d56','#9b975e']},mountains:{n:'Mountains',h:72,b:4,p:['#5c5446','#6a6151','#786f5d','#877d69','#968c77','#a69c87']}};
+ marsh:{n:'Marsh',h:24,b:12,p:['#6a7450','#717b55','#78825b','#5f7672','#6a817b','#555e3c']},woods:{n:'Woods',h:34,b:6,f:1,p:['#2f3a24','#45532f','#56663a','#677a44','#7c8d52']},
+ hills:{n:'Hills',h:60,b:4,p:['#6f7042','#7a7a48','#85844f','#908d56','#9b975e']},mountains:{n:'Mountains',h:72,b:4,p:['#4e4a42','#6c675d','#787267','#837d71','#8f897c','#a8a295']}};
 const TTL=['plains','dry','marsh','woods','hills','mountains'],TTW=['shallow','sea','deep'];
 const terOf=c=>c.h<20?(c.h<8?'deep':c.h<15?'sea':'shallow'):c.f?'woods':c.h>=66?'mountains':c.h>=58?'hills':c.b===12?'marsh':c.b>=1&&c.b<=3?'dry':'plains';
 for(const c of D.cells)c.t=terOf(c);
@@ -4424,24 +4424,32 @@ const terrainOf=c=>TT[c.t].n;
 // a cell that turns to water belongs to no one; new land joins the nation most around it
 function ownFix(i){if(!land(D.cells[i])){OWN[i]=null;return}if(OWN[i])return;const n={};for(const j of nb[i])if(OWN[j])n[OWN[j]]=(n[OWN[j]]||0)+1;OWN[i]=Object.keys(n).sort((a,b)=>n[b]-n[a])[0]||null}
 // pixel tiles: each kind a 64-pixel square worked from its own few tones, close in value so nothing shouts
-const TP=64,smt=t=>t*t*(3-2*t),th=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)},wr=(v,P)=>((v%P)+P)%P;
+const B4=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5],TP=64,smt=t=>t*t*(3-2*t),th=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)},wr=(v,P)=>((v%P)+P)%P;
 function pv(x,y,s,Px,Py=Px){const xi=Math.floor(x),yi=Math.floor(y),fx=smt(x-xi),fy=smt(y-yi),a=th(wr(xi,Px),wr(yi,Py),s),b=th(wr(xi+1,Px),wr(yi,Py),s),c=th(wr(xi,Px),wr(yi+1,Py),s),d=th(wr(xi+1,Px),wr(yi+1,Py),s);return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
 const mot=(X,Y,s)=>pv(X/16,Y/16,s,TP/16)*.55+pv(X/6,Y/6,s+1,TP/6|0||1)*.25+pv(X/2,Y/2,s+2,TP/2)*.1+th(X,Y,s+3)*.1;
 const TILE={};
-function terTile(t){if(TILE[t])return TILE[t];const P=TT[t].p.map(hex),A=new Uint8Array(TP*TP),put=(x,y,v)=>{A[wr(y,TP)*TP+wr(x,TP)]=v},q=(v,n)=>Math.max(0,Math.min(n-1,Math.floor(v*n)));
- const H=(f,s)=>{const B=new Float32Array(TP*TP);for(let y=0;y<TP;y++)for(let x=0;x<TP;x++)B[y*TP+x]=f(x,y,s);return(x,y)=>B[wr(y,TP)*TP+wr(x,TP)]};
- if(TT[t].w){for(let y=0;y<TP;y++)for(let x=0;x<TP;x++){let v=q(mot(x,y,11)*1.15-.08,3);if(t!=='shallow'&&y%5===0&&pv(x/7,y/5,13,TP/7|0,TP/5|0)>.66)v=Math.min(2,v+1);put(x,y,v)}}
- else if(t==='woods'){A.fill(0);const T=[];for(let gy=0;gy<TP/5;gy++)for(let gx=0;gx<TP/5;gx++)T.push([gx*5+th(gx,gy,21)*4|0,gy*5+th(gx,gy,22)*4|0,th(gx,gy,23)>.55?3:2]);T.sort((a,b)=>a[1]-b[1]);
-  for(const[cx,cy,r]of T)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(dx*dx+dy*dy>r*r+.6)continue;put(cx+dx,cy+dy,dx+dy<=-r?4:dx+dy>=r?1:dx+dy<0?3:2);put(cx+dx+1,cy+dy+1,A[wr(cy+dy+1,TP)*TP+wr(cx+dx+1,TP)]||0)}
-  for(const[cx,cy,r]of T)put(cx-1,cy-r+1,4)}
- else if(t==='hills'){const n=P.length,h=H((x,y,s)=>pv(x/16,y/16,s,TP/16)+.35*pv(x/8,y/8,s+1,TP/8),31);
-  for(let y=0;y<TP;y++)for(let x=0;x<TP;x++){const l=(h(x-1,y-1)-h(x+1,y+1))*3;put(x,y,q(.5+l+(th(x,y,43)-.5)*.12,n))}}
- else if(t==='mountains'){// peaks seen from above: four faces each, the north-west one lit, packed on a jittered grid
-  for(let y=0;y<TP;y++)for(let x=0;x<TP;x++)put(x,y,1+(mot(x,y,45)>.55?1:0));const K=[];for(let gy=0;gy<TP/8;gy++)for(let gx=0;gx<TP/8;gx++)K.push([gx*8+th(gx,gy,46)*6|0,gy*8+th(gx,gy,47)*6|0,4+(th(gx,gy,48)*4|0)]);K.sort((a,b)=>a[1]-b[1]);
-  for(const[cx,cy,r]of K)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const m=Math.abs(dx)+Math.abs(dy);if(m>r)continue;const nw=dx<=0&&dy<=0,se=dx>0&&dy>0,v=nw?(m<r*.5?5:4):se?0:(dx>0?1:2);put(cx+dx,cy+dy,m===r&&!nw?0:v)}}
- else{const n=t==='marsh'?3:P.length;for(let y=0;y<TP;y++)for(let x=0;x<TP;x++)put(x,y,q(mot(x,y,t==='dry'?51:61)*1.2-.1,n));
-  if(t==='marsh'){for(let y=0;y<TP;y++)for(let x=0;x<TP;x++){const w=pv(x/7,y/5,71,TP/7|0,TP/5|0);if(w>.66)put(x,y,w>.74?4:3)}for(let y=0;y<TP;y++)for(let x=0;x<TP;x++)if(th(x,y,73)>.95&&A[y*TP+x]<3){put(x,y,5);put(x,y-1,5)}}
-  else for(let y=0;y<TP;y++)for(let x=0;x<TP;x++)if(th(x,y,t==='dry'?55:65)>.97){put(x,y,n-1);put(x,y-1,Math.max(0,A[wr(y-1,TP)*TP+x]-1))}}
+function terTile(t){if(TILE[t])return TILE[t];const P=TT[t].p.map(hex),n=P.length,A=new Uint8Array(TP*TP),at=(x,y)=>A[wr(y,TP)*TP+wr(x,TP)],put=(x,y,v)=>{A[wr(y,TP)*TP+wr(x,TP)]=v};
+ // a continuous value laid over the tones with an ordered dither, so tones fade into each other in pixels
+ const dq=(x,y,v,m=n)=>Math.max(0,Math.min(m-1,Math.floor(v*m+(B4[(y&3)*4+(x&3)]/16-.5)*.9)));
+ const lay=(f,m)=>{for(let y=0;y<TP;y++)for(let x=0;x<TP;x++)put(x,y,dq(x,y,f(x,y),m))};
+ if(TT[t].w){lay((x,y)=>mot(x,y,11)*.9+.05,3);if(t!=='shallow'){// short swell lines, staggered rows
+   for(let r=0;r<TP/6;r++){const y=r*6+(r&1)*3;for(let k=0;k<2;k++){const x0=(th(r,k,14)*TP)|0,L=4+(th(r,k,15)*5|0);for(let d=0;d<L;d++)put(x0+d,y+(d===0||d===L-1?1:0),3)}}}}
+ else if(t==='woods'){// crowns seen from above, packed like scales: back rows first, each lit on its left, dark on its right, rimmed and shadowed underneath
+  A.fill(0);const S=['..33..','.3432.','344321','343321','.3321.','..21..'],T=[];for(let gy=0;gy<TP/4;gy++)for(let gx=0;gx<TP/6;gx++)T.push([gx*6+(gy&1?3:0)+(th(gx,gy,21)*2|0),gy*4+(th(gx,gy,22)*2|0),th(gx,gy,23)]);T.sort((a,b)=>a[1]-b[1]||a[0]-b[0]);
+  for(const[cx,cy,v]of T){const d=v<.25?1:v>.8?-1:0;for(let r=0;r<S.length;r++)for(let c=0;c<6;c++){const ch=S[r][c];if(ch==='.')continue;put(cx+c,cy+r,Math.max(1,Math.min(4,+ch-d)))}for(const[a,b]of[[1,5],[4,5],[5,4],[2,6],[3,6]])put(cx+a,cy+b,0)}}
+ else if(t==='mountains'){// rock in stepped ledges seen from above: each ledge's lower right edge drops in shadow, its upper left edge catches the light, like a wall's top
+  const h=(x,y)=>{let v=0,a=1,f=1/32;for(let o=0;o<3;o++){v+=a*pv(x*f,y*f,140+o,TP*f);a*=.4;f*=2}return v/1.56},L=new Uint8Array(TP*TP);
+  for(let y=0;y<TP;y++)for(let x=0;x<TP;x++)L[y*TP+x]=Math.max(0,Math.min(11,Math.floor(h(x,y)*16-3)));const lv=(x,y)=>L[wr(y,TP)*TP+wr(x,TP)];
+  for(let y=0;y<TP;y++)for(let x=0;x<TP;x++){const l=lv(x,y),g2=mot(x,y,49);let o;
+   if(lv(x-1,y-1)>l||lv(x-2,y-2)>l)o=lv(x-1,y-1)>l?0:1;else if(lv(x+1,y+1)<l||lv(x+1,y)<l)o=n-1;else o=dq(x,y,.2+(l%4)*.12+(g2-.5)*.45,n-2)+1;
+   if(o>1&&th(x,y,50)>.93)o--;else if(o<n-2&&th(x,y,51)>.95)o++;put(x,y,o)}}
+ else if(t==='hills'){const h=(x,y)=>pv(x/16,y/16,31,TP/16)+.35*pv(x/8,y/8,32,TP/8);
+  lay((x,y)=>.5+(h(x-1,y-1)-h(x+1,y+1))*3+(mot(x,y,33)-.5)*.2);grass(.03)}
+ else{lay((x,y)=>mot(x,y,t==='dry'?51:61)*1.1-.05,t==='marsh'?3:n);
+  if(t==='marsh'){for(let y=0;y<TP;y++)for(let x=0;x<TP;x++){const w=pv(x/7,y/5,71,TP/7|0,TP/5|0);if(w>.64)put(x,y,w>.72?4:3)}for(let y=0;y<TP;y++)for(let x=0;x<TP;x++)if(th(x,y,73)>.93&&at(x,y)<3){put(x,y,5);put(x,y-1,5);if(th(x,y,74)>.5)put(x+1,y-1,5)}}
+  else grass(t==='dry'?.035:.06)}
+ // tufts: small upright strokes in clumps, a dark root under a lighter blade
+ function grass(den){for(let y=0;y<TP;y++)for(let x=0;x<TP;x++){if(th(x,y,77)>den*(pv(x/9,y/9,78,TP/9|0||1)*2))continue;const b=at(x,y),hi=Math.min(n-1,b+2),lo=Math.max(0,b-2);put(x,y+1,lo);put(x,y,hi);put(x,y-1,hi);if(th(x,y,79)>.4){const sd=th(x,y,80)>.5?1:-1;put(x+sd,y,hi);put(x+sd,y+1,lo)}}}
  return TILE[t]={A,P}}
 // the ground is rendered once into pixels, one per map unit, and redrawn only when the terrain changes
 const COASTP={foam:hex('#dfe9e5'),band:hex('#bcd3d1'),rip:hex('#ccdfdc'),shore:.82};
@@ -4449,7 +4457,7 @@ let TC=null;
 // cells by bucket, so a pixel finds its cell quickly; each pixel takes the cell under a slightly wandering point, so borders fray
 const BK=24,BKT=new Map();D.cells.forEach((c,i)=>{const k=(Math.floor(c.c[0]/BK))+','+(Math.floor(c.c[1]/BK));(BKT.get(k)||BKT.set(k,[]).get(k)).push(i)});
 const cellPx=(x,y)=>{const gx=Math.floor(x/BK),gy=Math.floor(y/BK);let bi=-1,bd=1e18;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const L=BKT.get((gx+a)+','+(gy+b));if(L)for(const i of L){const c=D.cells[i].c,d=(c[0]-x)**2+(c[1]-y)**2;if(d<bd){bd=d;bi=i}}}return bi<0?near([x,y]):bi};
-const B4=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5],DM=10;
+const DM=12,RAISE={woods:2,mountains:5,hills:1};
 function terrain(){if(TC)return TC;const x0=Math.floor(bx0-130),y0=Math.floor(by0-130),W=Math.ceil(bx1-bx0+260),H=Math.ceil(by1-by0+260),cv2=mk('canvas');cv2.width=W;cv2.height=H;
  const ctx=cv2.getContext('2d');TC={cv:cv2,ctx,x0,y0,W,H,CI:new Int32Array(W*H),img:ctx.createImageData(W,H)};
  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const X=x0+x,Y=y0+y;TC.CI[y*W+x]=cellPx(X+(pv(X/4,Y/4,81,1e6)-.5)*6,Y+(pv(X/4,Y/4,82,1e6)-.5)*6)}
@@ -4462,7 +4470,7 @@ function paintRect(ax,ay,bx,by){const{W,H,CI,x0,y0,img}=TC,o=img.data;ax=Math.ma
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const j=y*w+x;if(x>0)DW[j]=Math.min(DW[j],DW[j-1]+1);if(y>0)DW[j]=Math.min(DW[j],DW[j-w]+1);if(x>0&&y>0)DW[j]=Math.min(DW[j],DW[j-w-1]+1.41);if(x<w-1&&y>0)DW[j]=Math.min(DW[j],DW[j-w+1]+1.41)}
  for(let y=h-1;y>=0;y--)for(let x=w-1;x>=0;x--){const j=y*w+x;if(x<w-1)DW[j]=Math.min(DW[j],DW[j+1]+1);if(y<h-1)DW[j]=Math.min(DW[j],DW[j+w]+1);if(x<w-1&&y<h-1)DW[j]=Math.min(DW[j],DW[j+w+1]+1.41);if(x>0&&y<h-1)DW[j]=Math.min(DW[j],DW[j+w-1]+1.41)}
  for(let y=ay;y<by;y++)for(let x=ax;x<bx;x++){const j=y*W+x,l=(y-my)*w+x-mx,X=x0+x,Y=y0+y,c=D.cells[CI[j]],T=terTile(c.t),k=T.A[wr(Y,TP)*TP+wr(X,TP)],dth=B4[(y&3)*4+(x&3)]/16;let col=T.P[Math.min(k,T.P.length-1)];
-  if(LD[l]){if(DW[l]===0)col=col.map(v=>v*COASTP.shore)}
+  if(LD[l]){if(DW[l]===0)col=col.map(v=>v*COASTP.shore);const rz=RAISE[c.t]||0;if(rz<3){for(let d=1;d<=5;d++){const q2=CI[Math.max(0,y-d)*W+Math.max(0,x-d)];if((RAISE[D.cells[q2].t]||0)>rz&&d<=(RAISE[D.cells[q2].t])){col=col.map(v=>v*(.66+d*.06));break}}}}
   else{const d=DW[l];if(d<1.2)col=COASTP.foam;else if(d<3)col=COASTP.band;else if(d>=4&&d<5)col=COASTP.rip;else if(d<8&&dth<(8-d)/6)col=COASTP.band}
   const dx=Math.max(bx0-X,0,X-bx1),dy=Math.max(by0-Y,0,Y-by1),v=Math.max(0,1-Math.hypot(dx,dy)/110+(pv(X/9,Y/9,91,1e6)-.5)*.25);
   if(v<1){const grey=(col[0]+col[1]+col[2])/3,f=Math.round((1-v)*6+dth-.5)/6;col=col.map(c2=>c2+(grey-c2)*f*.8);col=col.map((c2,q2)=>c2+(VOID[q2]-c2)*Math.min(1,f*1.05))}
@@ -4968,7 +4976,7 @@ function psg(){const c=Object.keys(R.cm).find(k=>R.cm[k].includes(curMap)),other
   r.append(mk('span',null,DIRW[o.dir]+(per[o.dir]>1?' '+idx[o.dir]:'')),s2);PSG.append(r)}}
 setInterval(psg,400);
 // ---- saved games carry the region with them
-window.REGION={ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=migrate(v);R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
+window.REGION={tile:t=>terTile(t),ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=migrate(v);R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
 })();
 })();
 </script></body></html>
