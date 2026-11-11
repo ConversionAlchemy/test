@@ -353,9 +353,11 @@ function pierce(o,x,y,dx,dy,E,ap,maxD){const ox=Math.round(o.x),oy=Math.round(o.
   if(E>=cost){E-=cost;o.set.delete(k);removed++;if(p[7]==='h'||p[7]==='k')o.coreHit=true;if(ra!=='a')blood=true}
   else{p[3]-=Math.max(1,Math.floor(E/f));if(p[3]<=0){o.set.delete(k);removed++}if(ra!=='a')blood=true;if(p[3]<=0&&(p[7]==='h'||p[7]==='k'))o.coreHit=true;return{stop:true,p,x,y,blood,removed}}}
  return{stop:false,E,x,y,blood,removed}}
+// no friendly fire: shots pass through one's own side and allies
+const noFF=(b,o)=>{if(b.tm===undefined){const s=bodies.find(q=>q.id===b.from);b.tm=s&&s.type==='token'?teamOf(s):null}if(!b.tm)return false;const r=relOf(b.tm,teamOf(o));return r==='self'||r==='ally'};
 const aimedAt=(b,o)=>b.ax!==undefined&&Math.hypot(o.x-b.ax,o.y-b.ay)<12;
 function hitBodies(b,s){const bx=Math.round(b.x),by=Math.round(b.y);
- for(const o of bodies){if(o===b||(o.type==='weapon'&&o.kind!=='crate')||o.type==='slab'||o.status==='dead'||o.id===b.from||inDrag(o))continue;if(Math.abs(o.x-b.x)>30||Math.abs(o.y-b.y)>30)continue;if(b.vol&&o.type==='token'&&(o.nat||'-')===b.vol&&Math.hypot(o.x-b.sx,o.y-b.sy)<b.vr&&!aimedAt(b,o))continue;
+ for(const o of bodies){if(o===b||(o.type==='weapon'&&o.kind!=='crate')||o.type==='slab'||o.status==='dead'||o.id===b.from||inDrag(o))continue;if(Math.abs(o.x-b.x)>30||Math.abs(o.y-b.y)>30)continue;if(b.vol&&o.type==='token'&&(o.nat||'-')===b.vol&&Math.hypot(o.x-b.sx,o.y-b.sy)<b.vr&&!aimedAt(b,o))continue;if(o.type==='token'&&b.from!=null&&noFF(b,o))continue;
   const ox=Math.round(o.x),oy=Math.round(o.y);const ov=[];for(const p of b.px){if(o.set.has(K(bx+p[0]-ox,by+p[1]-oy)))ov.push([bx+p[0],by+p[1]])}if(!ov.length)continue;
   if(b.type==='weapon'){const w=WP[b.kind];
    if(w.rod&&o.type==='token'){if(b.hit&&b.hit.has(o.id))continue;(b.hit||(b.hit=new Set())).add(o.id);if(rodBody(b,o,s))return true;continue}
