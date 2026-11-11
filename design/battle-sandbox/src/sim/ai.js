@@ -286,13 +286,14 @@ function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB)
  if(VD.length!==NB)VD=new Float32Array(NB);
  // units standing still keep their sight in a cache; moving units cast rays every frame. A changed cache is rebuilt a few units a frame, the old one standing in meanwhile
  // only doors and vehicles in reach of a unit's sight can change what it sees
- const SLB=bodies.filter(o=>o.type==='slab'),RR=(FOVR+40)**2,env=b=>solT+'|'+SLB.reduce((h,o)=>(o.x-b.x)**2+(o.y-b.y)**2<RR?h+o.x*7+o.y*13+(o.ang||0)*101|0:h,0)+'|'+VEH.filter(v=>(v.x-b.x)**2+(v.y-b.y)**2<RR*2).map(v=>v.x+','+v.y+','+v.ang).join(';'),sk=b=>(b.x>>2)+','+(b.y>>2)+','+!!b.crouch+','+(b.vseat?b.vseat.id:0);
+ const SLB=bodies.filter(o=>o.type==='slab'),RR=(FOVR+40)**2,// a swinging door counts once, when it settles, not at every step of the swing
+ seesDoor=(b,o)=>{const dx=o.x-b.x,dy=o.y-b.y,L=Math.hypot(dx,dy);if(L<14)return true;const k=(L-12)/L;return losClear(b.x,b.y,b.x+dx*k,b.y+dy*k,false,false)},env=b=>solT+'|'+SLB.reduce((h,o)=>(o.x-b.x)**2+(o.y-b.y)**2<RR&&seesDoor(b,o)?h+o.x*7+o.y*13+(o.ang===o.tgt?(o._sa=o.ang||0):(o._sa||0))*101|0:h,0)+'|'+VEH.filter(v=>(v.x-b.x)**2+(v.y-b.y)**2<RR*2).map(v=>v.x+','+v.y+','+v.ang).join(';'),sk=b=>(b.x>>2)+','+(b.y>>2)+','+!!b.crouch+','+(b.vseat?b.vseat.id:0);
  for(const b of me){const k=sk(b);if(k!==b._sk){b._mvT=b._sk===undefined?-99:tick;b._sk=k}}
  // each standing unit keeps its own sight, so a unit that starts moving drops out of the shared view at once instead of leaving its old sight behind
  const isLive=b=>tick-(b._mvT||0)<20,still=me.filter(b=>!isLive(b)),t0=performance.now();
- still.sort((a,b)=>(a._sv&&a._sv.p===a._sk)-(b._sv&&b._sv.p===b._sk));
- for(const b of still){const k=b._ek=b._sk+'|'+env(b),c=b._sv;if(c&&c.k===k||performance.now()-t0>(c&&c.p===b._sk?6:12)||!bodies.includes(b))continue;const Q=[],V=[];if(SVT.length!==NB)SVT=new Float32Array(NB).fill(-1);sight360(b,(q,v)=>{if(SVT[q]<0)Q.push(q);if(v>SVT[q])SVT[q]=v});for(const q of Q){V.push(SVT[q]);SVT[q]=-1}b._sv={k,p:b._sk,n:(c?c.n:0)+1,q:Int32Array.from(Q),v:Float32Array.from(V)}}
- const kept=still.filter(b=>b._sv&&b._sv.k===b._ek),ck=FT+'|'+kept.map(b=>b.id+':'+b._sv.n+(sel.has(b)?'s':'')).join(';');
+ still.sort((a,b)=>(!b.direct-!a.direct)||(a._sv&&a._sv.p===a._sk)-(b._sv&&b._sv.p===b._sk));// the unit you drive first
+ for(const b of still){const k=b._ek=b._sk+'|'+env(b),c=b._sv;if(c&&c.k===k||!b.direct&&performance.now()-t0>(c&&c.p===b._sk?10:12)||!bodies.includes(b))continue;const Q=[],V=[];if(SVT.length!==NB)SVT=new Float32Array(NB).fill(-1);sight360(b,(q,v)=>{if(SVT[q]<0)Q.push(q);if(v>SVT[q])SVT[q]=v});for(const q of Q){V.push(SVT[q]);SVT[q]=-1}b._sv={k,p:b._sk,n:(c?c.n:0)+1,q:Int32Array.from(Q),v:Float32Array.from(V)}}
+ const kept=still.filter(b=>b._sv&&(b._sv.k===b._ek||b._sv.p===b._sk)),ck=FT+'|'+kept.map(b=>b.id+':'+b._sv.n+(sel.has(b)?'s':'')).join(';');
  if(SVC.d.length!==NB)SVC={k:'',d:new Float32Array(NB),i:new Uint8Array(NB),s:new Uint8Array(NB)};
  if(SVC.k!==ck){SVC.d.fill(0);SVC.i.fill(0);SVC.s.fill(0);for(const b of kept){const{q,v}=b._sv,sb=sel.has(b);for(let j=0;j<q.length;j++){const c=q[j];SVC.i[c]=1;if(v[j]>SVC.d[c])SVC.d[c]=v[j];if(sb)SVC.s[c]=1}}SVC.k=ck}
  const live=me.filter(b=>!kept.includes(b)&&(tick-(b._mvT??-1e9)<600||b._sv&&b._sv.p===b._sk)),lk=live.map(b=>b.id).join(),same=VF.length===NB&&SVC.k===SVC.done&&(!live.length&&!SVC.live||lk===SVC.lk&&tick%2&&!live.some(b=>b.direct));// the unit you drive is recast every frame, so a doorway opens up at onceSVC.done=SVC.k;SVC.live=live.length;SVC.lk=lk;

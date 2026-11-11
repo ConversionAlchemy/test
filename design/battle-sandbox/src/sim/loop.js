@@ -1,8 +1,9 @@
 // sight and fog, the update loop, mouse and keys, menus, the unit panel
 // your side's sight, Door Kickers style: all round, stopped dead by walls and closed doors, full bright to about half range then fading to black
 const FOVR=320;let VD=new Float32Array(1);
-function sight360(b,f){const low=!!b.crouch,n=Math.ceil(6.283*FOVR/2.5),fade=r=>{const t=(r-FOVR*.5)/(FOVR*.5);return t<=0?1:1-t*t*(3-2*t)};
- for(let i=0;i<n;i++){const a=i/n*6.283,c=Math.cos(a),s=Math.sin(a);let wd=0;for(let r=0;r<FOVR;r+=2){const X=Math.round(b.x+c*r),Y=Math.round(b.y+s*r);if(X<0||Y<0||X>=W||Y>=H)break;const j=Y*W+X,wl=sol[j]||slabG[j]&&!(b.vseat&&slabG[j]===b.vseat.id);if(wd&&!wl)break;f((Y>>1)*BW+(X>>1),fade(r));if(wl&&(wd+=2)>8)break;if(low&&OBJ[j]&&r>5)break}}}
+const S360N=Math.ceil(6.283*FOVR/2.5),S360C=Float32Array.from({length:S360N},(_,i)=>Math.cos(i/S360N*6.283)),S360S=Float32Array.from({length:S360N},(_,i)=>Math.sin(i/S360N*6.283)),S360F=Float32Array.from({length:FOVR},(_,r)=>{const t=(r-FOVR*.5)/(FOVR*.5);return t<=0?1:1-t*t*(3-2*t)});
+function sight360(b,f){const low=!!b.crouch,n=S360N,bx=b.x+.5,by=b.y+.5;
+ for(let i=0;i<n;i++){const c=S360C[i],s=S360S[i];let wd=0;for(let r=0;r<FOVR;r+=2){const X=Math.floor(bx+c*r),Y=Math.floor(by+s*r);if(X<0||Y<0||X>=W||Y>=H)break;const j=Y*W+X,wl=sol[j]||slabG[j]&&!(b.vseat&&slabG[j]===b.vseat.id);if(wd&&!wl)break;f((Y>>1)*BW+(X>>1),S360F[r]);if(wl&&(wd+=2)>8)break;if(low&&OBJ[j]&&r>5)break}}}
 // a unit under direct control shows what it can see: the cone, cut by walls and, when crouched, by furniture
 // what a unit sees: a cone plus a small circle; rays look a little way into walls but never out the other side
 function blurMask(A){for(let pass=0;pass<2;pass++){for(let y=0;y<BH;y++){const o=y*BW;let sum=0;for(let k=0;k<=2&&k<BW;k++)sum+=A[o+k];for(let x=0;x<BW;x++){const n=Math.min(BW-1,x+2)-Math.max(0,x-2)+1;VT[o+x]=sum/n;if(x+3<BW)sum+=A[o+x+3];if(x-2>=0)sum-=A[o+x-2]}}
