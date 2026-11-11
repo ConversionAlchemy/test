@@ -269,6 +269,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .ch .nm{cursor:text}#sm .ch .nm:hover{text-decoration:underline}#sm .ch input.rn{font:20px VT323,monospace;background:#141414;color:#f2efe6;border:1px solid #77736a;height:26px;min-width:0;flex:1}
 #sm .rsd [hidden]{display:none!important}
 </style>
+<style>#sm .rsd .tiles .slot{width:auto;height:auto;aspect-ratio:1;background:#2a2a2a;box-shadow:inset 2px 2px 0 #0e0e0e,inset -2px -2px 0 #4a4a4a}#sm .rsd .tiles .slot canvas{width:62%!important;height:auto!important;max-width:none;max-height:none}#sm .rsd .tiles .slot b{font-size:15px;right:5px;bottom:1px}#sm .rsd .tiles .slot.on{background:#2e2e2e;box-shadow:inset 0 0 0 2px #d6b45a}#sm .rsd .tiles .slot.dead canvas{filter:grayscale(1);opacity:.45}#sm .rsd .tiles .slot.empty{cursor:default}#sm .rsd .tiles .slot.empty:hover{filter:none}#sm .rsd .gt em{font-style:normal;color:#8f8b80}</style>
 <script>
 const T=16;
 const hh=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)};
@@ -4800,7 +4801,7 @@ function totals(z,r){if(vf==='gold'){const v=cellGold();for(const c in v){const 
   mark(X,Y,r,z,one&&NATS[n0]?css(NATS[n0].ring):'#c9c5ba',MAN,MANC,String((nation==='all'?L:mine).length||L.length),!mine.length)}}}
 function markers(){const z=Math.max(.8,Math.min(1.4,Math.sqrt(view.k/1.3))),r=10*z;for(const f of R.F)f.R=0;if(view.k>=CLOSE)leaders();totals(z,r);
  if(view.k/KREF<DOTAT){for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;const[X,Y]=W2S(G.x,G.y),dead=fs.every(fallen),on=fs.some(f=>f.id===rsel),hv=fs.some(f=>f.id===hovT),rr=on||hv?5.5:4.2;
-   g.globalAlpha=fs.some(match)?1:.3;const q=Math.round,x=q(X-rr),y=q(Y-rr),w=q(2*rr);g.fillStyle='rgba(0,0,0,.35)';g.fillRect(x+1,y+2,w+2,w+2);g.fillStyle=on?'#f2efe6':'#1e1a16';g.fillRect(x-1,y-1,w+2,w+2);g.fillStyle=dead?'#77706a':NATS[G.nat].c;g.fillRect(x+(on?1:0),y+(on?1:0),w-(on?2:0),w-(on?2:0));g.globalAlpha=1;G.R=[X-8,Y-8,X+8,Y+8]}return}
+   g.globalAlpha=fs.some(match)?1:.3;g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.arc(X+1,Y+1.5,rr+1,0,7);g.fill();g.fillStyle=dead?'#77706a':NATS[G.nat].c;g.beginPath();g.arc(X,Y,rr,0,7);g.fill();g.strokeStyle=on?'#f2efe6':'#1e1a16';g.lineWidth=on?2:1.4;g.stroke();g.globalAlpha=1;G.R=[X-8,Y-8,X+8,Y+8]}return}
  for(const G of GROUPS){G.R=0;const fs=stackOf(G);if(!fs.length)continue;
   if(view.k>=CLOSE&&!G.stack){for(const f of fs)tok(f,f.SX,f.SY,r,z);continue}
   const n=view.k<1.7||G.stack&&view.k>=CLOSE?1:Math.min(2,fs.length),[X,Y]=view.k>=CLOSE&&G.stack?[G.SX,G.SY]:W2S(G.x,G.y);
@@ -4861,8 +4862,9 @@ function dropOn(el,f,other){if(!f)return;el.ondragover=e=>{if(!DRG||DRG.f.nat!==
  el.ondragleave=()=>el.classList.remove('ov','full','sw');
  el.ondrop=e=>{e.preventDefault();e.stopPropagation();if(!DRG)return;const{m,f:from}=DRG;DRG=null;if(other){if(from===f){const a=f.men.indexOf(m),b=f.men.indexOf(other);f.men[a]=other;f.men[b]=m;layout();save()}else moveMan(m,from,f,other)}else if(from!==f)moveMan(m,from,f);drawSD();draw()}}
 function mini(m,f,pickable){const d=mk('span','mi'+(m.dead?' dead':'')+(sdPick.has(m.id)?' on':''));d.title=m.n;d.append(sprBig(m.k,1));d.insertAdjacentHTML('beforeend',`<i style="width:${m.dead?0:m.h}%;background:${hc(m.h)}"></i>`);dragSrc(d,m,f);dropOn(d,f,m);return d}
-function tile(m,pickable,f){const d=mk('div','ut'+(sdPick.has(m.id)?' on':'')+(m.dead?' dead':''));d.append(sprBig(m.k,1));
- d.insertAdjacentHTML('beforeend',`<span class="un">${m.n}</span><small>${m.dead?'Dead':m.role}${m.map?' · in '+mapName(m.map):''}</small><span class="ub2"><i style="width:${m.dead?0:m.h}%;background:${hc(m.h)}"></i></span>`);
+const pcC=h=>h>=70?'#9cc87a':h>=50?'#c9c26a':h>=30?'#d6a04a':'#d9603b';
+function tile(m,pickable,f){const d=mk('div','slot'+(sdPick.has(m.id)?' on':'')+(m.dead?' dead':''));d.title=m.n+' · '+(m.dead?'Dead':m.role)+(m.map?' · in '+mapName(m.map):'');d.append(sprBig(m.k,1));
+ if(!m.dead)d.insertAdjacentHTML('beforeend',`<b style="color:${pcC(m.h)}">${m.h}%</b>`);
  d.onclick=e=>{e.stopPropagation();if(!pickable||m.dead||m.map)return;sdPick.has(m.id)?sdPick.delete(m.id):sdPick.add(m.id);drawSD()};dragSrc(d,m,f);dropOn(d,f,m);return d}
 function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scrollTop||0,c=sdc,cl=D.cells[c],own=OWN[c],maps=R.cm[c]||[];
  const fs=R.F.filter(f=>f.cell===c),sqs=fs.filter(f=>f.t==='squad'),cars=fs.filter(f=>f.t==='vehicle'),ppl=[...R.PP.filter(p=>p.cell===c),...fs.filter(f=>f.t==='unit').map(f=>({...f.men[0],note:1,nat:f.nat}))],{out,pris}=locals(c),np=Object.values(pris).reduce((a,L)=>a+L.length,0);
@@ -4871,19 +4873,19 @@ function drawSD(){if(SDL.hidden)return;const keep=SDL.querySelector('.sdb')?.scr
  ch.onclick=e=>{const x=e.target.closest('button');if(x){sdFil=x.dataset.f;drawSD()}};SDL.append(ch);
  const body=mk('div','sdb');SDL.append(body);const hd=t=>body.append(mk('div','sec',t)),show=k=>sdFil==='all'||sdFil===k;
  const row=(key,col,title,sub,list,pickable,f)=>{const live=list.filter(m=>!m.dead&&!m.map),on=pickable&&live.length&&live.every(m=>sdPick.has(m.id)),part=pickable&&!on&&live.some(m=>sdPick.has(m.id)),op=sdOpen.has(key);
-  const r=mk('div','gr'+(op?' op':''));r.innerHTML=`${pickable?`<span class="tk${on?' on':part?' part':''}"></span>`:'<span class="tk no"></span>'}<i style="background:${col}"></i><span class="gt"><b>${title}</b><small>${sub}</small></span><span class="ms"></span><span class="cr">${op?'▾':'▸'}</span>`;
+  const r=mk('div','gr'+(op?' op':''));r.innerHTML=`${pickable?`<span class="tk${on?' on':part?' part':''}"></span>`:'<span class="tk no"></span>'}<span class="gt"><b>${title}</b>${sub?`<small>${sub}</small>`:''}</span><span class="ms"></span><span class="cr">${op?'▾':'▸'}</span>`;
   const ms=r.querySelector('.ms');for(const m of list)ms.append(mini(m,f,pickable));dropOn(r,f,null);
   if(op)r.querySelector('.ms').hidden=true;if(f&&f.t==='squad'){const nb=r.querySelector('.gt b');nb.classList.add('nm');nb.onclick=e=>{e.stopPropagation();clearTimeout(sdT);const t=mk('input','rn');t.value=f.n;nb.replaceWith(t);t.focus();t.select();const done=()=>{f.n=t.value.trim()||f.n;save();list2();drawSD()};t.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter')done();if(ev.key==='Escape')drawSD()};t.onblur=done;t.onclick=ev=>ev.stopPropagation()}}
   r.onclick=e=>{if(e.target.closest('input'))return;if(e.target.closest('.tk')){if(!pickable)return;for(const m of live)on?sdPick.delete(m.id):sdPick.add(m.id);drawSD();return}clearTimeout(sdT);sdT=setTimeout(()=>{op?sdOpen.delete(key):sdOpen.add(key);drawSD()},0)};body.append(r);
-  if(op){const G=mk('div','tiles');for(const m of list)G.append(tile(m,pickable,f));if(f&&f.t==='squad')for(let k=list.length;k<8;k++)G.append(mk('div','ut empty'));dropOn(G,f,null);body.append(G)}};
- if(show('squads')&&sqs.length){hd(sb&&own?`Squads · garrison ${Math.min(GARR[STYPE(sb)],sqs.filter(f=>f.nat===own&&soldiers(f)).length)}/${GARR[STYPE(sb)]}`:'Squads');for(const f of sqs)row(f.id,NATS[f.nat].c,f.n,men(f).length+'/8'+(inMap(f)?' · in battle':''),f.men,true,f);
+  if(op){const G=mk('div','tiles');for(const m of list)G.append(tile(m,pickable,f));if(f&&f.t==='squad')for(let k=list.length;k<8;k++)G.append(mk('div','slot empty'));dropOn(G,f,null);body.append(G)}};
+ if(show('squads')&&sqs.length){hd(sb&&own?`Squads · garrison ${Math.min(GARR[STYPE(sb)],sqs.filter(f=>f.nat===own&&soldiers(f)).length)}/${GARR[STYPE(sb)]}`:'Squads');for(const f of sqs)row(f.id,NATS[f.nat].c,`${f.n} <em>(${men(f).length})</em>`,inMap(f)?'In battle':'',f.men,true,f);
   const nr=mk('div','gr new','+ New squad'),nat0=(sqs.find(f=>f.nat===own)||sqs[0]).nat;nr.ondragover=e=>{if(DRG){e.preventDefault();nr.classList.add('ov')}};nr.ondragleave=()=>nr.classList.remove('ov');
   const mkSq=nat=>{const f={id:'f'+Date.now().toString(36),t:'squad',nat,cell:c,n:'New squad',men:[]};R.F.push(f);sdOpen.add(f.id);return f};
   nr.ondrop=e=>{e.preventDefault();if(!DRG)return;const{m,f:from}=DRG;DRG=null;moveMan(m,from,mkSq(from.nat));drawSD();draw()};nr.onclick=()=>{mkSq(nat0);save();drawSD()};body.append(nr)}
- if(show('vehicles')&&cars.length){hd('Vehicles');for(const f of cars)row(f.id,NATS[f.nat].c,f.n,f.wreck?'Wreck':f.men.length+'/6 aboard · hull '+f.hull+'%',f.men,!f.wreck,f)}
- if(show('people')&&ppl.length){hd('People');const nt=ppl.filter(p=>p.note),fk=ppl.filter(p=>!p.note),col=own?ownC(own):'#555';if(nt.length)row('pn'+c,col,'Notables',String(nt.length),nt,true,null);if(fk.length)row('pf'+c,col,'Townsfolk',String(fk.length),fk,true,null)}
- if(show('locals')&&out.length){hd('In the maps');for(const g2 of out)row(g2.key,natCol(g2.nat),disp(g2.nat),mapName(g2.map),g2.men,false,null)}
- if(show('prisoners')&&np){hd('Prisoners');for(const s of['Under escort','Chained','Tied','Held'])if(pris[s])row('pr'+c+s,'#77706a',s,String(pris[s].length),pris[s],false,null)}
+ if(show('vehicles')&&cars.length){hd('Vehicles');for(const f of cars)row(f.id,NATS[f.nat].c,`${f.n} <em>(${f.men.length})</em>`,f.wreck?'Wreck':'Hull '+f.hull+'%',f.men,!f.wreck,f)}
+ if(show('people')&&ppl.length){hd('People');const nt=ppl.filter(p=>p.note),fk=ppl.filter(p=>!p.note),col=own?ownC(own):'#555';if(nt.length)row('pn'+c,col,`Notables <em>(${nt.length})</em>`,'',nt,true,null);if(fk.length)row('pf'+c,col,`Townsfolk <em>(${fk.length})</em>`,'',fk,true,null)}
+ if(show('locals')&&out.length){hd('In the maps');for(const g2 of out)row(g2.key,natCol(g2.nat),`${disp(g2.nat)} <em>(${g2.men.length})</em>`,mapName(g2.map),g2.men,false,null)}
+ if(show('prisoners')&&np){hd('Prisoners');for(const s of['Under escort','Chained','Tied','Held'])if(pris[s])row('pr'+c+s,'#77706a',`${s} <em>(${pris[s].length})</em>`,'',pris[s],false,null)}
  if(body.children.length===0)body.append(mk('div','none','—'));
  // Enter, with the map picker on its arrow
  const F=mk('div','sdf'),cur=sdMap;F.innerHTML=`<span>${sdPick.size?sdPick.size+' to send':''}</span><span class="spl"><button class="go">Enter ${cur?mapName(cur).split(' · ').pop():'new map'}</button><button class="arr">▾</button></span>`;
