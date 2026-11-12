@@ -89,7 +89,7 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
  ok('bar shows whose turn it is',!r.h0&&!r.h1);ok('hourglass passes the turn to the next nation',r.next,JSON.stringify(r));ok('a full round counts one turn',r.t===1&&r.wrap);ok('bar shows its items',r.items===5,r.items);
 
  // selection with the mouse: right click takes a cell's forces, a right drag boxes them, dragging one moves them all
- r=await J(`open();R.cur='Astria';for(const f of R.F)delete f.mv;nation='Astria';list2();const c=capCell('Astria'),ed=near([BURG["Emperor's Dock"].x,BURG["Emperor's Dock"].y]);const[x,y]=cellXY(ed);view.k=3;view.x=VW/2-x*view.k;view.y=VH/2-y*view.k;draw();const[X,Y]=W2S(x,y),r=cv.getBoundingClientRect();
+ r=await J(`FREE=false;open();R.cur='Astria';for(const f of R.F)delete f.mv;nation='Astria';list2();const c=capCell('Astria'),ed=near([BURG["Emperor's Dock"].x,BURG["Emperor's Dock"].y]);const[x,y]=cellXY(ed);view.k=3;view.x=VW/2-x*view.k;view.y=VH/2-y*view.k;draw();const[X,Y]=W2S(x,y),r=cv.getBoundingClientRect();
   const to=nb[ed].find(j=>OWN[j]==='Astria'&&land(D.cells[j])&&!R.F.some(f=>f.cell===j));const[tx,ty]=W2S(...cellXY(to));
   return{X:X+r.left,Y:Y+r.top,ed,to,TX:tx+r.left,TY:ty+r.top,n:R.F.filter(f=>f.cell===ed&&f.nat==='Astria'&&!fallen(f)&&f.show!==false).length}`);
  await p.mouse.move(r.X,r.Y);await p.mouse.down({button:'right'});await p.mouse.up({button:'right'});
@@ -145,6 +145,8 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
  ok('cursor at the left edge scrolls the map',v1-v0>20,(v1-v0).toFixed(0));
  const y1=await J(`return view.x`);await p.waitForTimeout(300);const y2=await J(`return view.x`);ok('scrolling stops off the edge',y1===y2);
 
+ await J(`FREE=true;return 1`);
+ r=await J(`const f=R.F.find(f=>f.nat==='Hoverlands'&&soldiers(f)&&!inMap(f));R.cur='Astria';const far=[...reach(f).entries()].reduce((a,[c,o])=>Math.max(a,o.d),0);return{far}`);ok('with turn rules off any nation marches without a limit',r.far>2,r.far);
  // everything survives a reload
  const before=await J(`save();return{pp:R.PP.length,fallen:R.fallen,own:OWN.filter(x=>x==='Astria').length}`);
  await p.reload();await p.waitForTimeout(2500);

@@ -4643,7 +4643,9 @@ function ground(){const k=view.k;g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle=css
  // far out a road's pixels are under a screen pixel: drawn as fine lines in the same colours until they can be seen
  if(k<1.4){if(!SEG)SEG=roadSegs();const a=Math.min(1,(1.4-k)/.4);g.globalAlpha=a;for(const t of['trails','roads']){g.beginPath();for(const[p,q,u]of SEG)if(u===t){g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1])}g.strokeStyle=t==='roads'?RDC.road:css(mixc(hex(RDC.road),[128,118,80],.5));g.lineWidth=(t==='roads'?1.6:1.1)/k;g.stroke();g.setLineDash([])}g.globalAlpha=1}}
 const ownC=n=>n&&(NATS[n]?NATS[n].c:(D.states.find(s=>s.n===n)||{}).c||'#777777');
-function provLines(k){if(k<.9)return;g.save();g.lineWidth=2.5/k;g.lineCap='round';for(const e of E.values()){if(e.c.length<2)continue;const[i,j]=e.c;if(!OWN[i]||OWN[i]!==OWN[j]||PROV[i]===PROV[j])continue;g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);g.strokeStyle=css(mixc(hex(ownC(OWN[i])),[128,118,80],.6));g.stroke()}g.restore()}
+function provLines(k){if(k<.9)return;g.save();g.lineCap='round';const land0=[128,118,80];
+ for(const e of E.values()){if(e.c.length<2)continue;const[i,j]=e.c;if(!OWN[i]||OWN[i]!==OWN[j]||vis[i]<.05)continue;const pv=PROV[i]!==PROV[j];g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);
+  if(pv){g.lineWidth=1.6/k;g.strokeStyle=css(mixc(mixc(hex(ownC(OWN[i])),[200,196,180],.35),land0,.45),.85)}else{g.lineWidth=.9/k;g.strokeStyle='rgba(44,36,26,.2)'}g.stroke()}g.restore()}
 // hovered or clicked seat: its province (or nation) stands out, the rest dim
 let HLh=null,HLpin=null;const hlOf=b=>{const c=near([b.x,b.y]);return b.cap?{nat:OWN[c]}:b.group==='village'&&PROV[c]!=null?{prov:PROV[c]}:null},hlEq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const burgAt=(x,y)=>BURGPT.find(o=>o.rad&&Math.hypot(x-o.X,y-o.Y)<Math.max(9,o.rad+3));
@@ -4655,7 +4657,7 @@ function territory(k){provLines(k);const H=HLh||HLpin;D.cells.forEach((c,i)=>{co
 function cellMarks(){const k=view.k;g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);
  // cells holding maps get a small corner tick; the picked cell is outlined
  for(const i in R.cm){if(!R.cm[i].length)continue;const c=D.cells[i];if(vis[i]<.5)continue;poly(c.p);g.strokeStyle='rgba(42,34,28,.55)';g.setLineDash([2/k,2/k]);g.lineWidth=1.1/k;g.stroke();g.setLineDash([])}
- {const f=R.F.find(f=>f.id===rsel&&SELS.has(f.id))||R.F.find(f=>SELS.has(f.id));if(f&&f.nat===R.cur&&!MARCH){const r=reach(f);for(const[c,o]of r){if(c===f.cell)continue;poly(D.cells[c].p);g.fillStyle='rgba(140,214,120,.16)';g.fill();g.strokeStyle='rgba(140,214,120,.75)';g.lineWidth=1.2/k;g.stroke()}}}
+ {const f=R.F.find(f=>f.id===rsel&&SELS.has(f.id))||R.F.find(f=>SELS.has(f.id));if(f&&!FREE&&f.nat===R.cur&&!MARCH){const r=reach(f);for(const[c,o]of r){if(c===f.cell)continue;poly(D.cells[c].p);g.fillStyle='rgba(140,214,120,.16)';g.fill();g.strokeStyle='rgba(140,214,120,.75)';g.lineWidth=1.2/k;g.stroke()}}}
  if(hov>=0){poly(D.cells[hov].p);g.fillStyle='rgba(255,250,235,.16)';g.fill();g.strokeStyle='rgba(255,250,235,.9)';g.lineWidth=1.4/k;g.stroke()}
  if(cell>=0){poly(D.cells[cell].p);g.strokeStyle='#f2efe6';g.lineWidth=2.2/k;g.stroke();g.strokeStyle='#141414';g.lineWidth=.8/k;g.stroke()}}
 function draw(){if(OV.hidden)return;ground();cellMarks();g.setTransform(dpr,0,0,dpr,0,0);voidFrame();seas();states();burgs();markers();roadDraft();tileDraft();g.setTransform(dpr,0,0,dpr,0,0);ruler();if(dragF)ghost();if(SBX){g.save();g.strokeStyle='rgba(242,239,230,.9)';g.lineWidth=1;g.setLineDash([4,3]);g.fillStyle='rgba(242,239,230,.08)';const X=Math.min(SBX.x0,SBX.x),Y=Math.min(SBX.y0,SBX.y),w=Math.abs(SBX.x-SBX.x0),h=Math.abs(SBX.y-SBX.y0);g.fillRect(X,Y,w,h);g.strokeRect(Math.round(X)+.5,Math.round(Y)+.5,Math.round(w),Math.round(h));g.restore()}}
@@ -4835,7 +4837,7 @@ if(!R.prov||R.provGen!==2){R.prov=provinces();R.provGen=2;R.rdGen=0;delete R.cou
 function provIndex(){PROV=D.cells.map(()=>null);for(const id in R.prov)for(const c of R.prov[id].c)PROV[c]=id}
 provIndex();
 // the settlements take their rank from the provinces: one city per nation, one town per province
-{const seats=new Set(Object.keys(NATS).map(n=>NATS[n].seat)),pc=new Set(Object.values(R.prov).map(p=>p.cap));
+{const seats=new Set(Object.keys(NATS).filter(n=>!(R.fallen&&R.fallen[n])).map(n=>NATS[n].seat)),pc=new Set(Object.values(R.prov).map(p=>p.cap));
  for(const b of D.burgs){if(!OWN[near([b.x,b.y])])continue;if(seats.has(b.n)){b.cap=1;b.group='capital'}else if(pc.has(b.n)){b.cap=0;b.group='village'}else{b.cap=0;if(!['monastery','trading_post','caravanserai'].includes(b.group))b.group='hamlet'}}}
 // the court: a ruler in each capital and a governor in each province seat are the only civilians; a seat holder sits in the seat map's chair
 const capCell=n=>{const b=NATS[n]&&BURG[NATS[n].seat];return b?near([b.x,b.y]):-1},seatCell=c=>Object.values(R.prov).some(p=>p.cc===c);
@@ -5180,16 +5182,17 @@ function recruit(n,c,t){if(!canRecruit(n,c)||R.tres[n]<PRICE[t]||R.mp[n]<PMEN[t]
 function seatCiv(f){if(!f.civ||OWN[f.cell]!==f.nat||!seatCell(f.cell)||holderOf(f.cell))return;const m=f.men[0];if(m.dead)return;R.F=R.F.filter(x=>x!==f);
  R.PP.push({...m,t:'person',nat:f.nat,cell:f.cell,gov:1,note:1,role:'Governor'});rsel=null}
 // ---- turns: one nation acts at a time; each force has its cells of movement for the turn, spent one cell at a time
-const MOVES=f=>f.t==='vehicle'?4:2,mvOf=f=>f.mv??MOVES(f);
+// turn rules are off while testing: any nation moves at any time, with no limit on distance
+let FREE=true;const MOVES=f=>f.t==='vehicle'?4:2,mvOf=f=>FREE?1e9:f.mv??MOVES(f);
 if(!R.cur||!alive(R.cur))R.cur=Object.keys(NATS).find(alive);
 const hostileAt=(c,n)=>R.F.some(x=>x.cell===c&&x.nat!==n&&soldiers(x)&&atWar(n,x.nat));
 // cells a force can reach this turn: land it may enter, stopping at the first cell held by an enemy
-function reach(f){const out=new Map([[f.cell,{d:0,p:-1}]]),mv=mvOf(f),Q=[f.cell];if(f.nat!==R.cur||inMap(f)||fallen(f))return out;
+function reach(f){const out=new Map([[f.cell,{d:0,p:-1}]]),mv=mvOf(f),Q=[f.cell];if(!FREE&&f.nat!==R.cur||inMap(f)||fallen(f))return out;
  for(let q=0;q<Q.length;q++){const u=Q[q],d=out.get(u).d;if(d>=mv||u!==f.cell&&hostileAt(u,f.nat))continue;for(const v of nb[u]){if(out.has(v)||vis[v]<.5||blocked(v)||!mayEnter(f.nat,v))continue;out.set(v,{d:d+1,p:u});Q.push(v)}}return out}
 let MARCH=null;
 function march(L,to){if(MARCH)return;const go=[];for(const f of L){const r=reach(f);if(!r.has(to)||to===f.cell)continue;const p=[];for(let c=to;c!==f.cell;c=r.get(c).p)p.unshift(c);undo.push({f,from:f.cell,mv:mvOf(f)});go.push({f,p})}
  if(!go.length){NOPE();return}MARCH=go;const step=()=>{let more=false;for(const g of MARCH){const c=g.p.shift();if(c==null)continue;g.f.cell=c;g.f.mv=mvOf(g.f)-1;capture(g.f);if(g.p.length)more=true;else seatCiv(g.f)}
-  sndT=0;edSnd('soft',1.3,.35);layout();draw();if(more)setTimeout(step,170);else{const cs=[...new Set(MARCH.map(g=>g.f.cell))];MARCH=null;save();list2();draw();for(const c of cs)if(contested(c,R.cur)){battle(c,R.cur);break}}};step()}
+  sndT=0;edSnd('soft',1.3,.35);layout();draw();if(more)setTimeout(step,FREE?60:170);else{const cs=[...new Set(MARCH.map(g=>g.f.cell))];MARCH=null;save();list2();draw();for(const c of cs)if(contested(c,R.cur)){battle(c,R.cur);break}}};step()}
 // ---- battle: forces of nations at war in one cell meet; fight it out on the cell's map, let it be reckoned, or fall back
 const contested=(c,n)=>R.F.some(f=>f.cell===c&&f.nat===n&&soldiers(f)&&!inMap(f))&&R.F.some(f=>f.cell===c&&f.nat!==n&&soldiers(f)&&!inMap(f)&&atWar(n,f.nat));
 const CLW={civ:0,home:1,rifle:1.6,guard:2.4,shock:2.6,cmd:1.8};
@@ -5307,7 +5310,7 @@ cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  if(pan){moved=Math.max(moved+Math.abs(e.movementX)+Math.abs(e.movementY),Math.hypot(x-pan.x,y-pan.y));view.x=pan.vx+x-pan.x;view.y=pan.vy+y-pan.y;draw();return}
  const hf=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),hg=!hf&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),ht=hf?hf.id:hg?stackOf(hg)[0].id:null;
  if(ht!==hovT){hovT=ht;cv.style.cursor=ht?'pointer':'';draw()}
- if(ht){const f=R.F.find(f=>f.id===ht);TIP.innerHTML=hg?`${placeOf(hg.cell)} <span>· ${disp(hg.nat)} ${stackOf(hg).reduce((a,f)=>a+soldiers(f),0)}</span>`:`${f.n} <span>· ${fallen(f)?(f.wreck?'Wreck':'Fallen'):f.t==='vehicle'?'Vehicle':f.t==='unit'?f.men[0].role:soldiers(f)+' men'}</span>`;if(f.nat===R.cur&&!fallen(f))TIP.insertAdjacentHTML('beforeend',` <span>· ${mvOf(f)}/${MOVES(f)}</span>`);TIP.style.display='block';if(hov!==-1){hov=-1;draw()}return}
+ if(ht){const f=R.F.find(f=>f.id===ht);TIP.innerHTML=hg?`${placeOf(hg.cell)} <span>· ${disp(hg.nat)} ${stackOf(hg).reduce((a,f)=>a+soldiers(f),0)}</span>`:`${f.n} <span>· ${fallen(f)?(f.wreck?'Wreck':'Fallen'):f.t==='vehicle'?'Vehicle':f.t==='unit'?f.men[0].role:soldiers(f)+' men'}</span>`;if(!FREE&&f.nat===R.cur&&!fallen(f))TIP.insertAdjacentHTML('beforeend',` <span>· ${mvOf(f)}/${MOVES(f)}</span>`);TIP.style.display='block';if(hov!==-1){hov=-1;draw()}return}
  {const bh=burgAt(x,y),h=bh?hlOf(bh.b):null;if(!hlEq(h,HLh)){HLh=h;cv.style.cursor=h?'pointer':'';draw()}}
  const i=near(S2W(x,y)),c=D.cells[i];if(vis[i]<.5){if(hov!==-1){hov=-1;draw()}TIP.style.display='none';return}if(i!==hov){hov=i;draw()}
  const here=R.F.filter(f=>f.cell===i&&soldiers(f)),nats=[...new Set(here.map(f=>f.nat))].map(n=>disp(n)+' '+here.filter(f=>f.nat===n).reduce((a,f)=>a+soldiers(f),0)).join(', ');
@@ -5316,7 +5319,7 @@ cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
 cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
  if(SBX){const b=SBX;SBX=null;const tiny=Math.abs(b.x-b.x0)<5&&Math.abs(b.y-b.y0)<5;
   if(tiny&&b.btn===0){clickAt(x,y);return}
-  if(tiny){const ff=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(ff&&fallen(ff)){binAt(ff,x,y);draw();return}const mine=R.F.filter(f=>SELS.has(f.id)&&f.nat===R.cur);if(mine.length){march(mine,near(S2W(x,y)));return}}
+  if(tiny){const ff=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(ff&&fallen(ff)){binAt(ff,x,y);draw();return}const mine=R.F.filter(f=>SELS.has(f.id)&&(FREE||f.nat===R.cur));if(mine.length){march(mine,near(S2W(x,y)));return}}
   const L=[...OV.querySelectorAll('.rgdel')];L.forEach(n=>n.remove());const i=near(S2W(x,y)),x0=Math.min(b.x0,b.x),x1=Math.max(b.x0,b.x),y0=Math.min(b.y0,b.y),y1=Math.max(b.y0,b.y);
   const pickable=f=>!fallen(f)&&!f.civ&&f.show!==false&&(nation==='all'||f.nat===nation),at=f=>f.R?[f.X,f.Y]:W2S(...cellXY(f.cell));
   const got=R.F.filter(f=>pickable(f)&&(tiny?f.cell===i:(([X,Y])=>X>=x0&&X<=x1&&Y>=y0&&Y<=y1)(at(f))));
@@ -5324,7 +5327,7 @@ cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
  if(painting){painting=0;if(RB.g!=='erase')addRoad(RB);else if(RUN.length&&RUN[RUN.length-1]===JSON.stringify(R.rd))RUN.pop();RB=null;draw();return}
  if(tiling){tiling=0;tilePlop();save();draw();return}
  if(dragF){const d=dragF;dragF=null;const add=e.shiftKey;if(!d.on){if(!add)SELS.clear();for(const f of d.st||[d.f])SELS.add(f.id);rsel=d.f.id;selMan=null;cell=d.f.cell;list2();draw();return}
-  const to=near(S2W(x,y)),L=d.st&&!SELS.has(d.f.id)?d.st:SELS.has(d.f.id)?R.F.filter(f=>SELS.has(f.id)):[d.f];if(!SELS.has(d.f.id)){SELS.clear();for(const f of L)SELS.add(f.id);rsel=d.f.id}hov=-1;march(L.filter(f=>f.nat===R.cur),to);draw();return}
+  const to=near(S2W(x,y)),L=d.st&&!SELS.has(d.f.id)?d.st:SELS.has(d.f.id)?R.F.filter(f=>SELS.has(f.id)):[d.f];if(!SELS.has(d.f.id)){SELS.clear();for(const f of L)SELS.add(f.id);rsel=d.f.id}hov=-1;march(L.filter(f=>FREE||f.nat===R.cur),to);draw();return}
  if(pan){pan=null;cv.style.cursor=SPC?'grab':'';return}});
 function clickAt(x,y){SELS.clear();const i=near(S2W(x,y)),b=burgAt(x,y);HLpin=b?hlOf(b.b):null;if(HLpin&&HLpin.nat&&NATS[HLpin.nat]){nation=HLpin.nat;place='all';rsel=null;selMan=null;openP.clear();openP.add(near([b.b.x,b.b.y]));natBar();list2();cards()}if(!b)draw();if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}
 cv.addEventListener('dblclick',e=>{const[x,y]=xy(e),f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),G=!f&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),i=f?f.cell:G?G.cell:near(S2W(x,y));if(vis[i]>.5)settle(i)});
