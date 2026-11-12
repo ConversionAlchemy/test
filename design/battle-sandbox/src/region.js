@@ -371,8 +371,8 @@ const libEmb=n=>{const e=RGE[EMK[n]];return e?[...e.i].map(ch=>e.p[ch.charCodeAt
 const embPx=n=>R.emb[n]||libEmb(n);
 // nations without uniforms of their own wear generated ones, kept with the region so they stay the same between visits
 const WSPEC={'Old Kingdoms':{cols:[[78,104,62],[196,166,74],[216,210,192],[150,120,84]],metal:'iron'},
- Hoverlands:{cols:[[122,110,156],[216,204,178],[92,84,120],[150,138,118]],metal:'steel',kit:{home:{helms:['sallet','dome'],dress:[['D','pallet','A'],['D','pallets','A']]},rifle:{helms:['comb','nasal'],plate:'pauldrons',dress:[['A','pallets','B'],['B','pallets','A']]},
-  guard:{helms:['kettle'],plate:'banded',dress:[['A','bordure','B'],['A','fess','B']]},cmd:{helms:['kettlecomb'],plate:'breast',dress:[['A','quarterly','B'],['B','quarterly','A']]},civ:{dress:[['B','pallet','A'],['D','pallet','A']]}}},
+ Hoverlands:{cols:[[122,110,156],[216,204,178],[92,84,120],[150,138,118]],metal:'steel',kit:{home:{helms:['sallet','dome'],dress:[['D','pallet','A'],['D','pallets','A']]},rifle:{helms:['comb','nasal'],dress:[['A','pallets','B'],['B','pallets','A']]},
+  guard:{helms:['visor'],dress:[['A','bordure','B'],['A','fess','B']]},cmd:{helms:['kettle'],dress:[['A','quarterly','B'],['B','quarterly','A']]},civ:{dress:[['B','pallet','A'],['D','pallet','A']]}}},
  Whitecoast:{cols:[[44,74,54],[214,210,196],[214,210,196],[120,110,92]],metal:'iron',style:'saltire'}};
 R.ward=R.ward||{};for(const n in NATS){if(LOOK[NATS[n].gn||n])continue;const sp=WSPEC[n]||R.ward[n]||(R.ward[n]=WARD.heraldry(n,hex(ownC(n)),embPx(n)));LOOK[n]=WARD.gen(n,sp);for(const p of R.PP)if(p.nat===n&&p.k==='Townsman')p.k=LOOK[n].civ}
 function embCanvas(n,s,px){const c=mk('canvas','emb');c.width=c.height=33;const x=c.getContext('2d'),im=x.createImageData(33,33),P=px||embPx(n);P.forEach((h,i)=>{const v=hex(h);im.data.set([v[0],v[1],v[2],255],i*4)});x.putImageData(im,0,0);c.style.width=c.style.height=33*s+'px';return c}
