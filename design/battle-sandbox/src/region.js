@@ -370,8 +370,8 @@ const EMK={Astria:'astia','Old Kingdoms':'aracia',Hoverlands:'holverland',Whitec
 const libEmb=n=>{const e=RGE[EMK[n]];return e?[...e.i].map(ch=>e.p[ch.charCodeAt(0)-48]):Array(33*33).fill('#000000').map((c,i)=>{const x=i%33,y=i/33|0;return x&&y&&x<32&&y<32?NATS[n].c:c})};
 const embPx=n=>R.emb[n]||libEmb(n);
 // nations without uniforms of their own wear generated ones, kept with the region so they stay the same between visits
-const WSPEC={'Old Kingdoms':{cols:[[78,104,62],[190,160,72],[214,208,190],[154,124,86]],pats:['stripe','check','pale'],metal:'iron'}};
-R.ward=R.ward||{};for(const n in NATS){if(LOOK[NATS[n].gn||n])continue;const sp=R.ward[n]||(R.ward[n]=WSPEC[n]||WARD.heraldry(n,hex(ownC(n)),embPx(n)));LOOK[n]=WARD.gen(n,sp);for(const p of R.PP)if(p.nat===n&&p.k==='Townsman')p.k=LOOK[n].civ}
+const WSPEC={'Old Kingdoms':{cols:[[78,104,62],[196,166,74],[216,210,192],[150,120,84]],metal:'iron'},Hoverlands:{cols:[[122,110,156],[216,204,178],[92,84,120],[150,138,118]],metal:'steel'},Whitecoast:{cols:[[44,74,54],[214,210,196],[214,210,196],[120,110,92]],metal:'iron',style:'saltire'}};
+R.ward=R.ward||{};for(const n in NATS){if(LOOK[NATS[n].gn||n])continue;const sp=WSPEC[n]||R.ward[n]||(R.ward[n]=WARD.heraldry(n,hex(ownC(n)),embPx(n)));LOOK[n]=WARD.gen(n,sp);for(const p of R.PP)if(p.nat===n&&p.k==='Townsman')p.k=LOOK[n].civ}
 function embCanvas(n,s,px){const c=mk('canvas','emb');c.width=c.height=33;const x=c.getContext('2d'),im=x.createImageData(33,33),P=px||embPx(n);P.forEach((h,i)=>{const v=hex(h);im.data.set([v[0],v[1],v[2],255],i*4)});x.putImageData(im,0,0);c.style.width=c.style.height=33*s+'px';return c}
 const ALLF=()=>R.F,men=f=>f.men.filter(m=>!m.dead),soldiers=f=>f.t==='vehicle'||f.civ?0:men(f).length,fallen=f=>f.wreck||f.t!=='vehicle'&&f.men.length&&!men(f).length;
 const lead=f=>men(f)[0]||f.men[0]||{k:f.k,h:0},hpOf=f=>f.t==='vehicle'?f.hull:Math.round(men(f).reduce((a,m)=>a+m.h,0)/(men(f).length||1));
