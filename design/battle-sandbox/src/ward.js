@@ -229,24 +229,11 @@ const HL={
  morion:['.....o','....om','...oml','..omlh','.ommlh','.omdlh','.ommlh','..omlh','...oml','....om','.....o'],
  bascinet:['.....o','....om','...omm','..omll','..oxxx','..omlh','..omll','..ommm','...omm','....oo'],
  plumed:['','','....oo','...oml','..omlh','..omll','..omBB','...BBB','...BbB','....Bb','.....B']};
-const CL={
- round:['','...kkk','..kKKg','.kKKgG','.kKgGG','.kKKgg','.kKKKK','..kKKK','...kkk'],
- flat:['','..kkkk','.kKKKg','.kKggG','.kKgGG','.kKggg','.kKKKK','.kKKKK','..kkkk'],
- peaked:['...kkk','..kKKK','..kkkk','.kKKgG','.kKgGG','.kKKgg','.kKKKK','..kKKK','...kkk'],
- brimmed:['...kkk','..kKKK','.kKkkk','.kKkgG','kKkgGG','kKkggg','.kKkKK','.kKkkk','..kKKK','...kkk'],
- beret:['','','.kkkkk','kKKKgg','kKKgGG','kKKKgg','.kKKKK','..kkkk'],
- tall:['....kk','...kKg','..kKgG','..kKgG','.kKKgG','.kKKgg','.kKKKK','..kKKK','...kkk'],
- crested:['.....k','...kkG','..kKKG','.kKKgG','.kKKgG','.kKKgG','.kKKKG','..kKKG','...kkG'],
- rolled:['','...kkk','..kggg','.kgKKK','.kgKgG','.kgKKg','.kgKKK','..kggg','...kkk'],
- hood:['','...kkk','..kKKg','.kKKgG','.kKgGG','.kKKgg','.kKKKK','.kKKKK','kKKKKK','kKKKKK','.kkkkk'],
- flaps:['','...kkk','..kKKg','.kKKgG','kKKgGG','kKKKgg','kKKKKK','kk.kKK','...kkk']};
-for(const k in CL)HL['cap_'+k]=CL[k];
 const HELMS={};for(const k in HL)HELMS[k]=HL[k].map(r=>r?r.padEnd(6,'.').slice(0,6)+[...r.padEnd(6,'.').slice(0,5)].reverse().join(''):'');
-const HSH={o:.5,d:.72,m:1,l:1.2,h:1.42,x:.26},HK=[[34,32,30],[30,28,27]],CAPC={k:[14,13,15],K:[36,35,40],g:[66,64,74],G:[112,110,122]};
+const HSH={o:.5,d:.72,m:1,l:1.2,h:1.42,x:.26},HK=[[34,32,30],[30,28,27]];
 function helm(S,name,mt,A,B){const T=HELMS[name];if(!T)return;if(!S.ml[mt])S.ml[mt]=S.ml.iron||S.ml.steel||110;const g0=S.ml[mt];const done=new Set();
  T.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch==='.'||ch===' ')return;const x=CX-5+c,y=CY-5+r;let p=S.at.get(y*W+x);if(!p){p={x,y,i:-1};S.px.push(p);S.at.set(y*W+x,p)}
-  done.add(p);Object.assign(p,{head:true,edge:0,woven:0,pin:0,capped:1,i:-1,lvl:undefined,gh:1});if(HSH[ch]!=null){p.m=mt;const g=g0*HSH[ch];p.c=[g,g,g];p.rim=ch==='o'}else if(CAPC[ch]){p.m='cloth';p.c=CAPC[ch].slice();p.woven=0;p.rim=ch==='k'}else{p.m='cloth';const k=ch===ch.toLowerCase()?.8:1,c0=ch.toUpperCase()==='A'?A:B;p.c=c0.map(v=>Math.round(v*k));p.woven=1;p.rim=false}}));
- if(name.startsWith('cap_'))for(const p of S.px)if(p.head&&!done.has(p)){const n=[[1,0],[-1,0],[0,1],[0,-1]].map(([a,b])=>S.at.get((p.y+b)*W+p.x+a)).find(q=>q&&!q.head&&q.m==='cloth');Object.assign(p,{head:false,m:'cloth',c:(n?n.c:A).slice(),woven:1,gh:1})}}
+  done.add(p);Object.assign(p,{head:true,edge:0,woven:0,pin:0,capped:1,i:-1,lvl:undefined,gh:1});if(HSH[ch]!=null){p.m=mt;const g=g0*HSH[ch];p.c=[g,g,g];p.rim=ch==='o'}else{p.m='cloth';const k=ch===ch.toLowerCase()?.8:1,c0=ch.toUpperCase()==='A'?A:B;p.c=c0.map(v=>Math.round(v*k));p.woven=1;p.rim=false}}));}
 // breastplates seen from above, front at the top: a shade for each body pixel it covers, mirrored about the centre
 const PLATES={
  cuirass:(x,y,d)=>d<=8.6&&1.12-.025*d,
@@ -271,16 +258,16 @@ function plate(S,name,mt){const F=PLATES[name];if(!F)return;if(!S.ml[mt])S.ml[mt
 // one look put together from parts, for showing them side by side
 function demo(id,o){const n2='demo · '+id;SPR[n2]=SPR[o.base];TAG[n2]={...TAG[o.base],dresses:o.dress?[{flat:1,...o.dress}]:undefined,...(o.rim?{rimCloth:[o.A,o.A]}:{})};CLS[n2]=CLS[o.base];
  for(const[key,dv]of[[n2,null],[n2+'#0',o.dress?0:null]]){const S=P[key]=parse(n2,dv);if(o.plate)plate(S,o.plate,o.mt||'iron');if(o.helm)helm(S,o.helm,o.mt||'iron',o.A,o.B)}return n2}
-const GBASE={civ:['Astrian Officer|n|iron|b','Civilian'],home:['Astrian Line|n|iron|h','Base'],rifle:['Astrian Line|t|$|h','Riflemen'],guard:['Astrian Guard|f|$|h','Heavy'],cmd:['Astrian Officer|m|$|h','Commando']},
- GNAME={civ:'Townsfolk',home:'Levy',rifle:'Line',guard:'Guard',cmd:'Captain'},
- HDEF={iron:{home:['dome','kettle'],rifle:['kettlecomb','nasal'],guard:['visor'],cmd:['cap_round']},steel:{home:['sallet','barbute'],rifle:['sallet','morion'],guard:['bascinet'],cmd:['plumed']}};
-function gen(nat,spec){const[A,B,C,Dd]=spec.cols,wv=c=>[c,c.map(v=>Math.round(v*.975))],mt=spec.metal==='steel'?'steel':'iron',sal=spec.style==='saltire',H=spec.helms||(sal?{}:HDEF[mt]);
- const L=(c,pc)=>({c:wv(c),pat:'lum',pc:wv(pc)});
- const DR=sal?{civ:[L(A,C)],home:[L(A,C)],rifle:[L(A,C)],guard:[L(A,C)],cmd:[L(A,C)]}:
-  {civ:[{c:wv(Dd),pat:'pallet',pc:wv(C)},{c:wv(Dd),pat:'pallet',pc:wv(B)}],home:[{c:wv(Dd),pat:'pallet',pc:wv(C)},{c:wv(Dd),pat:'pallet',pc:wv(B)}],
-   rifle:[{c:wv(A),pat:'vstripe',pc:wv(B)},{c:wv(A),pat:'vstripe',pc:wv(C)}],guard:[{c:wv(A),pat:'vcheck',pc:wv(B)},{c:wv(A),pat:'vcheck',pc:wv(C)}],cmd:[{c:wv(A),pat:'pallet3',pc:wv(B)},{c:wv(A),pat:'vcheck',pc:wv(B)}]},out={};
- for(const t in GBASE){const[b0,cl]=GBASE[t],b=b0.replace('$',mt),k=nat+' '+GNAME[t];if(!SPR[b])continue;SPR[k]=SPR[b];TAG[k]={...TAG[b],dresses:DR[t].map(d=>({flat:1,...d})),...(t==='guard'?{rimCloth:[A,A]}:{})};CLS[k]=cl;
-  const hs=H[t]||[],S=[P[k]=parse(k),...DR[t].map((_,i)=>P[k+'#'+i]=parse(k,i))];if(hs.length)S.forEach((s,i)=>helm(s,hs[Math.max(0,i-1)%hs.length],mt,A,B));out[t]=k}
+const GBASE={civ:['Astrian Officer|n|iron|b','Civilian'],home:['Astrian Line|n|iron|h','Base'],rifle:['Astrian Line|n|iron|h','Riflemen'],guard:['Astrian Line|n|iron|h','Heavy'],cmd:['Astrian Line|n|iron|h','Commando']},
+ SBASE={civ:'Astrian Officer|n|iron|b',home:'Astrian Line|n|iron|h',rifle:'Astrian Line|t|$|h',guard:'Astrian Guard|f|$|h',cmd:'Astrian Line|t|$|h'},
+ GNAME={civ:'Townsfolk',home:'Levy',rifle:'Line',guard:'Guard',cmd:'Captain'};
+// each tier: helmets (one per dress, in turn), a breastplate, and dresses as [cloth, pattern, second cloth] by colour letter
+const KIT0={home:{helms:['dome','kettle'],dress:[['D','pallet','C'],['D','pallet','B']]},rifle:{helms:['nasal','sallet'],plate:'breast',dress:[['A','vstripe','B'],['A','pallets','B']]},
+ guard:{helms:['visor'],plate:'half',dress:[['A','vcheck','B'],['A','vcheck','C']]},cmd:{helms:['kettlecomb'],plate:'gorget',dress:[['A','quarterly','B'],['A','bordure','B']]},civ:{dress:[['D','pallet','C'],['C','pallet','A']]}};
+function gen(nat,spec){const[A,B,C,Dd]=spec.cols,CO={A,B,C,D:Dd},wv=c=>[c,c.map(v=>Math.round(v*.975))],mt=spec.metal==='steel'?'steel':'iron',sal=spec.style==='saltire',K=spec.kit||KIT0,out={};
+ for(const t in GBASE){const k=nat+' '+GNAME[t],b=sal?SBASE[t].replace('$',mt):GBASE[t][0];if(!SPR[b])continue;const kt=sal?{dress:[['A','lum','C']],helms:t==='cmd'?['kettlecomb']:null}:K[t]||KIT0[t],
+   dr=kt.dress.map(([c,pt,pc])=>({flat:1,c:wv(CO[c]),pat:pt,pc:wv(CO[pc])}));SPR[k]=SPR[b];TAG[k]={...TAG[b],dresses:dr,...(sal&&t==='guard'?{rimCloth:[A,A]}:{})};CLS[k]=GBASE[t][1];
+  const S=[P[k]=parse(k),...dr.map((_,i)=>P[k+'#'+i]=parse(k,i))],hs=kt.helms||[];S.forEach((s,i)=>{if(kt.plate)plate(s,kt.plate,mt);if(hs.length)helm(s,hs[Math.max(0,i-1)%hs.length],mt,A,B)});out[t]=k}
  FACTIONS[nat]=Object.values(out);for(const k of FACTIONS[nat])if(!UNITS.includes(k))UNITS.push(k);return out}
 // a wardrobe read from a nation's colour and flag: softened cloth tones; the metal chosen by its name
 function heraldry(nat,col,flag){const soft=c=>{const g=(c[0]+c[1]+c[2])/3;return c.map(v=>Math.round((v*.62+g*.38)*.78+18))},seen={};
@@ -289,4 +276,4 @@ function heraldry(nat,col,flag){const soft=c=>{const g=(c[0]+c[1]+c[2])/3;return
  let h=0;for(const ch of nat)h=(h*31+ch.charCodeAt(0))>>>0;return{cols:[A,B,C,Dd],metal:h%3===0?'steel':'iron'}}
 // a look with one of the helmets in place of its own, for showing them side by side
 function helmDemo(k,h,mt,A,B){const n2=k+' · '+h;SPR[n2]=SPR[k];TAG[n2]=TAG[k];CLS[n2]=CLS[k];for(const[key,dv]of[[n2,null],...(TAG[k].dresses||[]).map((_,i)=>[n2+'#'+i,i])]){P[key]=parse(n2,dv);helm(P[key],h,mt,A,B)}return n2}
-return{SPR,TAG,CLS,MET,LV,FACTIONS,UNITS,nm,has:n=>!!SPR[n]&&!!TAG[n],spawn,grid,stats,lvl,gen,heraldry,helmDemo,HELMS,HDEF,PLATES,demo}})();
+return{SPR,TAG,CLS,MET,LV,FACTIONS,UNITS,nm,has:n=>!!SPR[n]&&!!TAG[n],spawn,grid,stats,lvl,gen,heraldry,helmDemo,HELMS,PLATES,demo}})();
