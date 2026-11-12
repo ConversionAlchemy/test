@@ -198,4 +198,20 @@ function grid(n,sp,cond=4){const S=P[sp.alt?TAG[n].alt+(sp.dv!=null&&TAG[TAG[n].
   g[p0.y][p0.x]=[c,!!MET[m],m,p0.head]}
  return g}
 const lvl=(n,sp)=>{const T=TAG[n]||{};return sp&&sp.good?4:T.lvl||4};
-return{SPR,TAG,CLS,MET,LV,FACTIONS,UNITS,nm,has:n=>!!SPR[n]&&!!TAG[n],spawn,grid,stats,lvl}})();
+// ---- generated wardrobes: a nation without uniforms of its own gets them from its heraldry
+// each tier keeps a base body; its cloth is redressed in the nation's colours and pattern, its armour forged in the nation's metal
+Object.assign(PAT,{stripe:(x,y)=>Math.floor((x+31)/3)%2===0,check:(x,y)=>(Math.floor((x+31)/3)+Math.floor((y+31)/3))%2===0,sash:(x,y)=>Math.abs(x-y)<=1,pale:(x,y)=>x>=0,quarter:(x,y)=>(x>=0)!==(y>=0),chevron:(x,y)=>((((y-Math.abs(x))>>1)%2)+2)%2===0});
+const GBASE={civ:['Astrian Officer|n|iron|b','Civilian'],home:['Astrian Line|n|iron|h','Base'],rifle:['Astrian Line|t|$|h','Riflemen'],guard:['Astrian Guard|f|$|h','Heavy'],cmd:['Astrian Officer|m|$|h','Commando']},
+ GNAME={civ:'Townsfolk',home:'Levy',rifle:'Line',guard:'Guard',cmd:'Captain'};
+function gen(nat,spec){const[A,B,C,Dd]=spec.cols,wv=c=>[c,c.map(v=>Math.round(v*.94))],pt=spec.pats||['stripe','check','pale'],mt=spec.metal==='steel'?'steel':'iron';
+ const DR={civ:[{c:wv(Dd),pat:'sash',pc:wv(A)},{c:wv(C),pat:'sash',pc:wv(A)}],home:[{c:wv(Dd),pat:'sash',pc:wv(A)},{c:wv(Dd),pat:'stole',pc:wv(A)}],
+  rifle:[{c:wv(A),pat:pt[0],pc:wv(B)},{c:wv(B),pat:pt[0],pc:wv(A)}],guard:[{c:wv(A),pat:pt[1],pc:wv(C)},{c:wv(C),pat:pt[1],pc:wv(A)}],cmd:[{c:wv(A),pat:pt[2],pc:wv(B)}]},out={};
+ for(const t in GBASE){const[b0,cl]=GBASE[t],b=b0.replace('$',mt),k=nat+' '+GNAME[t];if(!SPR[b])continue;SPR[k]=SPR[b];TAG[k]={...TAG[b],dresses:DR[t]};CLS[k]=cl;P[k]=parse(k);DR[t].forEach((_,i)=>P[k+'#'+i]=parse(k,i));out[t]=k}
+ FACTIONS[nat]=Object.values(out);for(const k of FACTIONS[nat])if(!UNITS.includes(k))UNITS.push(k);return out}
+// a wardrobe read from a nation's colour and flag: softened cloth tones, a pattern and metal chosen by its name
+function heraldry(nat,col,flag){const soft=c=>{const g=(c[0]+c[1]+c[2])/3;return c.map(v=>Math.round((v*.62+g*.38)*.78+18))},seen={};
+ for(const h of flag||[]){const c=typeof h==='string'?[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)):h,l=lum(c);if(l<40)continue;const k=c.map(v=>v>>5).join();seen[k]=seen[k]||{c,n:0};seen[k].n++}
+ const fc=Object.values(seen).sort((a,b)=>b.n-a.n).map(o=>o.c),A=soft(col),B=soft(fc.find(c=>Math.abs(lum(c)-lum(col))>40)||[214,206,184]),C0=soft([224,218,200]),C=Math.abs(lum(C0)-lum(B))<30?soft([70,62,54]):C0,Dd=soft([150,130,100]);
+ let h=0;for(const ch of nat)h=(h*31+ch.charCodeAt(0))>>>0;const P3=[['stripe','check','pale'],['pale','quarter','stripe'],['hband','check','quarter'],['chevron','stripe','pale']];
+ return{cols:[A,B,C,Dd],pats:P3[h%P3.length],metal:h%3===0?'steel':'iron'}}
+return{SPR,TAG,CLS,MET,LV,FACTIONS,UNITS,nm,has:n=>!!SPR[n]&&!!TAG[n],spawn,grid,stats,lvl,gen,heraldry}})();
