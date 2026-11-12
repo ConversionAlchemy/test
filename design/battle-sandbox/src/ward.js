@@ -114,7 +114,7 @@ function parse(n,dv){const S=SPR[n],T=dv==null?TAG[n]||{}:{...TAG[n],dress:TAG[n
  // a band of cloth two pixels wide round the whole outline, like the sprite's own side panels
  if(T.rimCloth){const N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]],ring=new Set(px.filter(p=>p.i!==0&&N8.some(([a,b])=>{const q=at.get((p.y+b)*W+p.x+a);return!q||q.i===0})));for(const p of [...ring])for(const[a,b]of N8){const q=at.get((p.y+b)*W+p.x+a);if(q&&q.i!==0)ring.add(q)}for(const p of ring)if(!p.head&&!(MET[p.m]&&p.y<=CY-3)){p.m='cloth';p.c=T.rimCloth[(p.x+p.y)%2];p.woven=1;p.edge=0}}
  if(T.dress){const D=T.dress,cl=px.filter(p=>p.m==='cloth'&&!p.edge&&!(D.keep||[]).includes(p.i)),cc2={};for(const p of cl){const k=p.c.join();cc2[k]=(cc2[k]||0)+1}const Lm=lum((Object.entries(cc2).sort((a,b)=>b[1]-a[1])[0]||['90,90,90'])[0].split(',').map(Number));
-  for(const p of cl){const k=Math.max(.75,Math.min(1.5,lum(p.c)/Lm)),x=p.x-CX,y=p.y-CY,on=!p.head&&(D.pat==='lum'?lum(p.c)>(D.th||110):PAT[D.pat]&&PAT[D.pat](x,y)),P2=on?D.pc:D.c,c=Array.isArray(P2[0])?P2[(p.x+p.y)%2]:P2;if(hh(D.sym?Math.abs(p.x-CX):p.x,p.y,11)<(D.sr||0)){p.c=D.sp;if(D.spMetal){p.m=D.spMetal;p.c=[1,1,1].map(()=>ml[D.spMetal]*1.25);p.pin=1}}else p.c=c.map(v=>Math.min(255,v*k));p.woven=1}}
+  for(const p of cl){const k=D.flat?(lum(p.c)<Lm*.8?.86:1):Math.max(.75,Math.min(1.5,lum(p.c)/Lm)),x=p.x-CX,y=p.y-CY,on=!p.head&&(D.pat==='lum'?lum(p.c)>(D.th||110):PAT[D.pat]&&PAT[D.pat](x,y)),P2=p.head&&D.hc?D.hc:on?D.pc:D.c,c=Array.isArray(P2[0])?P2[(p.x+p.y)%2]:P2;if(hh(D.sym?Math.abs(p.x-CX):p.x,p.y,11)<(D.sr||0)){p.c=D.sp;if(D.spMetal){p.m=D.spMetal;p.c=[1,1,1].map(()=>ml[D.spMetal]*1.25);p.pin=1}}else p.c=c.map(v=>Math.min(255,v*k));p.woven=1}}
  if(T.pins)for(const[dx,y]of T.pins)for(const x of[CX-dx,CX+dx]){const p=at.get(y*W+x);if(p&&p.m==='cloth'){p.m='steel';p.c=[1,1,1].map(()=>ml.steel*1.25);p.pin=1;p.edge=0}}
  if(T.back)for(const p of px)if(p.m==='cloth'&&!p.head&&p.y>=CY){p.m=T.back;const g=ml[T.back]*(p.edge?.55:.85);p.c=[g,g,g];p.woven=0}
  if(T.backFrom){const sm=Object.keys(ml)[0];for(const p of px)if(p.m==='cloth'&&!p.head&&p.y>CY){const q=at.get((2*CY-p.y)*W+p.x);p.m=T.backFrom;if(q&&MET[q.m]){p.c=q.c;p.edge=q.edge}else p.c=[1,1,1].map(()=>ml[sm]*.6);p.woven=0}ml[T.backFrom]=ml[sm]}
@@ -200,32 +200,73 @@ function grid(n,sp,cond=4){const S=P[sp.alt?TAG[n].alt+(sp.dv!=null&&TAG[TAG[n].
 const lvl=(n,sp)=>{const T=TAG[n]||{};return sp&&sp.good?4:T.lvl||4};
 // ---- generated wardrobes: a nation without uniforms of its own wears the Imperial bodies in its own cloth, pattern and helmets
 // patterns are mirrored about the centre line; 'lum' keeps a body's own design, light parts in one colour and dark in the other
-Object.assign(PAT,{pallet:(x,y)=>Math.abs(x)<=1,pallet3:(x,y)=>Math.abs(x)<=2,vstripe:(x,y)=>Math.floor((Math.abs(x)+1)/3)%2===0,vcheck:(x,y)=>(Math.floor((Math.abs(x)+1)/3)+Math.floor((y+31)/3))%2===0});
+const ax=x=>Math.abs(x),c2=(x,y)=>(Math.floor((ax(x)+1)/2)+Math.floor((y+32)/2))%2===0;
+Object.assign(PAT,{plain:()=>false,pallet:(x,y)=>ax(x)<=1,pallet3:(x,y)=>ax(x)<=2,pallets:(x,y)=>ax(x)>=2&&ax(x)<=3,vstripe:(x,y)=>Math.floor((ax(x)+1)/3)%2===0,vfine:(x,y)=>Math.floor((ax(x)+1)/2)%2===0,
+ vcheck:c2,bars:(x,y)=>Math.floor((y+31)/3)%2===0,fess:(x,y)=>ax(y-1)<=1,cross:(x,y)=>ax(x)<=1||ax(y-1)<=1,bordure:(x,y)=>Math.hypot(x,y)>=6.6,palebord:(x,y)=>ax(x)<=1||Math.hypot(x,y)>=6.6,chief:(x,y)=>y<=-4,checkchief:(x,y)=>y<=-3?c2(x,y):ax(x)<=1});
 // helmets seen from above, front at the top: o rim, d dark, m metal, l light, h highlight, x slit; A a nation cloth, B b second cloth
-const HELMS={
- dome:['','','....ooo','...ommmo','..omlhlmo','..omlllmo','..ommlmmo','...ommmo','....ooo'],
- ribbed:['','','....oxo','...omxmo','..olhxhlo','..oxxxxxo','..omlxlmo','...omxmo','....oxo'],
- kettle:['','...ooooo','..ollllllo','.olldddllo','.olddhddlo','.oldhhhdlo','.olddhddlo','.olldddllo','..ollllllo','...ooooo'],
- great:['','..ooooooo','..ommmmmo','..xxxxxxx','..ommxmmo','..omlxlmo','..omlhlmo','..ommmmmo','..ooooooo'],
- crest:['.....A','....aAa','...oaAao','..omaAamo','..olaAalo','..olaAalo','..omaAamo','...oaAao','....aAa','.....a'],
- sallet:['','','....ooo','...omlmo','..omlhlmo','..omlllmo','..ommmmmo','..ommmmmo','...ommmo','...ommmo','....ooo'],
- barbute:['','','....oxo','...omxmo','..oxxxxxo','..omlhlmo','..omlllmo','..ommmmmo','...ommmo','....ooo'],
- morion:['.....o','....omo','...omlmo','..omlhlmo','.ommlhlmmo','.omdlhldmo','.ommlhlmmo','..omlhlmo','...omlmo','....omo','.....o'],
- bascinet:['.....o','....omo','...ommmo','..omlllmo','..oxxxxxo','..omlhlmo','..omlllmo','..ommmmmo','...ommmo','....ooo'],
- plumed:['','','....ooo','...omlmo','..omlhlmo','..omlllmo','..omBBBmo','...BBBBB','...BbBbB','....BbB','.....B']};
-const HSH={o:.5,d:.72,m:1,l:1.2,h:1.42,x:.26};
+const HL={
+ dome:['','','....oo','...omm','..omlh','..omll','..ommm','...omm','....oo'],
+ ribbed:['','','....ox','...omx','..omlx','..xxxx','..omlx','...omx','....ox'],
+ kettle:['','...ooo','..olll','.olldd','.oldmh','.oldml','.oldmm','.olldd','..olll','...ooo'],
+ great:['','','..oooo','..ommm','..xxxx','..omlx','..omlh','..ommm','..oooo'],
+ crest:['','.....A','....oA','...omA','..omlA','..omlA','..ommA','...omA','....oA','.....a'],
+ nasal:['','.....o','....om','...oml','..omlh','..omll','..ommm','...omm','....oo'],
+ conical:['','','....od','...odm','..odml','..odmh','..odml','...odm','....od'],
+ comb:['','','....oh','...omh','..omlh','..omlh','..omlh','...omh','....oh'],
+ kettlecomb:['','...ooo','..olll','.olldh','.oldmh','.oldmh','.oldmh','.olldh','..olll','...ooo'],
+ visor:['.....o','....om','...oml','..omll','..xxxx','..omlh','..omll','..ommm','...omm','....oo'],
+ bucket:['','','..oooo','..ommm','..xxxx','..mxmx','..omlh','..ommm','..oooo'],
+ mail:['','','...odm','..odmd','..dmxx','..mdmd','..dmdm','..odmd','...odm'],
+ circlet:['','','....oo','...oAA','..oAml','..oAmh','..oAml','...oAA','....oo'],
+ long:['.....o','....ol','...olm','..olmh','..omlh','..omlh','..omlh','..olmh','...olm','....ol','.....o'],
+ cheek:['','','....oo','...omm','..omlh','.domll','.dommm','.dd.om','....oo'],
+ crown:['','','..oBBB','..Bmmm','..Bmlh','..Bmll','..Bmmm','..oBBB'],
+ plume:['','','....oo','...omm','..omlh','..omll','..ommm','...oAA','...AaA','....AA','.....a'],
+ sallet:['','','....oo','...oml','..omlh','..omll','..ommm','..ommm','...omm','...omm','....oo'],
+ cross:['','','..oooo','..ommx','..xxxx','..omlx','..omlh','..ommm','..oooo'],
+ coif:['','','...aAA','..aAAA','..Aoom','..Aomh','..Aomm','..aAAA','...aAA'],
+ barbute:['','','....ox','...omx','..oxxx','..omlh','..omll','..ommm','...omm','....oo'],
+ morion:['.....o','....om','...oml','..omlh','.ommlh','.omdlh','.ommlh','..omlh','...oml','....om','.....o'],
+ bascinet:['.....o','....om','...omm','..omll','..oxxx','..omlh','..omll','..ommm','...omm','....oo'],
+ plumed:['','','....oo','...oml','..omlh','..omll','..omBB','...BBB','...BbB','....Bb','.....B']};
+const HELMS={};for(const k in HL)HELMS[k]=HL[k].map(r=>r?r.padEnd(6,'.').slice(0,6)+[...r.padEnd(6,'.').slice(0,5)].reverse().join(''):'');
+const HSH={o:.5,d:.72,m:1,l:1.2,h:1.42,x:.26},HK=[[34,32,30],[30,28,27]];
 function helm(S,name,mt,A,B){const T=HELMS[name];if(!T)return;if(!S.ml[mt])S.ml[mt]=S.ml.iron||S.ml.steel||110;const g0=S.ml[mt];
  T.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch==='.'||ch===' ')return;const x=CX-5+c,y=CY-5+r;let p=S.at.get(y*W+x);if(!p){p={x,y,i:-1};S.px.push(p);S.at.set(y*W+x,p)}
-  Object.assign(p,{head:true,edge:0,woven:0,pin:0,capped:1,i:-1,lvl:undefined,gh:1});if(HSH[ch]!=null){p.m=mt;const g=g0*HSH[ch];p.c=[g,g,g];p.rim=ch==='o'}else{p.m='cloth';const k=ch===ch.toLowerCase()?.8:1,c0=ch.toUpperCase()==='A'?A:B;p.c=c0.map(v=>Math.round(v*k));p.woven=1;p.rim=false}}))}
+  Object.assign(p,{head:true,edge:0,woven:0,pin:0,capped:1,i:-1,lvl:undefined,gh:1});if(HSH[ch]!=null){p.m=mt;const g=g0*HSH[ch];p.c=[g,g,g];p.rim=ch==='o'}else if(ch==='K'){p.m='cloth';p.c=HK[(x+y)%2];p.woven=1;p.rim=false}else{p.m='cloth';const k=ch===ch.toLowerCase()?.8:1,c0=ch.toUpperCase()==='A'?A:B;p.c=c0.map(v=>Math.round(v*k));p.woven=1;p.rim=false}}))}
+// breastplates seen from above, front at the top: a shade for each body pixel it covers, mirrored about the centre
+const PLATES={
+ cuirass:(x,y,d)=>d<=8.6&&1.12-.025*d,
+ pauldrons:(x,y,d)=>ax(x)>=5&&1.05-.02*d,
+ breast:(x,y,d)=>y<=1&&ax(x)<=5&&1.12-.03*d,
+ ridge:(x,y,d)=>d<=8.6&&(x===0?1.36:1.08-.025*d),
+ lames:(x,y,d)=>d<=8.6&&((y+30)%3===0?.72:1.08-.02*d),
+ scale:(x,y,d)=>d<=8.6&&((Math.floor((ax(x)+1)/2)+y+40)%2?1.08:.9),
+ mail:(x,y,d)=>d<=8.6&&((ax(x)+y+40)%2?.92:.8),
+ brigandine:(x,y,d)=>d<=8.6&&ax(x)%3===1&&(y+30)%3===1&&1.32,
+ gorget:(x,y,d)=>d>3.6&&d<=5.6&&(d>5?.7:1.12),
+ plackart:(x,y,d)=>y>=1&&ax(x)<=4&&1.1-.03*d,
+ banded:(x,y,d)=>ax(x)>=5&&((y+30)%2?1.08:.82),
+ half:(x,y,d)=>y<=1&&d<=8.6&&1.1-.025*d,
+ straps:(x,y,d)=>(ax(x)===3&&y>=-1||d>3.6&&d<=5)&&1.1,
+ studded:(x,y,d)=>d<=8.6&&ax(x)%3===0&&(y+30)%3===0&&ax(x)>0&&1.32,
+ boss:(x,y,d)=>d<=8.6&&(Math.hypot(x,y-4)<=1.6?1.4:Math.hypot(x,y-4)<=2.6?.78:1.06-.02*d)};
+function plate(S,name,mt){const F=PLATES[name];if(!F)return;if(!S.ml[mt])S.ml[mt]=S.ml.iron||S.ml.steel||110;const g0=S.ml[mt],on=new Set();
+ for(const p of S.px){if(p.head||p.i===0||p.edge)continue;const x=p.x-CX,y=p.y-CY,k=F(x,y,Math.hypot(x,y));if(k){on.add(p);p._k=k}}
+ for(const p of on){const rim=[[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>{const q=S.at.get((p.y+b)*W+p.x+a);return!q||!on.has(q)&&!q.head});const g=g0*(rim&&p._k>.95&&PLATES[name]!==PLATES.brigandine&&PLATES[name]!==PLATES.studded?.62:p._k);
+  Object.assign(p,{m:mt,c:[g,g,g],woven:0,pin:0,rim,gh:1});delete p._k}}
+// one look put together from parts, for showing them side by side
+function demo(id,o){const n2='demo · '+id;SPR[n2]=SPR[o.base];TAG[n2]={...TAG[o.base],dresses:o.dress?[{flat:1,...o.dress}]:undefined,...(o.rim?{rimCloth:[o.A,o.A]}:{})};CLS[n2]=CLS[o.base];
+ for(const[key,dv]of[[n2,null],[n2+'#0',o.dress?0:null]]){const S=P[key]=parse(n2,dv);if(o.plate)plate(S,o.plate,o.mt||'iron');if(o.helm)helm(S,o.helm,o.mt||'iron',o.A,o.B)}return n2}
 const GBASE={civ:['Astrian Officer|n|iron|b','Civilian'],home:['Astrian Line|n|iron|h','Base'],rifle:['Astrian Line|t|$|h','Riflemen'],guard:['Astrian Guard|f|$|h','Heavy'],cmd:['Astrian Officer|m|$|h','Commando']},
  GNAME={civ:'Townsfolk',home:'Levy',rifle:'Line',guard:'Guard',cmd:'Captain'},
  HDEF={iron:{home:['dome','kettle'],rifle:['dome','ribbed'],guard:['great'],cmd:['crest']},steel:{home:['sallet','barbute'],rifle:['sallet','morion'],guard:['bascinet'],cmd:['plumed']}};
-function gen(nat,spec){const[A,B,C,Dd]=spec.cols,wv=c=>[c,c.map(v=>Math.round(v*.94))],mt=spec.metal==='steel'?'steel':'iron',sal=spec.style==='saltire',H=spec.helms||(sal?{}:HDEF[mt]);
+function gen(nat,spec){const[A,B,C,Dd]=spec.cols,wv=c=>[c,c.map(v=>Math.round(v*.975))],mt=spec.metal==='steel'?'steel':'iron',sal=spec.style==='saltire',H=spec.helms||(sal?{}:HDEF[mt]);
  const L=(c,pc)=>({c:wv(c),pat:'lum',pc:wv(pc)});
  const DR=sal?{civ:[L(A,C)],home:[L(A,C)],rifle:[L(A,C)],guard:[L(A,C)],cmd:[L(A,C)]}:
   {civ:[{c:wv(Dd),pat:'pallet',pc:wv(C)},{c:wv(Dd),pat:'pallet',pc:wv(B)}],home:[{c:wv(Dd),pat:'pallet',pc:wv(C)},{c:wv(Dd),pat:'pallet',pc:wv(B)}],
    rifle:[{c:wv(A),pat:'vstripe',pc:wv(B)},{c:wv(A),pat:'vstripe',pc:wv(C)}],guard:[{c:wv(A),pat:'vcheck',pc:wv(B)},{c:wv(A),pat:'vcheck',pc:wv(C)}],cmd:[{c:wv(A),pat:'pallet3',pc:wv(B)},{c:wv(A),pat:'vcheck',pc:wv(B)}]},out={};
- for(const t in GBASE){const[b0,cl]=GBASE[t],b=b0.replace('$',mt),k=nat+' '+GNAME[t];if(!SPR[b])continue;SPR[k]=SPR[b];TAG[k]={...TAG[b],dresses:DR[t],...(t==='guard'?{rimCloth:[A,A]}:{})};CLS[k]=cl;
+ for(const t in GBASE){const[b0,cl]=GBASE[t],b=b0.replace('$',mt),k=nat+' '+GNAME[t];if(!SPR[b])continue;SPR[k]=SPR[b];TAG[k]={...TAG[b],dresses:DR[t].map(d=>({flat:1,...d})),...(t==='guard'?{rimCloth:[A,A]}:{})};CLS[k]=cl;
   const hs=H[t]||[],S=[P[k]=parse(k),...DR[t].map((_,i)=>P[k+'#'+i]=parse(k,i))];if(hs.length)S.forEach((s,i)=>helm(s,hs[Math.max(0,i-1)%hs.length],mt,A,B));out[t]=k}
  FACTIONS[nat]=Object.values(out);for(const k of FACTIONS[nat])if(!UNITS.includes(k))UNITS.push(k);return out}
 // a wardrobe read from a nation's colour and flag: softened cloth tones; the metal chosen by its name
@@ -235,4 +276,4 @@ function heraldry(nat,col,flag){const soft=c=>{const g=(c[0]+c[1]+c[2])/3;return
  let h=0;for(const ch of nat)h=(h*31+ch.charCodeAt(0))>>>0;return{cols:[A,B,C,Dd],metal:h%3===0?'steel':'iron'}}
 // a look with one of the helmets in place of its own, for showing them side by side
 function helmDemo(k,h,mt,A,B){const n2=k+' · '+h;SPR[n2]=SPR[k];TAG[n2]=TAG[k];CLS[n2]=CLS[k];for(const[key,dv]of[[n2,null],...(TAG[k].dresses||[]).map((_,i)=>[n2+'#'+i,i])]){P[key]=parse(n2,dv);helm(P[key],h,mt,A,B)}return n2}
-return{SPR,TAG,CLS,MET,LV,FACTIONS,UNITS,nm,has:n=>!!SPR[n]&&!!TAG[n],spawn,grid,stats,lvl,gen,heraldry,helmDemo,HELMS,HDEF}})();
+return{SPR,TAG,CLS,MET,LV,FACTIONS,UNITS,nm,has:n=>!!SPR[n]&&!!TAG[n],spawn,grid,stats,lvl,gen,heraldry,helmDemo,HELMS,HDEF,PLATES,demo}})();
