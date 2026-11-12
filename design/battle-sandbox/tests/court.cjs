@@ -162,4 +162,13 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
  r=await J(`return{pp:R.PP.length,fallen:R.fallen,own:OWN.filter(x=>x==='Astria').length,rul:R.PP.filter(p=>p.ruler).length}`);
  ok('court kept across reload',r.pp===before.pp,before.pp+' → '+r.pp);ok('capitulation kept',JSON.stringify(r.fallen)===JSON.stringify(before.fallen));ok('conquests kept',r.own===before.own,before.own+' → '+r.own);
 
+ // a fallen nation comes back whole
+ r=await J(`const n=Object.keys(R.fallen)[0];restore(n);const cap=capCell(n),own=D.cells.filter((x,i)=>OWN[i]===n).length,seats=Object.values(R.prov).filter(p=>p.nat===n);
+  return{n,alive:alive(n),own,ruler:R.PP.filter(p=>p.ruler&&p.nat===n&&p.cell===cap).length,gov:seats.filter(p=>p.cc!==cap).every(p=>R.PP.some(q=>q.gov&&q.nat===n&&q.cell===p.cc)),sq:R.F.filter(f=>f.nat===n).length,prov:seats.length,others:R.F.filter(f=>f.nat!==n).length>20}`);
+ ok('restore brings back land, ruler, governors and forces',r.alive&&r.own>0&&r.ruler===1&&r.gov&&r.sq>2&&r.prov>0&&r.others,JSON.stringify(r));
+ // a click with a jittery movementX still selects
+ r=await J(`open();fitAll();draw();SELS.clear();const G=GROUPS.find(G=>G.R)||null,f=G?null:R.F.find(f=>f.R&&!fallen(f));const b=cv.getBoundingClientRect(),x=G?(G.R[0]+G.R[2])/2:f.X,y=G?(G.R[1]+G.R[3])/2:f.Y;
+  const o={clientX:x+b.left,clientY:y+b.top,pointerId:1,bubbles:true,button:0};cv.dispatchEvent(new PointerEvent('pointerdown',o));cv.dispatchEvent(new PointerEvent('pointermove',{...o,movementX:30,movementY:12}));cv.dispatchEvent(new PointerEvent('pointerup',o));return{sel:SELS.size}`);
+ ok('click selects even with mouse jitter',r.sel>0,r.sel);
+
  fs.unlinkSync(f);ok('no page errors',!errs.length,errs.slice(0,4).join(' | '));console.log(fails?fails+' failed':'all passed');await b.close();process.exit(fails?1:0)})();

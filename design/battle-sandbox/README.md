@@ -137,6 +137,7 @@ The clock opens the region: a square map of the eastern continent drawn round th
 - Fallen: a squad with every man dead and a wreck become fallen; the skull button shows or hides them on the map and in the lists. Delete one from its card or with a right-click; the skull on a place clears all its fallen. Dead men stay in their squad, greyed, until cleared.
 - Saved games carry the region; it is also kept in the browser between visits.
 - Court: each nation's ruler sits on the one chair in its capital's first map, and a governor on the chair of each province seat's map; they are the only civilians (others stay in the editor). A province pays only while its seat holds a governor.
+- Restore: a fallen nation's header has a ↺ button that gives back its founding provinces, a new ruler and governors, and a fresh army.
 - Generated maps: a capital without a map gets a keep (throne room, vault, hall), a province seat a small fort with its chair, any other cell open grass.
 - War: squads may only move into their own, an ally's or an enemy's land, and only enter those maps. A province falls when none of its owner's soldiers are left in the cell or its maps; civilians there are taken. A ruler killed or taken hands his whole nation to the side that felled him. Shots pass through one's own side and allies.
 - Every land cell belongs to a nation.

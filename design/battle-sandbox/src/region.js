@@ -299,7 +299,7 @@ for(const f of[...R.F,...R.PP])if(f.nat==='Goldbank')f.nat='Portsbridge';if(R.go
 R.col=R.col||{};R.names=R.names||{};R.own=R.own||{};R.emb=R.emb||{};R.ter=R.ter||{};R.rel=R.rel||{};R.seas=R.seas||{};R.wc=R.wc||{};if(R.rt){D.routes.length=0;D.routes.push(...R.rt);rvCalc()}for(const f of R.F)if(f.n==='Sweetwater Thugs')f.n="Bog's Keep Thugs";
 const save=()=>{const c=JSON.parse(JSON.stringify(R,(k,v)=>k==='carry'?undefined:v));LS.set('bs.region',c)};
 const ringOf=c=>mixc(hex(c),[255,255,255],.18);
-for(const n in R.col)if(NATS[n]){NATS[n].c=R.col[n];NATS[n].ring=ringOf(R.col[n])}for(const n in R.names)if(NATS[n])NATS[n].n=R.names[n];for(const k in R.ter)if(TT[R.ter[k]]){setTer(D.cells[k],R.ter[k]);ownFix(+k)}for(const k in R.own)OWN[k]=R.own[k]||null;
+for(const n in R.col)if(NATS[n]){NATS[n].c=R.col[n];NATS[n].ring=ringOf(R.col[n])}for(const n in R.names)if(NATS[n])NATS[n].n=R.names[n];for(const k in R.ter)if(TT[R.ter[k]]){setTer(D.cells[k],R.ter[k]);ownFix(+k)}const OWN0=OWN.slice();for(const k in R.own)OWN[k]=R.own[k]||null;
 // enclosed water, away from the open sea, gets a name of its own once, from the nearest settlement
 // small islands get a name once, from an old-world list; kept with the save
 const ISLN=['Gull','Heron','Tern','Kelp','Seal','Cairn','Rook','Brine','Weir','Ashen','Saint Brenna','Low','Cormorant','Thorn','Oyster','Lantern','Widow','Shingle'];
@@ -356,6 +356,12 @@ function stripCiv(){for(const b of bodies.filter(b=>b.type==='token'&&b.unit==='
 function capitulate(n,by){if(!NATS[n]||!NATS[by]||n===by)return;(R.fallen||(R.fallen={}))[n]=by;
  D.cells.forEach((c,i)=>{if(OWN[i]===n){OWN[i]=by;R.own[i]=by}});for(const k in R.prov)if(R.prov[k].nat===n){R.prov[k].nat=by;R.prov[k].p=null}
  const sb=BURG[NATS[n].seat];if(sb){sb.cap=0;sb.group='village'}R.F=R.F.filter(f=>f.nat!==n);R.PP=R.PP.filter(p=>p.nat!==n);LBL=null;BCH=null;sndT=0;edSnd('metal',.6,1,true)}
+// a fallen nation back as founded: its provinces, ruler, governors and a fresh army
+function restore(n){if(!alive(n)&&NATS[n]){delete R.fallen[n];const cap=capCell(n);
+ for(const id in R.prov){const p=R.prov[id];if(OWN0[p.cc]!==n)continue;p.nat=n;p.p=null;for(const c of p.c){OWN[c]=n;R.own[c]=n}
+  R.PP=R.PP.filter(q=>!(q.gov&&q.cell===p.cc));if(p.cc!==cap)R.PP.push({id:'m'+(R.nid++),t:'person',k:lookFor(n,'civ'),n:NAMES[hash(p.cc+7)*NAMES.length|0]+' of '+p.cap,role:'Governor',note:1,gov:1,nat:n,cell:p.cc,h:100})}
+ R.PP.push({id:'m'+(R.nid++),t:'person',k:lookFor(n,'civ'),n:'Lord '+NAMES[hash(cap)*NAMES.length|0],nat:n,cell:cap,ruler:1,note:1,role:'Ruler',h:100});
+ const sb=BURG[NATS[n].seat];if(sb){sb.cap=1;sb.group='capital'}LBL=null;BCH=null;populate([n])}}
 // who felled a ruler: whoever at war with his nation has the most men in his map, else in his cell, else the most land beside his
 function feller(p,mp){const n=p.nat,tally={},add=(k,v)=>{if(k!==n&&atWar(k,n))tally[k]=(tally[k]||0)+v};
  for(const f of R.F)for(const m of men(f))if(m.map&&m.map===mp)add(f.nat,10);for(const f of R.F)if(f.cell===p.cell)add(f.nat,soldiers(f));
@@ -616,9 +622,9 @@ function spawnAt(c){const n=snat;if(!alive(n)||vis[c]<.5||!land(D.cells[c]))retu
  else{const k=R.F.filter(x=>x.nat===n&&x.tier===sk).length+1,o=k+(k%10===1&&k!==11?'st':k%10===2&&k!==12?'nd':k%10===3&&k!==13?'rd':'th');f={id:'f'+uidS(),t:'squad',tier:sk,nat:n,cell:c,n:o+' '+TIERN[sk],men:Array.from({length:8},()=>man(sk))}}
  R.F.push(f);if(f.civ)seatCiv(f);sndT=0;edSnd('soft',1.1,.7);layout();save();list2();draw()}
 // the test region's forces, sized to each nation's land and purse, and set against its enemies
-function populate(){const keep=R.F.filter(f=>inMap(f));R.F=keep;R.nid=R.nid||9999;const man=(n,t)=>({id:'m'+(R.nid++),k:lookFor(n,t),n:NAMES[(R.nid*7)%NAMES.length],role:TIERN[t]||'Captain',h:100});
+function populate(only){if(!only)R.F=R.F.filter(f=>inMap(f));R.nid=R.nid||9999;const man=(n,t)=>({id:'m'+(R.nid++),k:lookFor(n,t),n:NAMES[(R.nid*7)%NAMES.length],role:TIERN[t]||'Captain',h:100});
  const ord=k=>k+(k%10===1&&k!==11?'st':k%10===2&&k!==12?'nd':k%10===3&&k!==13?'rd':'th');
- for(const n of Object.keys(NATS).filter(alive)){const cells=OWN.filter(x=>x===n).length,tr=R.tres[n]||0,cap=capCell(n),cnt={};
+ for(const n of only||Object.keys(NATS).filter(alive)){const cells=OWN.filter(x=>x===n).length,tr=R.tres[n]||0,cap=capCell(n),cnt={};
   const sq=(t,c)=>{cnt[t]=(cnt[t]||0)+1;R.F.push({id:'f'+uidS(),t:'squad',tier:t,nat:n,cell:c,n:ord(cnt[t])+' '+TIERN[t],men:Array.from({length:8},()=>man(n,t))})};
   const seats=Object.values(R.prov).filter(p=>p.nat===n&&p.cc!==cap).map(p=>p.cc),foes=Object.keys(NATS).filter(o=>o!==n&&alive(o)&&atWar(n,o)),
    front=D.cells.map((_,i)=>i).filter(i=>OWN[i]===n&&!blocked(i)&&nb[i].some(j=>foes.includes(OWN[j]))),frontSeats=seats.filter(c=>nb[c].some(j=>foes.includes(OWN[j]))||front.some(f=>nb[f].includes(c)));
@@ -670,6 +676,7 @@ Z('.rflags').onclick=e=>{const b=e.target.closest('button');if(!b)return;nation=
 Z('.rname').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
  if(b.classList.contains('rter')){R.terr=R.terr===false;save();natBar();draw();preview()}
  else if(b.classList.contains('rfal')){R.fallenOn=!R.fallenOn;save();list2();draw()}
+ else if(b.classList.contains('rres')){restore(nation);natBar();list2();cards();topBar();draw()}
  else if(b.classList.contains('rsw')){const P=Z('.rpick');P.hidden=!P.hidden;if(!P.hidden)P.innerHTML=NCOL.map(c=>`<button data-c="${c}" style="background:${c}" class="${c===NATS[nation].c?'on':''}"></button>`).join('')}
 });
 Z('.rstat').onclick=e=>{const b=e.target.closest('button');if(!b)return;vf=vf===b.dataset.v?null:b.dataset.v;natBar();draw()};
@@ -754,7 +761,7 @@ function endTurn(){const n=R.cur,pay={};if(alive(n)){const g=incomeOf(n);R.tres[
 
 function natBar(){Z('.rflags').innerHTML=`<button data-n="all" class="tb all${nation==='all'?' on':''}"><span></span>All nations</button>`+Object.keys(NATS).map(n=>`<button data-n="${n}" class="tb${nation===n?' on':''}" title="${disp(n)}"><span></span><em>${disp(n)}</em></button>`).join('');Z('.rflags').querySelectorAll('.tb:not(.all) span').forEach(sp=>sp.append(embCanvas(sp.parentNode.dataset.n,22/33)));
  const fs=R.F.filter(f=>nation==='all'||f.nat===nation),ps=R.PP.filter(p=>!p.dead&&(nation==='all'||p.nat===nation)),gold=treasury(nation);
- const H=Z('.rname'),tools=`<span class="hb">${nation==='all'?'':`<button class="sq rsw" style="background:${NATS[nation].c}"></button>`}<button class="sq rter${R.terr!==false?' on':''}">⚑</button><button class="sq rfal${R.fallenOn?' on':''}">${SKULL}</button></span>`;
+ const H=Z('.rname'),tools=`<span class="hb">${nation==='all'?'':`<button class="sq rsw" style="background:${NATS[nation].c}"></button>`}<button class="sq rter${R.terr!==false?' on':''}">⚑</button><button class="sq rfal${R.fallenOn?' on':''}">${SKULL}</button>${nation!=='all'&&!alive(nation)?'<button class="sq rres" title="Restore">↺</button>':''}</span>`;
  if(nation==='all'){H.innerHTML=`<div class="rnm"><b>All nations</b></div>`+tools;Z('.rpick').hidden=true}else{const o=NATS[nation];H.innerHTML=`<span class="rfl"></span><div class="rnm"><b>${disp(nation)}</b><small>${o.pp?o.pp+' · ':''}${o.seat}</small></div>`+tools;
   const fl=embCanvas(nation,32/33);fl.onclick=()=>embEdit(nation);H.querySelector('.rfl').append(fl);
   const nb2=H.querySelector('.rnm b');nb2.ondblclick=()=>{const t=mk('input','rn');t.value=disp(nation);nb2.replaceWith(t);t.focus();t.select();const done=()=>{const v=t.value.trim();if(v){R.names[nation]=v;NATS[nation].n=v;LBL=null;save()}natBar();draw()};t.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')done();if(e.key==='Escape')natBar()};t.onblur=done}}
@@ -832,8 +839,8 @@ cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  if(SBX){SBX.x=x;SBX.y=y;draw();return}
  if(painting){const i=near(S2W(x,y)),L=RB.cells;if(i!==L[L.length-1]&&vis[i]>=.5&&land(D.cells[i])){if(RB.g==='erase'){L.push(i);eraseRoad(i)}else for(const j of linkCells(L[L.length-1],i))L.push(j)}draw();return}
  if(tiling){tileAt(x,y);return}
- if(dragF){moved=Math.max(moved+Math.abs(e.movementX)+Math.abs(e.movementY),Math.hypot(x-dragF.x,y-dragF.y));dragF.mx=x;dragF.my=y;if(moved>6)dragF.on=true;if(dragF.on){const h=near(S2W(x,y));hov=blocked(h)?-1:h;draw()}return}
- if(pan){moved=Math.max(moved+Math.abs(e.movementX)+Math.abs(e.movementY),Math.hypot(x-pan.x,y-pan.y));view.x=pan.vx+x-pan.x;view.y=pan.vy+y-pan.y;draw();return}
+ if(dragF){moved=Math.max(moved,Math.hypot(x-dragF.x,y-dragF.y));dragF.mx=x;dragF.my=y;if(moved>6)dragF.on=true;if(dragF.on){const h=near(S2W(x,y));hov=blocked(h)?-1:h;draw()}return}
+ if(pan){moved=Math.max(moved,Math.hypot(x-pan.x,y-pan.y));view.x=pan.vx+x-pan.x;view.y=pan.vy+y-pan.y;draw();return}
  const hf=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),hg=!hf&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),ht=hf?hf.id:hg?stackOf(hg)[0].id:null;
  if(ht!==hovT){hovT=ht;cv.style.cursor=ht?'pointer':'';draw()}
  if(ht){const f=R.F.find(f=>f.id===ht);TIP.innerHTML=hg?`${placeOf(hg.cell)} <span>· ${disp(hg.nat)} ${stackOf(hg).reduce((a,f)=>a+soldiers(f),0)}</span>`:`${f.n} <span>· ${fallen(f)?(f.wreck?'Wreck':'Fallen'):f.t==='vehicle'?'Vehicle':f.t==='unit'?f.men[0].role:soldiers(f)+' men'}</span>`;if(!FREE&&f.nat===R.cur&&!fallen(f))TIP.insertAdjacentHTML('beforeend',` <span>· ${mvOf(f)}/${MOVES(f)}</span>`);TIP.style.display='block';if(hov!==-1){hov=-1;draw()}return}
@@ -981,5 +988,6 @@ setInterval(psg,400);
 setTimeout(()=>{open();fitAll();draw();preview()},0);
 // first load of this version: the test region gets its forces
 if(R.popV!==2){R.popV=2;populate()}
+if(!R.restV){R.restV=1;for(const n in R.fallen||{})restore(n);save()}
 window.REGION={toks:()=>bodies.filter(b=>b.type==='token').map(b=>[b.name,b.unit,!!b.rid,b.nat,lookOf(b)]),mv:(id,c)=>moveF(R.F.find(f=>f.id===id),c),tile:t=>terTile(t),dbg:()=>({SL:seaLabels(),wc:R.wc,seas:R.seas,c:Object.keys(R.wc).map(k=>[+k,D.cells[k].h,D.cells[k].c,CEN[k]])}),ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=Math.min(KMAX,k);k=view.k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=migrate(v);R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
 })();
