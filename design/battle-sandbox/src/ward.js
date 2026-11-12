@@ -200,21 +200,21 @@ function grid(n,sp,cond=4){const S=P[sp.alt?TAG[n].alt+(sp.dv!=null&&TAG[TAG[n].
 const lvl=(n,sp)=>{const T=TAG[n]||{};return sp&&sp.good?4:T.lvl||4};
 // ---- generated wardrobes: a nation without uniforms of its own wears the Imperial bodies in its own cloth, pattern and helmets
 // patterns are mirrored about the centre line; 'lum' keeps a body's own design, light parts in one colour and dark in the other
-const ax=x=>Math.abs(x),c2=(x,y)=>(Math.floor((ax(x)+1)/2)+Math.floor((y+32)/2))%2===0;
-Object.assign(PAT,{plain:()=>false,pallet:(x,y)=>ax(x)<=1,pallet3:(x,y)=>ax(x)<=2,pallets:(x,y)=>ax(x)>=2&&ax(x)<=3,vstripe:(x,y)=>Math.floor((ax(x)+1)/3)%2===0,vfine:(x,y)=>Math.floor((ax(x)+1)/2)%2===0,
+const ax=x=>Math.abs(x),bx=x=>ax(x)<=1?0:Math.floor((ax(x)+2)/2),c2=(x,y)=>(bx(x)+Math.floor((y+32)/2))%2===0;
+Object.assign(PAT,{plain:()=>false,pallet:(x,y)=>ax(x)<=1,pallet3:(x,y)=>ax(x)<=2,pallets:(x,y)=>ax(x)>=2&&ax(x)<=3,vstripe:(x,y)=>Math.floor((ax(x)+1)/3)%2===0,vfine:(x,y)=>bx(x)%2===0,quarterly:(x,y)=>(x<=0)!==(y<0),
  vcheck:c2,bars:(x,y)=>Math.floor((y+31)/3)%2===0,fess:(x,y)=>ax(y-1)<=1,cross:(x,y)=>ax(x)<=1||ax(y-1)<=1,bordure:(x,y)=>Math.hypot(x,y)>=6.6,palebord:(x,y)=>ax(x)<=1||Math.hypot(x,y)>=6.6,chief:(x,y)=>y<=-4,checkchief:(x,y)=>y<=-3?c2(x,y):ax(x)<=1});
 // helmets seen from above, front at the top: o rim, d dark, m metal, l light, h highlight, x slit; A a nation cloth, B b second cloth
 const HL={
- dome:['','','....oo','...omm','..omlh','..omll','..ommm','...omm','....oo'],
+ dome:['','...ooo','..ommm','.omlll','.omllh','.omlll','.ommll','..ommm','...ooo'],
  ribbed:['','','....ox','...omx','..omlx','..xxxx','..omlx','...omx','....ox'],
- kettle:['','...ooo','..olll','.olldd','.oldmh','.oldml','.oldmm','.olldd','..olll','...ooo'],
+ kettle:['...ooo','..olll','.olldd','.oldmm','olldml','oldmlh','olldml','.oldmm','.olldd','..olll','...ooo'],
  great:['','','..oooo','..ommm','..xxxx','..omlx','..omlh','..ommm','..oooo'],
  crest:['','.....A','....oA','...omA','..omlA','..omlA','..ommA','...omA','....oA','.....a'],
- nasal:['','.....o','....om','...oml','..omlh','..omll','..ommm','...omm','....oo'],
+ nasal:['.....o','...oom','..ommm','.omlll','.omllh','.omlll','.ommll','..ommm','...ooo'],
  conical:['','','....od','...odm','..odml','..odmh','..odml','...odm','....od'],
- comb:['','','....oh','...omh','..omlh','..omlh','..omlh','...omh','....oh'],
- kettlecomb:['','...ooo','..olll','.olldh','.oldmh','.oldmh','.oldmh','.olldh','..olll','...ooo'],
- visor:['.....o','....om','...oml','..omll','..xxxx','..omlh','..omll','..ommm','...omm','....oo'],
+ comb:['','...ooh','..omdh','.omldh','.omldh','.omldh','.ommdh','..omdh','...ooh'],
+ kettlecomb:['...ooo','..olll','.olldh','.olddh','olldmh','oldmdh','olldmh','.olddh','.olldh','..olll','...ooo'],
+ visor:['.....o','....om','...oml','..omll','.omlll','.omllh','.omlll','.ommll','..ommm','...ooo'],
  bucket:['','','..oooo','..ommm','..xxxx','..mxmx','..omlh','..ommm','..oooo'],
  mail:['','','...odm','..odmd','..dmxx','..mdmd','..dmdm','..odmd','...odm'],
  circlet:['','','....oo','...oAA','..oAml','..oAmh','..oAml','...oAA','....oo'],
@@ -222,18 +222,31 @@ const HL={
  cheek:['','','....oo','...omm','..omlh','.domll','.dommm','.dd.om','....oo'],
  crown:['','','..oBBB','..Bmmm','..Bmlh','..Bmll','..Bmmm','..oBBB'],
  plume:['','','....oo','...omm','..omlh','..omll','..ommm','...oAA','...AaA','....AA','.....a'],
- sallet:['','','....oo','...oml','..omlh','..omll','..ommm','..ommm','...omm','...omm','....oo'],
+ sallet:['','...ooo','..ommm','.omlll','.omllh','.omlll','.ommll','.ommmm','..ommm','..ommm','...ooo'],
  cross:['','','..oooo','..ommx','..xxxx','..omlx','..omlh','..ommm','..oooo'],
  coif:['','','...aAA','..aAAA','..Aoom','..Aomh','..Aomm','..aAAA','...aAA'],
  barbute:['','','....ox','...omx','..oxxx','..omlh','..omll','..ommm','...omm','....oo'],
  morion:['.....o','....om','...oml','..omlh','.ommlh','.omdlh','.ommlh','..omlh','...oml','....om','.....o'],
  bascinet:['.....o','....om','...omm','..omll','..oxxx','..omlh','..omll','..ommm','...omm','....oo'],
  plumed:['','','....oo','...oml','..omlh','..omll','..omBB','...BBB','...BbB','....Bb','.....B']};
+const CL={
+ round:['','...kkk','..kKKg','.kKKgG','.kKgGG','.kKKgg','.kKKKK','..kKKK','...kkk'],
+ flat:['','..kkkk','.kKKKg','.kKggG','.kKgGG','.kKggg','.kKKKK','.kKKKK','..kkkk'],
+ peaked:['...kkk','..kKKK','..kkkk','.kKKgG','.kKgGG','.kKKgg','.kKKKK','..kKKK','...kkk'],
+ brimmed:['...kkk','..kKKK','.kKkkk','.kKkgG','kKkgGG','kKkggg','.kKkKK','.kKkkk','..kKKK','...kkk'],
+ beret:['','','.kkkkk','kKKKgg','kKKgGG','kKKKgg','.kKKKK','..kkkk'],
+ tall:['....kk','...kKg','..kKgG','..kKgG','.kKKgG','.kKKgg','.kKKKK','..kKKK','...kkk'],
+ crested:['.....k','...kkG','..kKKG','.kKKgG','.kKKgG','.kKKgG','.kKKKG','..kKKG','...kkG'],
+ rolled:['','...kkk','..kggg','.kgKKK','.kgKgG','.kgKKg','.kgKKK','..kggg','...kkk'],
+ hood:['','...kkk','..kKKg','.kKKgG','.kKgGG','.kKKgg','.kKKKK','.kKKKK','kKKKKK','kKKKKK','.kkkkk'],
+ flaps:['','...kkk','..kKKg','.kKKgG','kKKgGG','kKKKgg','kKKKKK','kk.kKK','...kkk']};
+for(const k in CL)HL['cap_'+k]=CL[k];
 const HELMS={};for(const k in HL)HELMS[k]=HL[k].map(r=>r?r.padEnd(6,'.').slice(0,6)+[...r.padEnd(6,'.').slice(0,5)].reverse().join(''):'');
-const HSH={o:.5,d:.72,m:1,l:1.2,h:1.42,x:.26},HK=[[34,32,30],[30,28,27]];
-function helm(S,name,mt,A,B){const T=HELMS[name];if(!T)return;if(!S.ml[mt])S.ml[mt]=S.ml.iron||S.ml.steel||110;const g0=S.ml[mt];
+const HSH={o:.5,d:.72,m:1,l:1.2,h:1.42,x:.26},HK=[[34,32,30],[30,28,27]],CAPC={k:[14,13,15],K:[36,35,40],g:[66,64,74],G:[112,110,122]};
+function helm(S,name,mt,A,B){const T=HELMS[name];if(!T)return;if(!S.ml[mt])S.ml[mt]=S.ml.iron||S.ml.steel||110;const g0=S.ml[mt];const done=new Set();
  T.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch==='.'||ch===' ')return;const x=CX-5+c,y=CY-5+r;let p=S.at.get(y*W+x);if(!p){p={x,y,i:-1};S.px.push(p);S.at.set(y*W+x,p)}
-  Object.assign(p,{head:true,edge:0,woven:0,pin:0,capped:1,i:-1,lvl:undefined,gh:1});if(HSH[ch]!=null){p.m=mt;const g=g0*HSH[ch];p.c=[g,g,g];p.rim=ch==='o'}else if(ch==='K'){p.m='cloth';p.c=HK[(x+y)%2];p.woven=1;p.rim=false}else{p.m='cloth';const k=ch===ch.toLowerCase()?.8:1,c0=ch.toUpperCase()==='A'?A:B;p.c=c0.map(v=>Math.round(v*k));p.woven=1;p.rim=false}}))}
+  done.add(p);Object.assign(p,{head:true,edge:0,woven:0,pin:0,capped:1,i:-1,lvl:undefined,gh:1});if(HSH[ch]!=null){p.m=mt;const g=g0*HSH[ch];p.c=[g,g,g];p.rim=ch==='o'}else if(CAPC[ch]){p.m='cloth';p.c=CAPC[ch].slice();p.woven=0;p.rim=ch==='k'}else{p.m='cloth';const k=ch===ch.toLowerCase()?.8:1,c0=ch.toUpperCase()==='A'?A:B;p.c=c0.map(v=>Math.round(v*k));p.woven=1;p.rim=false}}));
+ if(name.startsWith('cap_'))for(const p of S.px)if(p.head&&!done.has(p)){const n=[[1,0],[-1,0],[0,1],[0,-1]].map(([a,b])=>S.at.get((p.y+b)*W+p.x+a)).find(q=>q&&!q.head&&q.m==='cloth');Object.assign(p,{head:false,m:'cloth',c:(n?n.c:A).slice(),woven:1,gh:1})}}
 // breastplates seen from above, front at the top: a shade for each body pixel it covers, mirrored about the centre
 const PLATES={
  cuirass:(x,y,d)=>d<=8.6&&1.12-.025*d,
@@ -245,7 +258,7 @@ const PLATES={
  mail:(x,y,d)=>d<=8.6&&((ax(x)+y+40)%2?.92:.8),
  brigandine:(x,y,d)=>d<=8.6&&ax(x)%3===1&&(y+30)%3===1&&1.32,
  gorget:(x,y,d)=>d>3.6&&d<=5.6&&(d>5?.7:1.12),
- plackart:(x,y,d)=>y>=1&&ax(x)<=4&&1.1-.03*d,
+ plackart:(x,y,d)=>y<=-1&&ax(x)<=4&&1.1-.03*d,
  banded:(x,y,d)=>ax(x)>=5&&((y+30)%2?1.08:.82),
  half:(x,y,d)=>y<=1&&d<=8.6&&1.1-.025*d,
  straps:(x,y,d)=>(ax(x)===3&&y>=-1||d>3.6&&d<=5)&&1.1,
@@ -260,7 +273,7 @@ function demo(id,o){const n2='demo · '+id;SPR[n2]=SPR[o.base];TAG[n2]={...TAG[o
  for(const[key,dv]of[[n2,null],[n2+'#0',o.dress?0:null]]){const S=P[key]=parse(n2,dv);if(o.plate)plate(S,o.plate,o.mt||'iron');if(o.helm)helm(S,o.helm,o.mt||'iron',o.A,o.B)}return n2}
 const GBASE={civ:['Astrian Officer|n|iron|b','Civilian'],home:['Astrian Line|n|iron|h','Base'],rifle:['Astrian Line|t|$|h','Riflemen'],guard:['Astrian Guard|f|$|h','Heavy'],cmd:['Astrian Officer|m|$|h','Commando']},
  GNAME={civ:'Townsfolk',home:'Levy',rifle:'Line',guard:'Guard',cmd:'Captain'},
- HDEF={iron:{home:['dome','kettle'],rifle:['dome','ribbed'],guard:['great'],cmd:['crest']},steel:{home:['sallet','barbute'],rifle:['sallet','morion'],guard:['bascinet'],cmd:['plumed']}};
+ HDEF={iron:{home:['dome','kettle'],rifle:['kettlecomb','nasal'],guard:['visor'],cmd:['cap_round']},steel:{home:['sallet','barbute'],rifle:['sallet','morion'],guard:['bascinet'],cmd:['plumed']}};
 function gen(nat,spec){const[A,B,C,Dd]=spec.cols,wv=c=>[c,c.map(v=>Math.round(v*.975))],mt=spec.metal==='steel'?'steel':'iron',sal=spec.style==='saltire',H=spec.helms||(sal?{}:HDEF[mt]);
  const L=(c,pc)=>({c:wv(c),pat:'lum',pc:wv(pc)});
  const DR=sal?{civ:[L(A,C)],home:[L(A,C)],rifle:[L(A,C)],guard:[L(A,C)],cmd:[L(A,C)]}:
