@@ -36,7 +36,7 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
  // capture: blocked while defenders stand, the province flips when they are gone, the governor is taken, income follows the governor
  r=await J(`open();const a='Astria',o='Hoverlands';R.rel[relKey(a,o)]='war';const p=Object.values(R.prov).find(p=>p.nat===o&&p.cc!==capCell(o)),c=p.cc;
   const d={id:'fD',t:'squad',nat:o,cell:c,n:'Def',men:[{id:'mD1',k:'Townsman',n:'D',h:100}]};R.F.push(d);const f=R.F.find(f=>f.nat===a&&f.t==='squad'&&soldiers(f));const inc0=incomeOf(o),incA0=incomeOf(a);
-  moveF(f,c);const held=p.nat===o;d.men[0].dead=1;capture(f);const flip=p.nat===a,gov=R.PP.some(q=>q.cell===c&&q.nat===o),own=p.c.every(x=>OWN[x]===a);
+  moveF(f,c);const held=p.nat===o;for(const x of R.F)if(x.cell===c&&x.nat===o)for(const m of x.men)m.dead=1;capture(f);const flip=p.nat===a,gov=R.PP.some(q=>q.cell===c&&q.nat===o),own=p.c.every(x=>OWN[x]===a);
   return{held,flip,gov,own,ungov:!governed(c),inc:[inc0,incomeOf(o),incA0,incomeOf(a)]}`);
  ok('defenders hold a province',r.held);ok('no defenders: province flips',r.flip&&r.own);ok('their governor is taken',!r.gov);ok('new owner earns nothing until governed',r.ungov&&r.inc[3]===r.inc[2],r.inc.join(' '));ok('loser income drops',r.inc[1]<r.inc[0],r.inc.join(' '));
 
@@ -68,7 +68,7 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
  r=await J(`const n='Hoverlands',c=capCell(n);R.tres[n]=200;R.mp[n]=40;const f=recruit(n,c,'rifle');const out={ok:!!f,men:f&&f.men.length,tres:R.tres[n],mp:R.mp[n],look:f&&f.men[0].k};
   out.poor=(R.tres[n]=10,!recruit(n,c,'guard'));R.tres[n]=500;out.foreign=!recruit(n,capCell('Astria'),'home');const seat=Object.values(R.prov).find(p=>p.nat===n&&p.cc!==c);const hp=holderOf(seat.cc);R.PP=R.PP.filter(q=>q!==hp);out.ungov=!recruit(n,seat.cc,'home');R.PP.push(hp);out.gov=!!recruit(n,seat.cc,'home');
   out.lookOk=!!(WARD.has(out.look)||SPR[out.look]);return out`);
- ok('recruit a Line squad at the capital',r.ok&&r.men===8&&r.tres===160&&r.mp===32,JSON.stringify(r));ok('recruits wear a real look',r.lookOk,r.look);ok('too poor: refused',r.poor);ok('foreign land: refused',r.foreign);ok('ungoverned seat: refused',r.ungov);ok('governed seat: allowed',r.gov);
+ ok('recruit a Line squad at the capital',r.ok&&r.men===8&&r.tres===200-90&&r.mp===32,JSON.stringify(r));ok('recruits wear a real look',r.lookOk,r.look);ok('too poor: refused',r.poor);ok('foreign land: refused',r.foreign);ok('ungoverned seat: refused',r.ungov);ok('governed seat: allowed',r.gov);
  r=await J(`const out={};for(const n of Object.keys(NATS).filter(alive))for(const t of['home','rifle','guard','civ']){const k=lookFor(n,t);if(!(WARD.has(k)||SPR[k]))out[n+':'+t]=k}return out`);ok('every nation has a look for every tier',!Object.keys(r).length,JSON.stringify(r));
  // a civilian walked onto an empty seat of his own becomes its governor; civilians never take land
  r=await J(`const n='Hoverlands',c=capCell(n);R.tres[n]=100;R.mp[n]=10;const seat=Object.values(R.prov).find(p=>p.nat===n&&p.cc!==c),hp=holderOf(seat.cc);R.PP=R.PP.filter(q=>q!==hp);const inc0=incomeOf(n);
@@ -147,6 +147,15 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
 
  await J(`FREE=true;return 1`);
  r=await J(`const f=R.F.find(f=>f.nat==='Hoverlands'&&soldiers(f)&&!inMap(f));R.cur='Astria';const far=[...reach(f).entries()].reduce((a,[c,o])=>Math.max(a,o.d),0);return{far}`);ok('with turn rules off any nation marches without a limit',r.far>2,r.far);
+ // spawner: a nation and a kind, then a click on a cell
+ r=await J(`open();BT=null;drawBT();SELS.clear();setTool('spawn');snat='Lindale'in NATS?'Lindale':'Whitecoast';sk='guard';spawnUI();const c=near([BURG.Templewood.x,BURG.Templewood.y]),[wx,wy]=cellXY(c);view.k=2;view.x=VW/2-wx*2;view.y=VH/2-wy*2;draw();const[x,y]=W2S(wx,wy),b=cv.getBoundingClientRect();return{x:x+b.left,y:y+b.top,c,n0:R.F.length}`);
+ await p.mouse.click(r.x,r.y);q=await J(`const f=R.F[R.F.length-1];setTool('cmd');return{n:R.F.length,cell:f.cell,nat:f.nat,t:f.t,tier:f.tier,men:f.men.length,k:f.men[0].k}`);
+ ok('spawner places a squad where clicked',q.n===r.n0+1&&q.cell===r.c&&q.tier==='guard'&&q.men===8,JSON.stringify(q));
+ r=await J(`SELS.clear();const b=cv.getBoundingClientRect();return{x:b.left+VW/2,y:b.top+VH/2,vx:view.x}`);await p.mouse.move(r.x,r.y);await p.mouse.down({button:'right'});await p.mouse.move(r.x+90,r.y,{steps:5});await p.mouse.up({button:'right'});
+ q=await J(`return{vx:view.x}`);ok('right drag pans with nothing selected',Math.abs(q.vx-r.vx-90)<2,(q.vx-r.vx).toFixed(0));
+ r=await J(`const a='Astria',o='Hoverlands';R.rel[relKey(a,o)]='war';const f=R.F.find(f=>f.nat===a&&soldiers(f)&&!inMap(f)),c=D.cells.findIndex((x,i)=>OWN[i]===o&&land(x)&&!seatCell(i));const c0=f.cell;f.cell=c;const on=occMap()[c];R.rel[relKey(a,o)]='peace';const off=occMap()[c];f.cell=c0;return{on,off}`);
+ ok('enemy soldiers at war mark a cell occupied',r.on==='Astria'&&!r.off,JSON.stringify(r));
+
  // everything survives a reload
  const before=await J(`save();return{pp:R.PP.length,fallen:R.fallen,own:OWN.filter(x=>x==='Astria').length}`);
  await p.reload();await p.waitForTimeout(2500);

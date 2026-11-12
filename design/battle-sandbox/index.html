@@ -298,6 +298,7 @@ html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:colu
 #sm .rbt .blog{max-height:120px;overflow-y:auto;font-size:15px;color:#9a978e}
 #sm .rbt .sdf button{height:32px;padding:0 12px;font-size:17px}
 </style>
+<style>#sm .rzs .tb canvas{width:24px!important;height:auto!important;max-height:22px;image-rendering:pixelated;flex:none}#sm .rzs .rsn .tb canvas{width:22px!important;height:22px!important}</style>
 <script>
 const T=16;
 const hh=(a,b,s)=>{const v=Math.sin(a*127.1+b*311.7+s*17.3)*43758.5453;return v-Math.floor(v)};
@@ -4637,7 +4638,7 @@ function coast(){if(!COAST){COAST=[];for(const e of E.values()){if(e.c.length<2)
 function ground(){const k=view.k;g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle=css(VOID);g.fillRect(0,0,VW,VH);
  g.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);g.lineJoin='round';g.lineCap='round';
  const T=terrain();g.imageSmoothingEnabled=k<1.2;g.drawImage(T.cv,T.x0,T.y0);g.imageSmoothingEnabled=true;
- if(R.terr!==false)territory(k);else D.cells.forEach((c,i)=>{if(!land(c)||!ST[c.s]||vis[i]<.05)return;poly(c.p);g.fillStyle=css(hex(ST[c.s].c),.09*vis[i]);g.fill()});
+ if(R.terr!==false){territory(k);occupied(k)}else D.cells.forEach((c,i)=>{if(!land(c)||!ST[c.s]||vis[i]<.05)return;poly(c.p);g.fillStyle=css(hex(ST[c.s].c),.09*vis[i]);g.fill()});
  if(R.terr===false)for(const e of E.values()){if(e.c.length<2)continue;const[a,b]=e.c.map(i=>D.cells[i]),v=Math.min(vis[e.c[0]],vis[e.c[1]]);if(v<=.05||!land(a)||!land(b)||a.s===b.s||!(ST[a.s]||ST[b.s]))continue;g.beginPath();g.moveTo(e.a[0],e.a[1]);g.lineTo(e.b[0],e.b[1]);g.setLineDash([3.5/k,2.5/k]);g.strokeStyle=`rgba(70,40,40,${.7*v})`;g.lineWidth=1.4/k;g.stroke();g.setLineDash([])}
  for(const r of D.rivers){if(r.pts.length<2)continue;const v=vis[near(r.pts[r.pts.length>>1])];if(v<=.05)continue;line(r.pts);g.strokeStyle=`rgba(96,138,152,${v})`;g.lineWidth=Math.max(.6,Math.min(3,(r.w||1)*.9))/Math.sqrt(k)*1.2;g.stroke()}
  // far out a road's pixels are under a screen pixel: drawn as fine lines in the same colours until they can be seen
@@ -4649,6 +4650,12 @@ function provLines(k){if(k<.9)return;g.save();g.lineCap='round';const land0=[128
 // hovered or clicked seat: its province (or nation) stands out, the rest dim
 let HLh=null,HLpin=null;const hlOf=b=>{const c=near([b.x,b.y]);return b.cap?{nat:OWN[c]}:b.group==='village'&&PROV[c]!=null?{prov:PROV[c]}:null},hlEq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const burgAt=(x,y)=>BURGPT.find(o=>o.rad&&Math.hypot(x-o.X,y-o.Y)<Math.max(9,o.rad+3));
+// occupied ground, as Azgaar draws zones: diagonal hatching in the colour of the enemy standing on it
+const occMap=()=>{const occ={};for(const f of R.F){if(!soldiers(f)||inMap(f)||fallen(f))continue;const o=OWN[f.cell];if(o&&o!==f.nat&&atWar(o,f.nat))occ[f.cell]=f.nat}return occ};
+function occupied(k){const occ=occMap();
+ for(const c in occ){const i=+c,v=vis[i];if(v<.05)continue;const P=D.cells[i].p,xs=P.map(q=>q[0]),ys=P.map(q=>q[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),st=7/k,col=css(hex(ownC(occ[c])),.6*v);
+  g.save();poly(P);g.clip();g.beginPath();for(let t=x0+y0-(y1-y0);t<x1+y1;t+=st){g.moveTo(t-y0,y0);g.lineTo(t-y1,y1)}g.strokeStyle=col;g.lineWidth=1.3/k;g.stroke();g.restore();
+  poly(P);g.setLineDash([4/k,3/k]);g.strokeStyle=css(hex(ownC(occ[c])),.85*v);g.lineWidth=1.4/k;g.stroke();g.setLineDash([])}}
 function territory(k){provLines(k);const H=HLh||HLpin;D.cells.forEach((c,i)=>{const o=OWN[i];if(!o||vis[i]<.05)return;poly(c.p);g.fillStyle=css(hex(ownC(o)),.13*vis[i]);g.fill();
  if(H){const on=H.nat?o===H.nat:PROV[i]===H.prov;if(!on){g.fillStyle=`rgba(28,22,18,${.17*vis[i]})`;g.fill()}else if(H.prov!=null){g.fillStyle=css(hex(ownC(o)),.14*vis[i]);g.fill()}}});
  for(const e of E.values()){if(e.c.length<2)continue;const[i,j]=e.c,oa=OWN[i],ob=OWN[j];if(oa===ob)continue;const v=Math.min(vis[i],vis[j]);if(v<=.05)continue;
@@ -5097,14 +5104,38 @@ const num=n=>n>=1e4?(n/1e3).toFixed(n>=1e5?0:1)+'k':n.toLocaleString('en');let I
 const EYE=o=>`<svg width="16" height="12" viewBox="0 0 16 12"><path d="M1 6c2-4 12-4 14 0-2 4-12 4-14 0z" fill="none" stroke="currentColor" stroke-width="1.5"/>${o?'<circle cx="8" cy="6" r="2.2" fill="currentColor"/>':'<path d="M2 11L14 1" stroke="currentColor" stroke-width="1.5"/>'}</svg>`;
 const LOC='<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 0v3M7 11v3M0 7h3M11 7h3" stroke="currentColor" stroke-width="1.5"/></svg>';
 const SKULL='<svg width="14" height="14" viewBox="0 0 7 7" shape-rendering="crispEdges"><path d="M1 0h5v1h1v3h-1v1h-1v2h-3v-2h-1v-1h-1v-3h1z" fill="currentColor"/><path d="M2 2h1v1h-1zM4 2h1v1h-1z" fill="#1e1e1e"/></svg>';
-ZR.innerHTML=`<div class="zone rzt"><div class="tgrid"></div></div><div class="zone rzp" hidden><div class="ch"></div><div class="tgrid rrd"></div></div><div class="zone rzi" hidden><div class="ch"></div><div class="rtabs r3"><button data-w="0">Nations</button><button data-w="1">Land</button><button data-w="2">Water</button></div><div class="rtil"></div><div class="tgrid rpn"></div><div class="rcap"></div></div><div class="zone rzn"><div class="tgrid rflags"></div></div><div class="zone rzd"><div class="ch rname"></div><div class="rpick" hidden></div><div class="rstat"></div><div class="rtabs"><button data-t="mil">Military</button><button data-t="ppl">People</button><button data-t="dip">Diplomacy</button></div><input class="rq" placeholder="Search"><div class="rchips"></div><div class="rsels"><select class="rpl"></select><select class="rso"><option value="name">Name</option><option value="size">Size</option><option value="hp">Health</option></select></div><div class="rlist"></div></div>`;
+ZR.innerHTML=`<div class="zone rzt"><div class="tgrid"></div></div><div class="zone rzp" hidden><div class="ch"></div><div class="tgrid rrd"></div></div><div class="zone rzs" hidden><div class="ch"></div><div class="tgrid rsn"></div><div class="tgrid rsu"></div></div><div class="zone rzi" hidden><div class="ch"></div><div class="rtabs r3"><button data-w="0">Nations</button><button data-w="1">Land</button><button data-w="2">Water</button></div><div class="rtil"></div><div class="tgrid rpn"></div><div class="rcap"></div></div><div class="zone rzn"><div class="tgrid rflags"></div></div><div class="zone rzd"><div class="ch rname"></div><div class="rpick" hidden></div><div class="rstat"></div><div class="rtabs"><button data-t="mil">Military</button><button data-t="ppl">People</button><button data-t="dip">Diplomacy</button></div><input class="rq" placeholder="Search"><div class="rchips"></div><div class="rsels"><select class="rpl"></select><select class="rso"><option value="name">Name</option><option value="size">Size</option><option value="hp">Health</option></select></div><div class="rlist"></div></div>`;
 const Z=s=>ZR.querySelector(s);
 const NCOL=['#1e40ff','#e8101e','#ffe600','#00c853','#ff7a00','#e0119d','#00d4ff','#7b2cff','#a8ff00','#b0002a','#f2f2f2','#1a1a1a','#6b7a3a','#4a5d7e','#9c4a2b','#b8a272','#3d7a74','#6e4a6b','#4f6b45','#7d8a96','#b08532','#8a3b36','#2c3a57','#8f8578'];
 let painting=0,tiling=0,rtool='cmd',pnat=null,rErase=false,tileT='plains',tileW=1,wmode='ter',rdT='roads',RB=null;
 // the region's own tools, laid out like the cell maps': Command for nations and forces, Tiler for the ground, Painter for borders
-const RTOOLS=[['cmd','hand','Command','Esc'],['tile','tile','Tiler','N'],['paint','paint','Painter','P']];// Tiler: who holds a cell and what it is; Painter: roads
+const RTOOLS=[['cmd','hand','Command','Esc'],['spawn','spawn','Spawner','S'],['tile','tile','Tiler','N'],['paint','paint','Painter','P']];// Tiler: who holds a cell and what it is; Painter: roads
 {const G=Z('.rzt .tgrid');for(const[k,ic,n,key]of RTOOLS){const b=mk('button','tb');b.dataset.k=k==='cmd'?'hand':k;b.dataset.t=k;const t=mk('span',null,n);t.append(mk('i','kb','('+key+')'));b.append(uicon(ic),t);b.onclick=()=>setTool(k);if(k==='cmd')b.classList.add('on');G.append(b)}}
-function setTool(k){rtool=k;painting=tiling=0;for(const b of Z('.rzt .tgrid').children)b.classList.toggle('on',b.dataset.t===k);Z('.rzp').hidden=k!=='paint';Z('.rzi').hidden=k!=='tile';Z('.rzn').hidden=Z('.rzd').hidden=k!=='cmd';cv.style.cursor=k==='cmd'?'':'crosshair';if(k==='paint')painterUI();if(k==='tile')tilerUI();draw()}
+function setTool(k){rtool=k;painting=tiling=0;for(const b of Z('.rzt .tgrid').children)b.classList.toggle('on',b.dataset.t===k);Z('.rzp').hidden=k!=='paint';Z('.rzi').hidden=k!=='tile';Z('.rzs').hidden=k!=='spawn';Z('.rzn').hidden=Z('.rzd').hidden=k!=='cmd';cv.style.cursor=k==='cmd'?'':'crosshair';if(k==='paint')painterUI();if(k==='tile')tilerUI();if(k==='spawn')spawnUI();draw()}
+// Spawner: a nation, then what to place; each click on a cell puts one there
+let snat=null,sk='rifle';const SPK=[['home','Levy'],['rifle','Line'],['guard','Guard'],['cmd','Captain'],['civ','Townsfolk'],['car','Vehicle']];
+function spawnUI(){const P=Z('.rzs'),H=P.querySelector('.ch');H.innerHTML='';H.append(uicon('spawn'),mk('span',null,'Spawner'));if(!alive(snat))snat=R.cur&&alive(R.cur)?R.cur:Object.keys(NATS).find(alive);
+ const N=P.querySelector('.rsn');N.innerHTML='';for(const n of Object.keys(NATS).filter(alive)){const b=mk('button','tb'+(n===snat?' on':''));b.append(embCanvas(n,1),mk('span',null,disp(n)));b.onclick=()=>{snat=n;spawnUI()};N.append(b)}
+ const U=P.querySelector('.rsu');U.innerHTML='';for(const[k,n]of SPK){const b=mk('button','tb'+(k===sk?' on':''));b.append(sprBig(k==='car'?'car':lookFor(snat,k==='cmd'?'cmd':k),1),mk('span',null,n));b.onclick=()=>{sk=k;spawnUI()};U.append(b)}}
+function spawnAt(c){const n=snat;if(!alive(n)||vis[c]<.5||!land(D.cells[c]))return NOPE();R.nid=R.nid||9999;const man=t=>({id:'m'+(R.nid++),k:lookFor(n,t),n:NAMES[(R.nid*7)%NAMES.length],role:TIERN[t]||'Captain',h:100});let f;
+ if(sk==='car')f={id:'f'+uidS(),t:'vehicle',nat:n,cell:c,n:'Wagon '+(R.F.filter(x=>x.t==='vehicle'&&x.nat===n).length+1),k:'car',hull:100,men:[man('rifle'),man('rifle')],cargo:[['crate',2]],wreck:false};
+ else if(sk==='cmd'||sk==='civ'){const m=man(sk);if(sk==='cmd')m.role='Captain';f={id:'f'+uidS(),t:'unit',nat:n,cell:c,n:m.n,men:[m],...(sk==='civ'?{civ:1}:{})}}
+ else{const k=R.F.filter(x=>x.nat===n&&x.tier===sk).length+1,o=k+(k%10===1&&k!==11?'st':k%10===2&&k!==12?'nd':k%10===3&&k!==13?'rd':'th');f={id:'f'+uidS(),t:'squad',tier:sk,nat:n,cell:c,n:o+' '+TIERN[sk],men:Array.from({length:8},()=>man(sk))}}
+ R.F.push(f);if(f.civ)seatCiv(f);sndT=0;edSnd('soft',1.1,.7);layout();save();list2();draw()}
+// the test region's forces, sized to each nation's land and purse, and set against its enemies
+function populate(){const keep=R.F.filter(f=>inMap(f));R.F=keep;R.nid=R.nid||9999;const man=(n,t)=>({id:'m'+(R.nid++),k:lookFor(n,t),n:NAMES[(R.nid*7)%NAMES.length],role:TIERN[t]||'Captain',h:100});
+ const ord=k=>k+(k%10===1&&k!==11?'st':k%10===2&&k!==12?'nd':k%10===3&&k!==13?'rd':'th');
+ for(const n of Object.keys(NATS).filter(alive)){const cells=OWN.filter(x=>x===n).length,tr=R.tres[n]||0,cap=capCell(n),cnt={};
+  const sq=(t,c)=>{cnt[t]=(cnt[t]||0)+1;R.F.push({id:'f'+uidS(),t:'squad',tier:t,nat:n,cell:c,n:ord(cnt[t])+' '+TIERN[t],men:Array.from({length:8},()=>man(n,t))})};
+  const seats=Object.values(R.prov).filter(p=>p.nat===n&&p.cc!==cap).map(p=>p.cc),foes=Object.keys(NATS).filter(o=>o!==n&&alive(o)&&atWar(n,o)),
+   front=D.cells.map((_,i)=>i).filter(i=>OWN[i]===n&&!blocked(i)&&nb[i].some(j=>foes.includes(OWN[j]))),frontSeats=seats.filter(c=>nb[c].some(j=>foes.includes(OWN[j]))||front.some(f=>nb[f].includes(c)));
+  const total=Math.max(3,Math.min(12,Math.round(2+cells/30+tr/110))),guard=tr>=300?2:1,line=Math.round((total-guard)*.45),levy=total-guard-line;
+  for(let i=0;i<guard;i++)sq('guard',cap);sq('rifle',cap);
+  const L=[...frontSeats,...seats.filter(c=>!frontSeats.includes(c))];for(let i=0;i<levy;i++)sq('home',L.length?L[i%L.length]:cap);
+  const F2=front.length?front:L.length?L:[cap];for(let i=1;i<line;i++)sq('rifle',F2[(i*7)%F2.length]);
+  const capt=Math.max(1,Math.round(total/4));for(let i=0;i<capt;i++){const m=man(n,'cmd');m.role='Captain';R.F.push({id:'f'+uidS(),t:'unit',nat:n,cell:i?F2[(i*3)%F2.length]:cap,n:m.n,men:[m]})}
+  const nv=NATS[n].gn==='Imperium'?2:n==='Portsbridge'?1:n==='Hoverlands'&&tr>=250?1:0;for(let i=0;i<nv;i++)R.F.push({id:'f'+uidS(),t:'vehicle',nat:n,cell:cap,n:'Wagon '+(i+1),k:'car',hull:100,men:[man(n,'rifle'),man(n,'rifle')],cargo:[['crate',2]],wreck:false})}
+ layout();save()}
 let pwat=null;
 const ROADT=[['roads','Main road'],['trails','Secondary road']];let rdDel=false;const RUN=[],RRE=[];
 function painterUI(){const P=Z('.rzp'),H=P.querySelector('.ch');H.innerHTML='';H.append(uicon('paint'),mk('span',null,'Painter'));const L=P.querySelector('.rrd');L.innerHTML='';
@@ -5156,7 +5187,7 @@ Z('.rpl').onchange=e=>{place=e.target.value;if(place!=='all'){openP.add(+place);
 Z('.rq').oninput=e=>{q=e.target.value.trim().toLowerCase();list2();draw()};
 const governed=c=>{const p=R.prov[PROV[c]];return!!p&&!!holderOf(p.cc)},incomeOf=n=>D.burgs.reduce((a,b)=>{const c=near([b.x,b.y]),o=OWN[c];return o&&(n==='all'||o===n)&&governed(c)?a+INCOME[STYPE(b)]:a},0);
 // ---- economy: Solari, manpower and rounds per nation; every nation is paid at the end of each turn
-const PRICE={home:16,rifle:40,guard:96,civ:10},PMEN={home:8,rifle:8,guard:8,civ:1},TIERN={home:'Conscripts',rifle:'Line',guard:'Guard',civ:'Civilian'},CRATE=20,CRATEP=2,
+const PRICE={home:40,rifle:90,guard:180,civ:25},PMEN={home:8,rifle:8,guard:8,civ:1},TIERN={home:'Conscripts',rifle:'Line',guard:'Guard',civ:'Civilian'},CRATE=20,CRATEP=2,
  LFB={civ:'Townsman',home:'Conscript',rifle:'Musketeer',guard:'Praetorian'},lookFor=(n,t)=>{const L=LOOK[NATS[n]&&NATS[n].gn||n];return L&&L[t]||LFB[t]};
 const alive=n=>NATS[n]&&!(R.fallen&&R.fallen[n]);
 const mpGain=n=>D.burgs.reduce((a,b)=>{const c=near([b.x,b.y]);return OWN[c]===n&&governed(c)?a+MPG[STYPE(b)]:a},0),mpCap=n=>3*mpGain(n);
@@ -5296,8 +5327,10 @@ function blocked(i){if(!BLOCK){const R0=new Set(D.burgs.map(b=>near([b.x,b.y])))
  BLOCK=D.cells.map((c,j)=>!land(c)||(c.f||c.h>=58)&&!R0.has(j))}return BLOCK[i]}
 cv.addEventListener('pointerdown',e=>{const[x,y]=xy(e);moved=0;cv.setPointerCapture(e.pointerId);
  if(rtool==='paint'){const i=near(S2W(x,y));if(vis[i]<.5||!land(D.cells[i]))return;painting=1;RUN.push(JSON.stringify(R.rd));if(RUN.length>60)RUN.shift();RRE.length=0;RB={g:e.button===2||rdDel?'erase':rdT,cells:[i]};if(RB.g==='erase')eraseRoad(i);draw();return}
+ if(rtool==='spawn'){if(e.button===0)spawnAt(near(S2W(x,y)));return}
  if(rtool==='tile'){const er=e.button===2||rErase;if(tileW===1&&er)return;if(tileW===2&&wmode==='name'&&!pwat&&!er)return;tiling=er?-1:1;tileAt(x,y);return}
  if(SPC||e.button===1){pan={x,y,vx:view.x,vy:view.y};cv.style.cursor='grabbing';return}
+ if(e.button===2&&!SELS.size){pan={x,y,vx:view.x,vy:view.y,rc:1};moved=0;cv.style.cursor='grabbing';return}
  if(e.button===2){SBX={x0:x,y0:y,x,y,btn:2};return}
  const f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(f){dragF={f,x,y,mx:x,my:y,on:false,many:SELS.has(f.id)&&SELS.size>1};return}
  const G=GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]);if(G){const st=stackOf(G).filter(f=>!fallen(f));if(st.length){dragF={f:st[0],x,y,mx:x,my:y,on:false,many:true,G,st};return}}
@@ -5317,6 +5350,7 @@ cv.addEventListener('pointermove',e=>{const[x,y]=xy(e);
  const isl=land(c)&&Object.values(R.isl).find(o=>o.c.includes(i)),bio=land(c)?(isl?isl.n+' · ':'')+terrainOf(c):R.seas[R.wc[i]]?R.seas[R.wc[i]].n:c.h>=14?'Coastal waters':'Open sea',maps=(R.cm[i]||[]).length;
  TIP.innerHTML=`${placeOf(i)} <span>· ${bio}${ST[c.s]&&land(c)?' · '+ST[c.s].n:''}${nats?' · '+nats:''}${maps?' · '+maps+(maps>1?' maps':' map'):''}</span>`;TIP.style.display='block'});
 cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
+ if(pan&&pan.rc&&moved<5){SBX={x0:pan.x,y0:pan.y,x,y,btn:2};pan=null;cv.style.cursor=''}
  if(SBX){const b=SBX;SBX=null;const tiny=Math.abs(b.x-b.x0)<5&&Math.abs(b.y-b.y0)<5;
   if(tiny&&b.btn===0){clickAt(x,y);return}
   if(tiny){const ff=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R);if(ff&&fallen(ff)){binAt(ff,x,y);draw();return}const mine=R.F.filter(f=>SELS.has(f.id)&&(FREE||f.nat===R.cur));if(mine.length){march(mine,near(S2W(x,y)));return}}
@@ -5332,7 +5366,7 @@ cv.addEventListener('pointerup',e=>{const[x,y]=xy(e);
 function clickAt(x,y){SELS.clear();const i=near(S2W(x,y)),b=burgAt(x,y);HLpin=b?hlOf(b.b):null;if(HLpin&&HLpin.nat&&NATS[HLpin.nat]){nation=HLpin.nat;place='all';rsel=null;selMan=null;openP.clear();openP.add(near([b.b.x,b.b.y]));natBar();list2();cards()}if(!b)draw();if(b)settle(near([b.b.x,b.b.y]));else if(vis[i]>.5){cell=i;rsel=null;selMan=null;list2();cards();preview();draw()}}
 cv.addEventListener('dblclick',e=>{const[x,y]=xy(e),f=R.F.find(m=>m.R&&Math.hypot(x-m.X,y-m.Y)<m.R),G=!f&&GROUPS.find(G=>G.R&&x>=G.R[0]&&x<=G.R[2]&&y>=G.R[1]&&y<=G.R[3]),i=f?f.cell:G?G.cell:near(S2W(x,y));if(vis[i]>.5)settle(i)});
 addEventListener('keydown',e=>{if(OV.hidden||e.target.closest&&e.target.closest('input,textarea'))return;const k=e.key.toLowerCase();
- if((k==='n'||k==='p')&&!e.ctrlKey&&!e.metaKey){e.stopImmediatePropagation();e.preventDefault();setTool(k==='n'?'tile':'paint');return}
+ if((k==='n'||k==='p'||k==='s')&&!e.ctrlKey&&!e.metaKey){e.stopImmediatePropagation();e.preventDefault();setTool(k==='n'?'tile':k==='s'?'spawn':'paint');return}
  if(e.key!=='Escape')return;e.stopImmediatePropagation();e.preventDefault();if(!SDL.hidden)unsettle();else if(rtool!=='cmd')setTool('cmd');else if(rsel||SELS.size){SELS.clear();unpick()}},true);
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 let SPC=false,EDG=null;
@@ -5452,6 +5486,8 @@ function psg(){const c=Object.keys(R.cm).find(k=>R.cm[k].includes(curMap)),other
 setInterval(psg,400);
 // ---- saved games carry the region with them
 setTimeout(()=>{open();fitAll();draw();preview()},0);
+// first load of this version: the test region gets its forces
+if(R.popV!==2){R.popV=2;populate()}
 window.REGION={toks:()=>bodies.filter(b=>b.type==='token').map(b=>[b.name,b.unit,!!b.rid,b.nat,lookOf(b)]),mv:(id,c)=>moveF(R.F.find(f=>f.id===id),c),tile:t=>terTile(t),dbg:()=>({SL:seaLabels(),wc:R.wc,seas:R.seas,c:Object.keys(R.wc).map(k=>[+k,D.cells[k].h,D.cells[k].c,CEN[k]])}),ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=Math.min(KMAX,k);k=view.k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=migrate(v);R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
 })();
 })();
