@@ -230,10 +230,10 @@ const HL={
  bascinet:['.....o','....om','...omm','..omll','..oxxx','..omlh','..omll','..ommm','...omm','....oo'],
  plumed:['','','....oo','...oml','..omlh','..omll','..omBB','...BBB','...BbB','....Bb','.....B']};
 const HELMS={};for(const k in HL)HELMS[k]=HL[k].map(r=>r?r.padEnd(6,'.').slice(0,6)+[...r.padEnd(6,'.').slice(0,5)].reverse().join(''):'');
-const HSH={o:.36,d:.72,m:1,l:1.2,h:1.42,x:.26},HK=[[34,32,30],[30,28,27]];
+const HDET={o:.6,d:.8,m:1,l:1.05,h:1.1,x:.36},HSH={o:.36,d:.72,m:1,l:1.2,h:1.42,x:.26},HK=[[34,32,30],[30,28,27]];
 function helm(S,name,mt,A,B){const T=HELMS[name];if(!T)return;if(!S.ml[mt])S.ml[mt]=S.ml.iron||S.ml.steel||110;const g0=S.ml[mt];const done=new Set();
  T.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch==='.'||ch===' ')return;const x=CX-5+c,y=CY-5+r;let p=S.at.get(y*W+x);if(!p){p={x,y,i:-1};S.px.push(p);S.at.set(y*W+x,p)}
-  done.add(p);Object.assign(p,{head:true,edge:0,woven:0,pin:0,capped:1,i:-1,lvl:undefined,gh:1});if(HSH[ch]!=null){p.m=mt;const g=g0*HSH[ch];p.c=[g,g,g];p.rim=ch==='o'}else{p.m='cloth';const k=ch===ch.toLowerCase()?.8:1,c0=ch.toUpperCase()==='A'?A:B;p.c=c0.map(v=>Math.round(v*k));p.woven=1;p.rim=false}}));
+  done.add(p);Object.assign(p,{head:true,edge:0,woven:0,pin:0,capped:1,i:-1,lvl:undefined,gh:1});if(HSH[ch]!=null){p.m=mt;const tp=HELM.at.get(y*W+x),dx=x-CX,dy=y-CY,L=tp&&MET[tp.m]&&tp.head?lum(tp.c)/HELM.ml[tp.m]:1.12-.05*dy-.012*dx*dx,g=g0*L*HDET[ch];p.c=[g,g,g];p.rim=ch==='o'}else{p.m='cloth';const k=ch===ch.toLowerCase()?.8:1,c0=ch.toUpperCase()==='A'?A:B;p.c=c0.map(v=>Math.round(v*k));p.woven=1;p.rim=false}}));
  for(const p of S.px)if(p.head&&!done.has(p)&&p.m!=='flesh'){const n=[[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]].map(([a,b])=>S.at.get((p.y+b)*W+p.x+a)).find(q=>q&&!q.head&&q.m==='cloth');Object.assign(p,{head:false,m:'cloth',c:(n?n.c:A).slice(),woven:1,gh:1,rim:false})}}
 // even lighting: a metal pixel and its mirror take the same shade, so neither side looks like a lone strip
 function evenMetal(S){for(const p of S.px){if(!MET[p.m]||p.x>=CX||p.head&&!p.gh)continue;const q=S.at.get(p.y*W+2*CX-p.x);if(!q||q.m!==p.m)continue;const c=p.c.map((v,i)=>(v+q.c[i])/2);p.c=c;q.c=c.slice();p.gh=q.gh=1}}
@@ -264,11 +264,11 @@ function demo(id,o){const n2='demo · '+id;SPR[n2]=SPR[o.base];TAG[n2]={...TAG[o
 // each tier stands on its Imperial counterpart, armour and all; the townsfolk on the clerk
 const GBASE={civ:['Imperial Clerk','Civilian'],home:['Astrian Conscript','Base'],rifle:['Astrian Line|t|$|h','Riflemen'],guard:['Astrian Guard|m|$|h','Heavy'],cmd:['Astrian Officer|t|$|h','Commando']},
  GNAME={civ:'Townsfolk',home:'Levy',rifle:'Line',guard:'Guard',cmd:'Captain'};
-const KIT0={home:{helms:['dome','kettle'],dress:[['D','pallet','C'],['D','pallet','B']]},rifle:{helms:['nasal','sallet'],dress:[['A','vstripe','B'],['A','pallets','B']]},
- guard:{helms:['visor'],dress:[['A','vcheck','B'],['A','vcheck','C']]},cmd:{helms:['kettle'],dress:[['A','quarterly','B'],['A','bordure','B']]},civ:{dress:[['D','pallet','C'],['C','pallet','A']]}};
+const CLOTHS=['pallet','pallets','vstripe','vfine','fess','vcheck','quarterly','bordure'],RANDCLOTH=t=>t==='home'||t==='civ'?CLOTHS.flatMap(p=>[['D',p,'C'],['D',p,'B']]):CLOTHS.flatMap(p=>[['A',p,'B'],['A',p,'C']]);
+const KIT0={home:{helms:['dome','kettle'],dress:'any'},rifle:{helms:['nasal','sallet'],dress:'any'},guard:{helms:['visor'],dress:'any'},cmd:{helms:['kettle'],dress:'any'},civ:{dress:'any'}};
 function gen(nat,spec){const[A,B,C,Dd]=spec.cols,CO={A,B,C,D:Dd},wv=c=>[c,c.map(v=>Math.round(v*.975))],mt=spec.metal==='steel'?'steel':'iron',sal=spec.style==='saltire',K=spec.kit||KIT0,out={};
- for(const t in GBASE){const k=nat+' '+GNAME[t],b0=GBASE[t][0].replace('$',mt),b=SPR[b0]?b0:GBASE[t][0].replace('$','iron');if(!SPR[b])continue;
-  const kt=sal?{dress:[['A','lum','C']],helms:t==='cmd'?['kettle']:null}:K[t]||KIT0[t],dr=kt.dress.map(([c,pt,pc])=>({flat:1,c:wv(CO[c]),pat:pt,pc:wv(CO[pc])}));
+ for(const t in GBASE){const k=nat+' '+GNAME[t],kt0=sal?null:K[t]||KIT0[t],bb=kt0&&kt0.base||GBASE[t][0],b0=bb.replace('$',mt),b=SPR[b0]?b0:bb.replace('$','iron');if(!SPR[b])continue;
+  const kt=sal?{dress:[['A','lum','C']],helms:t==='cmd'?['kettle']:null}:K[t]||KIT0[t],dr=(kt.dress==='any'?RANDCLOTH(t):kt.dress).map(([c,pt,pc])=>({flat:1,c:wv(CO[c]),pat:pt,pc:wv(CO[pc])}));
   SPR[k]=SPR[b];TAG[k]={...TAG[b],dresses:dr};CLS[k]=GBASE[t][1];
   const S=[P[k]=parse(k),...dr.map((_,i)=>P[k+'#'+i]=parse(k,i))],hs=kt.helms||[];
   S.forEach((s,i)=>{if(hs.length)helm(s,hs[Math.max(0,i-1)%hs.length],mt,A,B);if(mt==='steel'){if(!s.ml.steel)s.ml.steel=s.ml.iron||120;for(const p of s.px)if(p.m==='iron'){p.c=p.c.map(v=>v*s.ml.steel/(s.ml.iron||s.ml.steel));p.m='steel';p.gh=1}}evenMetal(s);for(const p of s.px){if(p.m!=='cloth'||![[1,0],[-1,0],[0,1],[0,-1]].some(([a,c])=>!s.at.get((p.y+c)*W+p.x+a)))continue;p.c=[22,20,22];p.woven=0;p.gh=1}});out[t]=k}
