@@ -114,7 +114,9 @@ function spawnMap(d){const sl=[];for(const o of d.bodies)try{
  else if(o.t==='c'){const c=container(o.cx,o.cy,[],o.name);if(c)cFill(c,cp(o.inv)||[]);else container(o.cx,o.cy,(cp(o.inv)||[]).filter(Boolean))}
  else if(o.t==='w'&&o.kind==='crate')crate(o.x,o.y,cp(o.inv)||[],o.long)
  else if(o.t==='w'&&WP[o.kind]){const w=weapon(o.kind,o.x,o.y,o.ang||0);for(const f of['ammo','res','amt'])if(o[f]!==undefined)w[f]=o[f];if(o.inv)w.inv=cp(o.inv)}}catch(e){console.warn(e)}
- for(const[s,p]of sl)if(p!==undefined&&sl[p])s.pair=sl[p][0]}
+ for(const[s,p]of sl)if(p!==undefined&&sl[p])s.pair=sl[p][0];
+ // a generated map hangs its doors once, then keeps them as bodies
+ if(d.doors){edSrc=null;for(const[x,y,k,full,lk]of d.doors){const s=smartDoor(k,x,y,full);if(lk)s.locked=true}snapDoors();sills();solDirty=true;d.bodies=serMap().bodies;delete d.doors;saveMods()}}
 
 // modes
 let aiWas=false;const aiBtn=()=>[...bar.children].find(b=>b.textContent==='AI');
@@ -215,7 +217,7 @@ function smartDoor(k,cx,cy,full){const s=srcNow(),w=(x,y)=>isWallK(s[y]&&s[y][x]
  const box=()=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of d.px){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])}return[x0,y0,x1,y1]};
  if(fl){const b0=box();d.rot+=2;orient(d);const b1=box();d.x+=b0[0]-b1[0];d.y+=b0[1]-b1[1];orient(d)}
  // a full-tile leaf sits square in its cell
- if(full){const b=box();d.x+=cx*T+7.5-(b[0]+b[2])/2;d.y+=cy*T+7.5-(b[1]+b[3])/2;orient(d)}return d}
+ if(full){const b=box();d.x=cx*T+7.5-(b[0]+b[2])/2;d.y=cy*T+7.5-(b[1]+b[3])/2;orient(d)}return d}
 // maps saved before doors kept their kind: match the baked colour to the nearest door material so it can be redrawn
 function legacyDoor(o){let r=0,g=0,b=0;for(const c of o.col){r+=c&255;g+=c>>8&255;b+=c>>16&255}const n=o.col.length,m=[r/n,g/n,b/n],C=o.mat===3?[['steel',metalLit('steel')],['iron',metalLit('iron')],['brass',metalLit('brass')],['gold',metalLit('gold')],['umbra',metalLit('umbra')]]:[['wood',memb('Wood','oak').c],['pine',memb('Wood','pine').c],['teak',memb('Wood','teak').c],['mahog',memb('Wood','mahog').c],['ebony',memb('Wood','ebony').c]];
  let best=null,bd=1e9;for(const[k,c]of C){const d=Math.hypot(c[0]-m[0],c[1]-m[1],c[2]-m[2]);if(d<bd){bd=d;best=k}}return best}

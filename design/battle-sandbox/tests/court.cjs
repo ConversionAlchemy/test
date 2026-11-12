@@ -20,9 +20,9 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
    return{map:curMap,gen:/^mod:/.test(curMap),w:CW,h:CH,on:!!(bd&&ch&&Math.abs(bd.x-(ch[0]+.5)*T)<1&&Math.abs(bd.y-(ch[1]+.5)*T)<1),chair:!!ch,civ:bodies.filter(b=>b.type==='token'&&b.unit==='civ'&&!b.rid).length}`);
   ok(`${n}: ruler on his chair`,r.on,`${r.map} ${r.w}x${r.h} chair:${r.chair}`);ok(`${n}: no stray civilians`,r.civ===0,r.civ)}
  r=await J(`const p=Object.values(R.prov).find(p=>p.cc!==capCell(p.nat)&&!(R.cm[p.cc]||[]).length);open();settle(p.cc);enterSD();const h=holderOf(p.cc),bd=bodies.find(b=>b.rid===h.id),ch=findChair();
-  return{n:p.n,w:CW,h:CH,on:!!(bd&&ch&&Math.abs(bd.x-(ch[0]+.5)*T)<1)}`);ok('fort generated with governor on chair',r.on&&r.w===24&&r.h===18,r.n+' '+r.w+'x'+r.h);
- r=await J(`const ps=new Set(Object.values(R.prov).map(p=>p.cc)),c=D.cells.findIndex((x,i)=>land(x)&&OWN[i]&&!ps.has(i)&&!(R.cm[i]||[]).length);open();settle(c);enterSD();return{w:CW,h:CH,grass:map.every(r=>r.every(k=>k==='grass'))}`);
- ok('hamlet map is open grass',r.grass&&r.w===30,r.w+'x'+r.h);
+  return{n:p.n,w:CW,h:CH,on:!!(bd&&ch&&Math.abs(bd.x-(ch[0]+.5)*T)<1)}`);ok('fort generated with governor on chair',r.on&&r.w===45&&r.h===33,r.n+' '+r.w+'x'+r.h);
+ r=await J(`const ps=new Set(Object.values(R.prov).map(p=>p.cc)),c=D.cells.findIndex((x,i)=>land(x)&&OWN[i]&&!ps.has(i)&&!(R.cm[i]||[]).length);open();settle(c);enterSD();const sym=MODS.maps[curMap].map.every(r=>r.every((k,x)=>k===r[CW-1-x]));return{w:CW,h:CH,sym,doors:bodies.filter(b=>b.type==='slab').length,walls:map.flat().filter(k=>isWallK(baseK(k))).length}`);
+ ok('hamlet map is a walled compound with doors, mirrored',r.w===35&&r.sym&&r.doors>4&&r.walls>100,JSON.stringify(r));
  // re-entering does not duplicate the holder
  r=await J(`const c=capCell('Hoverlands');open();settle(c);enterSD();open();settle(c);enterSD();const h=holderOf(c);return bodies.filter(b=>b.rid===h.id).length`);ok('re-entering keeps one ruler body',r===1,r);
 
@@ -129,8 +129,8 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
  r=await J(`const f=R.F.find(x=>x.id===__b.f);f.mv=2;march([f],__b.to);return 1`);await p.waitForTimeout(800);
  await J(`[...BDL.querySelectorAll('.sdf button')].find(x=>x.textContent==='Fight').click();return 1`);await p.waitForTimeout(500);
  r=await J(`const f=R.F.find(x=>x.id===__b.f),e=R.F.find(x=>x.id===__b.e),tf=bodies.filter(b=>men(f).some(m=>m.id===b.rid)),te=bodies.filter(b=>men(e).some(m=>m.id===b.rid));
-   return{map:curMap,inCell:(R.cm[__b.to]||[]).includes(curMap),nf:tf.length,ne:te.length,west:tf.every(b=>b.x<W/2),east:te.every(b=>b.x>W/2),region:!OV.hidden}`);
- ok('fight opens the cell map with both sides',r.inCell&&r.nf>0&&r.ne>0&&!r.region,JSON.stringify(r));ok('attackers west, defenders east',r.west&&r.east);
+   return{map:curMap,inCell:(R.cm[__b.to]||[]).includes(curMap),nf:tf.length,ne:te.length,west:tf.every(b=>b.y>(CH-5)*T),east:te.every(b=>b.y<(CH-5)*T),region:!OV.hidden}`);
+ ok('fight opens the cell map with both sides',r.inCell&&r.nf>0&&r.ne>0&&!r.region,JSON.stringify(r));ok('attackers at the gate, defenders inside',r.west&&r.east);
  r=await J(`open();const f=R.F.find(x=>x.id===__b.f),e=R.F.find(x=>x.id===__b.e);return{inMap:inMap(f)&&inMap(e),noBattle:!contested(__b.to,'Astria')}`);ok('armies in the map stay out of new battles',r.inMap&&r.noBattle);
  r=await J(`return{mi:Math.round((bx1-bx0)*MI)}`);ok('region is fifty miles across',r.mi===50,r.mi);
 
