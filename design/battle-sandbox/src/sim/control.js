@@ -6,7 +6,7 @@ function srcInfo(b){if(!b||!bodies.includes(b))return null;const gnd=b.type==='w
   if(k==='grenade'||k==='bomb'||k==='sbomb')return{kind:k,sp,throw:1,hold:400,spread:.05,range:k==='bomb'?60:140};if(w.melee)return{kind:k,sp,throw:1,hold:k==='sword'?450:k==='sspear'?1e9:650,heat:k==='sspear',spread:b.unit==='cmd'?.025:.04,range:(k==='sword'?110:240)*(b.unit==='cmd'?1.4:1)}}
  return null}
 const gauss=()=>{const u=Math.random()||1e-9,v=Math.random();return Math.max(-2.2,Math.min(2.2,Math.sqrt(-2*Math.log(u))*Math.cos(6.283*v)))};
-function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.neutral)b.neutral=false;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}cmdFollow(b,x,y);boltShot=null;raiseAlarm();const H=slot(b);if(!inf.throw){const h=H;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');if(b.type==='token')say(b,'Empty!',true)}return}h.ammo--}const tok=b.type==='token',a0=tok?aimA(b,x,y):Math.atan2(y-b.y,x-b.x);
+function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.type==='token'&&wet(b))return;if(b.neutral)b.neutral=false;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}cmdFollow(b,x,y);boltShot=null;raiseAlarm();const H=slot(b);if(!inf.throw){const h=H;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');if(b.type==='token')say(b,'Empty!',true)}return}h.ammo--}const tok=b.type==='token',a0=tok?aimA(b,x,y):Math.atan2(y-b.y,x-b.x);
  if(tok)turnTo(b,a0,true);else reshape(b,a0);
  const c=Math.cos(a0),s=Math.sin(a0),sd=tok?sideOf(b):0;
  if(inf.throw&&b.type==='weapon'){const k=b.kind,a=a0+gauss()*inf.spread,sp=k==='grenade'||k==='sbomb'?15:k==='bomb'?8:k==='sspear'?27:30;let v=sp;
@@ -51,7 +51,9 @@ function tryStep(b,sx,sy,depth=0){if(b.ghost){b.x+=sx;b.y+=sy;return true}
  const hx=Math.round(b.x+sx)-Math.round(b.x),hy=Math.round(b.y+sy)-Math.round(b.y);if(heldBlocked(b,hx,hy)&&!(b.type==='token'&&pullFit(b,hx,hy))){const was=heldBlocked(b,0,0);if(!was)pushDoor(b,heldPix(b).map(p=>[p[0]+hx,p[1]+hy]));if(b.type==='token')raise(b);else if(!was)return false}
  const o0=tokHit(b,sx,sy),o=o0&&(o0.vseat||b.vseat)?null:o0;if(o&&o.type==='token'&&b.type==='token'&&teamOf(o)===teamOf(b)&&(b.dash&&b.dash.phase||b.ord&&b.ord.a!=null||(o.x-b.x)*sx+(o.y-b.y)*sy<=0)){b.x+=sx;b.y+=sy;return true}if(o&&b.type==='token'&&o.type==='token'&&!b.flee&&teamOf(o)===teamOf(b)&&o.status==='free'){if(!(o.mv>0&&b.id>o.id))makeWay(o,sx,sy,b);return false}if(o){if(depth>2||(o.mass||1)>(b.mass||1)*1.05&&!(b.flee&&o.type==='token'&&teamOf(o)===teamOf(b))||!tryStep(o,sx,sy,depth+1))return false;o.mv=6}
  b.x+=sx;b.y+=sy;return true}
-function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=tx-b.x,dy=ty-b.y;if(Math.abs(dx)<.01&&Math.abs(dy)<.01)break;const sx=Math.max(-1,Math.min(1,dx)),sy=Math.max(-1,Math.min(1,dy));let moved=false;
+// wading: a man in the brook moves at under half pace and can't fire
+const wet=b=>{const r=map[b.y/T|0],k=r&&r[b.x/T|0];return isBrook(k)&&!!waterAt(Math.round(b.x),Math.round(b.y))};
+function moveToward(b,tx,ty){if(b.type==='token'&&wet(b)){tx=b.x+(tx-b.x)*.42;ty=b.y+(ty-b.y)*.42}const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=tx-b.x,dy=ty-b.y;if(Math.abs(dx)<.01&&Math.abs(dy)<.01)break;const sx=Math.max(-1,Math.min(1,dx)),sy=Math.max(-1,Math.min(1,dy));let moved=false;
   if(sx&&tryStep(b,sx,0))moved=true;if(sy&&tryStep(b,0,sy))moved=true;if(!moved)break}
  if(b.ghost&&!solidHits(b,0,0))b.ghost=false;return Math.hypot(b.x-x0,b.y-y0)}
 const TURN={civ:.18,home:.17,rifle:.16,guard:.12,shock:.1,cmd:.26};

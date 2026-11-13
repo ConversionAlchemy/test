@@ -83,7 +83,8 @@
  </div>
  <div class="hint" id="hint"></div>
 </div>
-<style>#sm .mk>#tpr{display:flex;justify-content:center;align-items:center;height:58px;cursor:var(--c-grab);position:relative}#sm .mk>#tpr #dice{position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;cursor:pointer;image-rendering:pixelated;opacity:.75}#sm .mk>#tpr #dice:hover{opacity:1}#sm .mk>#tpr canvas{width:51px;height:51px;image-rendering:pixelated}#sm .wp>div.isep{height:0;padding:0;margin:4px 2px;background:none;border:0;border-top:1px solid #3c3a36;box-shadow:none;cursor:var(--c-arrow)}#sm .ib{width:30px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;background:#2c2c2c;border:1px solid #4a4a4a;box-shadow:inset 0 0 0 1px #1a1a1a;color:#8a877e;cursor:pointer}#sm .ib svg{width:16px;height:16px}#sm .ib:hover{color:#e6e2d6;border-color:#6a6a6a}#sm .ib.on{background:#4a4944;color:#fff;border:2px solid #f2efe6;box-shadow:none}</style><style>#sm .xlab{position:absolute;font-size:16px;line-height:1;color:#c9b27a;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;pointer-events:none}</style><style>
+<style>#sm .mk>#tpr{display:flex;justify-content:center;align-items:center;height:58px;cursor:var(--c-grab);position:relative}#sm .mk>#tpr #dice{position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;cursor:pointer;image-rendering:pixelated;opacity:.75}#sm .mk>#tpr #dice:hover{opacity:1}#sm .mk>#tpr canvas{width:51px;height:51px;image-rendering:pixelated}#sm .wp>div.isep{height:0;padding:0;margin:4px 2px;background:none;border:0;border-top:1px solid #3c3a36;box-shadow:none;cursor:var(--c-arrow)}#sm .ib{width:30px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;background:#2c2c2c;border:1px solid #4a4a4a;box-shadow:inset 0 0 0 1px #1a1a1a;color:#8a877e;cursor:pointer}#sm .ib svg{width:16px;height:16px}#sm .ib:hover{color:#e6e2d6;border-color:#6a6a6a}#sm .ib.on{background:#4a4944;color:#fff;border:2px solid #f2efe6;box-shadow:none}</style><style>#sm .xlab.mlab{font-family:'IM Fell English SC',serif;color:#f1ead6;transform:translate(-50%,-50%);text-shadow:0 0 .12em #2a2118,0 0 .25em rgba(30,24,16,.8),.06em .06em 0 #2a2118;letter-spacing:.02em;z-index:2}#sm .xlab.mlab.big{letter-spacing:.04em}
+#sm .xlab{position:absolute;font-size:16px;line-height:1;color:#c9b27a;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;pointer-events:none}</style><style>
 /* new screen: full-screen map, panel zones, bevelled keys */
 html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:column}
 #sm header,#sm #bar,#sm .hint{display:none}
@@ -581,6 +582,19 @@ TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null
 // a worn hedge goes ragged: more gaps, leaves stripped back to bare twigs, what's left dries brown
 for(let c=1;c<=4;c++){const t=ageT(c);TEX['hedge~'+c]=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27+t*.16&&hh(X,Y,20)>.3-t*.2)return null;const tw=Math.abs(vn(X/3,Y/3,23)-.5)<.045+t*.035,loss=vn(X/4,Y/4,26)*.55+hh(X,Y,21)*.45<t*.85;
  if(loss)return tw?(hh(X,Y,24)>.5?[104,80,54]:[80,60,40]):hh(X,Y,25)<t*.4?null:[36,46,28];return mx(bushT(X,Y),[128,112,66],t*.4)};KIND['hedge~'+c]='floor'}
+// a brook: water is read off how much of the four nearest tile centres is water, so its banks run in curves across tiles instead of stepping with them
+const isWat=k=>k==='water'||k==='water.deep',isBrook=k=>isWat(k)||k==='water.bank',WATC={bank:[92,82,58],sh:[118,160,170],w:[78,128,148],dp:[56,100,126]};
+let LINKC=()=>null;
+let NWK=null,NWV=false;const nearWat=(cx,cy)=>{let m;try{m=map}catch(e){return false}const key=cx+','+cy;if(NWK===key&&NWM===m)return NWV;NWK=key;NWM=m;NWV=false;for(let b=-1;b<=1&&!NWV;b++)for(let a=-1;a<=1;a++)if(isWat(LINKC(cx+a,cy+b))){NWV=true;break}return NWV};let NWM=null;
+function wocc(X,Y,f){const fx=X/16-.5,fy=Y/16-.5,gx=Math.floor(fx),gy=Math.floor(fy),tx=fx-gx,ty=fy-gy,o=(x,y)=>f(LINKC(x,y))?1:0;
+ return(o(gx,gy)*(1-tx)+o(gx+1,gy)*tx)*(1-ty)+(o(gx,gy+1)*(1-tx)+o(gx+1,gy+1)*tx)*ty}
+function waterAt(X,Y){const o=wocc(X,Y,isWat)+(vn(X/6,Y/6,91)-.5)*.3+(vn(X/2,Y/2,92)-.5)*.06;if(o<.47)return null;if(o<.53)return mx(WATC.bank,soilT(X,Y),.4);
+ const dp=wocc(X,Y,k=>k==='water.deep');let c=o<.68?mx(WATC.sh,WATC.w,(o-.53)/.15):mx(WATC.w,WATC.dp,Math.min(1,dp*1.3));const r=vn(X/9,Y/2.6+X/14,93);if(r>.7)c=mx(c,[196,220,226],(r-.7)*1.2);else if(r<.22)c=sc(c,.94);return c}
+function waterT(X,Y,cx,cy){return waterAt(X,Y)||grassT(X,Y)}
+TEX.water=TEX['water.deep']=TEX['water.bank']=waterT;KIND['water.bank']='floor';KIND.water=KIND['water.deep']=KIND['water.bank']='floor';
+// a half wall of dressed stone: stops a man, not a bullet; cap stones along its run, joints across it
+TEX.parapet=(X,Y,cx,cy)=>{const x=X&15,y=Y&15,on=(a,b)=>LINK(cx+a,cy+b)==='parapet',hz=on(-1,0)||on(1,0)||!(on(0,-1)||on(0,1)),u=hz?y:x,v=hz?X:Y,e=Math.min(u,15-u);if(e<2)return null;
+ let c=stoneT(X,Y,[150,145,136],5);if(e===2)c=sc(c,.72);else if(e===3)c=sc(c,1.12);if(((v+3)%11)===0)c=sc(c,.8);return c};KIND.parapet='floor';
 for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];KIND[o]=KIND[n]}
 // The material table. ELEM (tiles.js) holds every material by element (Earth, Stone, Wood, Metal, Cloth), each with its look, strength and wear;
 // CLS below is what a class of materials shares in play: its hit class, sounds and the debris it throws. Every surface (wall, floor, furniture,
@@ -957,7 +971,7 @@ $('snd').onclick=()=>{mute=!mute;$('snd').style.opacity=mute?.35:1;if(!mute)sfx(
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&AC&&AC.state!=='running')AC.resume()});;
 
 // map
-let map=[],UND=[];LINK=(x,y)=>map[y]&&map[y][x];// UND: the floor laid under furniture and walls, shown when they are destroyed
+let map=[],UND=[];LINK=(x,y)=>map[y]&&map[y][x];LINKC=(x,y)=>LINK(Math.max(0,Math.min(CW-1,x)),Math.max(0,Math.min(CH-1,y)));// UND: the floor laid under furniture and walls, shown when they are destroyed
 const undAt=(cx,cy)=>UND[cy]&&UND[cy][cx]||null;
 // a grass cell is repainted when an earth cell beside it changes, so its edge follows the soil
 let RPG=0;
@@ -966,7 +980,7 @@ function tilePix(key,cx,cy){const f=TEX[key]||TEX.dirt,d=new Uint8ClampedArray(T
 // every tile has one material; custom textures take their recipe's, or their parent's. Hit class: 1 stone, 2 wood, 3 metal
 let EDOK=false;
 // hit material of the keys outside the material table (earth names, fence, sill, sky) and of furniture
-const BMAT={hedge:'foliage',bush:'grass',grass:'grass',crop:'grass',dirt:'soil',berm:'soil',sky:'soil',rail:'wood',sill:'stone',msill:'marble',
+const BMAT={water:'soil','water.deep':'soil','water.bank':'grass',parapet:'stone',hedge:'foliage',bush:'grass',grass:'grass',crop:'grass',dirt:'soil',berm:'soil',sky:'soil',rail:'wood',sill:'stone',msill:'marble',
  ...Object.fromEntries(Object.keys(MCHEST).map(k=>[k,'metal'])),...Object.fromEntries(Object.keys(MTABLE).map(k=>[k,'metal'])),...Object.fromEntries(Object.keys(WPIECE).map(k=>[k,'wood']))};
 function matK(k){if(!k)return'stone';k=modK(k);if(/[HNS]$/.test(k)&&WMAT[k.slice(0,-1)])k=k.slice(0,-1);if(EDOK){const m=MODS.tex[k];if(m)return m.rec?m.rec.mat==='plaster'?'stone':m.rec.mat:matK(m.from);
  if(CATN[k]){const[el,mm]=CATN[k];return mprop(el,mm).cls}}return BMAT[k]||'stone'}
@@ -994,7 +1008,7 @@ function boards(){const seen=new Set();for(let cy=0;cy<CH;cy++)for(let cx=0;cx<C
   const x0=a*T,w=(b-a+1)*T,n=1,row=Y>>3;for(let X=x0;X<x0+w;X++){const bi=Math.floor((X-x0)*n/w),edge=Math.floor((X-x0)*n/w)!==Math.floor((X-x0-1)*n/w)&&X>x0;
    for(let yy=0;yy<8;yy++){const j=(Y+yy)*W+X;if(sol[j])continue;let c=mul(floor[j],.95+hh(row,bi,45)*.1);if(edge&&yy<7)c=mul(c,.86);floor[j]=c}}}}}
 // every laid surface gets a soft edge where it meets a different one
-const NOB=new Set(['grass','dirt','sky','bush','sill','msill']);
+const NOB=new Set(['water','water.deep','water.bank','grass','dirt','sky','bush','sill','msill']);
 // what each material-table key is: wall class, shine (dulled by wear), no-border and plank sets; set before the first map is built
 for(const k in CATN){const[el,mat,v,w]=CATN[k];const P=mprop(el,mat),cd=CATN[k][4]||5;if(w)WMAT[k]=hitCls(P.cls);if(P.shine)SHINE[k]=Math.round(P.shine*(.4+.6*(cd-1)/4));const E=ELEM[el];if(!w&&P.nob||(E.vnob||{})[v])NOB.add(k);if(!w&&(E.vplk||{})[v])PLK.add(k)}
 for(const k in MTABLE){SHINE[k]=mprop('Metal',MTABLE[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}for(const k in MCHEST){SHINE[k]=mprop('Metal',MCHEST[k][0]).shine;for(let c=1;c<5;c++)SHINE[k+'~'+c]=Math.round(SHINE[k]*(.4+.6*(c-1)/4))}SHINE.mchest=60;
@@ -1004,7 +1018,7 @@ function borders(){const F=FINBOX;for(let cy=F?F.Y0/T:0;cy<(F?F.Y1/T:CH);cy++)fo
 const fmat=k=>hitCls(matK(k));
 function objMat(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=OM[cy][cx];if(!k)continue;const m=fmat(k);for(let y=0;y<T;y++)for(let x=0;x<T;x++){const j=(cy*T+y)*W+cx*T+x;if(OBJ[j])OBJ[j]=m}}}
 // furniture and fixtures: above the floor, block walking, bullets pass over, blasts break them
-const OBJK=new Set([...Object.keys(WPIECE).filter(k=>WPIECE[k][1]!=='seat'),'books','shelf',...Object.keys(MCHEST),...Object.keys(MTABLE),'wagon','hedge']),ONAME={...Object.fromEntries(Object.entries(MCHEST).map(([k,v])=>[k,v[1]])),...Object.fromEntries(Object.entries(MTABLE).map(([k,v])=>[k,v[1]])),...Object.fromEntries(Object.entries(WPIECE).map(([k,v])=>[k,v[2]])),hedge:'Hedge',wagon:'Wagon',books:'Shelves',shelf:'Shelf'};let OM=[];
+const OBJK=new Set([...Object.keys(WPIECE).filter(k=>WPIECE[k][1]!=='seat'),'books','shelf',...Object.keys(MCHEST),...Object.keys(MTABLE),'wagon','hedge','parapet']),ONAME={...Object.fromEntries(Object.entries(MCHEST).map(([k,v])=>[k,v[1]])),...Object.fromEntries(Object.entries(MTABLE).map(([k,v])=>[k,v[1]])),...Object.fromEntries(Object.entries(WPIECE).map(([k,v])=>[k,v[2]])),hedge:'Hedge',parapet:'Stone half wall',wagon:'Wagon',books:'Shelves',shelf:'Shelf'};let OM=[];
 function objects(){OM=Array.from({length:CH},()=>Array(CW).fill(null));OBJ.fill(0);const cells=[];for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(OBJK.has(map[cy][cx])){OM[cy][cx]=map[cy][cx];cells.push([cx,cy])}
  for(const[cx,cy]of cells){let u=null;for(const d of [2,1,3,4])for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){if(u)break;const k=(map[cy+b*d]||[])[cx+a*d];if(k&&!OBJK.has(k)&&!WMAT[k]&&!(k.endsWith('H')&&WMAT[k.slice(0,-1)])&&k!=='sky')u=k}const k=OM[cy][cx],m=fmat(k);paintCell(cx,cy,undAt(cx,cy)||u||'flag');
   for(let y=0;y<T;y++)for(let x=0;x<T;x++){const X=cx*T+x,Y=cy*T+y,j=Y*W+X,c=TEX[k](X,Y,cx,cy);if(!c)continue;OBJ[j]=m;OBJC[j]=rgb(cl(c[0]),cl(c[1]),cl(c[2]));SHN[j]=SHINE[k]||0}}pieces();furnish();brackets()}
@@ -1248,7 +1262,9 @@ function loadMap(m){const q=STATE[m];delete STATE[m];for(const b of q.bodies)if(
  for(const b of bodies)if(b.lab)stage.appendChild(b.lab);arrivals();exitLabels()}
 function goMap(v){if(v===curMap)return;saveMap();curMap=v;const ms=$('msel');if(ms)ms.value=v;$('sm').querySelector('header span').textContent=TITLE[v]||'';sel.clear();openCrate=null;drag=null;charge=null;box=null;moveSel=null;lastHud='';if(STATE[v])loadMap(v);else{camInit=true;CW=-1;reset()}}
 function arrivals(){const q=PEND[curMap];if(!q)return;delete PEND[curMap];for(const b of q){bodies.push(b);if(b.lab)stage.appendChild(b.lab)}}
-function exitLabels(){for(const e of document.querySelectorAll('#sm .xlab'))e.remove();(EXITS[curMap]||[]).forEach((x,i)=>{if(!x.cell||!x.label)return;const l=document.createElement('div');l.className='xlab';l.dataset.i=i;l.textContent=x.label;stage.appendChild(l)})}
+// place names written on the map itself, above the buildings; base maps keep theirs here, mods in their own data
+const MLAB={};const mlabs=()=>{if(MLAB[curMap])return MLAB[curMap];try{return MODS.maps[curMap]&&MODS.maps[curMap].labels||[]}catch(e){return[]}};
+function exitLabels(){for(const e of document.querySelectorAll('#sm .xlab'))e.remove();mlabs().forEach((l,i)=>{const d=document.createElement('div');d.className='xlab mlab'+(l.big?' big':'');d.dataset.m=i;d.textContent=l.t;stage.appendChild(d)});(EXITS[curMap]||[]).forEach((x,i)=>{if(!x.cell||!x.label)return;const l=document.createElement('div');l.className='xlab';l.dataset.i=i;l.textContent=x.label;stage.appendChild(l)})}
 // the passage fades to black towards the map it leads to
 function exitFade(){for(const x of EXITS[curMap]||[]){if(!x.cell)continue;const L=28,[cx,cy]=x.cell;for(let i=0;i<L;i++){const f=Math.pow(i/L,1.4);if(x.dir==='w'||x.dir==='e'){const X=x.dir==='w'?i:W-1-i;for(let Y=cy*T-6;Y<cy*T+T+6;Y++)if(Y>=0&&Y<H)out[Y*W+X]=mul(out[Y*W+X],f)}else{const Y=x.dir==='n'?i:H-1-i;for(let X=cx*T-6;X<cx*T+T+6;X++)if(X>=0&&X<W)out[Y*W+X]=mul(out[Y*W+X],f)}}}}
 function exitTick(){for(const x of EXITS[curMap]||[]){if(!x.to||!x.cell)continue;const back=(EXITS[x.to]||[]).find(e=>e.to===curMap)||{};for(const b of [...bodies]){if(b.type!=='token'||b.status!=='free'||inDrag(b)||b.tether&&!b.tether.broken)continue;if((b.x/T|0)!==x.cell[0]||(b.y/T|0)!==x.cell[1])continue;
@@ -1434,14 +1450,39 @@ function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,E
  U('Alba','Imperium','civ',11.5,10.5,UP,'pistol','Officer');U('Meran','Imperium','civ',12.5,10.5,UP,null,'Imperial Noble');
  for(const[n,x,y,a]of[['Quill',6.2,6.2,RT],['Brask',6.2,9.4,RT],['Hode',10.4,12.6,UP],['Lusk',4.6,13.4,UP]])U(n,'Imperium','rifle',x,y,a,undefined,'Imperial Striped Guard');
  U('Ser Davin','Imperium','civ',19.5,13.5,UP,'pistol','Officer')}
-function buildRoad(){paintAll((cx,cy)=>{if(cx>=13&&cx<=15&&cy>=8&&cy<=9)return 'chest';if(cy>=8&&cy<=10)return 'dirt';
- if(cy===6&&cx>=1&&cx<=14&&cx!==7||(cx===1||cx===14)&&cy>=1&&cy<=6)return 'rail';if(cx>=2&&cx<=13&&cy>=1&&cy<=5)return 'crop';
- const B=[[6,12],[7,12],[8,12],[7,13],[15,12],[16,12],[17,12],[16,13],[22,13],[23,13],[24,13],[23,14],[25,12],[20,4],[21,4],[22,4],[21,5],[24,3],[25,3],[26,3],[25,2]];return B.some(([a,b])=>a===cx&&b===cy)?'bush':'grass'})}
-function unitsRoad(){container(13,8,[{k:'gold',n:100},{k:'musket',n:3,ammo:12,res:24},{k:'grenade',n:4}],'Company wagon');
- U('Factor Mercer','Portsbridge','civ',16.6,9,RT,'pistol');U('Ames','Portsbridge','civ',12.4,9.5,RT,null,'Company Clerk');
- U('Holt','Portsbridge','home',13.5,7.4,RT);U('Pike','Portsbridge','home',14.5,10.6,RT);U('Sorrel','Portsbridge','rifle',11.2,8.2,RT);U('Wren','Portsbridge','rifle',18.4,10.2,RT);U('Brannock','Portsbridge','guard',19.6,8.4,RT);
- U('Gull','Marshmen','home',7.5,14.4,UP,'pistol');U('Mott','Marshmen','home',6.2,13.6,UP,'spear');U('Rask','Marshmen','guard',16.5,14.2,UP);U('Teague','Marshmen','shock',17.8,13.6,UP,'spear');U('Brine','Marshmen','home',23.5,15.4,UP,'blunder');
- U('Skiff','Marshmen','cmd',21.5,3.2,DN,'pistol');U('Bones','Marshmen','rifle',25.5,1.6,DN)}
+// Crossroads: the old road crosses Miller's brook by a stone bridge; guardhouse and cottages to the west, the mill below the road, the north road at the junction
+const lerpP=(P,y)=>{for(let i=1;i<P.length;i++)if(y<=P[i][0]){const t=(y-P[i-1][0])/(P[i][0]-P[i-1][0]);return P[i-1][1]+(P[i][1]-P[i-1][1])*t}return P[P.length-1][1]};
+const XDOORS=[[16,25,'stone.grey.flags~3'],[19,22,'stone.grey.flags~3'],[22,29,'stone.grey.flags~3'],[12,28,'wood.oak.planks~3'],[30,29,'wood.mahog.planks~3'],[35,29,'wood.mahog.planks~3'],[33,26,'wood.mahog.planks~3'],[51,29,'wood.pine.planks~2'],[17,34,'wood.oak.planks~3'],[18,40,'wood.pine.planks~2'],[33,36,'wood.oak.planks~2']];
+const XRIV=y=>lerpP([[0,38.5],[6,41.5],[12,44.5],[18,45.5],[24,44],[30,44.5],[36,45],[42,44],[47,45.5],[52,48]],y)+Math.sin(y*.7)*.35,XNOR=y=>lerpP([[0,49],[12,49.5],[22,50.5],[31,50],[40,49.5],[52,52.5]],y);
+function xrGrid(){const G=Array.from({length:CH},()=>Array(CW).fill('grass')),R=(x0,y0,x1,y1,k)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(G[y]&&x>=0&&x<CW)G[y][x]=k},box=(x0,y0,x1,y1,w,f)=>{R(x0,y0,x1,y1,w);R(x0+1,y0+1,x1-1,y1-1,f)};
+ // woods along the top and the east edge
+ for(const[x,y,r]of[[2,2,5],[8,0,4],[1,9,4],[12,2,3],[38,1,4],[42,0,3],[60,7,4],[62,13,4],[59,19,3.5],[63,3,3],[61,24,3]])for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(Math.hypot(cx-x,cy-y)<r+hh(cx,cy,61)*1.2-.4)G[cy][cx]='bush';
+ for(let cy=0;cy<CH;cy++){const rc=XRIV(cy),nc=XNOR(cy);for(let cx=0;cx<CW;cx++){const d=Math.abs(cx-rc);if(d<=.75)G[cy][cx]='water.deep';else if(d<=1.9)G[cy][cx]='water';if(Math.abs(cx-nc)<=1&&G[cy][cx]!=='water'&&G[cy][cx]!=='water.deep')G[cy][cx]='dirt'}}
+ for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(G[cy][cx]==='grass'&&[-1,0,1].some(b=>[-1,0,1].some(a=>/^water(\.deep)?$/.test((G[cy+b]||[])[cx+a]||''))))G[cy][cx]='water.bank';
+ // the old road and the bridge: a cobbled causeway with half walls where it crosses the water
+ const rb=Math.round(XRIV(31));R(0,30,CW-1,32,'dirt');R(32,30,rb+4,32,'stone.grey.setts');R(rb-3,29,rb+3,29,'parapet');R(rb-3,33,rb+3,33,'parapet');
+ R(11,18,26,29,'dirt');R(33,33,40,35,'dirt');R(27,29,38,29,'dirt');
+ // guardhouse: an L of rubble stone, two rooms
+ const sw='stone.grey.rubble.w';R(13,19,24,19,sw);R(13,19,13,25,sw);R(13,25,19,25,sw);R(19,19,19,29,sw);R(19,29,24,29,sw);R(24,19,24,29,sw);R(14,20,18,24,'stone.grey.flags~3');R(20,20,23,28,'stone.grey.flags~3');
+ // cottages, the two-room house, the sheds and the mill
+ box(7,24,12,30,'wood.oak.logs.w','wood.oak.planks~3');box(28,23,33,29,'stone.grey.block.w','wood.mahog.planks~3');box(33,22,37,29,'stone.grey.block.w','wood.mahog.planks~3');
+ box(50,26,53,29,'wood.pine.logs.w','wood.pine.planks~2');box(15,34,20,38,'wood.oak.logs.w','wood.oak.planks~3');box(17,40,19,42,'wood.pine.logs.w','wood.pine.planks~2');box(29,36,37,42,'wood.oak.logs.w','wood.oak.planks~2');
+ // furniture
+ G[21][22]=G[21][23]='table';G[20][20]=G[20][21]='chest';G[24][14]='chest~3';G[21][14]='seat~3';G[25][9]=G[25][10]='table';G[26][9]='seat~3';G[24][29]=G[24][30]='desk.oak';G[25][30]='seat~4';G[23][36]='chest~3';
+ for(const x of[30,31,35,36])G[37][x]='chest~2';G[41][30]=G[41][31]='table';G[27][52]='pchest~2';
+ // doorways take the floor of the room they open into
+ for(const[x,y,f]of XDOORS)G[y][x]=f;
+ return G}
+function buildRoad(){const G=xrGrid();paintAll((cx,cy)=>G[cy][cx])}
+MLAB.road=[{t:'Crossroads',x:35,y:12,big:1},{t:'Guardhouse',x:18.5,y:17.4},{t:"Miller's Bridge",x:45,y:27.3},{t:"Miller's Mill",x:41.5,y:39.5}];
+function unitsRoad(){edSrc=null;for(const[x,y]of XDOORS)smartDoor('wood~3',x,y,false);snapDoors();sills();solDirty=true;
+ carrier('steel',57*T,40*T,-Math.PI/2,'Portsbridge','new');
+ U('Factor Mercer','Portsbridge','civ',31.5,26,RT,'pistol');U('Ames','Portsbridge','civ',35,25,LF,null,'Company Clerk');
+ for(const[n,x,y]of[['Holt',15.5,28.6],['Pike',16.7,28.6],['Sorrel',17.9,28.6],['Wren',15.5,29.8],['Dace',16.7,29.8],['Lusk',17.9,29.8]])U(n,'Portsbridge','rifle',x,y,RT);
+ U('Brannock','Portsbridge','guard',21.5,24,DN);U('Corr','Portsbridge','guard',16,22,DN);U('Ide','Portsbridge','home',7.5,31.2,RT);U('Fane','Portsbridge','home',12,31.2,RT);
+ for(const[n,x,y,u,w]of[['Gull',35.5,33.6,'home','pistol'],['Mott',36.6,34,'home','spear'],['Rask',37.4,34.8,'guard'],['Teague',38.4,35.4,'shock','spear'],['Brine',36,35.8,'home','blunder']])U(n,'Marshmen',u,x,y,UP,w);
+ for(const[n,x,y]of[['Skiff',48,33.5],['Bones',48,34.6],['Tull',48.6,35.7],['Weir',48,36.8]])U(n,'Marshmen',n==='Skiff'?'cmd':'rifle',x,y,LF,n==='Skiff'?'pistol':undefined);
+ U('Cray','Marshmen','rifle',51.5,27.5,DN);U('Fen','Marshmen','home',30.5,25.5,RT,'spear')}
 function buildAlley(){paintAll((cx,cy)=>{if(cy===0||cy===CH-1)return cy===CH-1&&cx===15?'stone.grey.quarter':cy===0?'stone.grey.block.w':'wood.oak.boards.w';
  if(cy>=1&&cy<=3)return cx===0||cx===CW-1?'stone.grey.block.w':cy===2&&cx>=4&&cx<=7?'table':cx===16&&cy===1||cx===17&&cy===1?'chest':'wood.teak.planks';
  if(cy===4)return cx===10||cx===11?'stone.grey.quarter':'stone.grey.block.w';
@@ -2180,7 +2221,8 @@ function render(){VIEWR=VWH&&S?[Math.max(0,Math.floor(-cam.x/S)),Math.max(0,Math
  ordDraw();exitFade();
  {const ch=!panKey&&!pan&&mouse.in&&!drag&&armed().length>0;if(ch)crosshair();const into=drag&&drag.b.type==='weapon'&&(bodyAt(Math.round(mouse.x),Math.round(mouse.y),2,drag.b,o=>o.type==='token'&&o.status!=='dead')||PICK.has(drag.b.kind)&&!drag.b.fuse&&canStore(dropBox(),drag.b.kind))||SDR&&sdrOk()||SCAR&&!!carryInto(Math.round(mouse.x),Math.round(mouse.y),true);const cc=pan||drag||SDR||SCAR?CUR[into?'in':'carry']:panKey?CUR.grab:ch?'none':hover||hoverC?CUR.grab:CUR.arrow;if(cv.style.cursor!==cc)cv.style.cursor=cc;}
  if(VIEWR&&VIEWR[2]>VIEWR[0]&&VIEWR[3]>VIEWR[1])ctx.putImageData(img,0,0,VIEWR[0],VIEWR[1],VIEWR[2]-VIEWR[0],VIEWR[3]-VIEWR[1]);else ctx.putImageData(img,0,0);
- for(const e of document.querySelectorAll('#sm .xlab')){const x=(EXITS[curMap]||[])[+e.dataset.i];if(x){e.style.left=x.lx*S+'px';e.style.top=x.ly*S+'px'}}
+ for(const e of document.querySelectorAll('#sm .mlab')){const l=mlabs()[+e.dataset.m];if(l){e.style.left=l.x*T*S+'px';e.style.top=l.y*T*S+'px';e.style.fontSize=(l.big?30:13)*S+'px'}}
+ for(const e of document.querySelectorAll('#sm .xlab:not(.mlab)')){const x=(EXITS[curMap]||[])[+e.dataset.i];if(x){e.style.left=x.lx*S+'px';e.style.top=x.ly*S+'px'}}
  for(const b of bodies){if(b.mv>0)b.mv--;if(b.lab){b.lab.style.left=(Math.round(b.x)+.5)*S+'px';b.lab.style.top=(Math.round(b.y)+10)*S+'px';b.lab.style.color=natLabel(b);b.lab.style.zIndex=b.status==='dead'?0:1;{const vc=VIS[(Math.round(b.y)>>1)*BW+(Math.round(b.x)>>1)],hid=fogOn()&&(teamOf(b)!==aiMe&&(b.fogH||!vc)||b.status==='dead'&&!vc);b.lab.style.display=hid?'none':''}dbar(b,S);sayTick(b,S);{let c=b.lab.querySelector('.ld');if(b.leader&&b.status!=='dead'){if(!c){c=document.createElement('span');c.className='ld';c.innerHTML=CROWNI;b.lab.prepend(c)}}else if(c)c.remove()}}}
  SHK=shake>0?[Math.round((Math.random()-.5)*shake),Math.round((Math.random()-.5)*shake)]:[0,0];stageXf();if(shake>0)shake--}
 function veil(){const G=24,gw=(W/G|0)+3,gh=(H/G|0)+3,ox=tick/500,fx0=Math.floor(ox),fr=ox-fx0,g=new Float32Array(gw*gh);for(let y=0;y<gh;y++)for(let x=0;x<gw;x++)g[y*gw+x]=hh(x+fx0,y,77);
@@ -2202,7 +2244,7 @@ function srcInfo(b){if(!b||!bodies.includes(b))return null;const gnd=b.type==='w
   if(k==='grenade'||k==='bomb'||k==='sbomb')return{kind:k,sp,throw:1,hold:400,spread:.05,range:k==='bomb'?60:140};if(w.melee)return{kind:k,sp,throw:1,hold:k==='sword'?450:k==='sspear'?1e9:650,heat:k==='sspear',spread:b.unit==='cmd'?.025:.04,range:(k==='sword'?110:240)*(b.unit==='cmd'?1.4:1)}}
  return null}
 const gauss=()=>{const u=Math.random()||1e-9,v=Math.random();return Math.max(-2.2,Math.min(2.2,Math.sqrt(-2*Math.log(u))*Math.cos(6.283*v)))};
-function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.neutral)b.neutral=false;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}cmdFollow(b,x,y);boltShot=null;raiseAlarm();const H=slot(b);if(!inf.throw){const h=H;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');if(b.type==='token')say(b,'Empty!',true)}return}h.ammo--}const tok=b.type==='token',a0=tok?aimA(b,x,y):Math.atan2(y-b.y,x-b.x);
+function fire(b,x,y,vol){const inf=srcInfo(b);if(!inf)return;if(b.type==='token'&&wet(b))return;if(b.neutral)b.neutral=false;if(b.type==='token'&&b.raised){b.raised=false;b.hc=null;if(heldBlocked(b,0,0)){b.raised=true;b.hc=null;return}}cmdFollow(b,x,y);boltShot=null;raiseAlarm();const H=slot(b);if(!inf.throw){const h=H;if(h.ammo===undefined)h.ammo=CAP[h.k]||0;if(h.ammo<=0){if(!reload(b)){sfx('dry');hear(b.x,b.y,50,b,'dry');if(b.type==='token')say(b,'Empty!',true)}return}h.ammo--}const tok=b.type==='token',a0=tok?aimA(b,x,y):Math.atan2(y-b.y,x-b.x);
  if(tok)turnTo(b,a0,true);else reshape(b,a0);
  const c=Math.cos(a0),s=Math.sin(a0),sd=tok?sideOf(b):0;
  if(inf.throw&&b.type==='weapon'){const k=b.kind,a=a0+gauss()*inf.spread,sp=k==='grenade'||k==='sbomb'?15:k==='bomb'?8:k==='sspear'?27:30;let v=sp;
@@ -2247,7 +2289,9 @@ function tryStep(b,sx,sy,depth=0){if(b.ghost){b.x+=sx;b.y+=sy;return true}
  const hx=Math.round(b.x+sx)-Math.round(b.x),hy=Math.round(b.y+sy)-Math.round(b.y);if(heldBlocked(b,hx,hy)&&!(b.type==='token'&&pullFit(b,hx,hy))){const was=heldBlocked(b,0,0);if(!was)pushDoor(b,heldPix(b).map(p=>[p[0]+hx,p[1]+hy]));if(b.type==='token')raise(b);else if(!was)return false}
  const o0=tokHit(b,sx,sy),o=o0&&(o0.vseat||b.vseat)?null:o0;if(o&&o.type==='token'&&b.type==='token'&&teamOf(o)===teamOf(b)&&(b.dash&&b.dash.phase||b.ord&&b.ord.a!=null||(o.x-b.x)*sx+(o.y-b.y)*sy<=0)){b.x+=sx;b.y+=sy;return true}if(o&&b.type==='token'&&o.type==='token'&&!b.flee&&teamOf(o)===teamOf(b)&&o.status==='free'){if(!(o.mv>0&&b.id>o.id))makeWay(o,sx,sy,b);return false}if(o){if(depth>2||(o.mass||1)>(b.mass||1)*1.05&&!(b.flee&&o.type==='token'&&teamOf(o)===teamOf(b))||!tryStep(o,sx,sy,depth+1))return false;o.mv=6}
  b.x+=sx;b.y+=sy;return true}
-function moveToward(b,tx,ty){const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=tx-b.x,dy=ty-b.y;if(Math.abs(dx)<.01&&Math.abs(dy)<.01)break;const sx=Math.max(-1,Math.min(1,dx)),sy=Math.max(-1,Math.min(1,dy));let moved=false;
+// wading: a man in the brook moves at under half pace and can't fire
+const wet=b=>{const r=map[b.y/T|0],k=r&&r[b.x/T|0];return isBrook(k)&&!!waterAt(Math.round(b.x),Math.round(b.y))};
+function moveToward(b,tx,ty){if(b.type==='token'&&wet(b)){tx=b.x+(tx-b.x)*.42;ty=b.y+(ty-b.y)*.42}const x0=b.x,y0=b.y;for(let i=0;i<40;i++){const dx=tx-b.x,dy=ty-b.y;if(Math.abs(dx)<.01&&Math.abs(dy)<.01)break;const sx=Math.max(-1,Math.min(1,dx)),sy=Math.max(-1,Math.min(1,dy));let moved=false;
   if(sx&&tryStep(b,sx,0))moved=true;if(sy&&tryStep(b,0,sy))moved=true;if(!moved)break}
  if(b.ghost&&!solidHits(b,0,0))b.ghost=false;return Math.hypot(b.x-x0,b.y-y0)}
 const TURN={civ:.18,home:.17,rifle:.16,guard:.12,shock:.1,cmd:.26};
@@ -2868,7 +2912,7 @@ const bar=$('bar');
 const btn=(t,f)=>{const b=document.createElement('button');b.textContent=t;b.onclick=f;bar.appendChild(b);return b};
 
 
-const TITLE={bank:'Goldbank · Back room',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard',council:'Sanctis · Council chamber',road:'Portsbridge · Old road',alley:'Great Keys · Guild alley',stock:"Emperor's Dock · Stockyard"};
+const TITLE={bank:'Goldbank · Back room',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard',council:'Sanctis · Council chamber',road:'Portsbridge · Crossroads',alley:'Great Keys · Guild alley',stock:"Emperor's Dock · Stockyard"};
 btn('Reset',()=>reset());{const sb=btn('Slow-mo (Z)',()=>{slowMo=!slowMo;sb.classList.toggle('on',slowMo)});window.toggleSlow=()=>sb.onclick();setTimeout(()=>bar.appendChild(sb),0)}{const ab=btn('AI',()=>{aiOn=!aiOn;aiMe=null;ab.classList.toggle('on',aiOn);if(!aiOn)for(const b of bodies){b.fogH=false;b.ai=null}aiSetup()})}{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"],['blast','Fluoria blast yard']]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
 
 function icon(px,scale){const c=document.createElement('canvas');c.width=28;c.height=20;const g=c.getContext('2d'),id=g.createImageData(28,20),u=new Uint32Array(id.data.buffer);
@@ -2915,7 +2959,7 @@ for(const sc of document.querySelectorAll('#sm .sec')){const k='bsx:'+sc.dataset
 
 function dbl(m,x1,y1,x2,y2,r1,r2,lk,len,th){const a=slab(m,x1,y1,r1,len,th),b=slab(m,x2,y2,r2,len,th);a.pair=b;b.pair=a;a.locked=b.locked=lk;return[a,b]}
 function goldify(d){d.gold=true;for(const p of d.px)p[2]=toneC('gold',p[2])}
-const MAPSZ={council:[24,16],road:[30,18],alley:[22,10],stock:[26,16],count:[44,26],vault:[30,47],range:[40,40],air:[34,20]};
+const MAPSZ={council:[24,16],road:[64,52],alley:[22,10],stock:[26,16],count:[44,26],vault:[30,47],range:[40,40],air:[34,20]};
 // after setup: wood doors never stay locked, and the side that owns the map has a guard carrying each locked door's key
 function keyUp(){let own=null;try{own=MAPOWN()}catch(e){}const done=new Set();
  for(const d of bodies){if(d.type!=='slab'||!d.locked||d.free||d.keyIn)continue;if(!hcl(d.mat).lock){d.locked=false;continue}const k=doorKey(d);if(!k||done.has(k)&&!d.pair)continue;done.add(k);
@@ -3061,7 +3105,7 @@ async function download(name,obj){const dl=await capUse('downloads');if(dl){try{
 function pickFile(f){const i=document.createElement('input');i.type='file';i.accept='.json,application/json,text/plain';i.onchange=()=>{const r=new FileReader();r.onload=()=>{try{f(JSON.parse(r.result))}catch(e){}};if(i.files[0])r.readAsText(i.files[0])};i.click()}
 
 // textures
-const TNAME={grass:'Grass',dirt:'Dirt',sky:'Sky',sill:'Sill',msill:'Marble sill',crop:'Wheat',berm:'Earth bank',rail:'Fence',bush:'Hedge'};
+const TNAME={water:'Brook','water.deep':'Deep brook','water.bank':'Brook bank',grass:'Grass',dirt:'Dirt',sky:'Sky',sill:'Sill',msill:'Marble sill',crop:'Wheat',berm:'Earth bank',rail:'Fence',bush:'Hedge'};
 for(const k in WPIECE)TNAME[k]=WPIECE[k][2];TNAME.hedge='Hedge';for(const k in MCHEST)TNAME[k]=MCHEST[k][1];for(const k in MTABLE)TNAME[k]=MTABLE[k][1];
 const catName=k=>{const c=CATN[k];if(!c)return null;const[el,mat,v,w,cd]=c;return memb(el,mat).n+' · '+(varsOf(el,mat)[v]||v)+(w?' wall':'')+(cd?' · '+CONDN[cd]:'')};
 const tName=k=>MODS.tex[k]?MODS.tex[k].name:catName(k)||TNAME[k]||k;
@@ -3337,7 +3381,7 @@ function cracks(){const seen=new Set(),key=k=>{const c=CATN[k];return c&&AGE[c[0
     if(R()<.18)continue;const j=Y*W+X;if(hit.has(j))continue;hit.add(j);const lj=j+(Math.abs(Math.cos(ang))>.5?W:1),lit=t%3===1&&!hit.has(lj);if(wall){if(!sol[j])return;scol[j]=mix(scol[j],JC,.85);shp[j]=1;if(lit&&sol[lj])scol[lj]=mix(scol[lj],LC,.4)}else{floor[j]=mix(floor[j],JC,.85);if(lit)floor[lj]=mix(floor[lj],LC,.4)}if(fork&&t===len>>1&&R()<.3)walk(x,y,ang+(R()<.5?-.785:.785),len>>1,false)}};
   for(let m=0;m<n;m++){const i=worn[(R()*worn.length)|0];bs=16;bx=Math.floor((i%CW)*T/bs);by=Math.floor((i/CW|0)*T/bs);const ex=R()<.5,X0=(i%CW)*T+(ex?(R()<.5?1:T-2):2+R()*(T-4)),Y0=(i/CW|0)*T+(ex?2+R()*(T-4):(R()<.5?1:T-2));walk(X0,Y0,R()*6.283,(R()<.75?5+R()*6:L0*(.6+R()*.6))|0,true)}}}
 // lozenge floors frame their own edges, so repaint them once the whole map is known
-function relink(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];const c=k&&CATN[k];if(c&&(CONNV.has(c[2])||c[3]&&memb(c[0],c[1]).cut||mprop(c[0],c[1]).link))paintCell(cx,cy,k)}}
+function relink(){for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];const c=k&&CATN[k];if(c&&(CONNV.has(c[2])||c[3]&&memb(c[0],c[1]).cut||mprop(c[0],c[1]).link)||k==='parapet'||isBrook(k))paintCell(cx,cy,k)}}
 function polish(){const st=(x,y,k)=>map[y]&&baseK(map[y][x])===baseK(k);for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const k=map[cy][cx];if(!POLT.has(k))continue;const L=!st(cx-1,cy,k),R=!st(cx+1,cy,k),U=!st(cx,cy-1,k),D=!st(cx,cy+1,k);if(!L&&!R&&!U&&!D)continue;
  const mat=CATN[k][1],F=woodFin(mat),gl=rgb(...F.gl),gt=F.gt;
  for(let y=0;y<T;y++)for(let x=0;x<T;x++){const d=Math.min(L?x:99,R?15-x:99,U?y:99,D?15-y:99);if(d>3)continue;const j=(cy*T+y)*W+cx*T+x,w=!!sol[j];let c=w?scol[j]:floor[j];

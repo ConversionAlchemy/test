@@ -279,4 +279,17 @@ TEX.hedge=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27&&hh(X,Y,20)>.3)return null
 // a worn hedge goes ragged: more gaps, leaves stripped back to bare twigs, what's left dries brown
 for(let c=1;c<=4;c++){const t=ageT(c);TEX['hedge~'+c]=(X,Y)=>{const g=vn(X/2.2,Y/2.2,19);if(g<.27+t*.16&&hh(X,Y,20)>.3-t*.2)return null;const tw=Math.abs(vn(X/3,Y/3,23)-.5)<.045+t*.035,loss=vn(X/4,Y/4,26)*.55+hh(X,Y,21)*.45<t*.85;
  if(loss)return tw?(hh(X,Y,24)>.5?[104,80,54]:[80,60,40]):hh(X,Y,25)<t*.4?null:[36,46,28];return mx(bushT(X,Y),[128,112,66],t*.4)};KIND['hedge~'+c]='floor'}
+// a brook: water is read off how much of the four nearest tile centres is water, so its banks run in curves across tiles instead of stepping with them
+const isWat=k=>k==='water'||k==='water.deep',isBrook=k=>isWat(k)||k==='water.bank',WATC={bank:[92,82,58],sh:[118,160,170],w:[78,128,148],dp:[56,100,126]};
+let LINKC=()=>null;
+let NWK=null,NWV=false;const nearWat=(cx,cy)=>{let m;try{m=map}catch(e){return false}const key=cx+','+cy;if(NWK===key&&NWM===m)return NWV;NWK=key;NWM=m;NWV=false;for(let b=-1;b<=1&&!NWV;b++)for(let a=-1;a<=1;a++)if(isWat(LINKC(cx+a,cy+b))){NWV=true;break}return NWV};let NWM=null;
+function wocc(X,Y,f){const fx=X/16-.5,fy=Y/16-.5,gx=Math.floor(fx),gy=Math.floor(fy),tx=fx-gx,ty=fy-gy,o=(x,y)=>f(LINKC(x,y))?1:0;
+ return(o(gx,gy)*(1-tx)+o(gx+1,gy)*tx)*(1-ty)+(o(gx,gy+1)*(1-tx)+o(gx+1,gy+1)*tx)*ty}
+function waterAt(X,Y){const o=wocc(X,Y,isWat)+(vn(X/6,Y/6,91)-.5)*.3+(vn(X/2,Y/2,92)-.5)*.06;if(o<.47)return null;if(o<.53)return mx(WATC.bank,soilT(X,Y),.4);
+ const dp=wocc(X,Y,k=>k==='water.deep');let c=o<.68?mx(WATC.sh,WATC.w,(o-.53)/.15):mx(WATC.w,WATC.dp,Math.min(1,dp*1.3));const r=vn(X/9,Y/2.6+X/14,93);if(r>.7)c=mx(c,[196,220,226],(r-.7)*1.2);else if(r<.22)c=sc(c,.94);return c}
+function waterT(X,Y,cx,cy){return waterAt(X,Y)||grassT(X,Y)}
+TEX.water=TEX['water.deep']=TEX['water.bank']=waterT;KIND['water.bank']='floor';KIND.water=KIND['water.deep']=KIND['water.bank']='floor';
+// a half wall of dressed stone: stops a man, not a bullet; cap stones along its run, joints across it
+TEX.parapet=(X,Y,cx,cy)=>{const x=X&15,y=Y&15,on=(a,b)=>LINK(cx+a,cy+b)==='parapet',hz=on(-1,0)||on(1,0)||!(on(0,-1)||on(0,1)),u=hz?y:x,v=hz?X:Y,e=Math.min(u,15-u);if(e<2)return null;
+ let c=stoneT(X,Y,[150,145,136],5);if(e===2)c=sc(c,.72);else if(e===3)c=sc(c,1.12);if(((v+3)%11)===0)c=sc(c,.8);return c};KIND.parapet='floor';
 for(const[o,n]of Object.entries(OLDK)){TEX[o]=TEX[n];KIND[o]=KIND[n]}

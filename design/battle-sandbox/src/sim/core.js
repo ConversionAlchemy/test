@@ -43,7 +43,7 @@ $('snd').onclick=()=>{mute=!mute;$('snd').style.opacity=mute?.35:1;if(!mute)sfx(
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&AC&&AC.state!=='running')AC.resume()});;
 
 // map
-let map=[],UND=[];LINK=(x,y)=>map[y]&&map[y][x];// UND: the floor laid under furniture and walls, shown when they are destroyed
+let map=[],UND=[];LINK=(x,y)=>map[y]&&map[y][x];LINKC=(x,y)=>LINK(Math.max(0,Math.min(CW-1,x)),Math.max(0,Math.min(CH-1,y)));// UND: the floor laid under furniture and walls, shown when they are destroyed
 const undAt=(cx,cy)=>UND[cy]&&UND[cy][cx]||null;
 // a grass cell is repainted when an earth cell beside it changes, so its edge follows the soil
 let RPG=0;
@@ -52,7 +52,7 @@ function tilePix(key,cx,cy){const f=TEX[key]||TEX.dirt,d=new Uint8ClampedArray(T
 // every tile has one material; custom textures take their recipe's, or their parent's. Hit class: 1 stone, 2 wood, 3 metal
 let EDOK=false;
 // hit material of the keys outside the material table (earth names, fence, sill, sky) and of furniture
-const BMAT={hedge:'foliage',bush:'grass',grass:'grass',crop:'grass',dirt:'soil',berm:'soil',sky:'soil',rail:'wood',sill:'stone',msill:'marble',
+const BMAT={water:'soil','water.deep':'soil','water.bank':'grass',parapet:'stone',hedge:'foliage',bush:'grass',grass:'grass',crop:'grass',dirt:'soil',berm:'soil',sky:'soil',rail:'wood',sill:'stone',msill:'marble',
  ...Object.fromEntries(Object.keys(MCHEST).map(k=>[k,'metal'])),...Object.fromEntries(Object.keys(MTABLE).map(k=>[k,'metal'])),...Object.fromEntries(Object.keys(WPIECE).map(k=>[k,'wood']))};
 function matK(k){if(!k)return'stone';k=modK(k);if(/[HNS]$/.test(k)&&WMAT[k.slice(0,-1)])k=k.slice(0,-1);if(EDOK){const m=MODS.tex[k];if(m)return m.rec?m.rec.mat==='plaster'?'stone':m.rec.mat:matK(m.from);
  if(CATN[k]){const[el,mm]=CATN[k];return mprop(el,mm).cls}}return BMAT[k]||'stone'}

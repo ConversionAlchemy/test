@@ -25,14 +25,39 @@ function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,E
  U('Alba','Imperium','civ',11.5,10.5,UP,'pistol','Officer');U('Meran','Imperium','civ',12.5,10.5,UP,null,'Imperial Noble');
  for(const[n,x,y,a]of[['Quill',6.2,6.2,RT],['Brask',6.2,9.4,RT],['Hode',10.4,12.6,UP],['Lusk',4.6,13.4,UP]])U(n,'Imperium','rifle',x,y,a,undefined,'Imperial Striped Guard');
  U('Ser Davin','Imperium','civ',19.5,13.5,UP,'pistol','Officer')}
-function buildRoad(){paintAll((cx,cy)=>{if(cx>=13&&cx<=15&&cy>=8&&cy<=9)return 'chest';if(cy>=8&&cy<=10)return 'dirt';
- if(cy===6&&cx>=1&&cx<=14&&cx!==7||(cx===1||cx===14)&&cy>=1&&cy<=6)return 'rail';if(cx>=2&&cx<=13&&cy>=1&&cy<=5)return 'crop';
- const B=[[6,12],[7,12],[8,12],[7,13],[15,12],[16,12],[17,12],[16,13],[22,13],[23,13],[24,13],[23,14],[25,12],[20,4],[21,4],[22,4],[21,5],[24,3],[25,3],[26,3],[25,2]];return B.some(([a,b])=>a===cx&&b===cy)?'bush':'grass'})}
-function unitsRoad(){container(13,8,[{k:'gold',n:100},{k:'musket',n:3,ammo:12,res:24},{k:'grenade',n:4}],'Company wagon');
- U('Factor Mercer','Portsbridge','civ',16.6,9,RT,'pistol');U('Ames','Portsbridge','civ',12.4,9.5,RT,null,'Company Clerk');
- U('Holt','Portsbridge','home',13.5,7.4,RT);U('Pike','Portsbridge','home',14.5,10.6,RT);U('Sorrel','Portsbridge','rifle',11.2,8.2,RT);U('Wren','Portsbridge','rifle',18.4,10.2,RT);U('Brannock','Portsbridge','guard',19.6,8.4,RT);
- U('Gull','Marshmen','home',7.5,14.4,UP,'pistol');U('Mott','Marshmen','home',6.2,13.6,UP,'spear');U('Rask','Marshmen','guard',16.5,14.2,UP);U('Teague','Marshmen','shock',17.8,13.6,UP,'spear');U('Brine','Marshmen','home',23.5,15.4,UP,'blunder');
- U('Skiff','Marshmen','cmd',21.5,3.2,DN,'pistol');U('Bones','Marshmen','rifle',25.5,1.6,DN)}
+// Crossroads: the old road crosses Miller's brook by a stone bridge; guardhouse and cottages to the west, the mill below the road, the north road at the junction
+const lerpP=(P,y)=>{for(let i=1;i<P.length;i++)if(y<=P[i][0]){const t=(y-P[i-1][0])/(P[i][0]-P[i-1][0]);return P[i-1][1]+(P[i][1]-P[i-1][1])*t}return P[P.length-1][1]};
+const XDOORS=[[16,25,'stone.grey.flags~3'],[19,22,'stone.grey.flags~3'],[22,29,'stone.grey.flags~3'],[12,28,'wood.oak.planks~3'],[30,29,'wood.mahog.planks~3'],[35,29,'wood.mahog.planks~3'],[33,26,'wood.mahog.planks~3'],[51,29,'wood.pine.planks~2'],[17,34,'wood.oak.planks~3'],[18,40,'wood.pine.planks~2'],[33,36,'wood.oak.planks~2']];
+const XRIV=y=>lerpP([[0,38.5],[6,41.5],[12,44.5],[18,45.5],[24,44],[30,44.5],[36,45],[42,44],[47,45.5],[52,48]],y)+Math.sin(y*.7)*.35,XNOR=y=>lerpP([[0,49],[12,49.5],[22,50.5],[31,50],[40,49.5],[52,52.5]],y);
+function xrGrid(){const G=Array.from({length:CH},()=>Array(CW).fill('grass')),R=(x0,y0,x1,y1,k)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(G[y]&&x>=0&&x<CW)G[y][x]=k},box=(x0,y0,x1,y1,w,f)=>{R(x0,y0,x1,y1,w);R(x0+1,y0+1,x1-1,y1-1,f)};
+ // woods along the top and the east edge
+ for(const[x,y,r]of[[2,2,5],[8,0,4],[1,9,4],[12,2,3],[38,1,4],[42,0,3],[60,7,4],[62,13,4],[59,19,3.5],[63,3,3],[61,24,3]])for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(Math.hypot(cx-x,cy-y)<r+hh(cx,cy,61)*1.2-.4)G[cy][cx]='bush';
+ for(let cy=0;cy<CH;cy++){const rc=XRIV(cy),nc=XNOR(cy);for(let cx=0;cx<CW;cx++){const d=Math.abs(cx-rc);if(d<=.75)G[cy][cx]='water.deep';else if(d<=1.9)G[cy][cx]='water';if(Math.abs(cx-nc)<=1&&G[cy][cx]!=='water'&&G[cy][cx]!=='water.deep')G[cy][cx]='dirt'}}
+ for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++)if(G[cy][cx]==='grass'&&[-1,0,1].some(b=>[-1,0,1].some(a=>/^water(\.deep)?$/.test((G[cy+b]||[])[cx+a]||''))))G[cy][cx]='water.bank';
+ // the old road and the bridge: a cobbled causeway with half walls where it crosses the water
+ const rb=Math.round(XRIV(31));R(0,30,CW-1,32,'dirt');R(32,30,rb+4,32,'stone.grey.setts');R(rb-3,29,rb+3,29,'parapet');R(rb-3,33,rb+3,33,'parapet');
+ R(11,18,26,29,'dirt');R(33,33,40,35,'dirt');R(27,29,38,29,'dirt');
+ // guardhouse: an L of rubble stone, two rooms
+ const sw='stone.grey.rubble.w';R(13,19,24,19,sw);R(13,19,13,25,sw);R(13,25,19,25,sw);R(19,19,19,29,sw);R(19,29,24,29,sw);R(24,19,24,29,sw);R(14,20,18,24,'stone.grey.flags~3');R(20,20,23,28,'stone.grey.flags~3');
+ // cottages, the two-room house, the sheds and the mill
+ box(7,24,12,30,'wood.oak.logs.w','wood.oak.planks~3');box(28,23,33,29,'stone.grey.block.w','wood.mahog.planks~3');box(33,22,37,29,'stone.grey.block.w','wood.mahog.planks~3');
+ box(50,26,53,29,'wood.pine.logs.w','wood.pine.planks~2');box(15,34,20,38,'wood.oak.logs.w','wood.oak.planks~3');box(17,40,19,42,'wood.pine.logs.w','wood.pine.planks~2');box(29,36,37,42,'wood.oak.logs.w','wood.oak.planks~2');
+ // furniture
+ G[21][22]=G[21][23]='table';G[20][20]=G[20][21]='chest';G[24][14]='chest~3';G[21][14]='seat~3';G[25][9]=G[25][10]='table';G[26][9]='seat~3';G[24][29]=G[24][30]='desk.oak';G[25][30]='seat~4';G[23][36]='chest~3';
+ for(const x of[30,31,35,36])G[37][x]='chest~2';G[41][30]=G[41][31]='table';G[27][52]='pchest~2';
+ // doorways take the floor of the room they open into
+ for(const[x,y,f]of XDOORS)G[y][x]=f;
+ return G}
+function buildRoad(){const G=xrGrid();paintAll((cx,cy)=>G[cy][cx])}
+MLAB.road=[{t:'Crossroads',x:35,y:12,big:1},{t:'Guardhouse',x:18.5,y:17.4},{t:"Miller's Bridge",x:45,y:27.3},{t:"Miller's Mill",x:41.5,y:39.5}];
+function unitsRoad(){edSrc=null;for(const[x,y]of XDOORS)smartDoor('wood~3',x,y,false);snapDoors();sills();solDirty=true;
+ carrier('steel',57*T,40*T,-Math.PI/2,'Portsbridge','new');
+ U('Factor Mercer','Portsbridge','civ',31.5,26,RT,'pistol');U('Ames','Portsbridge','civ',35,25,LF,null,'Company Clerk');
+ for(const[n,x,y]of[['Holt',15.5,28.6],['Pike',16.7,28.6],['Sorrel',17.9,28.6],['Wren',15.5,29.8],['Dace',16.7,29.8],['Lusk',17.9,29.8]])U(n,'Portsbridge','rifle',x,y,RT);
+ U('Brannock','Portsbridge','guard',21.5,24,DN);U('Corr','Portsbridge','guard',16,22,DN);U('Ide','Portsbridge','home',7.5,31.2,RT);U('Fane','Portsbridge','home',12,31.2,RT);
+ for(const[n,x,y,u,w]of[['Gull',35.5,33.6,'home','pistol'],['Mott',36.6,34,'home','spear'],['Rask',37.4,34.8,'guard'],['Teague',38.4,35.4,'shock','spear'],['Brine',36,35.8,'home','blunder']])U(n,'Marshmen',u,x,y,UP,w);
+ for(const[n,x,y]of[['Skiff',48,33.5],['Bones',48,34.6],['Tull',48.6,35.7],['Weir',48,36.8]])U(n,'Marshmen',n==='Skiff'?'cmd':'rifle',x,y,LF,n==='Skiff'?'pistol':undefined);
+ U('Cray','Marshmen','rifle',51.5,27.5,DN);U('Fen','Marshmen','home',30.5,25.5,RT,'spear')}
 function buildAlley(){paintAll((cx,cy)=>{if(cy===0||cy===CH-1)return cy===CH-1&&cx===15?'stone.grey.quarter':cy===0?'stone.grey.block.w':'wood.oak.boards.w';
  if(cy>=1&&cy<=3)return cx===0||cx===CW-1?'stone.grey.block.w':cy===2&&cx>=4&&cx<=7?'table':cx===16&&cy===1||cx===17&&cy===1?'chest':'wood.teak.planks';
  if(cy===4)return cx===10||cx===11?'stone.grey.quarter':'stone.grey.block.w';
