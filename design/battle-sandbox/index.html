@@ -1452,7 +1452,7 @@ function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,E
  U('Ser Davin','Imperium','civ',19.5,13.5,UP,'pistol','Officer')}
 // Crossroads: the old road crosses Miller's brook by a stone bridge; guardhouse and cottages to the west, the mill below the road, the north road at the junction
 const lerpP=(P,y)=>{for(let i=1;i<P.length;i++)if(y<=P[i][0]){const t=(y-P[i-1][0])/(P[i][0]-P[i-1][0]);return P[i-1][1]+(P[i][1]-P[i-1][1])*t}return P[P.length-1][1]};
-const XDOORS=[[16,25,'stone.grey.flags~3'],[19,22,'stone.grey.flags~3'],[22,29,'stone.grey.flags~3'],[12,28,'wood.oak.planks~3'],[30,29,'wood.mahog.planks~3'],[35,29,'wood.mahog.planks~3'],[33,26,'wood.mahog.planks~3'],[51,29,'wood.pine.planks~2'],[17,34,'wood.oak.planks~3'],[18,40,'wood.pine.planks~2'],[33,36,'wood.oak.planks~2']];
+const XDOORS=[[16,25,'stone.grey.flags~3'],[19,22,'stone.grey.flags~3'],[22,29,'stone.grey.flags~3'],[12,28,'wood.oak.planks~3'],[30,29,'wood.mahog.planks~3'],[35,29,'wood.mahog.planks~3'],[33,26,'wood.mahog.planks~3'],[51,29,'wood.pine.planks~2'],[17,34,'wood.oak.planks~3'],[18,40,'wood.pine.planks~2']];
 const XRIV=y=>lerpP([[0,38.5],[6,41.5],[12,44.5],[18,45.5],[24,44],[30,44.5],[36,45],[42,44],[47,45.5],[52,48]],y)+Math.sin(y*.7)*.35,XNOR=y=>lerpP([[0,49],[12,49.5],[22,50.5],[31,50],[40,49.5],[52,52.5]],y);
 function xrGrid(){const G=Array.from({length:CH},()=>Array(CW).fill('grass')),R=(x0,y0,x1,y1,k)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(G[y]&&x>=0&&x<CW)G[y][x]=k},box=(x0,y0,x1,y1,w,f)=>{R(x0,y0,x1,y1,w);R(x0+1,y0+1,x1-1,y1-1,f)};
  // woods along the top and the east edge
@@ -1466,21 +1466,27 @@ function xrGrid(){const G=Array.from({length:CH},()=>Array(CW).fill('grass')),R=
  const sw='stone.grey.rubble.w';R(13,19,24,19,sw);R(13,19,13,25,sw);R(13,25,19,25,sw);R(19,19,19,29,sw);R(19,29,24,29,sw);R(24,19,24,29,sw);R(14,20,18,24,'stone.grey.flags~3');R(20,20,23,28,'stone.grey.flags~3');
  // cottages, the two-room house, the sheds and the mill
  box(7,24,12,30,'wood.oak.logs.w','wood.oak.planks~3');box(28,23,33,29,'stone.grey.block.w','wood.mahog.planks~3');box(33,22,37,29,'stone.grey.block.w','wood.mahog.planks~3');
- box(50,26,53,29,'wood.pine.logs.w','wood.pine.planks~2');box(15,34,20,38,'wood.oak.logs.w','wood.oak.planks~3');box(17,40,19,42,'wood.pine.logs.w','wood.pine.planks~2');box(29,36,37,42,'wood.oak.logs.w','wood.oak.planks~2');
+ box(50,26,53,29,'wood.pine.logs.w','wood.pine.planks~2');box(15,34,20,38,'wood.oak.logs.w','wood.oak.planks~3');box(17,40,19,42,'wood.pine.logs.w','wood.pine.planks~2');
  // furniture
  G[21][22]=G[21][23]='table';G[20][20]=G[20][21]='chest';G[24][14]='chest~3';G[21][14]='seat~3';G[25][9]=G[25][10]='table';G[26][9]='seat~3';G[24][29]=G[24][30]='desk.oak';G[25][30]='seat~4';G[23][36]='chest~3';
- for(const x of[30,31,35,36])G[37][x]='chest~2';G[41][30]=G[41][31]='table';G[27][52]='pchest~2';
+ G[27][52]='pchest~2';
  // doorways take the floor of the room they open into
  for(const[x,y,f]of XDOORS)G[y][x]=f;
  return G}
+// a building at any angle: its own small grid of tiles, turned about its centre and laid into the map pixel by pixel; walls stay solid where they land
+function stampRot(G,cx,cy,ang){const h=G.length,w=G[0].length,PW=w*T,PH=h*T,ca=Math.cos(ang),sa=Math.sin(ang),R=Math.hypot(PW,PH)/2+2,L0=LINK;LINK=(x,y)=>G[y]&&G[y][x];
+ try{for(let Y=Math.max(0,cy-R|0);Y<Math.min(H,cy+R);Y++)for(let X=Math.max(0,cx-R|0);X<Math.min(W,cx+R);X++){const dx=X+.5-cx,dy=Y+.5-cy,lx=dx*ca+dy*sa+PW/2,ly=-dx*sa+dy*ca+PH/2;if(lx<0||ly<0||lx>=PW||ly>=PH)continue;
+  const tx=lx/T|0,ty=ly/T|0,k=G[ty][tx];if(!k||!TEX[k])continue;const c=TEX[k](lx|0,ly|0,tx,ty);if(!c)continue;const j=Y*W+X,col=rgb(cl(c[0]),cl(c[1]),cl(c[2])),m=WMAT[k]||0;
+  if(m){sol[j]=m;shp[j]=CATN[k]?mprop(CATN[k][0],CATN[k][1]).hp:3;scol[j]=col;floor[j]=mul(col,.42)}else{sol[j]=0;floor[j]=col}}}finally{LINK=L0}solDirty=true;NAVD=true;fxDirty=true}
+const MILL=(()=>{const w='wood.oak.logs.w',f='wood.oak.planks~2',G=Array.from({length:7},(_,y)=>Array.from({length:10},(_,x)=>y===0||y===6||x===0||x===9?w:f));G[6][4]=G[6][5]=f;G[3][0]=f;return G})();
 function buildRoad(){const G=xrGrid();paintAll((cx,cy)=>G[cy][cx])}
 MLAB.road=[{t:'Crossroads',x:35,y:12,big:1},{t:'Guardhouse',x:18.5,y:17.4},{t:"Miller's Bridge",x:45,y:27.3},{t:"Miller's Mill",x:41.5,y:39.5}];
-function unitsRoad(){edSrc=null;for(const[x,y]of XDOORS)smartDoor('wood~3',x,y,false);snapDoors();sills();solDirty=true;
+function unitsRoad(){stampRot(MILL,33.5*T,39*T,-.6);edSrc=null;for(const[x,y]of XDOORS)smartDoor('wood~3',x,y,false);snapDoors();sills();solDirty=true;
  carrier('steel',57*T,40*T,-Math.PI/2,'Portsbridge','new');
  U('Factor Mercer','Portsbridge','civ',31.5,26,RT,'pistol');U('Ames','Portsbridge','civ',35,25,LF,null,'Company Clerk');
  for(const[n,x,y]of[['Holt',15.5,28.6],['Pike',16.7,28.6],['Sorrel',17.9,28.6],['Wren',15.5,29.8],['Dace',16.7,29.8],['Lusk',17.9,29.8]])U(n,'Portsbridge','rifle',x,y,RT);
  U('Brannock','Portsbridge','guard',21.5,24,DN);U('Corr','Portsbridge','guard',16,22,DN);U('Ide','Portsbridge','home',7.5,31.2,RT);U('Fane','Portsbridge','home',12,31.2,RT);
- for(const[n,x,y,u,w]of[['Gull',35.5,33.6,'home','pistol'],['Mott',36.6,34,'home','spear'],['Rask',37.4,34.8,'guard'],['Teague',38.4,35.4,'shock','spear'],['Brine',36,35.8,'home','blunder']])U(n,'Marshmen',u,x,y,UP,w);
+ for(const[n,x,y,u,w]of[['Gull',35.5,33.6,'home','pistol'],['Mott',36.6,34,'home','spear'],['Rask',37.4,34.8,'guard'],['Teague',38.4,35.4,'shock','spear'],['Brine',39,35.6,'home','blunder']])U(n,'Marshmen',u,x,y,UP,w);
  for(const[n,x,y]of[['Skiff',48,33.5],['Bones',48,34.6],['Tull',48.6,35.7],['Weir',48,36.8]])U(n,'Marshmen',n==='Skiff'?'cmd':'rifle',x,y,LF,n==='Skiff'?'pistol':undefined);
  U('Cray','Marshmen','rifle',51.5,27.5,DN);U('Fen','Marshmen','home',30.5,25.5,RT,'spear')}
 function buildAlley(){paintAll((cx,cy)=>{if(cy===0||cy===CH-1)return cy===CH-1&&cx===15?'stone.grey.quarter':cy===0?'stone.grey.block.w':'wood.oak.boards.w';
