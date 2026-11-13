@@ -965,9 +965,12 @@ function genRoads(){const rd={},on=new Set(),lay=(p,t)=>{for(let k=1;k<p.length;
    if(!best)break;lay(best,'roads');done.add(best[best.length-1])}}
  for(const o of B.filter(o=>o.r>=1).sort((a,b)=>a.r-b.r)){if(on.has(o.c))continue;const p=roadPath(o.c,u=>on.has(u),rd);if(p)lay(p,'trails');else on.add(o.c)}
  // the links asked for by name
- for(const[a,b]of[["Emperor's Dock",'Wetmarket'],['Goldtown','Crossroads'],['Crossroads',"Willard's Pass"]]){if(!BURG[a]||!BURG[b])continue;const ca=near([BURG[a].x,BURG[a].y]),cb=near([BURG[b].x,BURG[b].y]),p=roadPath(ca,u=>u===cb,rd);if(p)lay(p,'roads')}
+ for(const[a,b]of[["Emperor's Dock",'Wetmarket'],['Goldtown','Crossroads'],['Crossroads',"Willard's Pass"],['Crossroads','Codsbrook']]){if(!BURG[a]||!BURG[b])continue;const ca=near([BURG[a].x,BURG[a].y]),cb=near([BURG[b].x,BURG[b].y]),p=roadPath(ca,u=>u===cb,b==='Codsbrook'?{}:rd);if(p)lay(p,'roads')}
  return rd}
 if(!R.rd||R.rdGen!==4){R.rd=genRoads();R.rdGen=4}
+// Crossroads sits on the junction itself, and its road runs on north to Codsbrook
+if(!R.cross2){const o=near([758.1,404]),n=near([BURG.Crossroads.x,BURG.Crossroads.y]),cb=BURG.Codsbrook&&near([BURG.Codsbrook.x,BURG.Codsbrook.y]);moveCell(R,o,n);for(const k in R.prov)if(R.prov[k].cc===o)R.prov[k].cc=n;
+ const p=cb!=null&&roadPath(n,u=>u===cb,{});if(p)for(let k=1;k<p.length;k++)R.rd[lk(p[k-1],p[k])]='roads';BLOCK=null;R.cross2=1}
 
 let SEG=null;
 function roadSegs(){const deg={};for(const key in R.rd){const[a,b]=key.split('-').map(Number);(deg[a]||(deg[a]=[])).push([b,R.rd[key]]);(deg[b]||(deg[b]=[])).push([a,R.rd[key]])}
