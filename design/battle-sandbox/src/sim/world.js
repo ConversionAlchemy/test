@@ -1,6 +1,6 @@
 // building a map: regions, borders, furniture, tables, chests, tethers, sills, edges
 let curMap='circuit',VEH=[],VOB=null;
-const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
+const NBM={hall:buildHall,council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={hall:unitsHall,council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
 function build(){UND=[];REP.clear();TW.clear();HT.clear();MKC.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line

@@ -25,6 +25,22 @@ function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,E
  U('Alba','Imperium','civ',11.5,10.5,UP,'pistol','Officer');U('Meran','Imperium','civ',12.5,10.5,UP,null,'Imperial Noble');
  for(const[n,x,y,a]of[['Quill',6.2,6.2,RT],['Brask',6.2,9.4,RT],['Hode',10.4,12.6,UP],['Lusk',4.6,13.4,UP]])U(n,'Imperium','rifle',x,y,a,undefined,'Imperial Striped Guard');
  U('Ser Davin','Imperium','civ',19.5,13.5,UP,'pistol','Officer')}
+// Aurum halls: a mirrored hall of the Goldbank for two sides; a hall at each end, three ways through the middle (west gallery, the vault, east gallery), each with its own narrow doors
+const HALLP={A:[24,4],B:[24,60],W:[5,32],C:[24,32],E:[43,32]},HALLA=[[2,2],[1,22],[21,22]];
+function hallGrid(){const G=Array.from({length:65},()=>Array(49).fill('stone.gold.block.w')),R=(x0,y0,x1,y1,k)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)G[y][x]=k};
+ const FL='stone.aur.block',CQ='stone.aur.chequer',PI='stone.aur.block.w',CP='cloth.crimson.diamond',SL='stone.aur.slabs';
+ R(9,1,24,8,FL);R(22,2,24,8,CP);R(1,1,7,8,SL);R(8,4,8,5,FL);R(12,9,14,9,FL);R(23,9,24,9,CP);
+ R(1,10,15,19,'wood.mahog.planks');R(16,14,16,16,FL);R(17,10,24,19,CQ);
+ R(3,20,5,20,FL);R(11,20,13,20,FL);R(23,20,24,20,FL);
+ R(1,21,9,32,SL);R(10,25,10,27,FL);R(11,21,13,32,FL);R(14,31,14,32,FL);R(15,21,24,32,CQ);R(22,29,24,32,CP);
+ for(const[x,y]of[[12,3],[12,6],[18,3],[18,6],[5,24],[5,28],[19,12],[19,17],[18,24],[18,28],[21,26]])G[y][x]=PI;
+ for(const x of[3,4,8,9])for(const y of[12,16])G[y][x]='desk';for(const x of[16,17,19,20])G[21][x]='schest';G[13][21]=G[13][22]='gtable';
+ for(const[x,y]of HALLA)G[y][x]='mchest';
+ for(let y=0;y<65;y++)for(let x=0;x<24;x++)G[y][48-x]=G[y][x];for(let y=0;y<32;y++)G[64-y]=G[y].slice();
+ return G}
+function buildHall(){const G=hallGrid();paintAll((cx,cy)=>G[cy][cx])}
+MLAB.hall=[{t:'North hall',x:24.5,y:2.2},{t:'South hall',x:24.5,y:63.4},{t:'West gallery',x:5.5,y:30},{t:'East gallery',x:43.5,y:30},{t:'The vault',x:24.5,y:29.6}];
+function unitsHall(){if(self.BFUNITS)self.BFUNITS()}
 // Crossroads: the old road crosses Miller's brook by a stone bridge; guardhouse and cottages to the west, the mill below the road, the north road at the junction
 const lerpP=(P,y)=>{for(let i=1;i<P.length;i++)if(y<=P[i][0]){const t=(y-P[i-1][0])/(P[i][0]-P[i-1][0]);return P[i-1][1]+(P[i][1]-P[i-1][1])*t}return P[P.length-1][1]};
 const XDOORS=[[16,25,'stone.grey.flags~3'],[19,22,'stone.grey.flags~3'],[22,29,'stone.grey.flags~3'],[12,28,'wood.oak.planks~3'],[30,29,'wood.mahog.planks~3'],[35,29,'wood.mahog.planks~3'],[33,26,'wood.mahog.planks~3'],[51,29,'wood.pine.planks~2'],[17,34,'wood.oak.planks~3'],[18,40,'wood.pine.planks~2']];

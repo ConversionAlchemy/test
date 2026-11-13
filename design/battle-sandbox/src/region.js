@@ -1054,5 +1054,43 @@ if(R.siteV!==2){R.siteV=2;const old=new Set(['34x24','24x18','30x20']),busy=new 
  for(const c in R.cm){R.cm[c]=R.cm[c].filter(id=>{const d=MODS.maps[id];if(!d||d.gen||d.from!=null||!old.has(d.CW+'x'+d.CH)||busy.has(id)||id===curMap||d.bodies.some(b=>b.t==='u'))return true;delete MODS.maps[id];delete STATE[id];if(R.chairs)delete R.chairs[id];if(R.last[c]===id)delete R.last[c];return false});if(!R.cm[c].length)delete R.cm[c]}
  saveMods();fillMapSel();save()}
 if(!R.restV){R.restV=1;for(const n in R.fallen||{})restore(n);save()}
+// ---- Aurum halls: two sides, twelve men each on the floor, 96 to spend; men come in at the posts their side holds
+// posts: A and B are the halls (never change hands), W, C, E in the middle are taken by standing on them; holding all three bleeds the other side
+const BF={on:false,sides:['Astria','Old Kingdoms'],tk:[96,96],own:{A:0,B:1,W:-1,C:-1,E:-1},cap:{W:0,C:0,E:0},next:[0,0],bleed:0,won:-1,hud:null,dlg:null,amm:[]};
+const BFN=12,BFT=96,BFR=46,BFMID=['W','C','E'],bfPt=k=>[(HALLP[k][0]+.5)*T,(HALLP[k][1]+.5)*T],bfTeam=i=>NATS[BF.sides[i]]&&NATS[BF.sides[i]].gn||BF.sides[i],bfSide=b=>teamOf(b)===bfTeam(0)?0:teamOf(b)===bfTeam(1)?1:-1;
+function bfSpawn(i){const n=BF.sides[i],posts=Object.keys(BF.own).filter(k=>BF.own[k]===i),k=posts[(Math.random()*posts.length)|0]||(i?'B':'A'),[x,y]=bfPt(k),r=Math.random(),t=r<.5?'rifle':r<.75?'guard':r<.93?'home':'cmd',look=lookFor(n,t==='cmd'?'rifle':t),u=t==='cmd'?'cmd':CLSU[WARD.CLS[look.split('|')[0]]]||t;
+ const b=token(NAMES[(Math.random()*NAMES.length)|0],bfTeam(i),u,x,y,false,undefined,look);spot(b,x,y,(Math.random()*9)|0);b.vx=b.vy=0;b.ang=i?-Math.PI/2:Math.PI/2;b.bf=i;return b}
+function bfStart(){for(const b of[...bodies])if(b.type==='token'){bodies.splice(bodies.indexOf(b),1);if(b.lab)b.lab.remove()}
+ Object.assign(BF,{on:true,tk:[BFT,BFT],own:{A:0,B:1,W:-1,C:-1,E:-1},cap:{W:0,C:0,E:0},next:[0,0],bleed:0,won:-1});BF.amm=HALLA.flatMap(([x,y])=>[[x,y],[48-x,y],[x,64-y],[48-x,64-y]]).map(([x,y])=>({x:(x+.5)*T,y:(y+.5)*T,t:0}));
+ FIGHT.hall=[[bfTeam(0),bfTeam(1)]];for(let i=0;i<2;i++)for(let j=0;j<BFN;j++){bfSpawn(i);BF.tk[i]--}
+ self.BFON=true;aiOn=true;aiMe=bfTeam(0);aiSetup();bfHud()}
+// men without a fight head for a post their side doesn't hold: each keeps to his own way through (west, vault, east) until it's taken
+self.BFGOAL=b=>{if(!BF.on||curMap!=='hall')return null;const i=bfSide(b);if(i<0)return null;const lane=BFMID[b.id%3],want=BFMID.filter(k=>BF.own[k]!==i);
+ const k=BF.own[lane]!==i?lane:want.length?want.sort((p,q)=>Math.hypot(bfPt(p)[0]-b.x,bfPt(p)[1]-b.y)-Math.hypot(bfPt(q)[0]-b.x,bfPt(q)[1]-b.y))[0]:i?'A':'B',[x,y]=bfPt(k);
+ if(k===lane&&BF.own[k]===i)return null;const o=b.bfo||(b.bfo=[(Math.random()-.5)*40,(Math.random()-.5)*40]);return Math.hypot(x-b.x,y-b.y)<30?null:[x+o[0],y+o[1]]};
+self.BFUNITS=()=>{BF.on=false;self.BFON=false;bfDialog()};
+function bfTick(){if(curMap!=='hall'||!BF.on){if(BF.hud&&curMap!=='hall'){BF.hud.remove();BF.hud=null;self.BFON=false;BF.on=false;aiOn=false;aiMe=null;for(const b of bodies)b.ai=null}if(BF.dlg&&curMap!=='hall'){BF.dlg.remove();BF.dlg=null}return}
+ const live=[0,0];for(const b of[...bodies]){if(b.type!=='token')continue;if(b.status==='dead'){b.bfD=b.bfD||tick;if(tick-b.bfD>900){bodies.splice(bodies.indexOf(b),1);if(b.lab)b.lab.remove()}continue}const i=bfSide(b);if(i>=0&&b.status==='free')live[i]++}
+ for(const k of BFMID){const[x,y]=bfPt(k),n=[0,0];for(const b of bodies)if(b.type==='token'&&b.status==='free'&&Math.hypot(b.x-x,b.y-y)<BFR){const i=bfSide(b);if(i>=0)n[i]++}
+  let c=BF.cap[k];if(n[0]&&!n[1])c=Math.min(1,c+.0035*Math.min(3,n[0]));else if(n[1]&&!n[0])c=Math.max(-1,c-.0035*Math.min(3,n[1]));BF.cap[k]=c;
+  const was=BF.own[k];if(c>=1)BF.own[k]=0;else if(c<=-1)BF.own[k]=1;else if(was===0&&c<=0||was===1&&c>=0)BF.own[k]=-1;if(was!==BF.own[k])sfx('flick')}
+ if(BF.won<0){for(let i=0;i<2;i++)if(live[i]<BFN&&BF.tk[i]>0&&tick>=BF.next[i]){bfSpawn(i);BF.tk[i]--;BF.next[i]=tick+50}
+  for(let i=0;i<2;i++)if(BFMID.every(k=>BF.own[k]===i)&&tick%120===0)BF.tk[1-i]=Math.max(0,BF.tk[1-i]-1);
+  for(let i=0;i<2;i++)if(BF.tk[i]<=0&&live[i]===0)BF.won=1-i}
+ for(const p of BF.amm)if(tick>=p.t)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&Math.hypot(b.x-p.x,b.y-p.y)<26){let got=false;for(const q of b.inv||[])if(q&&BOX[q.k])got=addRes(b,q.k,RCAP(q.k)*2)||got;if(got){sfx('reload');p.t=tick+900;break}}
+ if(tick%10===0)bfHud(live)}
+function bfHud(live){if(!BF.hud){BF.hud=document.createElement('div');BF.hud.className='bfh';document.body.appendChild(BF.hud)}const s=i=>`<span class="sw" style="background:${NATS[BF.sides[i]].c}"></span>${disp(BF.sides[i])}`,pc=k=>`<span class="bp" style="background:${BF.own[k]<0?'#4a4740':NATS[BF.sides[BF.own[k]]].c}"></span>`;
+ BF.hud.innerHTML=`<div class="bft">${s(0)}<b>${BF.tk[0]}</b><span class="bpx">${BFMID.map(pc).join('')}</span><b>${BF.tk[1]}</b>${s(1).replace(/^(<span[^>]*><\/span>)(.*)$/,'$2$1')}</div>${BF.won>=0?`<div class="bfw">${disp(BF.sides[BF.won])} win</div>`:''}<button class="bfr">New round</button>`;BF.hud.querySelector('.bfr').onclick=bfDialog}
+function bfDialog(){if(BF.dlg)BF.dlg.remove();const d=BF.dlg=document.createElement('div'),opt=v=>Object.keys(NATS).map(n=>`<option value="${n}"${n===v?' selected':''}>${disp(n)}</option>`).join('');
+ d.className='bfd';d.innerHTML=`<div class="bfp"><select class="a">${opt(BF.sides[0])}</select><span>vs</span><select class="b">${opt(BF.sides[1])}</select><button class="go">Start</button></div>`;document.body.appendChild(d);
+ const a=d.querySelector('.a'),b=d.querySelector('.b'),ok=()=>{d.querySelector('.go').disabled=a.value===b.value||bfTeamOf(a.value)===bfTeamOf(b.value)};a.onchange=b.onchange=ok;ok();
+ d.querySelector('.go').onclick=()=>{BF.sides=[a.value,b.value];d.remove();BF.dlg=null;bfStart()}}
+const bfTeamOf=n=>NATS[n]&&NATS[n].gn||n,bfC=h=>rgb(parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16));
+// post rings drawn into the map: owner's colour, filling as it's taken; ammo chests glint when stocked
+{const od=ordDraw;ordDraw=function(){od();if(curMap!=='hall'||!BF.on)return;
+ for(const k of Object.keys(BF.own)){const[x,y]=bfPt(k),o=BF.own[k],c=o<0?rgb(150,144,130):bfC(NATS[BF.sides[o]].c),cp=BF.cap[k]||0,f=Math.abs(cp),fc=cp>0?bfC(NATS[BF.sides[0]].c):bfC(NATS[BF.sides[1]].c);
+  for(let i=0;i<220;i++){const A=i/220*Math.PI*2-Math.PI/2;for(const r of[BFR-1,BFR]){const X=Math.round(x+Math.cos(A)*r),Y=Math.round(y+Math.sin(A)*r);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=mix(out[Y*W+X],k in BF.cap&&i/220<f?fc:c,.75)}}}
+ for(const p of BF.amm)if(tick>=p.t)for(let i=0;i<24;i++){const A=i/24*Math.PI*2,X=Math.round(p.x+Math.cos(A)*11),Y=Math.round(p.y+Math.sin(A)*11);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=mix(out[Y*W+X],rgb(232,206,120),.8)}}}
+{const up=update;update=function(){up();bfTick()}}
 window.REGION={toks:()=>bodies.filter(b=>b.type==='token').map(b=>[b.name,b.unit,!!b.rid,b.nat,lookOf(b)]),mv:(id,c)=>moveF(R.F.find(f=>f.id===id),c),tile:t=>terTile(t),dbg:()=>({SL:seaLabels(),wc:R.wc,seas:R.seas,c:Object.keys(R.wc).map(k=>[+k,D.cells[k].h,D.cells[k].c,CEN[k]])}),ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=Math.min(KMAX,k);k=view.k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=migrate(v);R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
 })();

@@ -83,7 +83,13 @@
  </div>
  <div class="hint" id="hint"></div>
 </div>
-<style>#sm .mk>#tpr{display:flex;justify-content:center;align-items:center;height:58px;cursor:var(--c-grab);position:relative}#sm .mk>#tpr #dice{position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;cursor:pointer;image-rendering:pixelated;opacity:.75}#sm .mk>#tpr #dice:hover{opacity:1}#sm .mk>#tpr canvas{width:51px;height:51px;image-rendering:pixelated}#sm .wp>div.isep{height:0;padding:0;margin:4px 2px;background:none;border:0;border-top:1px solid #3c3a36;box-shadow:none;cursor:var(--c-arrow)}#sm .ib{width:30px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;background:#2c2c2c;border:1px solid #4a4a4a;box-shadow:inset 0 0 0 1px #1a1a1a;color:#8a877e;cursor:pointer}#sm .ib svg{width:16px;height:16px}#sm .ib:hover{color:#e6e2d6;border-color:#6a6a6a}#sm .ib.on{background:#4a4944;color:#fff;border:2px solid #f2efe6;box-shadow:none}</style><style>#sm .xlab.mlab{font-family:'IM Fell English SC',serif;color:#f1ead6;transform:translate(-50%,-50%);text-shadow:0 0 .12em #2a2118,0 0 .25em rgba(30,24,16,.8),.06em .06em 0 #2a2118;letter-spacing:.02em;z-index:2}#sm .xlab.mlab.big{letter-spacing:.04em}
+<style>#sm .mk>#tpr{display:flex;justify-content:center;align-items:center;height:58px;cursor:var(--c-grab);position:relative}#sm .mk>#tpr #dice{position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;cursor:pointer;image-rendering:pixelated;opacity:.75}#sm .mk>#tpr #dice:hover{opacity:1}#sm .mk>#tpr canvas{width:51px;height:51px;image-rendering:pixelated}#sm .wp>div.isep{height:0;padding:0;margin:4px 2px;background:none;border:0;border-top:1px solid #3c3a36;box-shadow:none;cursor:var(--c-arrow)}#sm .ib{width:30px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;background:#2c2c2c;border:1px solid #4a4a4a;box-shadow:inset 0 0 0 1px #1a1a1a;color:#8a877e;cursor:pointer}#sm .ib svg{width:16px;height:16px}#sm .ib:hover{color:#e6e2d6;border-color:#6a6a6a}#sm .ib.on{background:#4a4944;color:#fff;border:2px solid #f2efe6;box-shadow:none}</style><style>.bfh{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:8px;align-items:center;font:13px 'Silkscreen',monospace;color:#e8e4da}
+.bfh .bft{display:flex;gap:8px;align-items:center;background:#1e1f20;border:1px solid #3a3d3e;padding:6px 10px}.bfh b{font-weight:normal;min-width:2.2em;text-align:center}
+.bfh .sw{width:10px;height:10px;display:inline-block}.bfh .bpx{display:flex;gap:3px}.bfh .bp{width:12px;height:12px;display:inline-block;border:1px solid #111}
+.bfh .bfw{background:#e8e4da;color:#1b1c1d;padding:6px 10px}.bfh button,.bfd button,.bfd select{font:inherit;background:#232526;color:#e8e4da;border:1px solid #3a3d3e;padding:5px 9px;cursor:pointer}
+.bfd{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(10,10,12,.45);font:13px 'Silkscreen',monospace;color:#e8e4da}
+.bfd .bfp{display:flex;gap:10px;align-items:center;background:#1e1f20;border:1px solid #3a3d3e;padding:14px}.bfd button:disabled{opacity:.4;cursor:default}
+#sm .xlab.mlab{font-family:'IM Fell English SC',serif;color:#f1ead6;transform:translate(-50%,-50%);text-shadow:0 0 .12em #2a2118,0 0 .25em rgba(30,24,16,.8),.06em .06em 0 #2a2118;letter-spacing:.02em;z-index:2}#sm .xlab.mlab.big{letter-spacing:.04em}
 #sm .xlab{position:absolute;font-size:16px;line-height:1;color:#c9b27a;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000;white-space:nowrap;pointer-events:none}</style><style>
 /* new screen: full-screen map, panel zones, bevelled keys */
 html,body{height:100%}#sm{height:100vh;border:0;display:flex;flex-direction:column}
@@ -992,7 +998,7 @@ function paintCell0(cx,cy,key){if(cx<0||cy<0||cx>=CW||cy>=CH)return;NAVD=true;ke
   GOLD[j]=gk&&hh(X,Y,61)>.985?2:gk;if(m&&!hf){sol[j]=m;solDirty=true;const wf=255-d[i+3];shp[j]=wf===2?1:wf===1?Math.max(1,hpK-1):hpK;scol[j]=c;floor[j]=ud?mul(rgb(ud[i],ud[i+1],ud[i+2]),.7):mul(c,.42)}else{sol[j]=0;solDirty=true;floor[j]=c}}}
 // building a map: regions, borders, furniture, tables, chests, tethers, sills, edges
 let curMap='circuit',VEH=[],VOB=null;
-const NBM={council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
+const NBM={hall:buildHall,council:buildCouncil,road:buildRoad,alley:buildAlley,stock:buildStock},NUM={hall:unitsHall,council:unitsCouncil,road:unitsRoad,alley:unitsAlley,stock:unitsStock};
 function build(){UND=[];REP.clear();TW.clear();HT.clear();MKC.clear();(NBM[curMap]||(curMap==='vault'?buildVault:curMap==='count'?buildCount:curMap==='range'?buildRange:curMap==='air'?buildAir:buildBank))();resill();relink();blendGround();objects();boards();borders();regions();polish();cracks();edgeMask()}
 // grass and soil meet in a soft worn edge; GT marks which ground each pixel shows
 // rugs get a border, tables and desks an edge and an inlay line
@@ -1450,6 +1456,22 @@ function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,E
  U('Alba','Imperium','civ',11.5,10.5,UP,'pistol','Officer');U('Meran','Imperium','civ',12.5,10.5,UP,null,'Imperial Noble');
  for(const[n,x,y,a]of[['Quill',6.2,6.2,RT],['Brask',6.2,9.4,RT],['Hode',10.4,12.6,UP],['Lusk',4.6,13.4,UP]])U(n,'Imperium','rifle',x,y,a,undefined,'Imperial Striped Guard');
  U('Ser Davin','Imperium','civ',19.5,13.5,UP,'pistol','Officer')}
+// Aurum halls: a mirrored hall of the Goldbank for two sides; a hall at each end, three ways through the middle (west gallery, the vault, east gallery), each with its own narrow doors
+const HALLP={A:[24,4],B:[24,60],W:[5,32],C:[24,32],E:[43,32]},HALLA=[[2,2],[1,22],[21,22]];
+function hallGrid(){const G=Array.from({length:65},()=>Array(49).fill('stone.gold.block.w')),R=(x0,y0,x1,y1,k)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)G[y][x]=k};
+ const FL='stone.aur.block',CQ='stone.aur.chequer',PI='stone.aur.block.w',CP='cloth.crimson.diamond',SL='stone.aur.slabs';
+ R(9,1,24,8,FL);R(22,2,24,8,CP);R(1,1,7,8,SL);R(8,4,8,5,FL);R(12,9,14,9,FL);R(23,9,24,9,CP);
+ R(1,10,15,19,'wood.mahog.planks');R(16,14,16,16,FL);R(17,10,24,19,CQ);
+ R(3,20,5,20,FL);R(11,20,13,20,FL);R(23,20,24,20,FL);
+ R(1,21,9,32,SL);R(10,25,10,27,FL);R(11,21,13,32,FL);R(14,31,14,32,FL);R(15,21,24,32,CQ);R(22,29,24,32,CP);
+ for(const[x,y]of[[12,3],[12,6],[18,3],[18,6],[5,24],[5,28],[19,12],[19,17],[18,24],[18,28],[21,26]])G[y][x]=PI;
+ for(const x of[3,4,8,9])for(const y of[12,16])G[y][x]='desk';for(const x of[16,17,19,20])G[21][x]='schest';G[13][21]=G[13][22]='gtable';
+ for(const[x,y]of HALLA)G[y][x]='mchest';
+ for(let y=0;y<65;y++)for(let x=0;x<24;x++)G[y][48-x]=G[y][x];for(let y=0;y<32;y++)G[64-y]=G[y].slice();
+ return G}
+function buildHall(){const G=hallGrid();paintAll((cx,cy)=>G[cy][cx])}
+MLAB.hall=[{t:'North hall',x:24.5,y:2.2},{t:'South hall',x:24.5,y:63.4},{t:'West gallery',x:5.5,y:30},{t:'East gallery',x:43.5,y:30},{t:'The vault',x:24.5,y:29.6}];
+function unitsHall(){if(self.BFUNITS)self.BFUNITS()}
 // Crossroads: the old road crosses Miller's brook by a stone bridge; guardhouse and cottages to the west, the mill below the road, the north road at the junction
 const lerpP=(P,y)=>{for(let i=1;i<P.length;i++)if(y<=P[i][0]){const t=(y-P[i-1][0])/(P[i][0]-P[i-1][0]);return P[i-1][1]+(P[i][1]-P[i-1][1])*t}return P[P.length-1][1]};
 const XDOORS=[[16,25,'stone.grey.flags~3'],[19,22,'stone.grey.flags~3'],[22,29,'stone.grey.flags~3'],[12,28,'wood.oak.planks~3'],[30,29,'wood.mahog.planks~3'],[35,29,'wood.mahog.planks~3'],[33,26,'wood.mahog.planks~3'],[51,29,'wood.pine.planks~2'],[17,34,'wood.oak.planks~3'],[18,40,'wood.pine.planks~2']];
@@ -2474,7 +2496,7 @@ function fireTick(){for(const b of [...bodies]){if((b.type!=='token'&&b.type!=='
 // AI: one side follows orders its leader rolls each playthrough
 let aiOn=false,aiMe=null,lastSide=null;
 // AI reads the map itself (rooms, doors, cover) and acts on what each unit sees, hears and remembers
-const teamOf=b=>b.status==='captured'||b.neutral?'Neutral':b.nat?guildOf(b)||SIDE[b.nat]||b.nat:'Neutral',aiUnit=b=>b.type==='token'&&aiOn&&aiMe&&(teamOf(b)!==aiMe||b.auto&&!b.direct);
+const teamOf=b=>b.status==='captured'||b.neutral?'Neutral':b.nat?guildOf(b)||SIDE[b.nat]||b.nat:'Neutral',aiUnit=b=>b.type==='token'&&aiOn&&(self.BFON?!b.direct&&!sel.has(b):aiMe&&(teamOf(b)!==aiMe||b.auto&&!b.direct));
 function aiSetup(){for(const b of bodies)b.ai=null;GS={};NZ=[];RINGS=[];ROOMS=null;SEEN.fill(-1e9);if(!aiOn)return;
  if(!aiMe){const t=[...sel].find(o=>o.type==='token');aiMe=t?teamOf(t):lastSide||teamOf(bodies.find(o=>o.type==='token'&&o.nat)||{})}aiRooms()}
 const aiOpen=(cx,cy)=>{if(cx<0||cy<0||cx>=CW||cy>=CH||map[cy][cx]==='sky')return false;const j=(cy*T+8)*W+cx*T+8;return !sol[j]&&!OBJ[j]};
@@ -2652,8 +2674,8 @@ function aiTick(){if(!aiOn)return;if(!ROOMS||ROOMS.R.length!==CW*CH||(NAVD||ROOM
  if(tick%30===0){const byT={};for(const b of us)(byT[teamOf(b)]||(byT[teamOf(b)]=[])).push(b);for(const g of Object.values(byT))aiShare(g.filter(b=>GS[teamOf(b)]&&GS[teamOf(b)].mode!=='calm'));aiTeams()}
  NZ=NZ.filter(z=>tick-z.t<6);
  for(const b of us){const a=b.ai,g=GS[teamOf(b)]||{mode:'calm'},gm0=(GS[teamOf(b)]||{mode:'calm'}).mode,gm=b.unit==='cmd'&&gm0==='hold'?'hunt':(gm0==='fall'||gm0==='defend')&&GS[teamOf(b)].inside&&!GS[teamOf(b)].inside.has(b)?'hold':gm0,tg=a.tg&&a.tg.status==='free'?a.tg:null,civ=b.unit==='civ'&&!b.inv.some(q=>q&&WV[q.k])||teamOf(b)==='Neutral';if(b.holdT>tick){if(tg)aiShoot(b,tg);continue}if(!tg&&lookTick(b))continue;{const rr=roomAt(b.x,b.y);if(a.inR!==rr){a.inR=rr;a.inT=tick}}if(bombFlee(b,[...(g.known||new Map()).values()]))continue;if(b.ord){ordTick(b);continue}
-  if(tg&&a.td<70&&teamOf(b)!=='Neutral'&&teamOf(b)!==aiMe&&(civ||g.odds<.5&&(!b.inv.some(q=>q&&WV[q.k]&&!empty(q))||b.px.length<b.n0*.5))){surrender(b);continue}
-  if(!civ){const c=bodies.find(o=>o.type==='token'&&o.status==='free'&&foe(b,o)&&!armedOf(o)&&Math.hypot(o.x-b.x,o.y-b.y)<18);if(c){surrender(c);say(b,'Got one',true)}}
+  if(!self.BFON&&tg&&a.td<70&&teamOf(b)!=='Neutral'&&teamOf(b)!==aiMe&&(civ||g.odds<.5&&(!b.inv.some(q=>q&&WV[q.k]&&!empty(q))||b.px.length<b.n0*.5))){surrender(b);continue}
+  if(!civ&&!self.BFON){const c=bodies.find(o=>o.type==='token'&&o.status==='free'&&foe(b,o)&&!armedOf(o)&&Math.hypot(o.x-b.x,o.y-b.y)<18);if(c){surrender(c);say(b,'Got one',true)}}
   if(civ){if(gm!=='calm'||tg){if(!a.spot){const th=[...(g.known||new Map()).values()];let best=roomAt(b.x,b.y),bs=-1e9;for(let i=0;i<ROOMS.n;i++){const c=ROOMS.cen[i];const sc=th.reduce((s,q)=>s+Math.hypot(q.x-c[0],q.y-c[1]),0)-(th.length?0:1e9);if(sc>bs){bs=sc;best=i}}a.spot=aiWander(b,best)}if(a.spot&&aiGo(b,a.spot[0],a.spot[1]))b.crouch=true}continue}
   if(gm!=='calm'||tg)aiArm(b);
   if(gm!=='calm'&&!civ&&needsArms(b)){let fr=null,fd=200;for(const f of us)if(f!==b&&teamOf(f)===teamOf(b)&&spareFor(f,b)){const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<fd){fd=d;fr=f}}let wpn=null,wd=Math.min(200,fd);for(const o of bodies)if(o.type==='weapon'&&WV[o.kind]&&!o.stuck&&!o.att&&!o.wedged&&Math.hypot(o.vx,o.vy)<.3){const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<wd){wd=d;wpn=o}}if(wpn||fr)say(b,'Need arms');if(wpn){b.noAuto=false;aiGo(b,wpn.x,wpn.y);continue}if(fr){if(Math.hypot(fr.x-b.x,fr.y-b.y)>20)aiGo(b,fr.x,fr.y);continue}}
@@ -2662,7 +2684,8 @@ function aiTick(){if(!aiOn)return;if(!ROOMS||ROOMS.R.length!==CW*CH||(NAVD||ROOM
    if(g.locker===b&&op.length){let e=a.lockE&&op.includes(a.lockE)?a.lockE:null;if(e&&tick-a.lockT>300){e.skip=tick+600;e=null}if(!e){e=a.lockE=op.sort((p,q)=>Math.hypot(p.d.x-b.x,p.d.y-b.y)-Math.hypot(q.d.x-b.x,q.d.y-b.y))[0];a.lockT=tick;say(b,'Locking up')}b.crouch=false;if(aiLock(b,e,g.home))a.lockE=null;continue}}
   {const L=g.locker,e=L&&L!==b&&L.ai&&L.ai.lockE;if(e&&Math.hypot(e.d.x-b.x,e.d.y-b.y)<44&&g.home>=0){const c=ROOMS.cen[g.home];b.crouch=false;if(c)aiGo(b,c[0],c[1]);if(tg)turnTo(b,Math.atan2(tg.y-b.y,tg.x-b.x));continue}}
   if(tg){if(b.crouch&&!canSeeUp(b,tg))b.crouch=false;aiShoot(b,tg);if(a.side){if(aiStep(b,a.side[0],a.side[1])||a.stk>20){a.side=null;a.stk=0}continue}
-   const far=b.held&&(WP[b.held.k].melee?a.td>100:a.td>(WP[b.held.k].range||200)*.8);if((gm==='hunt'||gm==='hold')&&far)aiGo(b,tg.x,tg.y);continue}
+   const far=b.held&&(WP[b.held.k].melee?a.td>100:a.td>(WP[b.held.k].range||200)*.8);if((gm==='hunt'||gm==='hold'||self.BFON)&&far)aiGo(b,tg.x,tg.y);continue}
+  if(self.BFGOAL){const p=self.BFGOAL(b);if(p){b.crouch=false;aiGo(b,p[0],p[1]);continue}}
   const home=g.home,known=[...(g.known||new Map()).values()].sort((p,q)=>q.t-p.t),last=known[0];
   if(gm==='calm'){b.crouch=false;if(a.idle==='patrol'&&us.filter(o=>o!==b&&Math.hypot(o.x-b.x,o.y-b.y)<48).length<3){if(!a.spot||aiGo(b,a.spot[0],a.spot[1])){if(!a.wait)a.wait=tick+60+Math.random()*120;if(tick>a.wait){a.wait=0;a.spot=aiWander(b,roomAt(b.x,b.y))}}}else if((tick+b.id*37)%240===0&&Math.random()<.3){if(a.ang0==null)a.ang0=b.ang;turnTo(b,a.ang0+(Math.random()-.5)*.9)}continue}
   if(gm==='seek'){const z=g.heard;if(z){if(!a.spot||a.spotZ!==z.t){const r=roomAt(z.x,z.y);a.spot=r>=0&&aiWander(b,r)||[z.x,z.y];a.spotZ=z.t;a.look=0}if(aiGo(b,a.spot[0],a.spot[1])||a.stk>20){if(!a.look){a.look=tick+90;a.la=b.ang}turnTo(b,a.la+Math.sin((a.look-tick)/20)*1.2);if(tick>a.look){a.look=0;for(const o of us)if(teamOf(o)===teamOf(b)&&o.ai.nz&&o.ai.nz.t<=z.t)o.ai.nz=null}}}continue}
@@ -2918,8 +2941,8 @@ const bar=$('bar');
 const btn=(t,f)=>{const b=document.createElement('button');b.textContent=t;b.onclick=f;bar.appendChild(b);return b};
 
 
-const TITLE={bank:'Goldbank · Back room',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard',council:'Sanctis · Council chamber',road:'Portsbridge · Crossroads',alley:'Great Keys · Guild alley',stock:"Emperor's Dock · Stockyard"};
-btn('Reset',()=>reset());{const sb=btn('Slow-mo (Z)',()=>{slowMo=!slowMo;sb.classList.toggle('on',slowMo)});window.toggleSlow=()=>sb.onclick();setTimeout(()=>bar.appendChild(sb),0)}{const ab=btn('AI',()=>{aiOn=!aiOn;aiMe=null;ab.classList.toggle('on',aiOn);if(!aiOn)for(const b of bodies){b.fogH=false;b.ai=null}aiSetup()})}{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['vault','Goldbank Aurum heist'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"],['blast','Fluoria blast yard']]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
+const TITLE={hall:'Goldbank · Aurum halls',bank:'Goldbank · Back room',vault:'Goldbank · The Aurum',count:'Goldbank · Counting house',range:'Astia · Proving yard',council:'Sanctis · Council chamber',road:'Portsbridge · Crossroads',alley:'Great Keys · Guild alley',stock:"Emperor's Dock · Stockyard"};
+btn('Reset',()=>reset());{const sb=btn('Slow-mo (Z)',()=>{slowMo=!slowMo;sb.classList.toggle('on',slowMo)});window.toggleSlow=()=>sb.onclick();setTimeout(()=>bar.appendChild(sb),0)}{const ab=btn('AI',()=>{aiOn=!aiOn;aiMe=null;ab.classList.toggle('on',aiOn);if(!aiOn)for(const b of bodies){b.fogH=false;b.ai=null}aiSetup()})}{const ms=document.createElement('select');for(const[v,n]of[['bank','Goldbank back room'],['vault','Goldbank Aurum heist'],['hall','Goldbank Aurum halls'],['count','Goldbank counting house'],['range','Astia proving yard'],['council','Sanctis council chamber'],['road','Portsbridge road ambush'],['alley','Great Keys guild alley'],['stock',"Emperor's Dock stockyard"],['blast','Fluoria blast yard']]){const o=document.createElement('option');o.value=v;o.textContent=n;ms.appendChild(o)}ms.id='msel';ms.onchange=()=>goMap(ms.value);bar.appendChild(ms)}
 
 function icon(px,scale){const c=document.createElement('canvas');c.width=28;c.height=20;const g=c.getContext('2d'),id=g.createImageData(28,20),u=new Uint32Array(id.data.buffer);
  let mx=0,my=0;for(const p of px){mx+=p[0];my+=p[1]}mx/=px.length;my/=px.length;
@@ -2965,7 +2988,7 @@ for(const sc of document.querySelectorAll('#sm .sec')){const k='bsx:'+sc.dataset
 
 function dbl(m,x1,y1,x2,y2,r1,r2,lk,len,th){const a=slab(m,x1,y1,r1,len,th),b=slab(m,x2,y2,r2,len,th);a.pair=b;b.pair=a;a.locked=b.locked=lk;return[a,b]}
 function goldify(d){d.gold=true;for(const p of d.px)p[2]=toneC('gold',p[2])}
-const MAPSZ={council:[24,16],road:[64,52],alley:[22,10],stock:[26,16],count:[44,26],vault:[30,47],range:[40,40],air:[34,20]};
+const MAPSZ={hall:[49,65],council:[24,16],road:[64,52],alley:[22,10],stock:[26,16],count:[44,26],vault:[30,47],range:[40,40],air:[34,20]};
 // after setup: wood doors never stay locked, and the side that owns the map has a guard carrying each locked door's key
 function keyUp(){let own=null;try{own=MAPOWN()}catch(e){}const done=new Set();
  for(const d of bodies){if(d.type!=='slab'||!d.locked||d.free||d.keyIn)continue;if(!hcl(d.mat).lock){d.locked=false;continue}const k=doorKey(d);if(!k||done.has(k)&&!d.pair)continue;done.add(k);
@@ -5613,6 +5636,44 @@ if(R.siteV!==2){R.siteV=2;const old=new Set(['34x24','24x18','30x20']),busy=new 
  for(const c in R.cm){R.cm[c]=R.cm[c].filter(id=>{const d=MODS.maps[id];if(!d||d.gen||d.from!=null||!old.has(d.CW+'x'+d.CH)||busy.has(id)||id===curMap||d.bodies.some(b=>b.t==='u'))return true;delete MODS.maps[id];delete STATE[id];if(R.chairs)delete R.chairs[id];if(R.last[c]===id)delete R.last[c];return false});if(!R.cm[c].length)delete R.cm[c]}
  saveMods();fillMapSel();save()}
 if(!R.restV){R.restV=1;for(const n in R.fallen||{})restore(n);save()}
+// ---- Aurum halls: two sides, twelve men each on the floor, 96 to spend; men come in at the posts their side holds
+// posts: A and B are the halls (never change hands), W, C, E in the middle are taken by standing on them; holding all three bleeds the other side
+const BF={on:false,sides:['Astria','Old Kingdoms'],tk:[96,96],own:{A:0,B:1,W:-1,C:-1,E:-1},cap:{W:0,C:0,E:0},next:[0,0],bleed:0,won:-1,hud:null,dlg:null,amm:[]};
+const BFN=12,BFT=96,BFR=46,BFMID=['W','C','E'],bfPt=k=>[(HALLP[k][0]+.5)*T,(HALLP[k][1]+.5)*T],bfTeam=i=>NATS[BF.sides[i]]&&NATS[BF.sides[i]].gn||BF.sides[i],bfSide=b=>teamOf(b)===bfTeam(0)?0:teamOf(b)===bfTeam(1)?1:-1;
+function bfSpawn(i){const n=BF.sides[i],posts=Object.keys(BF.own).filter(k=>BF.own[k]===i),k=posts[(Math.random()*posts.length)|0]||(i?'B':'A'),[x,y]=bfPt(k),r=Math.random(),t=r<.5?'rifle':r<.75?'guard':r<.93?'home':'cmd',look=lookFor(n,t==='cmd'?'rifle':t),u=t==='cmd'?'cmd':CLSU[WARD.CLS[look.split('|')[0]]]||t;
+ const b=token(NAMES[(Math.random()*NAMES.length)|0],bfTeam(i),u,x,y,false,undefined,look);spot(b,x,y,(Math.random()*9)|0);b.vx=b.vy=0;b.ang=i?-Math.PI/2:Math.PI/2;b.bf=i;return b}
+function bfStart(){for(const b of[...bodies])if(b.type==='token'){bodies.splice(bodies.indexOf(b),1);if(b.lab)b.lab.remove()}
+ Object.assign(BF,{on:true,tk:[BFT,BFT],own:{A:0,B:1,W:-1,C:-1,E:-1},cap:{W:0,C:0,E:0},next:[0,0],bleed:0,won:-1});BF.amm=HALLA.flatMap(([x,y])=>[[x,y],[48-x,y],[x,64-y],[48-x,64-y]]).map(([x,y])=>({x:(x+.5)*T,y:(y+.5)*T,t:0}));
+ FIGHT.hall=[[bfTeam(0),bfTeam(1)]];for(let i=0;i<2;i++)for(let j=0;j<BFN;j++){bfSpawn(i);BF.tk[i]--}
+ self.BFON=true;aiOn=true;aiMe=bfTeam(0);aiSetup();bfHud()}
+// men without a fight head for a post their side doesn't hold: each keeps to his own way through (west, vault, east) until it's taken
+self.BFGOAL=b=>{if(!BF.on||curMap!=='hall')return null;const i=bfSide(b);if(i<0)return null;const lane=BFMID[b.id%3],want=BFMID.filter(k=>BF.own[k]!==i);
+ const k=BF.own[lane]!==i?lane:want.length?want.sort((p,q)=>Math.hypot(bfPt(p)[0]-b.x,bfPt(p)[1]-b.y)-Math.hypot(bfPt(q)[0]-b.x,bfPt(q)[1]-b.y))[0]:i?'A':'B',[x,y]=bfPt(k);
+ if(k===lane&&BF.own[k]===i)return null;const o=b.bfo||(b.bfo=[(Math.random()-.5)*40,(Math.random()-.5)*40]);return Math.hypot(x-b.x,y-b.y)<30?null:[x+o[0],y+o[1]]};
+self.BFUNITS=()=>{BF.on=false;self.BFON=false;bfDialog()};
+function bfTick(){if(curMap!=='hall'||!BF.on){if(BF.hud&&curMap!=='hall'){BF.hud.remove();BF.hud=null;self.BFON=false;BF.on=false;aiOn=false;aiMe=null;for(const b of bodies)b.ai=null}if(BF.dlg&&curMap!=='hall'){BF.dlg.remove();BF.dlg=null}return}
+ const live=[0,0];for(const b of[...bodies]){if(b.type!=='token')continue;if(b.status==='dead'){b.bfD=b.bfD||tick;if(tick-b.bfD>900){bodies.splice(bodies.indexOf(b),1);if(b.lab)b.lab.remove()}continue}const i=bfSide(b);if(i>=0&&b.status==='free')live[i]++}
+ for(const k of BFMID){const[x,y]=bfPt(k),n=[0,0];for(const b of bodies)if(b.type==='token'&&b.status==='free'&&Math.hypot(b.x-x,b.y-y)<BFR){const i=bfSide(b);if(i>=0)n[i]++}
+  let c=BF.cap[k];if(n[0]&&!n[1])c=Math.min(1,c+.0035*Math.min(3,n[0]));else if(n[1]&&!n[0])c=Math.max(-1,c-.0035*Math.min(3,n[1]));BF.cap[k]=c;
+  const was=BF.own[k];if(c>=1)BF.own[k]=0;else if(c<=-1)BF.own[k]=1;else if(was===0&&c<=0||was===1&&c>=0)BF.own[k]=-1;if(was!==BF.own[k])sfx('flick')}
+ if(BF.won<0){for(let i=0;i<2;i++)if(live[i]<BFN&&BF.tk[i]>0&&tick>=BF.next[i]){bfSpawn(i);BF.tk[i]--;BF.next[i]=tick+50}
+  for(let i=0;i<2;i++)if(BFMID.every(k=>BF.own[k]===i)&&tick%120===0)BF.tk[1-i]=Math.max(0,BF.tk[1-i]-1);
+  for(let i=0;i<2;i++)if(BF.tk[i]<=0&&live[i]===0)BF.won=1-i}
+ for(const p of BF.amm)if(tick>=p.t)for(const b of bodies)if(b.type==='token'&&b.status==='free'&&Math.hypot(b.x-p.x,b.y-p.y)<26){let got=false;for(const q of b.inv||[])if(q&&BOX[q.k])got=addRes(b,q.k,RCAP(q.k)*2)||got;if(got){sfx('reload');p.t=tick+900;break}}
+ if(tick%10===0)bfHud(live)}
+function bfHud(live){if(!BF.hud){BF.hud=document.createElement('div');BF.hud.className='bfh';document.body.appendChild(BF.hud)}const s=i=>`<span class="sw" style="background:${NATS[BF.sides[i]].c}"></span>${disp(BF.sides[i])}`,pc=k=>`<span class="bp" style="background:${BF.own[k]<0?'#4a4740':NATS[BF.sides[BF.own[k]]].c}"></span>`;
+ BF.hud.innerHTML=`<div class="bft">${s(0)}<b>${BF.tk[0]}</b><span class="bpx">${BFMID.map(pc).join('')}</span><b>${BF.tk[1]}</b>${s(1).replace(/^(<span[^>]*><\/span>)(.*)$/,'$2$1')}</div>${BF.won>=0?`<div class="bfw">${disp(BF.sides[BF.won])} win</div>`:''}<button class="bfr">New round</button>`;BF.hud.querySelector('.bfr').onclick=bfDialog}
+function bfDialog(){if(BF.dlg)BF.dlg.remove();const d=BF.dlg=document.createElement('div'),opt=v=>Object.keys(NATS).map(n=>`<option value="${n}"${n===v?' selected':''}>${disp(n)}</option>`).join('');
+ d.className='bfd';d.innerHTML=`<div class="bfp"><select class="a">${opt(BF.sides[0])}</select><span>vs</span><select class="b">${opt(BF.sides[1])}</select><button class="go">Start</button></div>`;document.body.appendChild(d);
+ const a=d.querySelector('.a'),b=d.querySelector('.b'),ok=()=>{d.querySelector('.go').disabled=a.value===b.value||bfTeamOf(a.value)===bfTeamOf(b.value)};a.onchange=b.onchange=ok;ok();
+ d.querySelector('.go').onclick=()=>{BF.sides=[a.value,b.value];d.remove();BF.dlg=null;bfStart()}}
+const bfTeamOf=n=>NATS[n]&&NATS[n].gn||n,bfC=h=>rgb(parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16));
+// post rings drawn into the map: owner's colour, filling as it's taken; ammo chests glint when stocked
+{const od=ordDraw;ordDraw=function(){od();if(curMap!=='hall'||!BF.on)return;
+ for(const k of Object.keys(BF.own)){const[x,y]=bfPt(k),o=BF.own[k],c=o<0?rgb(150,144,130):bfC(NATS[BF.sides[o]].c),cp=BF.cap[k]||0,f=Math.abs(cp),fc=cp>0?bfC(NATS[BF.sides[0]].c):bfC(NATS[BF.sides[1]].c);
+  for(let i=0;i<220;i++){const A=i/220*Math.PI*2-Math.PI/2;for(const r of[BFR-1,BFR]){const X=Math.round(x+Math.cos(A)*r),Y=Math.round(y+Math.sin(A)*r);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=mix(out[Y*W+X],k in BF.cap&&i/220<f?fc:c,.75)}}}
+ for(const p of BF.amm)if(tick>=p.t)for(let i=0;i<24;i++){const A=i/24*Math.PI*2,X=Math.round(p.x+Math.cos(A)*11),Y=Math.round(p.y+Math.sin(A)*11);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=mix(out[Y*W+X],rgb(232,206,120),.8)}}}
+{const up=update;update=function(){up();bfTick()}}
 window.REGION={toks:()=>bodies.filter(b=>b.type==='token').map(b=>[b.name,b.unit,!!b.rid,b.nat,lookOf(b)]),mv:(id,c)=>moveF(R.F.find(f=>f.id===id),c),tile:t=>terTile(t),dbg:()=>({SL:seaLabels(),wc:R.wc,seas:R.seas,c:Object.keys(R.wc).map(k=>[+k,D.cells[k].h,D.cells[k].c,CEN[k]])}),ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=Math.min(KMAX,k);k=view.k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=migrate(v);R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
 })();
 })();
