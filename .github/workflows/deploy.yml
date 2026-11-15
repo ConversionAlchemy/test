@@ -3,7 +3,7 @@ name: Deploy static content to Pages
 
 on:
   push:
-    branches: ["master"]
+    branches: ["master", "fluoria/region-merge"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -32,6 +32,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: master
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
@@ -43,6 +45,17 @@ jobs:
         run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/ # a fork is served under its own repository name
+      # The work in progress is served beside the live map, under /next/
+      - name: Checkout next
+        uses: actions/checkout@v5
+        with:
+          ref: fluoria/region-merge
+          path: next-src
+      - name: Build next
+        working-directory: next-src
+        run: npm ci && npm run build && mkdir -p ../dist/next && cp -r dist/. ../dist/next/
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/next/
       - name: Setup Pages
         uses: actions/configure-pages@v6
       - name: Upload artifact
