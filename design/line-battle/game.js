@@ -308,7 +308,9 @@
     smoke.fill(0);
     sctx.clearRect(0, 0, WW, WH);
     bctx.clearRect(0, 0, WW, WH);
+    fort = null; hoverSeg = -1;
     if (scen.kind === "random") randomBattle(rngOf(scen.seed));
+    else if (scen.kind === "fort") fortBattle(rngOf(scen.seed));
     else classic();
     selected = new Set();
     soloSel = null;
@@ -365,6 +367,7 @@
       lay(guns, second.length ? 150 : 70);
       posture[side] = R() < 0.7 ? "advance" : "hold";
     }
+
     if (posture.green === "hold" && posture.red === "hold") posture.green = posture.red = "advance";
   }
   function fitCam() {
@@ -382,6 +385,14 @@
     if (r.form === "gun") {
       const k = r.gun.size === "large" ? 1.15 : 1;
       for (let i = 0; i < n; i++) out.push({ x: GUN_CREW[i % 8][0] * k, y: GUN_CREW[i % 8][1] * k, a: 0, group: "g", fire: false });
+      return out;
+    }
+    if (r.form === "wall") {
+      const k = Math.min(n, files);
+      for (let i = 0; i < n; i++) {
+        if (i < k) out.push({ x: (i - (k - 1) / 2) * R_SP, y: 0, a: 0, group: "w", fire: true });
+        else { const j = i - k, row = Math.floor(j / k), inRow = Math.min(k, n - k - row * k); out.push({ x: ((j % k) - (inRow - 1) / 2) * R_SP, y: 16 + row * R_SP, a: 0, group: "w2", fire: false }); }
+      }
       return out;
     }
     if (r.form === "square") {
@@ -515,7 +526,8 @@
     // men walk or run to their places; a man far out of place runs
     for (const m of men) {
       if (!m.alive) continue;
-      const dx = m.tx - m.x, dy = m.ty - m.y, d = Math.hypot(dx, dy);
+      const via = fort && (m.tx !== m.x || m.ty !== m.y) ? routeAround(m, m.tx, m.ty) : null;
+      const dx = (via ? via[0] : m.tx) - m.x, dy = (via ? via[1] : m.ty) - m.y, d = Math.hypot(dx, dy);
       if (d > 0.6) {
         const R = m.reg, v = R.rout || R.charge || m.solo ? RUN * m.sp : Math.min(RUN * 1.15, (R.run || R.dash ? RUN : WALK) * m.sp + d * 2);
         const st = Math.min(d, v * dt);
@@ -538,7 +550,7 @@
       if (!m.alive) continue;
       const rm = TIER[m.tier].r;
       near(m.x, m.y, 10, o => {
-        if (o.id <= m.id || !o.alive) return;
+        if (o.id <= m.id || !o.alive || !!(m.onWall || m.tower) !== !!(o.onWall || o.tower)) return;
         const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy) || 0.01, min = rm + TIER[o.tier].r + 0.4;
         if (d >= min) return;
         const foe = o.side !== m.side;
@@ -556,13 +568,14 @@
       if (!m.alive) continue;
       const rm = TIER[m.tier].r;
       near(m.x, m.y, 10, o => {
-        if (o.id <= m.id || !o.alive || o.side === m.side) return;
+        if (o.id <= m.id || !o.alive || o.side === m.side || !!(m.onWall || m.tower) !== !!(o.onWall || o.tower)) return;
         const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy) || 0.01, min = rm + TIER[o.tier].r + 0.4;
         if (d >= min) return;
         const ov = (min - d) / 2, ux = dx / d, uy = dy / d;
         m.x += ux * ov; m.y += uy * ov; o.x -= ux * ov; o.y -= uy * ov;
       });
     }
+    if (fort) for (const m of men) if (m.alive) wallPush(m);
     // headway check, once a second
     for (const m of men) {
       if (!m.alive || m.reg.charge || m.reg.rout) continue;
@@ -588,6 +601,7 @@
     shells = shells.filter(b => !b.done);
     shake = Math.max(0, shake - dt * 18);
     fireTick(dt);
+    fortTick(dt);
     // balls fly
     for (const b of balls) {
       b.t += dt;
@@ -636,7 +650,7 @@
     r.morale = Math.min(100, r.morale + dt * 0.8);
     if (!ai) return; // paused: men still march, reload and fight hand to hand; nobody decides to fire
     if (r.side !== me) aiThink(r);
-    if (r.form === "gun") { if (!r.hold && !r.direct) gunAuto(r); return; }
+    if (r.form === "gun") { if (!r.hold && !r.direct && !(ai && r.siege && r.side !== me)) gunAuto(r); return; }
     if (r.side !== me && !r.charge && live.every(m => m.ammo <= 0)) startCharge(r);
     if (r.hold || r.direct || r.form === "column" || r.charge) return;
     // a running block doesn't fire; a formed one fires on the march; a disordered one doesn't
@@ -735,16 +749,22 @@
     flashes.push({ x: mx, y: my, t: 0.06 });
     shotSound(mx, my);
     const p = t ? acc(td) * (t.kneel ? 0.85 : 1) * (m.reg.moving ? 0.7 : 1) : 0;
-    const hit = Math.random() < p;
+    let hit = Math.random() < p, wallHit = null;
+    if (hit && t && t.onWall) hit = Math.random() < cover(td);
     let x1 = px, y1 = py;
     if (!hit && !exact) { const s = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * (10 + td / 20)); x1 += -Math.sin(a) * s + Math.cos(a) * (Math.random() * 30); y1 += Math.cos(a) * s + Math.sin(a) * (Math.random() * 30); }
-    const ball = { x0: mx, y0: my, x1, y1, x: mx, y: my, t: 0, dur: Math.hypot(x1 - mx, y1 - my) / BALL, hit, target: t, a, side: m.side };
+    if (fort) {
+      const w = wallCross(mx, my, x1, y1, undefined, 8);
+      if (w && !(t && t.onWall && hit && Math.hypot(w.x - t.x, w.y - t.y) < 10)) { hit = false; x1 = w.x; y1 = w.y; wallHit = w; }
+    }
+    const ball = { x0: mx, y0: my, x1, y1, x: mx, y: my, t: 0, dur: Math.hypot(x1 - mx, y1 - my) / BALL, hit, target: t, a, side: m.side, wallHit };
     balls.push(ball);
     passBy(ball);
   }
   function land(b) {
+    if (b.wallHit) { hurtCell(b.wallHit.s, b.wallHit.k, 0.15); dust(b.x1, b.y1); return; }
     let t = b.hit && b.target.alive ? b.target : null;
-    if (!t) near(b.x1, b.y1, 4, o => { if (!t && o.alive && o.side !== b.side && Math.hypot(o.x - b.x1, o.y - b.y1) < 3.5) t = o; });
+    if (!t) near(b.x1, b.y1, 4, o => { if (!t && o.alive && o.side !== b.side && Math.hypot(o.x - b.x1, o.y - b.y1) < 3.5 && (!o.onWall || Math.random() < cover(Math.hypot(o.x - b.x0, o.y - b.y0)))) t = o; });
     if (!t) { dust(b.x1, b.y1); return; }
     // armour turns the ball on its side
     const T = TIER[t.tier], cosIn = Math.cos(b.a + Math.PI - t.a), faceOn = cosIn > Math.cos((75 * Math.PI) / 180);
@@ -829,7 +849,7 @@
     if (!c) return;
     if (r.charge.rout || !alive(r.charge)) r.charge = nearestReg(r, c);
     const foes = r.charge ? r.charge.men.filter(m => m.alive) : [];
-    if (!foes.length) {
+    if (!foes.length && !(fort && r.plan?.storm)) {
       r.charge = null;
       const t = nearestReg(r, c), k = t && centroid(t);
       r.x = r.ax = c[0]; r.y = r.ay = c[1];
@@ -841,8 +861,17 @@
     for (const m of r.men) {
       if (!m.alive || m.solo) continue;
       let t = null, td = 1e9;
-      near(m.x, m.y, 40, o => { if (o.alive && o.side !== m.side) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } } });
-      if (!t) for (const o of foes) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } }
+      const reach = o => !o.onWall && !o.tower;
+      near(m.x, m.y, 40, o => { if (o.alive && o.side !== m.side && reach(o)) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } } });
+      if (!t) for (const o of foes) if (reach(o)) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } }
+      if (!t && fort) for (const o of men) if (o.alive && o.side !== m.side && reach(o)) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } }
+      // walled off from him with no way in: go for the gate or the wall itself instead
+      if (t && fort && !gapsFor(m.side).length && wallCross(m.x, m.y, t.x, t.y, m.side)) t = null;
+      if (!t) {
+        const g = r.plan?.storm;
+        if (g) { m.tx = g.x + g.s.nx * 6 * Math.sign((m.x - g.x) * g.s.nx + (m.y - g.y) * g.s.ny || 1) + (Math.random() - 0.5) * 2; m.ty = g.y + g.s.ny * 6 * Math.sign((m.x - g.x) * g.s.nx + (m.y - g.y) * g.s.ny || 1); }
+        continue;
+      }
       const a = Math.atan2(t.y - m.y, t.x - m.x), stop = TIER[m.tier].r + TIER[t.tier].r + 0.5;
       m.tx = t.x - Math.cos(a) * stop; m.ty = t.y - Math.sin(a) * stop; m.ta = a;
     }
@@ -855,7 +884,20 @@
       m.meleeCd -= dt;
       if (m.meleeCd > 0) continue;
       let t = null, td = TIER[m.tier].r + 4.5;
-      near(m.x, m.y, 10, o => { if (o.alive && o.side !== m.side) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } } });
+      near(m.x, m.y, 10, o => { if (o.alive && o.side !== m.side && !!(o.onWall || o.tower) === !!(m.onWall || m.tower)) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } } });
+      if (!t && fort && m.reg.charge && !m.onWall) {
+        // nobody to fight: hack at the wall in front of him, wood quickly, stone hardly at all
+        for (const sg of fort.segs) {
+          const u = (m.x - sg.x0) * sg.ux + (m.y - sg.y0) * sg.uy, dd = Math.abs((m.x - sg.x0) * sg.nx + (m.y - sg.y0) * sg.ny);
+          if (u < 0 || u > sg.L || dd > WALL_T / 2 + 5) continue;
+          const k = Math.min(sg.n - 1, Math.floor(u / CELL));
+          if (sg.cells[k] <= 0) continue;
+          m.meleeCd = 1.6 + Math.random() * 0.8;
+          hurtCell(sg, k, sg.isGate[k] || fort.mat === "wood" ? 0.35 : 0.04);
+          if (audible(m.x, m.y) > 0.3 && Math.random() < 0.3) sfxP(fort.mat === "wood" || sg.isGate[k] ? "woodhit" : "stonehit", 0.25 * audible(m.x, m.y));
+          break;
+        }
+      }
       if (!t) continue;
       m.meleeCd = 2 + Math.random() * 1.2;
       const a = Math.atan2(t.y - m.y, t.x - m.x);
@@ -954,11 +996,15 @@
       bits.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, v: 1, c: [255, 200, 90], life: l, l0: l, fade: l, ember: true });
     }
     const R = 24 * s;
+    if (fort) {
+      for (const sg of fort.segs) for (let k = 0; k < sg.n; k++) { const [cx, cy] = cellPos(sg, k), d = Math.hypot(cx - x, cy - y); if (d < R * 0.7) hurtCell(sg, k, 4 * s * (1 - d / (R * 0.7))); }
+      for (const t of fort.towers) { const d = Math.hypot(t.x - x, t.y - y); if (d < R + TW) hurtTower(t, 7 * s * (1 - d / (R + TW))); }
+    }
     const hit = [];
     near(x, y, R, o => { if (o.alive) { const d = Math.hypot(o.x - x, o.y - y); if (d < R) hit.push([o, d]); } });
     for (const [o, d] of hit) {
       const a = Math.atan2(o.y - y, o.x - x), q = d / R;
-      if (Math.random() < (q < 0.45 ? 0.85 : q < 0.75 ? 0.45 : 0.15)) { o.hp = 0; bleed(o.x, o.y, a, 4); shatter(o, a); }
+      if (Math.random() < (q < 0.45 ? 0.85 : q < 0.75 ? 0.45 : 0.15) * (o.onWall ? 0.55 : 1)) { o.hp = 0; bleed(o.x, o.y, a, 4); shatter(o, a); }
       else if (Math.random() < 0.5) { o.hp--; bleed(o.x, o.y, a, 3); if (o.hp <= 0) shatter(o, a); else chip(o, a, false, 3); }
     }
     for (const r of regs) {
@@ -1112,6 +1158,13 @@
   function aiThink(r) {
     if ((r.thinkAt || 0) > time) return;
     r.thinkAt = time + 1 + Math.random() * 0.8;
+    if (fort) {
+      siegeThink(r.side);
+      const c = centroid(r), foe = c && nearestReg(r, c), k = foe && centroid(foe);
+      if (k && !r.gun && r.form !== "wall" && !r.charge && Math.hypot(k[0] - c[0], k[1] - c[1]) < 45 && foe.form !== "wall") { startCharge(r); return; }
+      if (!r.charge) siegeAct(r);
+      return;
+    }
     armyThink(r.side);
     const c = centroid(r);
     if (!c || r.charge) return;
@@ -1137,6 +1190,406 @@
     return r.men.some(m => m.alive && m.canFire && aimFor(m, foes, RANGE));
   }
 
+  // ---------- the fort: towers joined by walls of cells that take damage like the sandbox's walls ----------
+  // A wall is a run of cells between two towers, one soldier wide on top. A cell shot to nothing is a gap; a run of cells
+  // touching no standing tower falls; a tower falls in its turn, so two fallen towers bring their whole wall down.
+  // Men on a wall are hard to hit from below, less so close in. Manned towers lob grenades at anyone close.
+  let fort = null, hoverSeg = -1;
+  const WALL_T = 9, CELL = 3, TW = 8;
+  const WMAT = {
+    stone: { hp: 6, tower: 40, col: [150, 146, 134], dark: [92, 88, 80], light: [178, 174, 160] },
+    wood: { hp: 3, tower: 22, col: [128, 96, 62], dark: [78, 58, 38], light: [156, 120, 80] }
+  };
+  function buildFort(R, cx, cy, rad, nT, mat, owner) {
+    const towers = [], segs = [];
+    for (let i = 0; i < nT; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI * 2) / nT + (R() - 0.5) * 0.25, rr = rad * (0.9 + R() * 0.18);
+      towers.push({ i, x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr, hp: WMAT[mat].tower, hp0: WMAT[mat].tower, dead: false, crew: [], cd: 2 });
+    }
+    // the gate: the wall facing furthest south
+    let gate = 0, gy = -1e9;
+    for (let i = 0; i < nT; i++) { const A = towers[i], B = towers[(i + 1) % nT], my = (A.y + B.y) / 2; if (my > gy) { gy = my; gate = i; } }
+    for (let i = 0; i < nT; i++) {
+      const A = towers[i], B = towers[(i + 1) % nT], dx = B.x - A.x, dy = B.y - A.y, D = Math.hypot(dx, dy), ux = dx / D, uy = dy / D;
+      const L = D - TW * 2, n = Math.floor(L / CELL), mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+      let nx = -uy, ny = ux;
+      if ((mx - cx) * nx + (my - cy) * ny < 0) { nx = -nx; ny = -ny; }
+      const cells = new Float32Array(n), hp0 = new Float32Array(n), isGate = new Uint8Array(n);
+      for (let k = 0; k < n; k++) { cells[k] = hp0[k] = WMAT[mat].hp; }
+      if (i === gate) for (let k = Math.floor(n / 2) - 3; k < Math.floor(n / 2) + 3; k++) { isGate[k] = 1; cells[k] = hp0[k] = WMAT.wood.hp * 1.5; }
+      segs.push({ i, a: A, b: B, x0: A.x + ux * TW, y0: A.y + uy * TW, ux, uy, nx, ny, L: n * CELL, n, cells, hp0, isGate, ang: Math.atan2(uy, ux), dirty: true, cv: null });
+    }
+    const houses = [];
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * Math.PI * 2 + R() * 0.4, d = rad * (0.48 + R() * 0.12), w = 18 + R() * 12, h = 16 + R() * 10;
+      houses.push({ x: cx + Math.cos(a) * d - w / 2, y: cy + Math.sin(a) * d - h / 2, w, h });
+    }
+    fort = { towers, segs, owner, cx, cy, rad, mat, houses, pending: [], gaps: [], gapsDirty: true, t: 0 };
+  }
+  function inFort(x, y) {
+    const T = fort.towers;
+    let inside = false;
+    for (let i = 0, j = T.length - 1; i < T.length; j = i++) if ((T[i].y > y) !== (T[j].y > y) && x < ((T[j].x - T[i].x) * (y - T[i].y)) / (T[j].y - T[i].y) + T[i].x) inside = !inside;
+    return inside;
+  }
+  const cellPos = (s, k) => [s.x0 + s.ux * (k + 0.5) * CELL, s.y0 + s.uy * (k + 0.5) * CELL];
+  const passable = (s, k, side) => s.cells[k] <= 0 || (s.isGate[k] && side === fort.owner);
+  const capacity = s => Math.max(1, Math.floor((s.L - 6) / R_SP) + 1);
+  // the first wall cell a straight line from p to q runs into, if any
+  function wallCross(x0, y0, x1, y1, side, skip = 0) {
+    if (!fort) return null;
+    let best = null;
+    const dx = x1 - x0, dy = y1 - y0;
+    for (const s of fort.segs) {
+      const ex = s.ux * s.L, ey = s.uy * s.L, den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-6) continue;
+      const qx = s.x0 - x0, qy = s.y0 - y0, t = (qx * ey - qy * ex) / den, u = (qx * dy - qy * dx) / den;
+      if (t < 0 || t > 1 || u < 0 || u > 1 || t * Math.hypot(dx, dy) < skip) continue;
+      const k = Math.min(s.n - 1, Math.floor((u * s.L) / CELL));
+      if (side !== undefined ? passable(s, k, side) : s.cells[k] <= 0) continue;
+      if (!best || t < best.t) best = { s, k, t, x: x0 + dx * t, y: y0 + dy * t };
+    }
+    return best;
+  }
+  // every opening in the wall: shot-through runs for everyone, the gate for its owners
+  function gapsFor(side) {
+    if (fort.gapsDirty) {
+      fort.gaps = [];
+      for (const s of fort.segs) {
+        for (const gate of [0, 1]) {
+          let k = 0;
+          while (k < s.n) {
+            const open = gate ? s.isGate[k] && s.cells[k] > 0 : s.cells[k] <= 0;
+            if (!open) { k++; continue; }
+            let e = k;
+            while (e < s.n && (gate ? s.isGate[e] && s.cells[e] > 0 : s.cells[e] <= 0)) e++;
+            if (gate || e - k >= 3) { const [x, y] = cellPos(s, (k + e - 1) / 2); fort.gaps.push({ s, x, y, w: (e - k) * CELL, gate }); }
+            k = e;
+          }
+        }
+      }
+      fort.gapsDirty = false;
+    }
+    return fort.gaps.filter(g => !g.gate || side === fort.owner);
+  }
+  // a man walled off from his place heads for the nearest opening that serves, first to its near side, then through
+  function routeAround(m, tx, ty) {
+    if (!fort || m.onWall || m.climb || m.tower) return null;
+    if (!wallCross(m.x, m.y, tx, ty, m.side)) return null;
+    let best = null, bc = 1e9;
+    for (const g of gapsFor(m.side)) { const c = Math.hypot(g.x - m.x, g.y - m.y) + Math.hypot(tx - g.x, ty - g.y); if (c < bc) { bc = c; best = g; } }
+    if (!best) return null;
+    const side = (m.x - best.x) * best.s.nx + (m.y - best.y) * best.s.ny >= 0 ? 1 : -1, along = Math.abs((m.x - best.x) * best.s.ux + (m.y - best.y) * best.s.uy);
+    if (Math.abs((m.x - best.x) * best.s.nx + (m.y - best.y) * best.s.ny) > 5 || along > best.w / 2) return [best.x + best.s.nx * side * 10, best.y + best.s.ny * side * 10];
+    return [best.x - best.s.nx * side * 14, best.y - best.s.ny * side * 14];
+  }
+  // standing walls, towers and houses push a man on the ground back out
+  function wallPush(m) {
+    if (!fort || m.onWall || m.climb || m.tower) return;
+    const r = TIER[m.tier].r;
+    for (const s of fort.segs) {
+      const qx = m.x - s.x0, qy = m.y - s.y0, u = qx * s.ux + qy * s.uy, d = qx * s.nx + qy * s.ny, need = WALL_T / 2 + r;
+      if (u < 0 || u > s.L || Math.abs(d) >= need) continue;
+      const k = Math.min(s.n - 1, Math.floor(u / CELL));
+      if (passable(s, k, m.side)) continue;
+      const sg = d >= 0 ? 1 : -1;
+      m.x += s.nx * sg * (need - Math.abs(d)); m.y += s.ny * sg * (need - Math.abs(d));
+    }
+    const box = (x0, y0, x1, y1) => {
+      if (m.x < x0 - r || m.x > x1 + r || m.y < y0 - r || m.y > y1 + r) return;
+      const l = m.x - (x0 - r), rr = x1 + r - m.x, t = m.y - (y0 - r), b = y1 + r - m.y, mn = Math.min(l, rr, t, b);
+      if (mn === l) m.x -= l; else if (mn === rr) m.x += rr; else if (mn === t) m.y -= t; else m.y += b;
+    };
+    for (const t of fort.towers) if (!t.dead) box(t.x - TW, t.y - TW, t.x + TW, t.y + TW);
+    for (const h of fort.houses) box(h.x, h.y, h.x + h.w, h.y + h.h);
+  }
+  function hurtCell(s, k, dmg) {
+    if (k < 0 || k >= s.n || s.cells[k] <= 0) return;
+    s.cells[k] -= dmg; s.dirty = true;
+    if (s.cells[k] <= 0) { s.cells[k] = 0; fort.gapsDirty = true; rubble(s, k, k + 1, 0.5); checkRuns(s); }
+  }
+  function hurtTower(t, dmg) {
+    if (t.dead) return;
+    t.hp -= dmg;
+    if (t.hp > 0) return;
+    t.dead = true;
+    const c = WMAT[fort.mat];
+    for (let i = 0; i < 70; i++) { const a = Math.random() * Math.PI * 2, d = Math.random() * 13; sctx.globalAlpha = 0.85; sctx.fillStyle = `rgb(${(Math.random() < 0.5 ? c.dark : c.col).join(",")})`; sctx.fillRect(Math.floor(t.x + Math.cos(a) * d), Math.floor(t.y + Math.sin(a) * d), 1 + (Math.random() < 0.3), 1); }
+    for (let i = 0; i < 6; i++) dab(t.x + (Math.random() - 0.5) * 16, t.y + (Math.random() - 0.5) * 16, 0.9, 3);
+    for (const m of t.crew) if (m.alive) { m.tower = null; m.onWall = false; m.solo = false; if (Math.random() < 0.5) shatter(m, Math.random() * 6.28); }
+    t.crew = [];
+    if (audible(t.x, t.y) > 0.05) { SND.at("bomb", t.x, t.y); rumble(0.5 * audible(t.x, t.y), 5); }
+    for (const s of fort.segs) if (s.a === t || s.b === t) checkRuns(s);
+  }
+  // a run of cells with no standing tower at either end comes down a moment later
+  function checkRuns(s) {
+    let k = 0;
+    while (k < s.n) {
+      if (s.cells[k] <= 0) { k++; continue; }
+      let e = k;
+      while (e < s.n && s.cells[e] > 0) e++;
+      const held = (k === 0 && !s.a.dead) || (e === s.n && !s.b.dead);
+      if (!held && !fort.pending.some(p => p.s === s && p.k === k)) fort.pending.push({ s, k, e, at: time + 0.6 });
+      k = e;
+    }
+  }
+  function collapse(s, k, e) {
+    for (let i = k; i < e; i++) s.cells[i] = 0;
+    s.dirty = true; fort.gapsDirty = true;
+    rubble(s, k, e, 1);
+    for (let i = k; i < e; i += 3) { const [x, y] = cellPos(s, i); dab(x, y, 0.7, 3); }
+    const [x, y] = cellPos(s, (k + e) / 2);
+    if (audible(x, y) > 0.05) rumble(0.45 * audible(x, y), 4);
+    shake = Math.max(shake, 3 * audible(x, y));
+    // anyone up there comes down with it
+    for (const m of men) {
+      if (!m.alive || !m.onWall || m.tower) continue;
+      const u = (m.x - s.x0) * s.ux + (m.y - s.y0) * s.uy, d = (m.x - s.x0) * s.nx + (m.y - s.y0) * s.ny;
+      if (Math.abs(d) < 6 && u >= k * CELL - 3 && u <= e * CELL + 3) { m.onWall = false; m.fell = true; if (Math.random() < 0.45) { m.hp--; if (m.hp <= 0) shatter(m, Math.random() * 6.28); else chip(m, Math.random() * 6.28, false, 2); } }
+    }
+  }
+  function rubble(s, k, e, amt) {
+    const c = WMAT[fort.mat];
+    for (let i = k; i < e; i++) {
+      const [x, y] = cellPos(s, i);
+      for (let j = 0; j < 9 * amt; j++) {
+        const off = (Math.random() - 0.5) * (WALL_T + 8);
+        sctx.globalAlpha = 0.8; sctx.fillStyle = `rgb(${(Math.random() < 0.5 ? c.dark : c.col).join(",")})`;
+        sctx.fillRect(Math.floor(x + s.nx * off + (Math.random() - 0.5) * 3), Math.floor(y + s.ny * off + (Math.random() - 0.5) * 3), 1, 1);
+      }
+      if (Math.random() < 0.5 * amt) { const a = Math.random() * 6.28, sp = 10 + Math.random() * 30; bits.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, v: 1, c: c.dark, life: Infinity, keep: true }); }
+    }
+  }
+  // cover on a wall: from far off a man up there is hard to hit; close in, still a fifth harder
+  const cover = d => 0.8 - 0.35 * Math.min(1, d / RANGE);
+  function fortTick(dt) {
+    if (!fort) return;
+    for (const p of fort.pending) if (time >= p.at) { p.done = true; let k = p.k; while (k < p.e && p.s.cells[k] > 0) k++; collapse(p.s, p.k, Math.max(k, p.k)); }
+    fort.pending = fort.pending.filter(p => !p.done);
+    // men climbing to the wall step up when they reach their place
+    for (const m of men) {
+      if (!m.alive) continue;
+      if (m.tower) { if (Math.hypot(m.tx - m.x, m.ty - m.y) < 2) m.onWall = true; continue; }
+      const onW = m.reg.form === "wall" && m.sy === 0 && !m.reg.rout && !m.fell;
+      m.climb = onW && !m.onWall;
+      if (onW && Math.hypot(m.tx - m.x, m.ty - m.y) < 3) {
+        // only if the wall under the place still stands
+        const s = fort.segs[m.reg.wallSeg], u = (m.tx - s.x0) * s.ux + (m.ty - s.y0) * s.uy, k = Math.max(0, Math.min(s.n - 1, Math.floor(u / CELL)));
+        if (s.cells[k] > 0) m.onWall = true; else { m.fell = true; m.onWall = false; }
+      }
+      if (!onW && !m.tower) { m.onWall = false; m.climb = false; }
+    }
+    if ((fort.t -= dt) > 0) return;
+    fort.t = 0.5;
+    // towers draw two men from the nearest block close by, and throw grenades at anyone near enough
+    for (const t of fort.towers) {
+      if (t.dead) continue;
+      t.crew = t.crew.filter(m => m.alive && m.tower === t && !m.reg.rout);
+      if (t.crew.length < 2) {
+        let best = null, bd = 70;
+        for (const r of regs) {
+          if (r.rout || r.gun || !alive(r) || (t.crew[0] && t.crew[0].side !== r.side)) continue;
+          for (const m of r.men) if (m.alive && !m.tower && !m.solo) { const d = Math.hypot(m.x - t.x, m.y - t.y); if (d < bd) { bd = d; best = m; } }
+        }
+        if (best) { best.tower = t; best.solo = true; best.tx = t.x + (t.crew.length ? 3 : -3); best.ty = t.y; t.crew.push(best); layoutSoon.add(best.reg); }
+      }
+      const up = t.crew.filter(m => m.onWall);
+      if (!up.length || (t.cd -= 0.5) > 0) continue;
+      let tgt = null, td = 95;
+      for (const o of men) if (o.alive && o.side !== up[0].side && !o.onWall) { const d = Math.hypot(o.x - t.x, o.y - t.y); if (d > 18 && d < td) { td = d; tgt = o; } }
+      if (!tgt) continue;
+      t.cd = 6 / up.length;
+      const x1 = tgt.x + (Math.random() - 0.5) * 12, y1 = tgt.y + (Math.random() - 0.5) * 12;
+      shells.push({ x0: t.x, y0: t.y, x1, y1, x: t.x, y: t.y, t: 0, dur: Math.hypot(x1 - t.x, y1 - t.y) / 140, s: 0.55, gren: true });
+      up[0].a = Math.atan2(y1 - t.y, x1 - t.x);
+    }
+  }
+  function mountWall(r, si, snap) {
+    const s = fort.segs[si];
+    r.form = "wall"; r.wallSeg = si; r.charge = null; r.direct = false;
+    r.files = capacity(s);
+    const [mx, my] = cellPos(s, (s.n - 1) / 2), out = r.side === fort.owner ? 1 : -1;
+    r.x = mx; r.y = my; r.face = Math.atan2(s.ny * out, s.nx * out);
+    for (const m of r.men) { m.solo = !!m.tower; m.fell = false; }
+    layout(r, snap);
+    if (snap) for (const m of r.men) if (m.alive && m.sy === 0) m.onWall = true;
+  }
+  function segAt(wx, wy) {
+    if (!fort) return -1;
+    let best = -1, bd = 9;
+    for (const s of fort.segs) {
+      const u = (wx - s.x0) * s.ux + (wy - s.y0) * s.uy, d = Math.abs((wx - s.x0) * s.nx + (wy - s.y0) * s.ny);
+      if (u >= 0 && u <= s.L && d < bd) { bd = d; best = s.i; }
+    }
+    return best;
+  }
+  // the wall drawn once per change: cells as pixel blocks, damage knocking pixels out of them
+  function segCanvas(s) {
+    if (!s.dirty && s.cv) return s.cv;
+    const c = s.cv || (s.cv = document.createElement("canvas"));
+    c.width = Math.ceil(s.L); c.height = WALL_T + 2;
+    const g = c.getContext("2d"), M = WMAT[fort.mat], W = WMAT.wood;
+    g.clearRect(0, 0, c.width, c.height);
+    for (let k = 0; k < s.n; k++) {
+      if (s.cells[k] <= 0) continue;
+      const m = s.isGate[k] ? W : M, f = 1 - s.cells[k] / s.hp0[k];
+      for (let px = 0; px < CELL; px++)
+        for (let py = 0; py < WALL_T + 2; py++) {
+          const h = hh(s.i * 977 + k * CELL + px, py);
+          if (h < f * 0.75 && py > 0 && py < WALL_T + 1) continue;
+          const edge = py === 0 || py === WALL_T + 1;
+          const block = s.isGate[k] ? (px === 0 ? 0.8 : 1) : (((k * CELL + px + (py > 4 ? 2 : 0)) % 6 === 0) || py === 5 ? 0.82 : 1);
+          let col = edge ? m.dark : h > 0.9 ? m.light : m.col;
+          const sh = block * (1 - f * 0.25) * (0.94 + hh(k * CELL + px, py + 9) * 0.1);
+          g.fillStyle = `rgb(${col.map(v => Math.round(v * sh)).join(",")})`;
+          g.fillRect(k * CELL + px, py, 1, 1);
+        }
+    }
+    s.dirty = false;
+    return c;
+  }
+  function drawFort() {
+    if (!fort) return;
+    // the yard, packed earth, and the houses on it
+    ctx.fillStyle = "rgba(214,200,160,0.35)";
+    ctx.beginPath(); fort.towers.forEach((t, i) => (i ? ctx.lineTo(t.x, t.y) : ctx.moveTo(t.x, t.y))); ctx.closePath(); ctx.fill();
+    for (const h of fort.houses) {
+      ctx.fillStyle = "#4a5260"; ctx.fillRect(Math.round(h.x) - 1, Math.round(h.y) - 1, Math.round(h.w) + 2, Math.round(h.h) + 2);
+      ctx.fillStyle = "#717d8c"; ctx.fillRect(Math.round(h.x), Math.round(h.y), Math.round(h.w), Math.round(h.h));
+      ctx.fillStyle = "#8a96a4"; ctx.fillRect(Math.round(h.x + h.w / 2), Math.round(h.y) + 1, 1, Math.round(h.h) - 2);
+    }
+    for (const s of fort.segs) {
+      ctx.save(); ctx.translate(s.x0, s.y0); ctx.rotate(s.ang);
+      ctx.drawImage(segCanvas(s), 0, -(WALL_T + 2) / 2);
+      if (s.i === hoverSeg) { ctx.fillStyle = "rgba(255,250,230,0.35)"; ctx.fillRect(0, -(WALL_T + 2) / 2, s.L, WALL_T + 2); }
+      ctx.restore();
+    }
+    const M = WMAT[fort.mat];
+    for (const t of fort.towers) {
+      if (t.dead) continue;
+      const f = 1 - t.hp / t.hp0;
+      for (let y = -TW; y < TW; y++)
+        for (let x = -TW; x < TW; x++) {
+          const h = hh(t.i * 131 + x + 40, y + 40), edge = x === -TW || y === -TW || x === TW - 1 || y === TW - 1;
+          if (edge && h < f * 0.9) continue;
+          if (!edge && h < f * 0.35) continue;
+          const col = edge ? M.dark : (x === -TW + 1 || y === -TW + 1) ? M.light : M.col;
+          ctx.fillStyle = `rgb(${col.map(v => Math.round(v * (0.94 + hh(x, y + t.i) * 0.1))).join(",")})`;
+          ctx.fillRect(Math.round(t.x) + x, Math.round(t.y) + y, 1, 1);
+        }
+    }
+  }
+  // the siege, as each side's AI sees it: holders man the walls that face the enemy and fill any breach;
+  // attackers stand off out of musket range while their guns open the wall (two holes bring the middle down,
+  // two fallen towers the whole length), then go in through the gap; without guns they go at the gate with axes
+  function siegeThink(side) {
+    const P = plans[side] || (plans[side] = { t: 0 });
+    if (P.t > time) return;
+    P.t = time + 2.5;
+    const mine = regs.filter(r => r.side === side && !r.rout && alive(r)), foes = regs.filter(r => r.side !== side && !r.rout && alive(r));
+    if (!mine.length || !foes.length) return;
+    const mass = L => { let x = 0, y = 0, n = 0; for (const r of L) { const c = centroid(r); if (c) { x += c[0] * alive(r); y += c[1] * alive(r); n += alive(r); } } return n ? [x / n, y / n] : [fort.cx, fort.cy]; };
+    const E = mass(foes), inf = mine.filter(r => !r.gun && centroid(r)), guns = mine.filter(r => r.gun);
+    const breaches = gapsFor(enemyOf(fort.owner)).filter(g => !g.gate);
+    if (side === fort.owner) {
+      const facing = fort.segs.map(s => { const [x, y] = cellPos(s, s.n / 2); const d = Math.hypot(E[0] - x, E[1] - y); return { s, v: ((E[0] - x) * s.nx + (E[1] - y) * s.ny) / d }; }).filter(o => o.v > 0.25 && o.s.cells.some(c => c > 0)).sort((a, b) => b.v - a.v);
+      const order = [...inf].sort((a, b) => alive(b) - alive(a)), reserve = order.length > 2 ? 1 : 0;
+      order.forEach((r, i) => {
+        if (i < order.length - reserve && facing[i]) r.plan = { wall: facing[i].s.i };
+        else if (breaches.length) { const g = breaches.reduce((b, q) => (Math.hypot(q.x - E[0], q.y - E[1]) < Math.hypot(b.x - E[0], b.y - E[1]) ? q : b)); r.plan = { at: [g.x - g.s.nx * 22, g.y - g.s.ny * 22], face: Math.atan2(g.s.ny, g.s.nx) }; }
+        else r.plan = { at: [fort.cx, fort.cy], face: Math.atan2(E[1] - fort.cy, E[0] - fort.cx) };
+      });
+      guns.forEach(r => { r.plan = { at: [fort.cx + (E[0] - fort.cx) * 0.15, fort.cy + (E[1] - fort.cy) * 0.15], face: Math.atan2(E[1] - fort.cy, E[0] - fort.cx) }; });
+      return;
+    }
+    const A = mass(inf.length ? inf : mine);
+    // the wall to open: the one nearest, facing us
+    let seg = null, sd = 1e9;
+    for (const s of fort.segs) { const [x, y] = cellPos(s, s.n / 2), d = Math.hypot(A[0] - x, A[1] - y) - ((A[0] - x) * s.nx + (A[1] - y) * s.ny) * 0.5; if (d < sd) { sd = d; seg = s; } }
+    P.seg = seg;
+    const [sx, sy] = cellPos(seg, seg.n / 2), face = Math.atan2(-seg.ny, -seg.nx);
+    guns.forEach((r, i) => {
+      // two holes a third and two thirds along, so the middle has nothing left to hold it up
+      const want = seg.n * (i % 2 ? 2 / 3 : 1 / 3);
+      let k = -1, kd = 1e9;
+      for (let j = 0; j < seg.n; j++) if (seg.cells[j] > 0 && Math.abs(j - want) < kd) { kd = Math.abs(j - want); k = j; }
+      if (k < 0) { const t = seg.a.dead ? seg.b : seg.a; r.siege = [t.x, t.y]; }
+      else r.siege = cellPos(seg, k);
+      const d = RANGE * 1.6, a = Math.atan2(r.siege[1] - (sy + seg.ny * d), r.siege[0] - (sx + seg.nx * d));
+      r.plan = { at: [sx + seg.nx * d + seg.ux * (i - (guns.length - 1) / 2) * 40, sy + seg.ny * d + seg.uy * (i - (guns.length - 1) / 2) * 40], face: a };
+    });
+    const ux = -Math.sin(face), uy = Math.cos(face);
+    const rowAt = (L, S, back) => {
+      const W = L.reduce((s, r) => s + widthFor("line", minFiles(alive(r)) + 4), 0) + GAP * 2 * Math.max(0, L.length - 1);
+      let at = -W / 2;
+      for (const r of L) { const w = widthFor("line", minFiles(alive(r)) + 4), mid = at + w / 2; at += w + GAP * 2; r.plan = { at: [S[0] + ux * mid - Math.cos(face) * back, S[1] + uy * mid - Math.sin(face) * back], face }; }
+    };
+    const sorted = [...inf].sort((a, b) => { const ca = centroid(a), cb = centroid(b); return (ca[0] - sx) * ux + (ca[1] - sy) * uy - ((cb[0] - sx) * ux + (cb[1] - sy) * uy); });
+    if (breaches.length) {
+      const g = breaches.reduce((b, q) => (Math.hypot(q.x - A[0], q.y - A[1]) < Math.hypot(b.x - A[0], b.y - A[1]) ? q : b));
+      for (const r of sorted) r.plan = { storm: g };
+      return;
+    }
+    if (!guns.length) {
+      const gate = fort.segs.find(s => s.isGate.some((v, k) => v && s.cells[k] > 0)) || seg, k = gate.isGate.indexOf(1);
+      const [gx, gy] = cellPos(gate, k + 3);
+      for (const r of sorted) r.plan = { storm: { s: gate, x: gx, y: gy, w: 18, axe: true } };
+      return;
+    }
+    rowAt(sorted.slice(0, 7), [sx + seg.nx * RANGE * 1.3, sy + seg.ny * RANGE * 1.3], 0);
+    rowAt(sorted.slice(7), [sx + seg.nx * RANGE * 1.3, sy + seg.ny * RANGE * 1.3], 80);
+  }
+  function siegeAct(r) {
+    const p = r.plan, c = centroid(r);
+    if (!p || !c) return;
+    if (p.wall != null) {
+      const s = fort.segs[p.wall], [wx, wy] = cellPos(s, s.n / 2);
+      let near = false;
+      for (const o of regs) if (o.side !== r.side && !o.gun && !o.rout && alive(o)) { const k = centroid(o); if (k && Math.hypot(k[0] - wx, k[1] - wy) < RANGE * 1.15) near = true; }
+      if (near || !regs.some(o => o.side !== r.side && o.gun && alive(o))) { if (r.form !== "wall" || r.wallSeg !== p.wall) mountWall(r, p.wall); }
+      else if (r.form === "wall" || !r.underWall) {
+        r.underWall = true; r.form = "line"; r.files = capacity(s);
+        r.x = wx - s.nx * 30; r.y = wy - s.ny * 30; r.face = Math.atan2(s.ny, s.nx); layout(r);
+      }
+      if (near) r.underWall = false;
+      return;
+    }
+    if (p.storm) {
+      const g = p.storm, out = (c[0] - g.x) * g.s.nx + (c[1] - g.y) * g.s.ny;
+      if (Math.hypot(c[0] - g.x, c[1] - g.y) < 70 || inFort(c[0], c[1])) { if (!r.charge) { startCharge(r); r.axe = !!g.axe; } return; }
+      const sg = 1, face = Math.atan2(-g.s.ny * sg, -g.s.nx * sg);
+      // form up straight out from the opening, beyond musket range, then go in at the run
+      const stage = [g.x + g.s.nx * RANGE * 1.35 * sg, g.y + g.s.ny * RANGE * 1.35 * sg], close = [g.x + g.s.nx * 40 * sg, g.y + g.s.ny * 40 * sg];
+      const staged = r.staged || Math.hypot(c[0] - stage[0], c[1] - stage[1]) < 50;
+      if (staged && !r.staged) r.staged = true;
+      const P = staged ? close : stage;
+      if (Math.hypot(r.x - P[0], r.y - P[1]) > 6) { if (r.form === "wall") r.form = "line"; r.x = P[0]; r.y = P[1]; r.face = face; r.dash = staged; layout(r); }
+      return;
+    }
+    if (p.at) {
+      if (r.gun && r.siege && gunReady(r) && !r.moving && Math.hypot(r.siege[0] - r.ax, r.siege[1] - r.ay) < r.gun.range) fireGun(r, r.siege[0], r.siege[1]);
+      if (Math.hypot(p.at[0] - r.x, p.at[1] - r.y) > 8 || Math.abs(angDiff(r.face, p.face)) > 0.2) { if (r.form === "wall") { r.form = "line"; r.files = minFiles(alive(r)) + 4; } r.x = p.at[0]; r.y = p.at[1]; r.face = p.face; layout(r); }
+    }
+  }
+  // a fortified village held by green: walls facing the enemy already manned, the rest in the yard; red comes to take it
+  function fortBattle(R) {
+    const cx = 1000, cy = 760, mat = R() < 0.6 ? "stone" : "wood";
+    buildFort(R, cx, cy, 200 + R() * 30, 7, mat, "green");
+    const east = fort.segs.map(s => ({ s, v: s.nx })).sort((a, b) => b.v - a.v);
+    const d = [["line", 64], ["line", 64], ["line", 64], ["heavy", 32], ["conscript", 48]];
+    d.forEach(([t, n], i) => {
+      const r = makeReg("green", t, n, cx - 60 + (i % 3) * 60, cy - 30 + Math.floor(i / 3) * 60, 0);
+      r.files = 12; layout(r, true);
+      if (i < 3) mountWall(r, east[i].s.i, true);
+    });
+    makeGun("green", "small", cx + 40, cy + 40, 0);
+    const ax = cx + 640 + R() * 120, guns = R() < 0.2 ? [] : R() < 0.5 ? ["small", "large"] : ["large"];
+    const units = [["line", 64], ["line", 64], ["line", 64], ["line", 64], ["conscript", 64], ["conscript", 64], ["heavy", 32], ["heavy", 32]];
+    units.forEach(([t, n], i) => { const r = makeReg("red", t, n, ax + (i >= 5 ? 90 : 0), cy - 380 + (i % 5) * 190, Math.PI); r.files = minFiles(n) + 4; layout(r, true); });
+    guns.forEach((g, i) => makeGun("red", g, ax + 170, cy - 60 + i * 120, Math.PI));
+    posture.green = "hold"; posture.red = "advance";
+  }
+
   // ---------- orders ----------
   const GAP = 10;
   const spOf = form => (form === "loose" ? R_SP * 1.7 : R_SP);
@@ -1150,7 +1603,7 @@
     const cs = L.map(r => centroid(r) || [r.x, r.y]);
     const items = L.map((r, i) => ({ r, k: cs[i][0] * ux + cs[i][1] * uy })).sort((a, b) => a.k - b.k).map(({ r }) => {
       if (r.form === "gun") return { r, form: "gun", files: 0, w: r.gun.w };
-      const form = r.form === "column" || r.form === "square" ? "line" : r.form, n = alive(r);
+      const form = r.form === "column" || r.form === "square" || r.form === "wall" ? "line" : r.form, n = alive(r);
       const files = filesFor(form, n, (n / total) * (len - GAP * (L.length - 1)));
       return { r, form, files, w: widthFor(form, files) };
     });
@@ -1227,7 +1680,7 @@
   const curWidth = L => L.reduce((s, r) => s + (r.gun ? r.gun.w : widthFor(fm(r), Math.max(minFiles(alive(r)), Math.min(alive(r), r.files)))), GAP * (L.length - 1));
   function previewLine() {
     const L = liveSel();
-    if (!L.length || soloSel || L.some(r => r.direct) || L.every(r => r.form === "square" || r.form === "column")) return null;
+    if (!L.length || soloSel || hoverSeg >= 0 || L.some(r => r.direct) || L.every(r => r.form === "square" || r.form === "column")) return null;
     const key = L.map(r => r.id).join(",");
     if (key !== pwKey) { pwKey = key; pw = curWidth(L); }
     const [lo, hi] = widthBounds(L);
@@ -1268,6 +1721,7 @@
   cv.addEventListener("pointerleave", () => { hover = false; });
   cv.addEventListener("pointermove", e => {
     mouse = [e.offsetX, e.offsetY]; hover = true;
+    hoverSeg = fort && [...selected].some(r => !r.gun && pickable(r)) && !directs().length ? segAt(...toWorld(e.offsetX, e.offsetY)) : -1;
     if (pan) { cam.x = pan.cx - (e.offsetX - pan.sx) / cam.z; cam.y = pan.cy - (e.offsetY - pan.sy) / cam.z; clampCam(); return; }
     if (!drag) return;
     [drag.x1, drag.y1] = toWorld(e.offsetX, e.offsetY);
@@ -1299,6 +1753,11 @@
     // a second right-click on the same spot: double time
     const now = performance.now(), dash = now - lastRight.t < 350 && Math.hypot(d.x0 - lastRight.x, d.y0 - lastRight.y) < 20 / cam.z;
     lastRight = { t: now, x: d.x0, y: d.y0 };
+    if (Math.hypot(d.x1 - d.x0, d.y1 - d.y0) < 12 && hoverSeg >= 0) {
+      [...selected].filter(r => !r.gun && pickable(r)).forEach((r, i) => mountWall(r, (hoverSeg + i) % fort.segs.length));
+      syncBar();
+      return;
+    }
     const pl = Math.hypot(d.x1 - d.x0, d.y1 - d.y0) < 12 && previewLine();
     if (pl) order(pl.L, pl.x0, pl.y0, pl.x1, pl.y1, dash);
     else order([...selected], d.x0, d.y0, d.x1, d.y1, dash);
@@ -1547,6 +2006,7 @@
     else if (k === "speed") { speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1; b.textContent = `${speed}×`; }
     else if (k === "hold") toggleHold();
     else if (k === "reset") { setup(); setPaused(true); syncBar(); }
+    else if (k === "fort") { scen = { kind: "fort", seed: (Math.random() * 1e9) | 0 }; setup(); setPaused(true); syncBar(); }
     else if (k === "random") { scen = { kind: "random", seed: (Math.random() * 1e9) | 0 }; setup(); setPaused(true); syncBar(); }
     else if (k === "snd") { mute = !mute; b.classList.toggle("off", mute); }
     b.blur();
@@ -1702,6 +2162,7 @@
       ctx.fillStyle = "rgba(255,255,240,0.55)";
       for (const [x, y] of ghost([...selected], drag.x0, drag.y0, drag.x1, drag.y1)) ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
     }
+    drawFort();
     for (const r of regs) if (r.gun) drawGun(r);
     // men
     for (const m of men) {
@@ -1823,6 +2284,6 @@
   resize();
   setup();
   syncBar();
-  window.__lb = { sim: secs => { for (let t = 0; t < secs; t += 1 / 30) advance(1 / 30); return time; }, shootAt, toggleDirect, fireGun, explode, me: v => (v ? (me = v, buildCards(), syncBar()) : me), scen: v => { scen = v; setup(); }, startCharge, volley, fireSel, chargeSel, previewLine, step, setMouse: (x, y) => { mouse = [x, y]; hover = true; }, pw: v => (v == null ? pw : (pw = v)), regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
+  window.__lb = { hoverSeg: () => hoverSeg, fort: () => fort && { gaps: gapsFor('red').length, towers: fort.towers.filter(t => t.dead).length, dmg: fort.segs.map(s => s.cells.reduce((a, c, k) => a + (s.hp0[k] - c), 0) | 0) }, sim: secs => { for (let t = 0; t < secs; t += 1 / 30) advance(1 / 30); return time; }, shootAt, toggleDirect, fireGun, explode, me: v => (v ? (me = v, buildCards(), syncBar()) : me), scen: v => { scen = v; setup(); }, startCharge, volley, fireSel, chargeSel, previewLine, step, setMouse: (x, y) => { mouse = [x, y]; hover = true; }, pw: v => (v == null ? pw : (pw = v)), regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
   requestAnimationFrame(loop);
 })();
