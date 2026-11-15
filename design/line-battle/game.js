@@ -1,0 +1,800 @@
+// Line battle: one marker is one soldier. Regiments of up to 64 form up, march, and fire by rank; a musket takes
+// 8–10 s to reload. Green is the player's, red holds its ground and turns to face the nearest threat.
+(() => {
+  const WW = 2400, WH = 1500; // world, in map pixels
+  const R_SP = 9; // spacing between men in close order
+  const RANGE = 170, BALL = 520;
+  const WALK = 16, RUN = 30;
+  const TIER = {
+    conscript: { hp: 1, front: 0, ring: 0, r: 3.6, name: "Conscripts" },
+    line: { hp: 1, front: 0.4, ring: 0, r: 3.6, name: "Line" },
+    heavy: { hp: 2, front: 0.65, ring: 0.3, r: 4.1, name: "Heavy" }
+  };
+  const SIDE = {
+    green: { fill: [82, 168, 92], dark: [34, 78, 40], ui: "#5fbf6c" },
+    red: { fill: [196, 70, 58], dark: [92, 30, 26], ui: "#d8604f" }
+  };
+  const STEEL = [196, 202, 210], STEEL_D = [140, 148, 158], RIM = [24, 24, 24];
+
+  const cv = document.getElementById("field");
+  const ctx = cv.getContext("2d");
+  let dpr = 1, VW = 0, VH = 0;
+  const cam = { x: WW / 2, y: WH / 2 + 60, z: 1 };
+
+  // ---------- sprites: a body per side, tier, facing (16) and pose; drawn once ----------
+  const SPR = {};
+  const FACE = 16, S_SIZE = 13, S_C = 6.5;
+  function sprite(side, tier, f, kneel, sel) {
+    const k = `${side}${tier}${f}${kneel ? 1 : 0}${sel ? 1 : 0}`;
+    if (SPR[k]) return SPR[k];
+    const c = document.createElement("canvas");
+    c.width = c.height = S_SIZE;
+    const g = c.getContext("2d");
+    const im = g.createImageData(S_SIZE, S_SIZE);
+    const T = TIER[tier], col = SIDE[side], a = (f / FACE) * Math.PI * 2;
+    const dim = kneel ? 0.5 : 1;
+    const put = (x, y, rgb) => {
+      const i = (y * S_SIZE + x) * 4;
+      im.data[i] = rgb[0] * dim; im.data[i + 1] = rgb[1] * dim; im.data[i + 2] = rgb[2] * dim; im.data[i + 3] = 255;
+    };
+    for (let y = 0; y < S_SIZE; y++)
+      for (let x = 0; x < S_SIZE; x++) {
+        const dx = x + 0.5 - S_C, dy = y + 0.5 - S_C, d = Math.hypot(dx, dy);
+        if (d >= T.r + (sel ? 1 : 0)) continue;
+        if (d >= T.r) { put(x, y, [250, 250, 240]); continue; }
+        const ang = Math.atan2(dy, dx) - a, front = Math.cos(ang) > Math.cos((75 * Math.PI) / 180);
+        const rim = d >= T.r - 1, inner = d >= T.r - 2;
+        if (rim) {
+          if (tier === "heavy") put(x, y, front ? STEEL : STEEL_D);
+          else if (tier === "line" && front) put(x, y, STEEL);
+          else put(x, y, RIM);
+        } else if (inner && tier === "heavy" && front) put(x, y, STEEL);
+        else {
+          const lit = (-dx - dy) / (T.r * 2); // light from the top left
+          put(x, y, col.fill.map(v => Math.max(0, Math.min(255, v * (1 + lit * 0.35)))));
+        }
+      }
+    g.putImageData(im, 0, 0);
+    return (SPR[k] = c);
+  }
+
+  // ---------- ground ----------
+  const ground = document.createElement("canvas");
+  ground.width = WW; ground.height = WH;
+  (() => {
+    const g = ground.getContext("2d"), im = g.createImageData(WW, WH), d = im.data;
+    const pal = [[150, 152, 94], [140, 145, 88], [160, 160, 100], [131, 138, 82], [146, 140, 92]];
+    const h = (x, y, s) => { let n = Math.imul(x * 374761393 + y * 668265263 + s * 2147483647, 1274126177); n = (n ^ (n >>> 13)) * 1274126177; return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+    const vn = (x, y, sc, s) => {
+      const fx = x / sc, fy = y / sc, ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy;
+      const a = h(ix, iy, s), b = h(ix + 1, iy, s), c = h(ix, iy + 1, s), e = h(ix + 1, iy + 1, s);
+      return a + (b - a) * tx + (c - a) * ty + (a - b - c + e) * tx * ty;
+    };
+    for (let y = 0; y < WH; y++)
+      for (let x = 0; x < WW; x++) {
+        const v = vn(x, y, 80, 1) * 0.7 + vn(x, y, 18, 2) * 0.3, j = h(x >> 1, y >> 1, 3);
+        let p = pal[Math.min(4, Math.floor(v * 3.6 + j * 0.7))];
+        if (j > 0.985) p = [118, 124, 72];
+        const i = (y * WW + x) * 4;
+        d[i] = p[0]; d[i + 1] = p[1]; d[i + 2] = p[2]; d[i + 3] = 255;
+      }
+    g.putImageData(im, 0, 0);
+  })();
+
+  // ---------- smoke: the sandbox's smoke field, coarser, thicker out of the muzzle ----------
+  const SC = 3, SWd = Math.ceil(WW / SC), SHt = Math.ceil(WH / SC);
+  let smoke = new Float32Array(SWd * SHt), smokeTmp = new Float32Array(SWd * SHt), smokeOn = false, windAcc = 0;
+  const smokeCv = document.createElement("canvas");
+  smokeCv.width = SWd; smokeCv.height = SHt;
+  const smokeG = smokeCv.getContext("2d"), smokeIm = smokeG.createImageData(SWd, SHt);
+  function dab(x, y, v, r) {
+    const X = Math.round(x / SC), Y = Math.round(y / SC);
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) {
+        const q = 1 - Math.hypot(dx, dy) / (r + 0.5);
+        if (q <= 0) continue;
+        const a = X + dx, b = Y + dy;
+        if (a < 0 || b < 0 || a >= SWd || b >= SHt) continue;
+        const i = b * SWd + a;
+        smoke[i] = Math.min(1.6, smoke[i] + v * q);
+      }
+    smokeOn = true;
+  }
+  // a bank of smoke thrown forward from the barrel, wider and denser than the sandbox's single-shot plume
+  function plume(x, y, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    for (let i = 0; i < 9; i++) {
+      const d = 2 + i * 3.2, j = (Math.random() - 0.5) * (2 + i * 1.4);
+      dab(x + c * d - s * j, y + s * d + c * j, 0.55 - i * 0.03, 1 + (i > 3 ? 1 : 0) + (i > 6 ? 1 : 0));
+    }
+  }
+  function smokeTick(dt) {
+    if (!smokeOn) return;
+    let act = false;
+    for (let i = 0; i < smoke.length; i++) if (smoke[i] > 0) { act = true; smoke[i] = Math.max(0, smoke[i] * (1 - 0.055 * dt) - 0.006 * dt); }
+    smokeOn = act;
+    smokeT += dt;
+    if (smokeT > 0.12) {
+      smokeT = 0;
+      const k = 0.8, q = (1 - k) / 4;
+      for (let Y = 0; Y < SHt; Y++)
+        for (let X = 0; X < SWd; X++) {
+          const i = Y * SWd + X;
+          smokeTmp[i] = smoke[i] * k + ((X > 0 ? smoke[i - 1] : smoke[i]) + (X < SWd - 1 ? smoke[i + 1] : smoke[i]) + (Y > 0 ? smoke[i - SWd] : smoke[i]) + (Y < SHt - 1 ? smoke[i + SWd] : smoke[i])) * q;
+        }
+      [smoke, smokeTmp] = [smokeTmp, smoke];
+    }
+    windAcc += dt * 1.6; // a light breeze drifts the banks east
+    if (windAcc >= 1) {
+      windAcc -= 1;
+      for (let Y = 0; Y < SHt; Y++) { const r = Y * SWd; for (let X = SWd - 1; X > 0; X--) smoke[r + X] = smoke[r + X - 1]; smoke[r] = 0; }
+    }
+  }
+  let smokeT = 0;
+  const hh = (x, y) => { let n = Math.imul(x * 73856093 ^ y * 19349663, 83492791); n ^= n >>> 13; return ((Math.imul(n, 1274126177) >>> 0) % 1000) / 1000; };
+  function smokePaint() {
+    const d = smokeIm.data;
+    for (let i = 0; i < smoke.length; i++) {
+      const v = smoke[i], X = i % SWd, Y = (i / SWd) | 0;
+      const th = 0.12 + hh(X, Y) * 0.18; // ragged pixel edges, as the sandbox draws it
+      const j = i * 4;
+      if (v < th) { d[j + 3] = 0; continue; }
+      const t = Math.min(1, v);
+      const c = 222 + (hh(X + 7, Y) > 0.5 ? 10 : 0);
+      d[j] = c; d[j + 1] = c; d[j + 2] = c - 6; d[j + 3] = 90 + t * 150;
+    }
+    smokeG.putImageData(smokeIm, 0, 0);
+  }
+
+  // ---------- sound: the sandbox's own musket, hits and reload clip ----------
+  let rlBuf = null, lastRl = 0, lastHit = 0;
+  function rlPlay(vol) {
+    if (mute || !gest) return;
+    const n = performance.now();
+    if (n - lastRl < 450) return;
+    lastRl = n;
+    try {
+      const a = au();
+      if (!rlBuf) {
+        const s = atob(RL_MUSKET), u = new Uint8Array(s.length);
+        for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+        const dv = new DataView(u.buffer), m = (u.length - 44) / 2;
+        rlBuf = a.createBuffer(1, m, dv.getUint32(24, true));
+        const ch = rlBuf.getChannelData(0);
+        for (let i = 0; i < m; i++) ch[i] = dv.getInt16(44 + i * 2, true) / 32768;
+      }
+      const src = a.createBufferSource(), g = a.createGain();
+      src.buffer = rlBuf; g.gain.value = vol; src.connect(g).connect(MS); src.start();
+    } catch (e) {}
+  }
+  const audible = (x, y) => {
+    const sx = (x - cam.x) * cam.z, sy = (y - cam.y) * cam.z, d = Math.hypot(sx, sy) / Math.max(VW, VH);
+    return Math.max(0, 1 - d * 0.9) * Math.min(1, cam.z / 1.5 + 0.3);
+  };
+  function shotSound(x, y) { if (audible(x, y) > 0.15) SND.at("musket", x, y); }
+  function hitSound(kind, x, y) {
+    const v = audible(x, y);
+    const n = performance.now();
+    if (v < 0.2 || n - lastHit < 60) return;
+    lastHit = n;
+    sfxP(kind === "plate" ? "plate" : "pthud", (kind === "plate" ? 0.35 : 0.3) * v);
+  }
+
+  // ---------- armies ----------
+  let men = [], regs = [], balls = [], bits = [], flashes = [], nextId = 1;
+  function makeReg(side, tier, n, x, y, face) {
+    const r = { id: nextId++, side, tier, n, form: "line", x, y, face, files: Math.max(Math.ceil(n / 3), 16), men: [], morale: 100, rout: false, hold: false, nextVolley: 0, groupFire: {}, n0: n };
+    for (let i = 0; i < n; i++) {
+      const m = { id: nextId++, reg: r, side, tier, x, y, a: face, hp: TIER[tier].hp, loaded: true, reload: 0, kneel: false, chips: [], solo: false, tx: x, ty: y, ta: face, sp: 0.9 + Math.random() * 0.2, fireAt: 0, group: 0, alive: true, cache: null };
+      r.men.push(m);
+      men.push(m);
+    }
+    regs.push(r);
+    layout(r, true);
+    return r;
+  }
+  function setup() {
+    men = []; regs = []; balls = []; bits = []; flashes = [];
+    smoke.fill(0);
+    const gy = 1050, ry = 520;
+    const order = ["conscript", "line", "line", "heavy", "heavy", "line", "line", "conscript"];
+    const sizes = [64, 64, 64, 64, 52, 64, 64, 64];
+    let x = WW / 2 - (order.length * 230) / 2 + 115;
+    order.forEach((t, i) => { makeReg("green", t, sizes[i], x, gy, -Math.PI / 2); x += 230; });
+    makeReg("red", "line", 52, WW / 2 - 110, ry, Math.PI / 2);
+    makeReg("red", "heavy", 48, WW / 2 + 110, ry, Math.PI / 2);
+    selected = new Set();
+    soloSel = null;
+    cam.x = WW / 2; cam.y = (gy + ry) / 2 + 40; cam.z = Math.max(0.6, Math.min(2, (VW - 40) / 1900));
+  }
+
+  // ---------- formations ----------
+  // slots in regiment space: x across the front (left to right), y back from the front rank
+  function slots(r, files) {
+    const n = r.men.filter(m => m.alive && !m.solo).length, out = [];
+    if (r.form === "square") {
+      const side = Math.max(2, Math.ceil(n / 8)), half = ((side - 1) * R_SP) / 2;
+      // four faces, two deep, each facing out; the corners shared out along the faces
+      for (let f = 0; f < 4 && out.length < n; f++)
+        for (let row = 0; row < 2 && out.length < n; row++)
+          for (let k = 0; k < side && out.length < n; k++) {
+            const across = -half + k * R_SP, depth = half + R_SP - row * R_SP;
+            const fa = (f * Math.PI) / 2; // 0 front, then right, back, left
+            const ax = Math.cos(fa), ay = Math.sin(fa);
+            // regiment space: front is -y
+            const px = across * ay + depth * ax, py = -(depth * ay - across * ax);
+            out.push({ x: px, y: py, a: fa, group: `s${f}`, fire: true });
+          }
+      return out;
+    }
+    const sp = r.form === "loose" ? R_SP * 1.7 : R_SP;
+    const w = r.form === "column" ? 6 : r.form === "loose" ? Math.max(Math.ceil(n / 2), 4) : Math.max(files, Math.ceil(n / 3), 2);
+    const rows = Math.ceil(n / w);
+    for (let row = 0, k = 0; row < rows; row++) {
+      const inRow = Math.min(w, n - k);
+      for (let i = 0; i < inRow; i++, k++)
+        out.push({
+          x: (i - (inRow - 1) / 2) * sp,
+          y: row * sp,
+          a: 0,
+          group: r.form === "loose" ? `m${k}` : `r${row}`,
+          fire: r.form === "loose" || (r.form === "line" && row < 3) // no man fires from a fourth rank
+        });
+    }
+    return out;
+  }
+  function layout(r, snap) {
+    const live = r.men.filter(m => m.alive && !m.solo);
+    if (!live.length) return;
+    const S = slots(r, r.files);
+    const c = Math.cos(r.face), s = Math.sin(r.face);
+    // world position of a slot: regiment faces r.face; slot y runs back, slot x runs to the right
+    const world = sl => [r.x + c * -sl.y - s * sl.x, r.y + s * -sl.y + c * sl.x];
+    // front-most men take the front ranks; within a rank, left to right, so nobody crosses the block
+    const depthOf = m => (m.x - r.x) * c + (m.y - r.y) * s, acrossOf = m => -(m.x - r.x) * s + (m.y - r.y) * c;
+    const byDepth = [...live].sort((a, b) => depthOf(b) - depthOf(a));
+    const bySlot = S.map((sl, i) => ({ sl, i })).sort((a, b) => a.sl.y - b.sl.y || a.sl.x - b.sl.x);
+    let k = 0;
+    while (k < bySlot.length && k < byDepth.length) {
+      const y0 = bySlot[k].sl.y;
+      let e = k;
+      while (e < bySlot.length && bySlot[e].sl.y === y0) e++;
+      const rowSlots = bySlot.slice(k, e).sort((a, b) => a.sl.x - b.sl.x);
+      const rowMen = byDepth.slice(k, Math.min(e, byDepth.length)).sort((a, b) => acrossOf(a) - acrossOf(b));
+      rowMen.forEach((m, i) => {
+        const sl = rowSlots[i].sl, [wx, wy] = world(sl);
+        m.tx = wx; m.ty = wy; m.ta = r.face + sl.a; m.group = sl.group; m.canFire = sl.fire;
+        if (snap) { m.x = wx; m.y = wy; m.a = m.ta; }
+      });
+      k = e;
+    }
+  }
+
+  // ---------- simulation ----------
+  let time = 0, paused = true, speed = 1, selected = new Set(), soloSel = null;
+  const grid = new Map(), GC = 12;
+  function rebuildGrid() {
+    grid.clear();
+    for (const m of men) if (m.alive) { const k = ((m.x / GC) | 0) * 4096 + ((m.y / GC) | 0); (grid.get(k) || grid.set(k, []).get(k)).push(m); }
+  }
+  const near = (x, y, r, fn) => {
+    const x0 = ((x - r) / GC) | 0, x1 = ((x + r) / GC) | 0, y0 = ((y - r) / GC) | 0, y1 = ((y + r) / GC) | 0;
+    for (let X = x0; X <= x1; X++) for (let Y = y0; Y <= y1; Y++) { const L = grid.get(X * 4096 + Y); if (L) for (const m of L) fn(m); }
+  };
+  const centroid = r => {
+    const L = r.men.filter(m => m.alive && !m.solo);
+    if (!L.length) return null;
+    let x = 0, y = 0;
+    for (const m of L) { x += m.x; y += m.y; }
+    return [x / L.length, y / L.length];
+  };
+  const alive = r => r.men.filter(m => m.alive).length;
+
+  function step(dt) {
+    time += dt;
+    rebuildGrid();
+    // men walk or run to their places; a man far out of place runs
+    for (const m of men) {
+      if (!m.alive) continue;
+      const dx = m.tx - m.x, dy = m.ty - m.y, d = Math.hypot(dx, dy);
+      if (d > 0.6) {
+        const v = (d > 24 || m.reg.rout ? RUN : WALK) * m.sp * (m.reg.form === "column" ? 1.15 : 1);
+        const st = Math.min(d, v * dt);
+        m.x += (dx / d) * st; m.y += (dy / d) * st;
+        m.a = turn(m.a, Math.atan2(dy, dx), dt * 8);
+        m.moving = true;
+      } else {
+        m.moving = false;
+        m.a = turn(m.a, m.ta, dt * 6);
+      }
+      if (!m.loaded) {
+        m.reload -= dt;
+        if (m.reload <= 0) { m.loaded = true; m.kneel = false; }
+        else if (m.reload < 2.2 && !m.rlHeard) { m.rlHeard = true; if (audible(m.x, m.y) > 0.5 && Math.random() < 0.08) rlPlay(0.25 * audible(m.x, m.y)); }
+      }
+    }
+    // men in each other's way step apart
+    for (const m of men) {
+      if (!m.alive) continue;
+      near(m.x, m.y, 7, o => {
+        if (o === m || !o.alive) return;
+        const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy);
+        if (d > 0 && d < 6) { const p = (6 - d) * 0.25; m.x += (dx / d) * p; m.y += (dy / d) * p; }
+      });
+    }
+    for (const r of regs) regTick(r, dt);
+    // balls fly
+    for (const b of balls) {
+      b.t += dt;
+      const k = Math.min(1, b.t / b.dur);
+      b.x = b.x0 + (b.x1 - b.x0) * k; b.y = b.y0 + (b.y1 - b.y0) * k;
+      if (k >= 1) { b.done = true; land(b); }
+    }
+    balls = balls.filter(b => !b.done);
+    for (const f of flashes) f.t -= dt;
+    flashes = flashes.filter(f => f.t > 0);
+    for (const p of bits) {
+      if (p.v > 0) {
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        const k = Math.pow(0.04, dt);
+        p.vx *= k; p.vy *= k; p.v = Math.hypot(p.vx, p.vy);
+        if (p.v < 1.5) p.v = 0;
+      }
+      p.life -= dt;
+    }
+    bits = bits.filter(p => p.life > 0);
+    smokeTick(dt);
+  }
+  const turn = (a, b, k) => { let d = Math.atan2(Math.sin(b - a), Math.cos(b - a)); return a + d * Math.min(1, k * 0.016 * 60); };
+
+  function regTick(r, dt) {
+    const live = r.men.filter(m => m.alive);
+    if (!live.length) return;
+    const strength = live.length / r.n0;
+    if (!r.rout && (strength < 0.35 || r.morale < 20)) {
+      r.rout = true;
+      const c = centroid(r) || [r.x, r.y], away = r.side === "green" ? 1 : -1;
+      for (const m of live) { m.solo = false; m.tx = m.x + (Math.random() - 0.5) * 80; m.ty = away > 0 ? WH + 60 : -60; }
+      r.x = c[0]; r.y = away > 0 ? WH + 60 : -60;
+    }
+    if (r.rout) { for (const m of live) if (m.y < -40 || m.y > WH + 40) m.alive = false; return; }
+    r.morale = Math.min(100, r.morale + dt * 0.8);
+    if (r.side === "red") redThink(r);
+    if (r.hold || r.form === "column") return;
+    // a block still on the move doesn't fire, bar the loose order
+    const off = live.reduce((s, m) => s + Math.hypot(m.tx - m.x, m.ty - m.y), 0) / live.length;
+    if (off > 5 && r.form !== "loose") return;
+    if (time < r.nextVolley) return;
+    const groups = new Map();
+    for (const m of live) if (m.canFire && !m.solo) (groups.get(m.group) || groups.set(m.group, []).get(m.group)).push(m);
+    for (const [g, L] of groups) {
+      const ready = L.filter(m => m.loaded);
+      if (!ready.length || ready.length < L.length * (r.form === "loose" ? 0 : 0.75)) continue;
+      let cx = 0, cy = 0;
+      for (const m of L) { cx += m.x; cy += m.y; }
+      cx /= L.length; cy /= L.length;
+      const fa = L[0].ta, target = pickTarget(r.side, cx, cy, fa, r.form === "square" ? 0.95 : 0.85);
+      if (!target) continue;
+      for (const m of ready) m.fireAt = time + (r.form === "loose" ? Math.random() * 0.6 : Math.random() * 0.28);
+      for (const m of ready) schedule(m, target);
+      r.nextVolley = time + (r.form === "loose" ? 0.3 : 0.9); // ranks roll one after another
+      break;
+    }
+  }
+  // the nearest enemy regiment in front, within range
+  function pickTarget(side, x, y, face, arc) {
+    let best = null, bd = RANGE;
+    for (const r of regs) {
+      if (r.side === side || r.rout) continue;
+      for (const m of r.men) {
+        if (!m.alive) continue;
+        const dx = m.x - x, dy = m.y - y, d = Math.hypot(dx, dy);
+        if (d > bd) continue;
+        if (Math.cos(Math.atan2(dy, dx) - face) < Math.cos(arc)) continue;
+        bd = d; best = r;
+      }
+    }
+    return best;
+  }
+  function schedule(m, reg) { m.target = reg; m.pending = true; }
+  function fire(m) {
+    m.pending = false;
+    const r = m.target;
+    if (!m.alive || !m.loaded || !r) return;
+    // aim: three men of the target, the nearest of them
+    const cand = r.men.filter(o => o.alive);
+    if (!cand.length) return;
+    let t = null, td = 1e9;
+    for (let i = 0; i < 3; i++) { const o = cand[(Math.random() * cand.length) | 0], d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } }
+    if (td > RANGE * 1.05) return;
+    m.loaded = false; m.kneel = true; m.rlHeard = false;
+    m.reload = 8 + Math.random() * 2;
+    const a = Math.atan2(t.y - m.y, t.x - m.x);
+    m.a = a;
+    const R0 = TIER[m.tier].r;
+    const mx = m.x + Math.cos(a) * (R0 + 4), my = m.y + Math.sin(a) * (R0 + 4);
+    plume(mx, my, a);
+    flashes.push({ x: mx, y: my, t: 0.06 });
+    shotSound(mx, my);
+    const p = Math.max(0.12, 0.55 - (td / RANGE) * 0.4) * (t.kneel ? 0.85 : 1);
+    const hit = Math.random() < p;
+    let x1 = t.x, y1 = t.y;
+    if (!hit) { const s = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 10); x1 += -Math.sin(a) * s + Math.cos(a) * (Math.random() * 30); y1 += Math.cos(a) * s + Math.sin(a) * (Math.random() * 30); }
+    balls.push({ x0: mx, y0: my, x1, y1, x: mx, y: my, t: 0, dur: Math.hypot(x1 - mx, y1 - my) / BALL, hit, target: t, a, side: m.side });
+  }
+  function land(b) {
+    let t = b.hit && b.target.alive ? b.target : null;
+    if (!t) near(b.x1, b.y1, 4, o => { if (!t && o.alive && o.side !== b.side && Math.hypot(o.x - b.x1, o.y - b.y1) < 3.5) t = o; });
+    if (!t) { dust(b.x1, b.y1); return; }
+    // armour turns the ball on its side
+    const T = TIER[t.tier], faceOn = Math.cos(b.a + Math.PI - t.a) > Math.cos((75 * Math.PI) / 180);
+    const save = faceOn ? T.front : T.ring;
+    if (Math.random() < save) {
+      chip(t, b.a, true, 1);
+      hitSound("plate", t.x, t.y);
+      return;
+    }
+    t.hp--;
+    hitSound("flesh", t.x, t.y);
+    if (t.hp <= 0) shatter(t, b.a);
+    else chip(t, b.a, false, 2 + ((Math.random() * 2) | 0));
+  }
+  function dust(x, y) { for (let i = 0; i < 3; i++) bits.push({ x, y, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, v: 1, c: [170, 160, 120], life: 0.6 + Math.random() * 0.4, fade: 0.6 }); }
+  // a hit knocks pixels off the side it came from
+  function chip(m, a, steel, n) {
+    const T = TIER[m.tier], rel = a + Math.PI - m.a;
+    for (let i = 0; i < n; i++) {
+      const ang = rel + (Math.random() - 0.5) * 1.4, rr = T.r - 0.5 - Math.random() * (steel ? 0.6 : 1.6);
+      m.chips.push([Math.cos(ang) * rr, Math.sin(ang) * rr]);
+      const wa = m.a + ang, wx = m.x + Math.cos(wa) * rr, wy = m.y + Math.sin(wa) * rr;
+      bits.push({ x: wx, y: wy, vx: Math.cos(a) * (14 + Math.random() * 20) + (Math.random() - 0.5) * 12, vy: Math.sin(a) * (14 + Math.random() * 20) + (Math.random() - 0.5) * 12, v: 1, c: steel ? STEEL : SIDE[m.side].fill, life: 20, fade: 2 });
+    }
+    m.cache = null;
+    m.reg.morale -= steel ? 0.3 : 1.5;
+  }
+  // death: the marker shatters into its own pixels, which drift, settle, and fade after about 20 s
+  function shatter(m, a) {
+    m.alive = false;
+    const T = TIER[m.tier], col = SIDE[m.side];
+    const n = 7 + ((Math.random() * 4) | 0);
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2, rr = Math.random() * T.r;
+      const kind = rr > T.r - 1 ? (m.tier === "heavy" || (m.tier === "line" && Math.cos(ang) > 0.25) ? STEEL : RIM) : col.fill;
+      const sp = 10 + Math.random() * 34, dir = a + (Math.random() - 0.5) * 2.2;
+      bits.push({ x: m.x + Math.cos(ang) * rr, y: m.y + Math.sin(ang) * rr, vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp, v: 1, c: kind, life: 20 + Math.random() * 3, fade: 2.5 });
+    }
+    // the musket falls
+    bits.push({ x: m.x, y: m.y, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, v: 1, c: [20, 20, 20], life: 21, fade: 2.5, len: 4, ang: m.a + (Math.random() - 0.5) });
+    const r = m.reg, share = 100 / r.n0;
+    r.morale -= share * 1.4;
+    // a loss in the block shakes the regiments beside it a little
+    for (const o of regs) if (o !== r && o.side === r.side) { const c = centroid(o); if (c && Math.hypot(c[0] - m.x, c[1] - m.y) < 140) o.morale -= share * 0.3; }
+    layoutSoon.add(r);
+  }
+  const layoutSoon = new Set();
+
+  // red holds its ground and wheels to face the nearest threat
+  function redThink(r) {
+    if ((r.thinkAt || 0) > time) return;
+    r.thinkAt = time + 3;
+    const c = centroid(r);
+    if (!c) return;
+    let best = null, bd = 1e9;
+    for (const o of regs) if (o.side !== r.side && !o.rout) { const k = centroid(o); if (k) { const d = Math.hypot(k[0] - c[0], k[1] - c[1]); if (d < bd) { bd = d; best = k; } } }
+    if (!best) return;
+    const want = Math.atan2(best[1] - c[1], best[0] - c[0]);
+    if (Math.abs(Math.atan2(Math.sin(want - r.face), Math.cos(want - r.face))) > (35 * Math.PI) / 180) {
+      r.face = want; r.x = c[0]; r.y = c[1];
+      layout(r);
+    }
+  }
+
+  // ---------- orders ----------
+  function order(list, x0, y0, x1, y1) {
+    const L = list.filter(r => alive(r) && !r.rout);
+    if (!L.length) return;
+    const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+    if (len < 12) {
+      // a click: the selection moves there in its own order, facing the way it goes
+      let cx = 0, cy = 0;
+      const cs = L.map(r => centroid(r) || [r.x, r.y]);
+      for (const c of cs) { cx += c[0] / cs.length; cy += c[1] / cs.length; }
+      const a = Math.atan2(y0 - cy, x0 - cx);
+      L.forEach((r, i) => {
+        const off = [cs[i][0] - cx, cs[i][1] - cy];
+        // keep the regiments' spread, turned with the march
+        const turnA = a - L[0].face;
+        const c = Math.cos(L.length > 1 ? turnA : 0), s = Math.sin(L.length > 1 ? turnA : 0);
+        r.x = x0 + off[0] * c - off[1] * s; r.y = y0 + off[0] * s + off[1] * c;
+        r.face = Math.hypot(x0 - cs[i][0], y0 - cs[i][1]) > 20 ? a : r.face;
+        for (const m of r.men) m.solo = false;
+        layout(r);
+      });
+      return;
+    }
+    // a drag: the line drawn is the front; it is shared out between the selected regiments, left to right
+    const face = Math.atan2(dy, dx) - Math.PI / 2;
+    const total = L.reduce((s, r) => s + alive(r), 0);
+    const ux = dx / len, uy = dy / len;
+    const cs = L.map(r => centroid(r) || [r.x, r.y]);
+    const sorted = L.map((r, i) => ({ r, k: cs[i][0] * ux + cs[i][1] * uy })).sort((a, b) => a.k - b.k).map(o => o.r);
+    let at = 0;
+    for (const r of sorted) {
+      const share = (alive(r) / total) * len, mid = at + share / 2;
+      at += share;
+      r.face = face;
+      r.x = x0 + ux * mid; r.y = y0 + uy * mid;
+      r.files = Math.max(2, Math.floor((share - 4) / R_SP) + 1);
+      if (r.form === "column" || r.form === "square") r.form = "line";
+      for (const m of r.men) m.solo = false;
+      layout(r);
+    }
+  }
+  function ghost(list, x0, y0, x1, y1) {
+    const out = [], L = list.filter(r => alive(r) && !r.rout), dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+    if (len < 12 || !L.length) return out;
+    const face = Math.atan2(dy, dx) - Math.PI / 2, ux = dx / len, uy = dy / len, total = L.reduce((s, r) => s + alive(r), 0);
+    const cs = L.map(r => centroid(r) || [r.x, r.y]);
+    const sorted = L.map((r, i) => ({ r, k: cs[i][0] * ux + cs[i][1] * uy })).sort((a, b) => a.k - b.k).map(o => o.r);
+    let at = 0;
+    for (const r of sorted) {
+      const share = (alive(r) / total) * len, mid = at + share / 2;
+      at += share;
+      const fake = { ...r, face, x: x0 + ux * mid, y: y0 + uy * mid, files: Math.max(2, Math.floor((share - 4) / R_SP) + 1), form: r.form === "column" || r.form === "square" ? "line" : r.form, men: r.men.filter(m => m.alive) };
+      const S = slots(fake, fake.files), c = Math.cos(face), s = Math.sin(face);
+      for (const sl of S) out.push([fake.x + c * -sl.y - s * sl.x, fake.y + s * -sl.y + c * sl.x]);
+    }
+    return out;
+  }
+  function setForm(f) {
+    for (const r of selected) {
+      if (!alive(r) || r.rout) continue;
+      const c = centroid(r);
+      if (c) { r.x = c[0]; r.y = c[1]; }
+      r.form = f;
+      if (f === "line") r.files = Math.max(Math.ceil(alive(r) / 3), 2);
+      for (const m of r.men) m.solo = false;
+      layout(r);
+    }
+    syncBar();
+  }
+
+  // ---------- input ----------
+  const toWorld = (sx, sy) => [(sx - VW / 2) / cam.z + cam.x, (sy - VH / 2) / cam.z + cam.y];
+  let drag = null, pan = null, spaceHeld = false, spacePanned = false;
+  function regAt(wx, wy) {
+    let best = null, bd = 6;
+    for (const m of men) if (m.alive && m.side === "green") { const d = Math.hypot(m.x - wx, m.y - wy); if (d < bd) { bd = d; best = m; } }
+    if (best) return best;
+    for (const r of regs) { if (r.side !== "green") continue; const b = bannerBox(r); if (b && wx >= b[0] && wx <= b[2] && wy >= b[1] && wy <= b[3]) return r.men.find(m => m.alive); }
+    return null;
+  }
+  cv.addEventListener("contextmenu", e => e.preventDefault());
+  cv.addEventListener("pointerdown", e => {
+    cv.setPointerCapture(e.pointerId);
+    const [wx, wy] = toWorld(e.offsetX, e.offsetY);
+    if (e.button === 1 || spaceHeld) { pan = { sx: e.offsetX, sy: e.offsetY, cx: cam.x, cy: cam.y }; spacePanned = true; return; }
+    if (e.button === 0) {
+      const m = regAt(wx, wy);
+      if (m) {
+        if (e.altKey) { soloSel = m; selected = new Set(); }
+        else { soloSel = null; if (!(e.ctrlKey || e.metaKey || e.shiftKey)) selected = new Set(); if (selected.has(m.reg) && (e.ctrlKey || e.metaKey || e.shiftKey)) selected.delete(m.reg); else selected.add(m.reg); }
+        syncBar();
+        return;
+      }
+      drag = { kind: "box", x0: wx, y0: wy, x1: wx, y1: wy, add: e.ctrlKey || e.metaKey || e.shiftKey };
+    } else if (e.button === 2) drag = { kind: "order", x0: wx, y0: wy, x1: wx, y1: wy };
+  });
+  cv.addEventListener("pointermove", e => {
+    mouse = [e.offsetX, e.offsetY];
+    if (pan) { cam.x = pan.cx - (e.offsetX - pan.sx) / cam.z; cam.y = pan.cy - (e.offsetY - pan.sy) / cam.z; clampCam(); return; }
+    if (!drag) return;
+    [drag.x1, drag.y1] = toWorld(e.offsetX, e.offsetY);
+  });
+  cv.addEventListener("pointerup", () => {
+    if (pan) { pan = null; return; }
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    if (d.kind === "box") {
+      if (!d.add) selected = new Set();
+      soloSel = null;
+      const [ax, bx] = [Math.min(d.x0, d.x1), Math.max(d.x0, d.x1)], [ay, by] = [Math.min(d.y0, d.y1), Math.max(d.y0, d.y1)];
+      if (bx - ax < 3 && by - ay < 3) { syncBar(); return; }
+      for (const m of men) if (m.alive && m.side === "green" && m.x >= ax && m.x <= bx && m.y >= ay && m.y <= by) selected.add(m.reg);
+      syncBar();
+      return;
+    }
+    if (soloSel && soloSel.alive) {
+      // one man, out of his block: he goes alone until his regiment is given an order
+      soloSel.solo = true; soloSel.tx = d.x0; soloSel.ty = d.y0;
+      soloSel.ta = Math.hypot(d.x1 - d.x0, d.y1 - d.y0) > 8 ? Math.atan2(d.y1 - d.y0, d.x1 - d.x0) : Math.atan2(d.y0 - soloSel.y, d.x0 - soloSel.x);
+      return;
+    }
+    order([...selected], d.x0, d.y0, d.x1, d.y1);
+  });
+  cv.addEventListener("wheel", e => {
+    e.preventDefault();
+    const [wx, wy] = toWorld(e.offsetX, e.offsetY);
+    cam.z = Math.max(0.6, Math.min(6, cam.z * Math.exp(-e.deltaY * 0.0015)));
+    const [nx, ny] = toWorld(e.offsetX, e.offsetY);
+    cam.x += wx - nx; cam.y += wy - ny;
+    clampCam();
+  }, { passive: false });
+  let mouse = [0, 0];
+  const keys = new Set();
+  addEventListener("keydown", e => {
+    if (e.code === "Space") { e.preventDefault(); if (!spaceHeld) { spaceHeld = true; spacePanned = false; } return; }
+    keys.add(e.code);
+    const F = { Digit1: "line", Digit2: "column", Digit3: "square", Digit4: "loose" }[e.code];
+    if (F) setForm(F);
+    if (e.code === "KeyH") toggleHold();
+    if (e.code === "Escape") { selected = new Set(); soloSel = null; syncBar(); }
+  });
+  addEventListener("keyup", e => {
+    if (e.code === "Space") { spaceHeld = false; if (!spacePanned) setPaused(!paused); return; }
+    keys.delete(e.code);
+  });
+  const clampCam = () => { cam.x = Math.max(0, Math.min(WW, cam.x)); cam.y = Math.max(0, Math.min(WH, cam.y)); };
+
+  // ---------- bar ----------
+  const bar = document.getElementById("bar");
+  const btn = id => bar.querySelector(`[data-k="${id}"]`);
+  function setPaused(p) { paused = p; btn("play").textContent = paused ? "▶" : "❚❚"; btn("play").classList.toggle("on", !paused); }
+  function toggleHold() { const any = [...selected].some(r => !r.hold); for (const r of selected) r.hold = any; syncBar(); }
+  function syncBar() {
+    const forms = new Set([...selected].map(r => r.form));
+    for (const f of ["line", "column", "square", "loose"]) btn(f).classList.toggle("on", forms.size === 1 && forms.has(f));
+    btn("hold").classList.toggle("on", selected.size > 0 && [...selected].every(r => r.hold));
+    for (const b of bar.querySelectorAll(".sel")) b.disabled = !selected.size;
+  }
+  bar.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    const k = b.dataset.k;
+    if (k === "play") setPaused(!paused);
+    else if (k === "speed") { speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1; b.textContent = `${speed}×`; }
+    else if (k === "hold") toggleHold();
+    else if (k === "reset") { setup(); setPaused(true); syncBar(); }
+    else if (k === "snd") { mute = !mute; b.classList.toggle("off", mute); }
+    else setForm(k);
+    b.blur();
+  });
+
+  // ---------- drawing ----------
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    VW = cv.clientWidth; VH = cv.clientHeight;
+    cv.width = Math.round(VW * dpr); cv.height = Math.round(VH * dpr);
+  }
+  addEventListener("resize", resize);
+  function bannerBox(r) {
+    const c = centroid(r);
+    if (!c) return null;
+    let top = 1e9;
+    const fx = -Math.sin(r.face), fy = Math.cos(r.face); // unused, banner sits above the block on screen
+    void fx; void fy;
+    for (const m of r.men) if (m.alive && !m.solo) top = Math.min(top, m.y);
+    const w = 18 / cam.z * 2.2, h = 12 / cam.z * 1.2;
+    return [c[0] - w / 2, top - 10 / cam.z - h, c[0] + w / 2, top - 10 / cam.z];
+  }
+  function bodyImg(m) {
+    const f = ((Math.round((m.a / (Math.PI * 2)) * FACE) % FACE) + FACE) % FACE;
+    const sel = selected.has(m.reg) || soloSel === m;
+    const base = sprite(m.side, m.tier, f, m.kneel, sel);
+    if (!m.chips.length) return base;
+    const key = `${f}${m.kneel ? 1 : 0}${sel ? 1 : 0}${m.chips.length}`;
+    if (m.cache && m.cacheKey === key) return m.cache;
+    const c = document.createElement("canvas");
+    c.width = c.height = S_SIZE;
+    const g = c.getContext("2d");
+    g.drawImage(base, 0, 0);
+    const a = (f / FACE) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+    for (const [lx, ly] of m.chips) g.clearRect(Math.floor(S_C + lx * ca - ly * sa), Math.floor(S_C + lx * sa + ly * ca), 1, 1);
+    m.cache = c; m.cacheKey = key;
+    return c;
+  }
+  function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "#3e4130";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    const z = cam.z * dpr;
+    ctx.setTransform(z, 0, 0, z, (VW / 2 - cam.x * cam.z) * dpr, (VH / 2 - cam.y * cam.z) * dpr);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(ground, 0, 0);
+    // fragments on the ground
+    for (const p of bits) {
+      const a = p.life < p.fade ? p.life / p.fade : 1;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = `rgb(${p.c[0]},${p.c[1]},${p.c[2]})`;
+      if (p.len) { const c = Math.cos(p.ang), s = Math.sin(p.ang); for (let i = 0; i < p.len; i++) ctx.fillRect(Math.floor(p.x + c * i), Math.floor(p.y + s * i), 1, 1); }
+      else ctx.fillRect(Math.floor(p.x), Math.floor(p.y), 1, 1);
+    }
+    ctx.globalAlpha = 1;
+    // order preview
+    if (drag && drag.kind === "order" && !soloSel) {
+      ctx.fillStyle = "rgba(255,255,240,0.55)";
+      for (const [x, y] of ghost([...selected], drag.x0, drag.y0, drag.x1, drag.y1)) ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
+    }
+    // men
+    for (const m of men) {
+      if (!m.alive) continue;
+      const img = bodyImg(m);
+      const x = Math.round(m.x), y = Math.round(m.y);
+      ctx.drawImage(img, x - Math.floor(S_C), y - Math.floor(S_C));
+      // the musket: a short black line out of the front; shortened while he reloads
+      const len = m.loaded ? 5 : 2, r0 = TIER[m.tier].r - 0.5, c = Math.cos(m.a), s = Math.sin(m.a);
+      ctx.fillStyle = m.kneel ? "#0a0a0a" : "#141414";
+      for (let i = 0; i < len; i++) ctx.fillRect(Math.floor(m.x + c * (r0 + i) + 0.5), Math.floor(m.y + s * (r0 + i) + 0.5), 1, 1);
+    }
+    // balls and muzzle flashes
+    ctx.fillStyle = "#1a1a1a";
+    for (const b of balls) ctx.fillRect(Math.floor(b.x), Math.floor(b.y), 1, 1);
+    for (const f of flashes) { ctx.fillStyle = "#fff3b0"; ctx.fillRect(Math.floor(f.x) - 1, Math.floor(f.y) - 1, 3, 3); ctx.fillStyle = "#ffd25a"; ctx.fillRect(Math.floor(f.x), Math.floor(f.y), 1, 1); }
+    // smoke over everything
+    if (smokeOn) { smokePaint(); ctx.drawImage(smokeCv, 0, 0, SWd * SC, SHt * SC); }
+    // box select
+    if (drag && drag.kind === "box") {
+      ctx.strokeStyle = "rgba(250,250,240,0.9)"; ctx.lineWidth = 1 / cam.z;
+      ctx.fillStyle = "rgba(250,250,240,0.08)";
+      const x = Math.min(drag.x0, drag.x1), y = Math.min(drag.y0, drag.y1), w = Math.abs(drag.x1 - drag.x0), h = Math.abs(drag.y1 - drag.y0);
+      ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+    }
+    // banners, in screen space
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = "15px VT323, monospace";
+    ctx.textBaseline = "middle";
+    for (const r of regs) {
+      const c = centroid(r);
+      if (!c) continue;
+      let top = 1e9;
+      for (const m of r.men) if (m.alive && !m.solo) top = Math.min(top, m.y);
+      const sx = (c[0] - cam.x) * cam.z + VW / 2, sy = (top - cam.y) * cam.z + VH / 2 - 14;
+      if (sx < -40 || sx > VW + 40 || sy < -20 || sy > VH + 20) continue;
+      const label = `${r.tier === "conscript" ? "C" : r.tier === "line" ? "L" : "H"} ${alive(r)}${r.rout ? " !" : ""}`;
+      const w = ctx.measureText(label).width + 10;
+      ctx.fillStyle = selected.has(r) ? "#f2efe6" : "rgba(20,20,22,0.82)";
+      ctx.fillRect(Math.round(sx - w / 2) - 1, Math.round(sy - 8) - 1, Math.round(w) + 2, 18);
+      ctx.fillStyle = SIDE[r.side].ui;
+      ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - 8), Math.round(w), 16);
+      ctx.fillStyle = "#121212";
+      ctx.fillText(label, Math.round(sx - w / 2) + 5, Math.round(sy));
+      if (r.hold) { ctx.fillStyle = "#121212"; ctx.fillRect(Math.round(sx + w / 2) + 3, Math.round(sy - 5), 3, 10); ctx.fillRect(Math.round(sx + w / 2) + 8, Math.round(sy - 5), 3, 10); }
+    }
+  }
+
+  // ---------- loop ----------
+  let last = performance.now(), frameMs = 0;
+  const stat = document.getElementById("stat");
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const t0 = performance.now();
+    // arrow keys pan
+    const pv = 600 / cam.z * dt;
+    if (keys.has("ArrowLeft") || keys.has("KeyA")) cam.x -= pv;
+    if (keys.has("ArrowRight") || keys.has("KeyD")) cam.x += pv;
+    if (keys.has("ArrowUp") || keys.has("KeyW")) cam.y -= pv;
+    if (keys.has("ArrowDown") || keys.has("KeyS")) cam.y += pv;
+    if (!paused) {
+      const sdt = dt * speed;
+      // shots go off at their own moment inside a volley
+      for (const m of men) if (m.pending && m.fireAt <= time + sdt) fire(m);
+      step(sdt);
+      for (const r of layoutSoon) if (!r.rout) { const live = r.men.filter(m => m.alive && !m.solo); if (live.length) layout(r); }
+      layoutSoon.clear();
+    }
+    draw();
+    frameMs = frameMs * 0.9 + (performance.now() - t0) * 0.1;
+    const g = men.filter(m => m.alive && m.side === "green").length, rd = men.filter(m => m.alive && m.side === "red").length;
+    stat.textContent = `${frameMs.toFixed(1)} ms`;
+    document.getElementById("gn").textContent = g;
+    document.getElementById("rn").textContent = rd;
+    requestAnimationFrame(loop);
+  }
+  resize();
+  setup();
+  syncBar();
+  window.__lb = { regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
+  requestAnimationFrame(loop);
+})();
