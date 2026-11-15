@@ -1,5 +1,5 @@
-import { isDenseWood } from "@/fluoria/woods";
 import { max, mean, median, sum } from "d3";
+import { isDenseWood } from "@/fluoria/woods";
 import { gauss, isWater, normalize, rn } from "@/utils";
 import type { Burg } from "./burgs-generator";
 

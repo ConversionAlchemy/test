@@ -1,12 +1,13 @@
 // Turns the loaded Azgaar map into pixel layers. Nothing here invents the world: terrain follows biomes and heights,
 // relief follows elevation, snow follows temperature, and rivers, roads, states and towns come from the map itself
-import { isDenseWood } from "./woods";
+
 import { color } from "d3";
 import { valueNoise } from "./noise";
 import { cellOfGrid } from "./one-grid";
 import { Palette, packRGB } from "./palette";
 import type { Stamp } from "./raster";
 import { Terrain, type TerrainId } from "./terrain";
+import { isDenseWood } from "./woods";
 import type { WorldModel } from "./world-model";
 
 /** Game pixels per Azgaar map pixel */

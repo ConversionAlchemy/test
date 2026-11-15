@@ -289,7 +289,8 @@ export class PixelRaster {
     if (shore === 4) return (x + y) % 2 ? C.shallow : C.water2;
     const n = fbm(x, y, 22, 2, s + 1);
     const checker = (x + y) % 2 === 0;
-    let c = t === Terrain.DeepWater ? (n > 0.6 && checker ? C.water : C.deep) : n > 0.58 && checker ? C.water2 : C.water;
+    let c =
+      t === Terrain.DeepWater ? (n > 0.6 && checker ? C.water : C.deep) : n > 0.58 && checker ? C.water2 : C.water;
     // a wave mark now and then: a small light arc
     const gx = Math.floor(x / 26);
     const gy = Math.floor(y / 15);
@@ -297,7 +298,8 @@ export class PixelRaster {
       const cx = gx * 26 + 6 + Math.floor(hash2(gx, gy, s + 32) * 14);
       const cy = gy * 15 + 5 + Math.floor(hash2(gx, gy, s + 33) * 6);
       const dx = x - cx;
-      if ((y === cy && Math.abs(dx) <= 1) || (y === cy + 1 && Math.abs(dx) === 2)) c = C.water2 === c ? C.shallow : C.water2;
+      if ((y === cy && Math.abs(dx) <= 1) || (y === cy + 1 && Math.abs(dx) === 2))
+        c = C.water2 === c ? C.shallow : C.water2;
     }
     return c;
   }

@@ -1,6 +1,6 @@
-import { isDenseWood } from "@/fluoria/woods";
 import { quadtree } from "d3-quadtree";
 import { AUTO_BURG_LIMIT } from "@/components/options-schema";
+import { isDenseWood } from "@/fluoria/woods";
 import { Emblems } from "@/generators/emblems-generator";
 import type { BurgGroup } from "@/types/burg-groups";
 import type { Emblem } from "@/types/emblems";
