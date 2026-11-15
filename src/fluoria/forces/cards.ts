@@ -174,9 +174,14 @@ export interface Pile {
 }
 
 /** A pile's size in art px, and where its top card's middle is */
-export function pileSize(pile: Pick<Pile, "count" | "pips" | "men">): { w: number; h: number; mid: number } {
+export function pileSize(pile: Pick<Pile, "count" | "pips" | "men">): {
+  w: number;
+  h: number;
+  mid: number;
+  cw: number;
+} {
   const top = pile.pips ? PIP : 0;
-  return { w: CARD_W + badgeWidth(pile), h: top + CARD_H + 1, mid: top + CARD_H / 2 };
+  return { w: CARD_W + badgeWidth(pile), h: top + CARD_H + 1, mid: top + CARD_H / 2, cw: CARD_W };
 }
 
 const DIGITS: Record<string, string[]> = {

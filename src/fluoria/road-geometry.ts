@@ -150,7 +150,7 @@ function landLine(route: (typeof pack.routes)[number]): RoadLine | null {
 
 /** The line a road is drawn along, for its name and its hover to follow; read left to right */
 export function roadLineOf(route: (typeof pack.routes)[number]): Point[] | null {
-  const line = route.group === "searoutes" ? null : landLine(route)?.line;
+  const line = route.group === "searoutes" || !pack.cells?.i ? null : landLine(route)?.line;
   if (!line) return null;
   return line[0][0] > line[line.length - 1][0] ? [...line].reverse() : line;
 }

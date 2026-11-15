@@ -27,7 +27,7 @@ describe("cards", () => {
   it("piles show one card with the men beside it, one health line under it and pips on top", () => {
     const pile = { unit: unit("land_infantry_t1"), colour: "#336699", count: 3, men: 24, health: 0.5, pips: 2 };
     const size = pileSize(pile);
-    expect(size).toEqual({ w: CARD_W + 10, h: 3 + CARD_H + 1, mid: 3 + CARD_H / 2 });
+    expect(size).toEqual({ w: CARD_W + 10, h: 3 + CARD_H + 1, mid: 3 + CARD_H / 2, cw: CARD_W });
     const pixels = pilePixels(pile);
     const bar = pixels[size.h - 1];
     expect(bar[0]).toBe(HEALTH.hurt);

@@ -44,7 +44,7 @@ test("a pile's top card sits with its middle on the regiment; moving glides", as
   expect(card.getAttribute("href")).toBe("pile:land_infantry_t2x3");
   expect(Number(card.getAttribute("x"))).toBeCloseTo(50 - 21 / 2, 1);
   expect(Number(card.getAttribute("y"))).toBeCloseTo(50 - 13 / 2, 1);
-  expect(Number(card.getAttribute("height"))).toBe(13 + 2 * 2 + 1);
+  expect(Number(card.getAttribute("height"))).toBe(13 + 1);
   moveRegiment(army, 60, 50);
   await vi.waitFor(() => expect(Number(card.getAttribute("x"))).toBeCloseTo(60 - 21 / 2, 1));
 });

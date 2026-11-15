@@ -126,8 +126,8 @@ function buildRiverLabel(river: River, geometry: boolean): LabelData | undefined
 function buildRouteLabel(route: Route, geometry: boolean): LabelData | undefined {
   if (!route.name) return undefined;
   const customPath = getCustomPath(route.label);
-  const drawn = geometry && !isPlainText(route.label) ? roadLineOf(route) : null; // Fluoria: along the drawn road
-  const defaultPath = drawn ? formatPathPoints(drawn) : undefined;
+  const along = geometry && !isPlainText(route.label) ? (roadLineOf(route) ?? route.points) : null; // Fluoria: the drawn road
+  const defaultPath = along ? formatPathPoints(along) : undefined;
   return {
     ...route.label,
     id: `routeLabel${route.i}`,

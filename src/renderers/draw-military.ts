@@ -31,11 +31,12 @@ export function setArt(g: SVGGElement, pile: Pile): void {
   }
   const href = pileUrl(pile);
   if (image.getAttribute("href") === href) return;
-  const { w, h, mid } = pileSize(pile);
+  const { w, h, mid, cw } = pileSize(pile);
   image.setAttribute("href", href);
   image.dataset.w = String(w);
   image.dataset.h = String(h);
   image.dataset.mid = String(mid);
+  image.dataset.cw = String(cw); // the card itself, without the count badge beside it
   const regiment = pack.states[Number(g.dataset.state)]?.military?.find(r => r.i === Number(g.dataset.id));
   if (regiment) placeRegiment(g, regiment.x, regiment.y);
 }
@@ -46,7 +47,7 @@ export function placeRegiment(g: SVGGElement, x: number, y: number): void {
   const el = g.querySelector<SVGImageElement>("image");
   if (!el?.dataset.w) return;
   const w = Number(el.dataset.w);
-  el.setAttribute("x", String(rn(x - w / 2, 2)));
+  el.setAttribute("x", String(rn(x - Number(el.dataset.cw ?? w) / 2, 2)));
   el.setAttribute("y", String(rn(y - Number(el.dataset.mid), 2)));
   el.setAttribute("width", String(w));
   el.setAttribute("height", el.dataset.h!);
