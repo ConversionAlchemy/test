@@ -1408,12 +1408,50 @@ SFX.mhit=()=>SND.mhit(SVOL);
   }
   // ---------- unit cards: one per regiment, its marker, count, men left and powder left ----------
   let cards = [];
-  function icon(r) {
+  function icon(r, level = 0, broken = false) {
     const c = document.createElement("canvas"), k = 2;
     c.width = 40 * k; c.height = 26 * k;
-    const g = c.getContext("2d");
-    sign(g, r, 2 * k, 2 * k, 36 * k, 22 * k, SIDE[r.side].ui);
+    c.getContext("2d").drawImage(wornSign(r, 36, 22, k, broken ? "#8b8a84" : SIDE[r.side].ui, level, broken), 2 * k, 2 * k);
     return c;
+  }
+  // the sign wears with the regiment: notches knocked out of its edge, cracks running in from them, split clean across when it breaks
+  const wear = r => { const n = alive(r); return n ? Math.round((1 - n / r.n0) * 7) : 7; };
+  function wornSign(r, w, h, sc, fill, level, broken) {
+    const key = `${w}|${sc}|${fill}|${level}|${broken}`;
+    if (r.sgnKey !== `${level}${broken}`) { r.sgnKey = `${level}${broken}`; r.sgn = {}; }
+    if (r.sgn[key]) return r.sgn[key];
+    const c = document.createElement("canvas");
+    c.width = Math.ceil(w * sc); c.height = Math.ceil(h * sc);
+    const g = c.getContext("2d");
+    g.scale(sc, sc);
+    sign(g, r, 0, 0, w, h, fill);
+    const R = rngOf(r.id * 104729), u = h / 16;
+    const path = (pts, lw, col) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); };
+    const edge = () => {
+      const t = R() * 2 * (w + h);
+      return t < w ? [t, 0, 0, 1] : t < w + h ? [w, t - w, -1, 0] : t < 2 * w + h ? [2 * w + h - t, h, 0, -1] : [0, 2 * (w + h) - t, 1, 0];
+    };
+    for (let i = 0; i < Math.min(level, 7); i++) {
+      const [x, y, nx, ny] = edge(), sz = (1.6 + R() * 2.4) * u, tx = -ny, ty = nx;
+      g.globalCompositeOperation = "destination-out";
+      g.beginPath(); g.moveTo(x - tx * sz, y - ty * sz); g.lineTo(x + nx * sz * 0.9, y + ny * sz * 0.9); g.lineTo(x + tx * sz * 0.7, y + ty * sz * 0.7); g.closePath(); g.fill();
+      g.globalCompositeOperation = "source-over";
+      const pts = [[x + nx * sz * 0.9, y + ny * sz * 0.9]];
+      let px = pts[0][0], py = pts[0][1];
+      for (let k = 0; k < 2 + ((R() * 2) | 0); k++) { px += nx * (2 + R() * 3) * u + (R() - 0.5) * 3 * u; py += ny * (2 + R() * 3) * u + (R() - 0.5) * 3 * u; pts.push([px, py]); }
+      path(pts, 1.1 * u, "#0b0b0d");
+      path(pts.map(([a, b]) => [a + 0.6 * u, b + 0.6 * u]), 0.6 * u, "rgba(255,250,235,0.55)");
+    }
+    if (broken) {
+      const pts = [[0, h * (0.3 + R() * 0.15)]];
+      for (let k = 1; k < 5; k++) pts.push([(w * k) / 5, h * (0.35 + R() * 0.35)]);
+      pts.push([w, h * (0.55 + R() * 0.15)]);
+      g.globalCompositeOperation = "destination-out";
+      path(pts, 1.8 * u, "#000");
+      g.beginPath(); g.moveTo(w, h); g.lineTo(w, pts[5][1]); g.lineTo(pts[4][0], pts[4][1]); g.lineTo(w * 0.7, h); g.closePath(); g.fill();
+      g.globalCompositeOperation = "source-over";
+    }
+    return (r.sgn[key] = c);
   }
   function cracks(cv, r, level, broken) {
     const g = cv.getContext("2d"), W = cv.width, H = cv.height;
@@ -1422,7 +1460,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const line = pts => {
       g.lineJoin = "miter";
       g.strokeStyle = "#0b0b0d"; g.lineWidth = 2; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
-      g.strokeStyle = "rgba(230,226,214,0.35)"; g.lineWidth = 1; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x + 1, y + 1) : g.moveTo(x + 1, y + 1))); g.stroke();
+      g.strokeStyle = "rgba(236,232,220,0.7)"; g.lineWidth = 1; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x + 1, y + 1) : g.moveTo(x + 1, y + 1))); g.stroke();
     };
     for (let i = 0; i < level; i++) {
       const e = (R() * 4) | 0, t = R();
@@ -1430,6 +1468,10 @@ SFX.mhit=()=>SND.mhit(SVOL);
       const pts = [[x, y]], tx = W * (0.3 + R() * 0.4), ty = H * (0.3 + R() * 0.4), n = 3 + ((R() * 3) | 0);
       for (let s = 1; s <= n; s++) { x += (tx - x) / (n - s + 1.5) + (R() - 0.5) * 10; y += (ty - y) / (n - s + 1.5) + (R() - 0.5) * 10; pts.push([x, y]); }
       line(pts);
+      // the corner the crack came from is knocked off
+      g.fillStyle = "#26272a";
+      const [x0, y0] = pts[0], s0 = 4 + R() * 5;
+      g.beginPath(); g.moveTo(x0 - s0, y0); g.lineTo(x0, y0 - s0); g.lineTo(x0 + s0, y0); g.lineTo(x0, y0 + s0); g.closePath(); g.fill();
     }
     if (broken) {
       // a break right across, the corner beyond it knocked out
@@ -1523,7 +1565,12 @@ SFX.mhit=()=>SND.mhit(SVOL);
       c.el.classList.toggle("on", selected.has(c.r));
       c.el.classList.toggle("gone", !n || c.r.rout);
       const broken = !n || c.r.rout || !!c.r.gun?.dead, lv = broken ? 99 : Math.round((1 - n / c.r.n0) * 7);
-      if (lv !== c.lv) { c.lv = lv; cracks(c.crk, c.r, Math.min(lv, 7), broken); }
+      if (lv !== c.lv) {
+        c.lv = lv;
+        cracks(c.crk, c.r, Math.min(lv, 7), broken);
+        const ic = icon(c.r, wear(c.r), broken);
+        c.el.querySelector("canvas:not(.crk)").replaceWith(ic);
+      }
       c.el.disabled = broken;
       c.el.classList.toggle("gone", broken);
     }
@@ -1743,7 +1790,8 @@ SFX.mhit=()=>SND.mhit(SVOL);
       const tag = `${alive(r)}${r.rout ? " !" : r.charge ? " »" : r.direct ? " ◎" : ""}`;
       const w = 24, h = 16, tw = ctx.measureText(tag).width + 8, x0 = Math.round(sx - (w + tw) / 2), y0 = sy - h / 2;
       if (sel) { ctx.fillStyle = "#f2efe6"; ctx.fillRect(x0 - 2, y0 - 2, w + tw + 4, h + 4); }
-      sign(ctx, r, x0, y0, w, h, fill);
+      const brk = r.rout || !!r.gun?.dead || !alive(r);
+      ctx.drawImage(wornSign(r, w, h, dpr, fill, wear(r), brk), x0, y0, w, h);
       ctx.fillStyle = "rgba(20,20,22,0.85)"; ctx.fillRect(x0 + w, y0, tw, h);
       ctx.fillStyle = fill; ctx.fillText(tag, x0 + w + 4, sy + 1);
       if (r.hold) { ctx.fillStyle = "#f2efe6"; ctx.fillRect(x0 + w + tw + 3, sy - 5, 2, 10); ctx.fillRect(x0 + w + tw + 7, sy - 5, 2, 10); }
