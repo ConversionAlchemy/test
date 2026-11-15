@@ -1093,4 +1093,21 @@ const bfTeamOf=n=>NATS[n]&&NATS[n].gn||n,bfC=h=>rgb(parseInt(h.slice(1,3),16),pa
  for(const p of BF.amm)if(tick>=p.t)for(let i=0;i<24;i++){const A=i/24*Math.PI*2,X=Math.round(p.x+Math.cos(A)*11),Y=Math.round(p.y+Math.sin(A)*11);if(X>=0&&Y>=0&&X<W&&Y<H)out[Y*W+X]=mix(out[Y*W+X],rgb(232,206,120),.8)}}}
 {const up=update;update=function(){up();bfTick()}}
 window.REGION={toks:()=>bodies.filter(b=>b.type==='token').map(b=>[b.name,b.unit,!!b.rid,b.nat,lookOf(b)]),mv:(id,c)=>moveF(R.F.find(f=>f.id===id),c),tile:t=>terTile(t),dbg:()=>({SL:seaLabels(),wc:R.wc,seas:R.seas,c:Object.keys(R.wc).map(k=>[+k,D.cells[k].h,D.cells[k].c,CEN[k]])}),ops:()=>openings(),zoomTo:(n,k)=>{const b=BURG[n];view.k=Math.min(KMAX,k);k=view.k;view.x=VW/2-b.x*k;view.y=VH/2-b.y*k;draw()},qa:n=>{const c=near([BURG[n].x,BURG[n].y]),fs=R.F.filter(f=>f.cell===c&&shown(f));let out=0,town=0;const B=W2S(BURG[n].x,BURG[n].y);for(const f of fs){if(f.SX==null)continue;const[x,y]=S2W(f.SX,f.SY);if(!inPoly(x,y,D.cells[c].p))out++;if(Math.hypot(f.SX-B[0],f.SY-B[1])<20)town++}return{n:fs.length,out,town}},settle:(n)=>settle(near([BURG[n].x,BURG[n].y])),R:()=>R,get:()=>{sync();return R},set:v=>{if(v&&v.v===1){R=migrate(v);R.links=R.links||[];R.open=R.open||{};applyLinks();save();layout();if(!OV.hidden){list2();cards();draw()}}},open,close,isOpen:()=>!OV.hidden};
+
+// ---- embedded in the region map (the Azgaar fork): #fl=<base64 json> sets up one fight; losses go back by postMessage
+{const EM0=location.hash.match(/^#fl=(.+)/);if(EM0)setTimeout(()=>{let P;try{P=JSON.parse(decodeURIComponent(escape(atob(EM0[1]))))}catch(e){return}
+ const natOf=gn=>Object.keys(NATS).find(n=>(NATS[n].gn||n)===gn)||Object.keys(NATS)[0],hn=natOf(P.place.look),cap=capCell(hn);
+ const sideNat=gn=>Object.keys(NATS).find(n=>(NATS[n].gn||n)===gn)||(NATS[gn]={n:gn,c:'#888888',ring:[136,136,136],gold:0,seat:'',gn},gn);
+ const seat=Object.values(R.prov).find(p=>p.nat===hn&&p.cc!==cap),plain=D.cells.findIndex((c,i)=>OWN[i]===hn&&i!==cap&&!seatCell(i)&&land(c));
+ const c=P.place.kind==='capital'?cap:P.place.kind==='seat'&&seat?seat.cc:plain>=0?plain:cap;
+ const id=newMap(c);MODS.maps[id].name=P.place.name;R.nid=R.nid||9999;const forces=[],groups={def:[],atk:[]};
+ for(const sd of P.sides)for(const u of sd.units){const f={id:'f'+uidS(),t:'squad',tier:u.tier,nat:sideNat(sd.look),cell:c,n:u.name,ref:u.ref,role:sd.role,men:Array.from({length:u.men},()=>({id:'m'+(R.nid++),k:lookFor(sd.look,u.tier),n:NAMES[(R.nid*7)%NAMES.length],role:TIERN[u.tier]||'Line',h:100}))};forces.push(f);R.F.push(f);for(const m of f.men)groups[sd.role].push([f,m])}
+ const looks=[...new Set(P.sides.map(sd=>sd.look))];if(looks.length>1)FIGHT[id]=[looks];
+ close();goMap(id);stripCiv();deploy(groups.def,'def');deploy(groups.atk,'atk');self.BFON=true;try{aiSetup()}catch(e){}
+ const report=done=>{sync();const out=forces.map(f=>({ref:f.ref,role:f.role,men:f.men.length,alive:f.men.filter(m=>!m.dead).length}));
+  window.parent.postMessage({type:'fl:result',done,sides:out},'*')};
+ const left=r=>forces.filter(f=>f.role===r).reduce((a,f)=>a+f.men.filter(m=>!m.dead).length,0);let over=false;
+ if(groups.atk.length)setInterval(()=>{if(over)return;sync();if(!left('atk')||!left('def')){over=true;report(left('atk')?'atk':'def')}},700);
+ window.addEventListener('message',e=>{if(e.data&&e.data.type==='fl:leave'){report(over?(left('atk')?'atk':'def'):null);R.F=R.F.filter(f=>!forces.includes(f));save()}});
+ if(groups.atk.length)setPlay(true)},400)}
 })();
