@@ -249,11 +249,11 @@ export class PixelRaster {
           if (near(d)) return mixP(color, band, Math.min(0.92, (0.78 - (d / reach) * 0.3) * this.bandStrength));
       }
       const sub = this.subregion;
-      if (sub && (x + y) % 4 < 2) {
+      if (sub && (x + y) % 4 < 3) {
         const right = lx + 1 < this.width && !isOpenWater(this.terrain[i + 1]) && sub[i + 1] !== sub[i];
         const down =
           ly + 1 < this.height && !isOpenWater(this.terrain[i + this.width]) && sub[i + this.width] !== sub[i];
-        if (right || down) return mixP(color, C.ink, 0.55);
+        if (right || down) return mixP(color, C.ink, 0.72);
       }
     }
     const base = this.regionColors[id];
@@ -275,20 +275,31 @@ export class PixelRaster {
       return valueNoise(x, y, 40, s + 1) > 0.72 ? C.atlas2 : C.atlas;
     }
     if (this.detail === 0) {
-      if (this.distanceTo(x, y, false, 1) === 1) return C.foam;
+      const shore = this.distanceTo(x, y, false, 2);
+      if (shore === 1) return C.foam;
+      if (shore === 2) return C.shallow;
       const n = valueNoise(x, y, 10, s + 1);
       if (t === Terrain.DeepWater) return n > 0.7 ? C.water : C.deep;
       return n > 0.66 ? C.water2 : C.water;
     }
-    const shore = this.distanceTo(x, y, false, 3);
-    if (shore === 1) return (x + y) % 2 ? C.foam : C.water2;
-    const n = fbm(x, y, 14, 2, s + 1);
+    const shore = this.distanceTo(x, y, false, 4);
+    if (shore === 1) return C.foam;
+    if (shore === 2) return (x + y) % 2 ? C.foam : C.shallow;
+    if (shore === 3) return C.shallow;
+    if (shore === 4) return (x + y) % 2 ? C.shallow : C.water2;
+    const n = fbm(x, y, 22, 2, s + 1);
     const checker = (x + y) % 2 === 0;
-    if (shore === 2 && checker) return C.water2;
-    if (t === Terrain.DeepWater) return n > 0.62 && checker ? C.water : C.deep;
-    if (n > 0.6 && checker) return C.water2;
-    if (n < 0.38 && checker) return C.deep;
-    return C.water;
+    let c = t === Terrain.DeepWater ? (n > 0.6 && checker ? C.water : C.deep) : n > 0.58 && checker ? C.water2 : C.water;
+    // a wave mark now and then: a small light arc
+    const gx = Math.floor(x / 26);
+    const gy = Math.floor(y / 15);
+    if (hash2(gx, gy, s + 31) < 0.3) {
+      const cx = gx * 26 + 6 + Math.floor(hash2(gx, gy, s + 32) * 14);
+      const cy = gy * 15 + 5 + Math.floor(hash2(gx, gy, s + 33) * 6);
+      const dx = x - cx;
+      if ((y === cy && Math.abs(dx) <= 1) || (y === cy + 1 && Math.abs(dx) === 2)) c = C.water2 === c ? C.shallow : C.water2;
+    }
+    return c;
   }
 
   private land(x: number, y: number, t: number): number {

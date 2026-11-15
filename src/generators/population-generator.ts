@@ -1,3 +1,4 @@
+import { isDenseWood } from "@/fluoria/woods";
 import { max, mean, median, sum } from "d3";
 import { gauss, isWater, normalize, rn } from "@/utils";
 import type { Burg } from "./burgs-generator";
@@ -55,6 +56,7 @@ class PopulationModule {
         cells.s[i] += (cellGood ? cellGood + 10 : 0) + neighborGoods;
       }
 
+      if (isDenseWood(cells, i)) cells.s[i] = 0; // Fluoria: nobody lives in dense woods
       // cell rural population is suitability adjusted by cell area
       cells.pop[i] = cells.s[i] > 0 ? (cells.s[i] * cells.area[i]) / meanArea : 0;
     }

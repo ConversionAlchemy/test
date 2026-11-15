@@ -87,7 +87,7 @@ function dashed(g: Graphics, pts: [number, number][], dash: number): void {
     }
   }
 }
-const CELL_LINES_FROM = 1.5;
+const CELL_LINES_FROM = 1.1;
 
 const TERRAIN: LayerId[] = ["ocean", "landmass", "heightmap", "lakes", "biomes", "coastline", "relief"];
 const LOOK: LayerId[] = ["states", "borders", "provinces", "cultures", "religions"];
@@ -486,7 +486,7 @@ class PixelMap {
   /** Cell lines: clearer with a unit picked; quieter in the military view, where units and borders lead */
   private lineAlpha(): number {
     if (this.emphasis) return 0.4;
-    return getMapView() === "military" ? 0.1 : 0.2;
+    return getMapView() === "military" ? 0.2 : 0.34;
   }
 
   /** The highest close-up level the zoom calls for */
@@ -588,7 +588,7 @@ class PixelMap {
       borderPx: Math.max(1, Math.round(spec.borderPx * line.width)),
       bandPx: Math.round(spec.bandPx * line.width),
       bandStrength: line.strength,
-      provinces: tile.level >= 3 && (view === "terrain" || view === "military") && borders,
+      provinces: tile.level >= 2 && (view === "terrain" || view === "military") && borders,
       outline: isOutlineOnly(),
       coastPx: borders ? Math.max(1, Math.round(spec.scale / 3)) : 0,
       tint: borders ? (TINT[tile.level] ?? 0) : 0

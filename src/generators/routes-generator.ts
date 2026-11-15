@@ -1,3 +1,4 @@
+import { isDenseWood } from "@/fluoria/woods";
 import Alea from "alea";
 import { curveCatmullRom, line } from "d3";
 import Delaunator from "delaunator";
@@ -304,6 +305,7 @@ class RoutesModule {
 
     const habitability = pack.biomes[pack.cells.biome[next]].habitability;
     if (!habitability) return Infinity; // inhabitable cells are not passable (e.g. glacier)
+    if (isDenseWood(pack.cells, next)) return Infinity; // Fluoria: no road through dense woods
 
     const distanceCost = distanceSquared(pack.cells.p[current], pack.cells.p[next]);
     const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1];

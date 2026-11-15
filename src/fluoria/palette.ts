@@ -2,10 +2,11 @@
 export type RGB = readonly [number, number, number];
 
 export const Palette = {
-  deep: [28, 54, 94],
-  water: [34, 63, 106],
-  water2: [42, 74, 120],
-  foam: [120, 150, 178],
+  deep: [96, 142, 168],
+  water: [122, 166, 186],
+  water2: [146, 188, 200],
+  foam: [214, 232, 232],
+  shallow: [170, 206, 212],
   sand: [222, 206, 150],
   sand2: [204, 186, 130],
   g1: [176, 180, 104],

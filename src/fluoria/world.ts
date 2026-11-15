@@ -1,5 +1,6 @@
 // Turns the loaded Azgaar map into pixel layers. Nothing here invents the world: terrain follows biomes and heights,
 // relief follows elevation, snow follows temperature, and rivers, roads, states and towns come from the map itself
+import { isDenseWood } from "./woods";
 import { color } from "d3";
 import { valueNoise } from "./noise";
 import { cellOfGrid } from "./one-grid";
@@ -70,6 +71,7 @@ function cellTerrain(cell: number): TerrainId {
   if (t === Terrain.Water) t = Terrain.Grass;
   if (h >= 40 && OPEN_LAND.includes(t)) return Terrain.Hills;
   if (h <= 23 && OPEN_LAND.includes(t)) return Terrain.Sand;
+  if (isDenseWood(cells, cell)) return biome === 7 ? Terrain.Jungle : Terrain.Taiga; // dense woods read darker
   return t;
 }
 

@@ -1,6 +1,7 @@
 // Canonical generation sequence, as a declared pipeline instead of a hand-written call list. See docs/architecture/generation-pipeline.md.
 
 import { applyTerraces } from "@/fluoria/terraces";
+import { thinForests } from "@/fluoria/woods";
 import { GraphOverride } from "@/generators/graph-override";
 import { Pipeline, type PipelineStep } from "@/generators/pipeline";
 import { Population } from "@/generators/population-generator";
@@ -25,6 +26,7 @@ const generationPipelineSteps = [
   { id: "rivers", run: () => Rivers.generate() },
   { id: "packTerraces", run: () => applyTerraces(pack.cells) }, // lakes and rivers moved heights; step them again
   { id: "biomes", run: () => Biomes.generate() },
+  { id: "woods", run: () => thinForests(pack.cells, Number.parseInt(String(options.map.seed), 10) % 100000 || 1) }, // Fluoria: forests in patches
   { id: "featureGroups", run: () => Features.defineGroups() },
   { id: "ice", run: () => Ice.generate() },
   { id: "goods", run: () => Goods.generate() },
