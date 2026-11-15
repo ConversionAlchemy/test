@@ -71,10 +71,11 @@ const STYLE = `
   stroke-width: 0.16em !important;
   stroke: #f4eede !important;
   stroke-opacity: 0.8 !important;
-  letter-spacing: 0.35em;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
-  font-size: inherit !important; /* one size for every nation, as the sandbox sets them */
 }
+/* Azgaar fits each nation's name to its path as written; spacing or capitals would run it off the path's ends */
+#labels > g[data-group="state"] :is(text, textPath, tspan) { letter-spacing: 0.04em; text-transform: none; font-variant: small-caps; }
 #labels > g:is([data-group="capital"], [data-group="city"]) :is(text, textPath, tspan) { fill: #2a1f18 !important; }
 #labels > g[data-group="state"] { opacity: calc(0.9 * var(--fl-o-state, 1)) !important; }
 #labels > g[data-group="province"] :is(text, textPath, tspan) { fill: #6e5a64 !important; stroke-width: 0.24em !important; stroke-opacity: 0.7 !important; letter-spacing: 0.2em; font-size: inherit !important; }
@@ -323,6 +324,8 @@ function declutter(): void {
       text.classList.add("flHidden");
       continue;
     }
+    // as in the sandbox, a nation's name lies over the land under it: nothing hides it and it hides nothing
+    if (group === "state") continue;
     items.push({ text, rank: TIERS[group]?.rank ?? 6 });
   }
   items.sort((a, b) => a.rank - b.rank);
