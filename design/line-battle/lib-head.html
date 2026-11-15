@@ -1,0 +1,37 @@
+<title>Sound Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
+<style>
+:root { --bg: #1e1f1c; --panel: #26272a; --line: #46464d; --text: #e4e1d6; --dim: #9d9a90; --on: #f2efe6; --acc: #5fbf6c; color-scheme: dark; }
+:root[data-theme="light"] { --bg: #ecebe4; --panel: #f6f5ef; --line: #c9c7bd; --text: #1d1d1b; --dim: #6b6960; --on: #1d1d1b; --acc: #2f8a3c; color-scheme: light; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #ecebe4; --panel: #f6f5ef; --line: #c9c7bd; --text: #1d1d1b; --dim: #6b6960; --on: #1d1d1b; --acc: #2f8a3c; color-scheme: light; } }
+body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1.2 "VT323", ui-monospace, monospace; }
+main { max-width: 980px; margin: 0 auto; padding: 16px; }
+header { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; border-bottom: 1px solid var(--line); }
+h1 { font-size: 26px; font-weight: normal; margin: 0 12px 0 0; }
+h2 { font-size: 20px; font-weight: normal; color: var(--dim); margin: 22px 0 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); }
+.seg button { border: 0; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); padding: 4px 10px; cursor: pointer; }
+button:hover { border-color: var(--dim); }
+button.on { background: var(--on); color: var(--bg); }
+button.hit { outline: 2px solid var(--acc); outline-offset: -2px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }
+.grid button { text-align: left; display: flex; gap: 8px; }
+.grid b { font-weight: normal; color: var(--dim); min-width: 28px; }
+table { border-collapse: collapse; width: 100%; }
+td, th { border: 1px solid var(--line); padding: 3px; text-align: left; font-weight: normal; }
+th { color: var(--dim); }
+td button { width: 100%; text-align: left; display: flex; gap: 8px; }
+td b { font-weight: normal; color: var(--dim); }
+.wrap { overflow-x: auto; }
+</style>
+<main>
+  <header>
+    <h1>Sound Library</h1>
+    <span class="seg" id="dist"><button data-d="near">Near</button><button data-d="mid">Mid</button><button data-d="far" class="on">Far</button></span>
+    <span class="seg" id="count"><button data-n="1" class="on">Single</button><button data-n="12">Volley ×12</button></span>
+  </header>
+  <div id="lib"></div>
+</main>

@@ -416,7 +416,14 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const n = performance.now();
     if (v < 0.2 || n - lastHit < 60) return;
     lastHit = n;
-    sfxP(kind === "plate" ? "plate" : "pthud", (kind === "plate" ? 0.35 : 0.3) * v);
+    if (kind !== "plate") { sfxP("pthud", 0.3 * v); return; }
+    // steel takes the hit as the matrix says metal does: a recorded strike, now and then a ball glancing off; dulled with distance
+    try {
+      SND.spr();
+      const lp = 9000 - (1 - v) * 6000;
+      if (!SND.clip(au().currentTime + 0.005, "ms", 0.5 * v, 1.1 + Math.random() * 0.3, MS, lp)) sfxP("mhit", 0.5 * v);
+      if (Math.random() < 0.2) sfxP("rico", 0.25 * v);
+    } catch (e) {}
   }
 
   // ---------- armies ----------
