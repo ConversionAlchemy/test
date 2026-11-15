@@ -3,7 +3,7 @@ name: Deploy static content to Pages
 
 on:
   push:
-    branches: ["master", "fluoria/region-merge"]
+    branches: ["master"] # /next/ is rebuilt from master by dispatching this workflow
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
