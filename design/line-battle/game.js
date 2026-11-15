@@ -6,7 +6,7 @@
   const RANGE = 170, RANGE_M = RANGE, BALL = 520, AMMO = 12;
   // the chance a ball finds its man: good close in, poor at the edge of range, a long shot past it
   const acc = d => Math.max(0.002, 0.55 * Math.exp(-d / 160));
-  const WALK = 16, RUN = 30, TAC = 1.1; // below this zoom regiments show as tactical signs
+  const WALK = 16, RUN = 30;
   const TIER = {
     conscript: { hp: 1, front: 0, ring: 0, r: 3.6, name: "Conscripts" },
     line: { hp: 1, front: 0.4, ring: 0, r: 3.6, name: "Line" },
@@ -229,7 +229,7 @@
   const rngOf = seed => () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   let scen = { kind: "classic" };
   function setup() {
-    men = []; regs = []; balls = []; bits = []; flashes = []; shells = []; counts = {};
+    men = []; regs = []; balls = []; bits = []; flashes = []; shells = []; fires = []; counts = {};
     smoke.fill(0);
     sctx.clearRect(0, 0, WW, WH);
     bctx.clearRect(0, 0, WW, WH);
@@ -243,13 +243,13 @@
   function classic() {
     const gy = 1050, ry = 520;
     const order = ["conscript", "line", "line", "heavy", "heavy", "line", "line", "conscript"];
-    const sizes = [64, 64, 64, 64, 52, 64, 64, 64];
+    const sizes = [64, 64, 64, 32, 32, 64, 64, 64];
     let x = WW / 2 - (order.length * 230) / 2 + 115;
     order.forEach((t, i) => { makeReg("green", t, sizes[i], x, gy, -Math.PI / 2); x += 230; });
     makeGun("green", "large", WW / 2 - 60, gy + 70, -Math.PI / 2);
     makeGun("green", "small", WW / 2 + 60, gy + 70, -Math.PI / 2);
     makeReg("red", "line", 52, WW / 2 - 110, ry, Math.PI / 2);
-    makeReg("red", "heavy", 48, WW / 2 + 110, ry, Math.PI / 2);
+    makeReg("red", "heavy", 32, WW / 2 + 110, ry, Math.PI / 2);
     makeGun("red", "small", WW / 2, ry + 50, Math.PI / 2);
     posture.green = "hold"; posture.red = "hold";
   }
@@ -264,9 +264,9 @@
       for (let i = 0; i < ng; i++) { const size = R() < 0.6 ? "small" : "large"; units.push({ gun: size }); left -= size === "small" ? 70 : 120; }
       while (left > 40 && units.length < 12) {
         const q = R(), tier = q < 0.3 ? "conscript" : q < 0.78 ? "line" : "heavy";
-        let n = 32 + ((R() * 33) | 0);
+        let n = tier === "heavy" ? 24 + ((R() * 9) | 0) : 32 + ((R() * 33) | 0);
         if (n * COST[tier] > left) n = Math.floor(left / COST[tier]);
-        if (n < 24) break;
+        if (n < (tier === "heavy" ? 16 : 24)) break;
         units.push({ tier, n });
         left -= n * COST[tier];
       }
@@ -439,14 +439,44 @@
         else if (m.reload < 2.2 && !m.rlHeard) { m.rlHeard = true; if (audible(m.x, m.y) > 0.5 && Math.random() < 0.08) rlPlay(0.25 * audible(m.x, m.y)); }
       }
     }
-    // men in each other's way step apart
+    // men in each other's way: the one on the move shoves the one standing; two on the move step round each other;
+    // enemies never overlap; a man who has made no headway for a while slips through as a last resort
     for (const m of men) {
       if (!m.alive) continue;
-      near(m.x, m.y, 7, o => {
-        if (o === m || !o.alive || o.reg === m.reg) return;
-        const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy);
-        if (d > 0 && d < 6) { const p = (6 - d) * 0.25; m.x += (dx / d) * p; m.y += (dy / d) * p; }
+      const rm = TIER[m.tier].r;
+      near(m.x, m.y, 10, o => {
+        if (o.id <= m.id || !o.alive) return;
+        const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy) || 0.01, min = rm + TIER[o.tier].r + 0.4;
+        if (d >= min) return;
+        const foe = o.side !== m.side;
+        if (!foe && (m.slip > time || o.slip > time)) return;
+        const ov = (min - d) * (foe ? 0.5 : 0.4), ux = dx / d, uy = dy / d;
+        let wm = 0.5, wo = 0.5;
+        // against an enemy the one pressing in gives way; among friends the one standing is shoved aside
+        if (m.moving !== o.moving) { wm = m.moving === !foe ? 0.25 : 0.75; wo = 1 - wm; }
+        m.x += ux * ov * wm * 2; m.y += uy * ov * wm * 2;
+        o.x -= ux * ov * wo * 2; o.y -= uy * ov * wo * 2;
+        if (!foe && m.moving && o.moving) { const s = m.id & 1 ? 1 : -1; m.x += -uy * ov * 0.5 * s; m.y += ux * ov * 0.5 * s; }
       });
+    }
+    for (const m of men) {
+      if (!m.alive) continue;
+      const rm = TIER[m.tier].r;
+      near(m.x, m.y, 10, o => {
+        if (o.id <= m.id || !o.alive || o.side === m.side) return;
+        const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy) || 0.01, min = rm + TIER[o.tier].r + 0.4;
+        if (d >= min) return;
+        const ov = (min - d) / 2, ux = dx / d, uy = dy / d;
+        m.x += ux * ov; m.y += uy * ov; o.x -= ux * ov; o.y -= uy * ov;
+      });
+    }
+    // headway check, once a second
+    for (const m of men) {
+      if (!m.alive || m.reg.charge || m.reg.rout) continue;
+      const d = Math.hypot(m.tx - m.x, m.ty - m.y);
+      if (time - (m.hwT || 0) < 1) continue;
+      if (d > 3 && m.hwD != null && m.hwD - d < 1) m.slip = time + 1;
+      m.hwT = time; m.hwD = d;
     }
     melee(dt);
     for (const r of regs) regTick(r, dt, ai);
@@ -464,6 +494,7 @@
     }
     shells = shells.filter(b => !b.done);
     shake = Math.max(0, shake - dt * 18);
+    fireTick(dt);
     // balls fly
     for (const b of balls) {
       b.t += dt;
@@ -498,7 +529,7 @@
     const live = r.men.filter(m => m.alive);
     if (!live.length) return;
     const strength = live.length / r.n0;
-    if (!r.rout && (strength < 0.35 || r.morale < 20)) {
+    if (!r.rout && (r.tier === "heavy" ? strength < 0.1 : strength < 0.35 || r.morale < 20)) {
       r.rout = true; r.charge = null;
       if (selected.delete(r)) syncBar();
       r.direct = false;
@@ -524,16 +555,41 @@
     for (const [g, L] of groups) {
       const ready = L.filter(m => m.loaded && m.ammo > 0);
       if (!ready.length || ready.length < L.length * (r.form === "loose" ? 0 : 0.75)) continue;
-      let cx = 0, cy = 0;
-      for (const m of L) { cx += m.x; cy += m.y; }
-      cx /= L.length; cy /= L.length;
-      const fa = L[0].ta, target = pickTarget(r.side, cx, cy, fa, r.form === "square" ? 0.95 : 0.85, RANGE);
-      if (!target) continue;
-      for (const m of ready) m.fireAt = time + (r.form === "loose" ? Math.random() * 0.6 : Math.random() * 0.28);
-      for (const m of ready) schedule(m, target);
+      const foes = foesNear(r, RANGE + 80);
+      if (!foes.length) continue;
+      let n = 0;
+      for (const m of ready) {
+        const t = aimFor(m, foes, RANGE);
+        if (!t) continue;
+        m.tgtMan = t; m.fireAt = time + (r.form === "loose" ? Math.random() * 0.6 : Math.random() * 0.28);
+        schedule(m, t.reg); n++;
+      }
+      if (!n) continue;
       r.nextVolley = time + (r.form === "loose" ? 0.3 : 0.9); // ranks roll one after another
       break;
     }
+  }
+  const SWIVEL = 0.95; // how far a man turns his musket off his facing
+  function foesNear(r, R) {
+    const c = centroid(r), out = [];
+    if (!c) return out;
+    for (const o of regs) {
+      if (o.side === r.side || o.rout) continue;
+      const k = centroid(o);
+      if (!k || Math.hypot(k[0] - c[0], k[1] - c[1]) > R + 200) continue;
+      for (const m of o.men) if (m.alive) out.push(m);
+    }
+    return out;
+  }
+  function aimFor(m, foes, range) {
+    let best = null, bs = 1e9;
+    for (const o of foes) {
+      const dx = o.x - m.x, dy = o.y - m.y, d = Math.hypot(dx, dy);
+      if (d > range || Math.abs(angDiff(m.ta, Math.atan2(dy, dx))) > SWIVEL) continue;
+      const sc = d + Math.random() * 25;
+      if (sc < bs) { bs = sc; best = o; }
+    }
+    return best;
   }
   // the nearest enemy regiment in front, within range
   function pickTarget(side, x, y, face, arc, range) {
@@ -556,6 +612,7 @@
     const r = m.target;
     if (!m.alive || !m.loaded || m.ammo <= 0 || (!r && !m.aimPt) || time - (m.melee || -9) < 3) { m.aimPt = null; return; }
     if (m.aimPt) return fireAtPoint(m);
+    if (m.tgtMan) { const t = m.tgtMan; m.tgtMan = null; if (t.alive) return shoot(m, t, t.x, t.y); }
     // aim: three men of the target, the nearest of them
     const cand = r.men.filter(o => o.alive);
     if (!cand.length) return;
@@ -574,6 +631,7 @@
   function shoot(m, t, px, py) {
     const td = Math.hypot(px - m.x, py - m.y);
     m.loaded = false; m.kneel = !m.reg.moving; m.rlHeard = false; m.ammo--;
+    if (Math.random() < 0.35 && m.chips.filter(c => c[2] === 4).length < 5) { const T = TIER[m.tier], g = (Math.random() - 0.5) * 1.2; m.chips.push([Math.cos(g) * (T.r - 1.5 - Math.random()), Math.sin(g) * (T.r - 1.5), 4]); m.cache = null; }
     m.reload = 8 + Math.random() * 2;
     const a = Math.atan2(py - m.y, px - m.x);
     m.a = a;
@@ -612,9 +670,17 @@
   // a hit knocks pixels off the side it came from
   function chip(m, a, steel, n) {
     const T = TIER[m.tier], rel = a + Math.PI - m.a;
+    const dot = (ang, rr, k) => m.chips.push([Math.cos(ang) * rr, Math.sin(ang) * rr, k]);
+    const ang0 = rel + (Math.random() - 0.5) * 0.9;
+    if (steel) { dot(ang0, T.r - 0.6, 1); dot(ang0 + 0.35, T.r - 0.6, 1); if (Math.random() < 0.4) dot(ang0, T.r - 0.4, 0); }
+    else {
+      // a bite out of the edge and a crack running in from it
+      dot(ang0, T.r - 0.5, 0); dot(ang0 + 0.3, T.r - 0.5, 0);
+      for (let k = 1; k < 3; k++) dot(ang0 + (Math.random() - 0.5) * 0.4, T.r - 0.5 - k, 2);
+      dot(ang0, T.r - 2.2, 3);
+    }
     for (let i = 0; i < n; i++) {
       const ang = rel + (Math.random() - 0.5) * 1.4, rr = T.r - 0.5 - Math.random() * (steel ? 0.6 : 1.6);
-      m.chips.push([Math.cos(ang) * rr, Math.sin(ang) * rr]);
       const wa = m.a + ang, wx = m.x + Math.cos(wa) * rr, wy = m.y + Math.sin(wa) * rr;
       bits.push({ x: wx, y: wy, vx: Math.cos(a) * (14 + Math.random() * 20) + (Math.random() - 0.5) * 12, vy: Math.sin(a) * (14 + Math.random() * 20) + (Math.random() - 0.5) * 12, v: 1, c: steel ? STEEL : SIDE[m.side].fill, life: Infinity, keep: true });
     }
@@ -698,6 +764,7 @@
       m.a = a;
       if (!m.reg.charge && !m.moving) m.ta = a;
       m.melee = time;
+      if (Math.random() < 0.2) { const g = (Math.random() - 0.5) * 1.6, T = TIER[m.tier]; m.chips.push([Math.cos(g) * (T.r - 0.6), Math.sin(g) * (T.r - 0.6), 1]); m.cache = null; }
       let friends = 0, foes = 0;
       near(t.x, t.y, 12, o => { if (o.alive && o !== t && Math.hypot(o.x - t.x, o.y - t.y) < 12) { if (o.side === t.side) friends++; else foes++; } });
       const press = Math.max(0.45, Math.min(1.8, (1 + 0.18 * (foes - 1)) / (1 + 0.12 * friends)));
@@ -732,7 +799,7 @@
     const rel = Math.max(-0.45, Math.min(0.45, angDiff(r.af, a)));
     a = r.af + rel; G.aim = rel;
     const d = Math.min(Math.hypot(tx - gx, ty - gy), G.range * 1.2);
-    const sc = 3 + d * 0.05, along = (Math.random() - 0.5) * 2 * sc * 1.3, across = (Math.random() - 0.5) * 2 * sc * 0.6;
+    const q = d / G.range, sc = 4 + 70 * Math.pow(q, 1.4), along = (Math.random() - 0.5) * 2 * sc * 1.3, across = (Math.random() - 0.5) * 2 * sc * 0.6;
     const x1 = gx + Math.cos(a) * (d + along) - Math.sin(a) * across, y1 = gy + Math.sin(a) * (d + along) + Math.cos(a) * across;
     const bl = (r.gun.size === "large" ? 13 : 10), mx = gx + Math.cos(a) * bl, my = gy + Math.sin(a) * bl;
     G.loaded = false; G.rl = G.reload; G.shells--; G.kick = 0.35;
@@ -777,7 +844,17 @@
     }
     dab(x, y, 1.3, 4);
     for (let i = 0; i < 4; i++) dab(x + (Math.random() - 0.5) * 14 * s, y + (Math.random() - 0.5) * 14 * s, 0.6, 3);
-    const R = 16 * s;
+    // fire: a heavy shell leaves burning patches and embers, a light one a brief flare
+    const nf = s > 1.3 ? 3 + ((Math.random() * 3) | 0) : 1;
+    for (let i = 0; i < nf; i++) {
+      const a = Math.random() * Math.PI * 2, d = i ? Math.random() * 12 * s : 0;
+      fires.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, R: (i ? 3 : 6) * s, life: s > 1.3 ? 5 + Math.random() * 5 : 1.5 + Math.random(), smk: 0 });
+    }
+    for (let i = 0; i < 26 * s; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 20 + Math.random() * 60 * s, l = 1 + Math.random() * 2.5;
+      bits.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, v: 1, c: [255, 200, 90], life: l, l0: l, fade: l, ember: true });
+    }
+    const R = 24 * s;
     const hit = [];
     near(x, y, R, o => { if (o.alive) { const d = Math.hypot(o.x - x, o.y - y); if (d < R) hit.push([o, d]); } });
     for (const [o, d] of hit) {
@@ -788,7 +865,33 @@
     for (const r of regs) {
       if (r.gun && !r.gun.dead) { const [gx, gy] = gunPos(r), d = Math.hypot(gx - x, gy - y); if (d < R) { r.gun.hp -= 4 * s * (1 - d / R); if (r.gun.hp <= 0) r.gun.dead = true; } }
       const c = centroid(r);
-      if (c && Math.hypot(c[0] - x, c[1] - y) < 60 * s) r.morale -= 5 * s;
+      if (c && Math.hypot(c[0] - x, c[1] - y) < 80 * s) r.morale -= 6 * s;
+    }
+  }
+
+  // flames flicker over each patch, char the ground under it, send up smoke, and burn anyone standing in it
+  let fires = [];
+  const FLAME = [[255, 243, 176], [255, 196, 80], [240, 120, 40], [200, 64, 28], [70, 40, 30]];
+  function fireTick(dt) {
+    for (const f of fires) {
+      f.life -= dt;
+      const k = Math.min(1, f.life / 2), R = f.R * (0.4 + 0.6 * k);
+      for (let i = 0; i < f.R * 10 * dt * (0.3 + k); i++) {
+        const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * R, l = 0.25 + Math.random() * 0.4;
+        bits.push({ x: f.x + Math.cos(a) * d, y: f.y + Math.sin(a) * d, vx: (Math.random() - 0.5) * 6 + 4, vy: -4 - Math.random() * 8, v: 1, c: FLAME[0], life: l, l0: l, fade: l, flame: true });
+      }
+      if (Math.random() < dt * 3) { const a = Math.random() * Math.PI * 2, d = Math.random() * R; bctx.globalAlpha = 0.25; bctx.fillStyle = "rgb(40,34,30)"; bctx.fillRect(Math.floor(f.x + Math.cos(a) * d), Math.floor(f.y + Math.sin(a) * d), 1, 1); }
+      if ((f.smk -= dt) <= 0) { f.smk = 0.3; dab(f.x + (Math.random() - 0.5) * R, f.y - 4 + (Math.random() - 0.5) * R, 0.35, 2); }
+      near(f.x, f.y, R + 3, o => {
+        if (!o.alive || Math.hypot(o.x - f.x, o.y - f.y) > R + 3 || Math.random() > dt * 0.5) return;
+        o.hp--; o.reg.morale -= 1;
+        if (o.hp <= 0) shatter(o, Math.random() * 6.28); else chip(o, Math.random() * 6.28, false, 1);
+      });
+    }
+    fires = fires.filter(f => f.life > 0);
+    for (const p of bits) if (p.flame || p.ember) {
+      const t = 1 - p.life / p.l0;
+      p.c = p.ember ? (t < 0.5 ? FLAME[1] : t < 0.8 ? FLAME[3] : FLAME[4]) : FLAME[Math.min(4, (t * 4.6) | 0)];
     }
   }
 
@@ -837,13 +940,16 @@
     const byGroup = new Map();
     for (const m of live) (byGroup.get(m.group) || byGroup.set(m.group, []).get(m.group)).push(m);
     let k = 0;
+    const foes = foesNear(r, 1400);
     for (const [, L] of [...byGroup].sort((a, b) => String(a[0]).localeCompare(String(b[0])))) {
-      let cx = 0, cy = 0;
-      for (const m of L) { cx += m.x; cy += m.y; }
-      const target = pickTarget(r.side, cx / L.length, cy / L.length, L[0].ta, r.form === "square" ? 0.95 : 0.7, Infinity);
-      if (!target) continue;
-      const at = time + (r.form === "loose" || r.form === "square" ? 0 : k++ * 0.9);
-      for (const m of L) { m.fireAt = at + Math.random() * (r.form === "loose" ? 0.6 : 0.28); m.manual = true; schedule(m, target); }
+      const at = time + (r.form === "loose" || r.form === "square" ? 0 : k * 0.9);
+      let n = 0;
+      for (const m of L) {
+        const t = aimFor(m, foes, 1400);
+        if (!t) continue;
+        m.tgtMan = t; m.fireAt = at + Math.random() * (r.form === "loose" ? 0.6 : 0.28); m.manual = true; schedule(m, t.reg); n++;
+      }
+      if (n) k++;
     }
     r.nextVolley = time + 1;
   }
@@ -1100,36 +1206,47 @@
   // ---------- unit cards: one per regiment, its marker, count, men left and powder left ----------
   let cards = [];
   function icon(r) {
-    const c = document.createElement("canvas"), k = 3;
-    c.width = c.height = S_SIZE * k;
+    const c = document.createElement("canvas"), k = 2;
+    c.width = 40 * k; c.height = 26 * k;
     const g = c.getContext("2d");
-    g.imageSmoothingEnabled = false;
-    if (r.gun) {
-      // the piece from above, muzzle up
-      const P = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x * k, y * k, w * k, h * k); };
-      P(6, 7, 1, 6, "#6a4c30"); P(6, 12, 1, 1, SIDE[r.side].ui); P(4, 6, 5, 1, "#4a3420");
-      P(3, 5, 1, 3, "#24201c"); P(9, 5, 1, 3, "#24201c"); P(5.5, 0, 2, 8, "#3c3d40"); P(5.5, 0, 0.6, 8, "#7a7c80");
-      if (r.gun.size === "large") { P(5, 0, 3, 1, "#1c1c1e"); } else P(5.5, 0, 2, 1, "#1c1c1e");
-      return c;
-    }
-    const f = (FACE * 3) / 4; // facing up
-    g.drawImage(sprite(r.side, r.tier, f, false, false), 0, 0, S_SIZE * k, S_SIZE * k);
-    g.fillStyle = "#141414";
-    const r0 = TIER[r.tier].r - 0.5;
-    for (let i = 0; i < 5; i++) g.fillRect(Math.floor(S_C) * k, Math.floor(S_C - r0 - i) * k, k, k);
+    sign(g, r, 2 * k, 2 * k, 36 * k, 22 * k, SIDE[r.side].ui);
     return c;
+  }
+  function cracks(cv, r, level, broken) {
+    const g = cv.getContext("2d"), W = cv.width, H = cv.height;
+    g.clearRect(0, 0, W, H);
+    const R = rngOf(r.id * 7919);
+    const line = pts => {
+      g.lineJoin = "miter";
+      g.strokeStyle = "#0b0b0d"; g.lineWidth = 2; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
+      g.strokeStyle = "rgba(230,226,214,0.35)"; g.lineWidth = 1; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x + 1, y + 1) : g.moveTo(x + 1, y + 1))); g.stroke();
+    };
+    for (let i = 0; i < level; i++) {
+      const e = (R() * 4) | 0, t = R();
+      let x = e === 0 ? t * W : e === 1 ? W : e === 2 ? t * W : 0, y = e === 0 ? 0 : e === 1 ? t * H : e === 2 ? H : t * H;
+      const pts = [[x, y]], tx = W * (0.3 + R() * 0.4), ty = H * (0.3 + R() * 0.4), n = 3 + ((R() * 3) | 0);
+      for (let s = 1; s <= n; s++) { x += (tx - x) / (n - s + 1.5) + (R() - 0.5) * 10; y += (ty - y) / (n - s + 1.5) + (R() - 0.5) * 10; pts.push([x, y]); }
+      line(pts);
+    }
+    if (broken) {
+      // a break right across, the corner beyond it knocked out
+      const pts = [[0, H * 0.35]];
+      for (let s = 1; s < 6; s++) pts.push([(W * s) / 6, H * 0.35 + (R() - 0.5) * 14 + s * 4]);
+      pts.push([W, H * 0.62]);
+      line(pts);
+    }
   }
   function buildCards() {
     cardsEl.innerHTML = "";
     cards = regs.filter(r => r.side === me).map((r, i) => {
       const el = document.createElement("button");
       el.className = "card";
-      el.innerHTML = `<span class="tier">${r.gun ? "A" : r.tier[0].toUpperCase()}</span><span class="st"></span><span class="cnt"></span><span class="bar hp"><i></i></span><span class="bar am"><i></i></span>`;
+      el.innerHTML = `<span class="st"></span><span class="cnt"></span><span class="bar hp"><i></i></span><span class="bar am"><i></i></span><canvas class="crk" width="54" height="70"></canvas>`;
       el.prepend(icon(r));
       el.dataset.i = i;
       el.addEventListener("dblclick", () => { const c = centroid(r); if (c) { cam.x = c[0]; cam.y = c[1]; clampCam(); } });
       cardsEl.append(el);
-      return { r, el, cnt: el.querySelector(".cnt"), st: el.querySelector(".st"), hp: el.querySelector(".hp i"), am: el.querySelector(".am i") };
+      return { r, el, crk: el.querySelector(".crk"), lv: -1, cnt: el.querySelector(".cnt"), st: el.querySelector(".st"), hp: el.querySelector(".hp i"), am: el.querySelector(".am i") };
     });
   }
   // press a card to select it; sweep across others to take them too; Ctrl/Shift adds to what was held
@@ -1202,8 +1319,10 @@
       c.st.textContent = c.r.rout ? "!" : c.r.gun?.dead ? "✕" : c.r.charge ? "»" : c.r.direct ? "◎" : c.r.run || (c.r.dash && c.r.moving) ? "›" : c.r.hold ? "❚❚" : "";
       c.el.classList.toggle("on", selected.has(c.r));
       c.el.classList.toggle("gone", !n || c.r.rout);
-      c.el.disabled = !n || c.r.rout;
-      c.el.classList.toggle("gone", !n || c.r.rout || !!c.r.gun?.dead);
+      const broken = !n || c.r.rout || !!c.r.gun?.dead, lv = broken ? 99 : Math.round((1 - n / c.r.n0) * 7);
+      if (lv !== c.lv) { c.lv = lv; cracks(c.crk, c.r, Math.min(lv, 7), broken); }
+      c.el.disabled = broken;
+      c.el.classList.toggle("gone", broken);
     }
   }
   forms.addEventListener("click", e => {
@@ -1259,14 +1378,20 @@
     const sel = selected.has(m.reg) || soloSel === m;
     const base = sprite(m.side, m.tier, f, false, sel);
     if (!m.chips.length) return base;
-    const key = `${f}${sel ? 1 : 0}${m.chips.length}`;
+    if (m.chips.length > 40) m.chips.splice(0, m.chips.length - 40);
+    const key = `${f}${sel ? 1 : 0}${m.chips.length}${m.chips[m.chips.length - 1]?.[0]}`;
     if (m.cache && m.cacheKey === key) return m.cache;
     const c = document.createElement("canvas");
     c.width = c.height = S_SIZE;
     const g = c.getContext("2d");
     g.drawImage(base, 0, 0);
     const a = (f / FACE) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
-    for (const [lx, ly] of m.chips) g.clearRect(Math.floor(S_C + lx * ca - ly * sa), Math.floor(S_C + lx * sa + ly * ca), 1, 1);
+    const CH = [null, "#5c6068", "#121212", "#5a1612", "#2c2a26"];
+    for (const [lx, ly, k] of m.chips) {
+      const X = Math.floor(S_C + lx * ca - ly * sa), Y = Math.floor(S_C + lx * sa + ly * ca);
+      if (!k) g.clearRect(X, Y, 1, 1);
+      else { g.globalAlpha = k === 4 ? 0.7 : 1; g.fillStyle = CH[k]; g.fillRect(X, Y, 1, 1); g.globalAlpha = 1; }
+    }
     m.cache = c; m.cacheKey = key;
     return c;
   }
@@ -1287,7 +1412,7 @@
     ctx.drawImage(stains, 0, 0);
     // fragments on the ground; the fallen fade to a stain over 20 s and stay
     for (const p of bits) {
-      if (p.blood) continue;
+      if (p.blood || p.flame || p.ember) continue;
       const a = p.keep ? Math.max(STAIN, 1 - (p.age / 20) * (1 - STAIN)) : p.life < p.fade ? p.life / p.fade : 1;
       ctx.globalAlpha = a;
       ctx.fillStyle = `rgb(${p.c[0]},${p.c[1]},${p.c[2]})`;
@@ -1299,14 +1424,23 @@
     for (const r of selected) {
       const c = centroid(r);
       if (!c || r.rout || r.form === "column") continue;
-      const full = r.form === "square", w0 = r.form === "gun" ? 0.45 : 0.85, a0 = r.face - (full ? Math.PI : w0), a1 = r.face + (full ? Math.PI : w0);
-      const RANGE = r.form === "gun" ? r.gun.range / 2 : RANGE_M;
-      ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.arc(c[0], c[1], RANGE, a0, a1); ctx.closePath();
-      ctx.fillStyle = "rgba(250,250,235,0.06)"; ctx.fill();
-      ctx.lineWidth = 1 / cam.z; ctx.strokeStyle = "rgba(250,250,235,0.35)";
-      ctx.beginPath(); ctx.arc(c[0], c[1], RANGE, a0, a1); ctx.stroke();
+      const f = r.af, gun = r.form === "gun", Rn = gun ? r.gun.range / 2 : RANGE_M;
+      let L = c, Rt = c, sw = gun ? 0.45 : SWIVEL;
+      if (gun) L = Rt = gunPos(r);
+      else if (r.form !== "square") {
+        let lo = 1e9, hi = -1e9;
+        for (const m of r.men) if (m.alive && !m.solo && m.canFire) { lo = Math.min(lo, m.sx); hi = Math.max(hi, m.sx); }
+        L = slotAt(r.ax, r.ay, f, { sx: lo, sy: 0 }); Rt = slotAt(r.ax, r.ay, f, { sx: hi, sy: 0 });
+      }
+      const reach = R => {
+        ctx.beginPath();
+        if (r.form === "square") { ctx.arc(c[0], c[1], R + 12, 0, Math.PI * 2); return; }
+        ctx.moveTo(L[0], L[1]); ctx.arc(L[0], L[1], R, f - sw, f); ctx.arc(Rt[0], Rt[1], R, f, f + sw); ctx.closePath();
+      };
+      reach(Rn); ctx.fillStyle = "rgba(250,250,235,0.06)"; ctx.fill();
+      ctx.lineWidth = 1 / cam.z; ctx.strokeStyle = "rgba(250,250,235,0.35)"; ctx.stroke();
       ctx.setLineDash([4 / cam.z, 5 / cam.z]); ctx.strokeStyle = "rgba(250,250,235,0.18)";
-      ctx.beginPath(); ctx.arc(c[0], c[1], RANGE * 2, a0, a1); ctx.stroke();
+      reach(Rn * 2); ctx.stroke();
       ctx.setLineDash([]);
     }
     // where the selected are going: the route and their places when they get there
@@ -1372,6 +1506,15 @@
     for (const f of flashes) if (!f.big) { ctx.fillStyle = "#fff3b0"; ctx.fillRect(Math.floor(f.x) - 1, Math.floor(f.y) - 1, 3, 3); ctx.fillStyle = "#ffd25a"; ctx.fillRect(Math.floor(f.x), Math.floor(f.y), 1, 1); }
     // smoke over everything
     if (smokeOn) { smokePaint(); ctx.drawImage(smokeCv, 0, 0, SWd * SC, SHt * SC); }
+    // fire burns through the smoke
+    for (const p of bits) if (p.flame || p.ember) {
+      const t = 1 - p.life / p.l0, sz = p.flame && t < 0.4 ? 2 : 1;
+      ctx.globalAlpha = Math.max(0, 1 - t * 0.8);
+      ctx.fillStyle = `rgb(${p.c[0]},${p.c[1]},${p.c[2]})`;
+      ctx.fillRect(Math.floor(p.x) - (sz >> 1), Math.floor(p.y) - (sz >> 1), sz, sz);
+    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
     // box select
     if (drag && drag.kind === "box") {
       ctx.strokeStyle = "rgba(250,250,240,0.9)"; ctx.lineWidth = 1 / cam.z;
@@ -1379,51 +1522,42 @@
       const x = Math.min(drag.x0, drag.x1), y = Math.min(drag.y0, drag.y1), w = Math.abs(drag.x1 - drag.x0), h = Math.abs(drag.y1 - drag.y0);
       ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
     }
-    // markers, in screen space: close in, a banner over the block; further out, a tactical sign on it
+    // tactical signs, in screen space, set just behind each block so they never cover it
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.font = "15px VT323, monospace";
     ctx.textBaseline = "middle";
-    const tac = cam.z < TAC;
     for (const r of regs) {
       r.sbox = null;
-      const c = centroid(r);
-      if (!c) continue;
-      let top = 1e9;
-      for (const m of r.men) if (m.alive && !m.solo) top = Math.min(top, m.y);
-      const sx = Math.round((c[0] - cam.x) * cam.z + VW / 2), sy = Math.round(tac ? (c[1] - cam.y) * cam.z + VH / 2 : (top - cam.y) * cam.z + VH / 2 - 14);
+      const c = r.form === "gun" ? gunPos(r) : centroid(r);
+      if (!c || (!alive(r) && !r.gun)) continue;
+      const f = r.af, fx = Math.cos(f), fy = Math.sin(f);
+      let back = 0;
+      for (const m of r.men) if (m.alive && !m.solo) back = Math.min(back, (m.x - c[0]) * fx + (m.y - c[1]) * fy);
+      back -= 5;
+      const sx = Math.round((c[0] + fx * back - cam.x) * cam.z + VW / 2 - fx * 16), sy = Math.round((c[1] + fy * back - cam.y) * cam.z + VH / 2 - fy * 16);
       if (sx < -60 || sx > VW + 60 || sy < -30 || sy > VH + 30) continue;
-      const sel = selected.has(r), fill = r.rout ? "#8b8a84" : SIDE[r.side].ui, ink = "#121212";
+      const sel = selected.has(r), fill = r.rout || r.gun?.dead ? "#8b8a84" : SIDE[r.side].ui;
       const tag = `${alive(r)}${r.rout ? " !" : r.charge ? " »" : r.direct ? " ◎" : ""}`;
-      if (tac) {
-        // NATO infantry: a box with a cross; heavy adds the armour oval; conscripts a broken frame
-        const w = 24, h = 16, x0 = sx - w / 2, y0 = sy - h / 2;
-        const tw = ctx.measureText(tag).width + 8;
-        if (sel) { ctx.fillStyle = "#f2efe6"; ctx.fillRect(x0 - 2, y0 - 2, w + tw + 4, h + 4); }
-        ctx.fillStyle = fill; ctx.fillRect(x0, y0, w, h);
-        ctx.strokeStyle = ink; ctx.lineWidth = 1.5;
-        if (r.tier === "conscript") ctx.setLineDash([3, 2]);
-        ctx.strokeRect(x0 + 0.75, y0 + 0.75, w - 1.5, h - 1.5);
-        ctx.setLineDash([]);
-        if (r.form !== "gun") { ctx.beginPath(); ctx.moveTo(x0 + 1, y0 + 1); ctx.lineTo(x0 + w - 1, y0 + h - 1); ctx.moveTo(x0 + w - 1, y0 + 1); ctx.lineTo(x0 + 1, y0 + h - 1); ctx.stroke(); }
-        if (r.form === "gun") { ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI * 2); ctx.fill(); }
-        if (r.tier === "heavy") { ctx.fillStyle = fill; ctx.beginPath(); ctx.ellipse(sx, sy, 7, 3.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
-        ctx.fillStyle = "rgba(20,20,22,0.85)"; ctx.fillRect(x0 + w, y0, tw, h);
-        ctx.fillStyle = fill; ctx.fillText(tag, x0 + w + 4, sy + 1);
-        if (r.hold) { ctx.fillStyle = "#f2efe6"; ctx.fillRect(x0 + w + tw + 3, sy - 5, 2, 10); ctx.fillRect(x0 + w + tw + 7, sy - 5, 2, 10); }
-        r.sbox = [x0 - 2, y0 - 2, x0 + w + tw + 2, y0 + h + 2];
-        continue;
-      }
-      const label = `${r.form === "gun" ? "A" : r.tier === "conscript" ? "C" : r.tier === "line" ? "L" : "H"} ${tag}`;
-      const w = ctx.measureText(label).width + 10;
-      ctx.fillStyle = sel ? "#f2efe6" : "rgba(20,20,22,0.82)";
-      ctx.fillRect(Math.round(sx - w / 2) - 1, sy - 9, Math.round(w) + 2, 18);
-      ctx.fillStyle = fill;
-      ctx.fillRect(Math.round(sx - w / 2), sy - 8, Math.round(w), 16);
-      ctx.fillStyle = ink;
-      ctx.fillText(label, Math.round(sx - w / 2) + 5, sy);
-      if (r.hold) { ctx.fillStyle = ink; ctx.fillRect(Math.round(sx + w / 2) + 3, sy - 5, 3, 10); ctx.fillRect(Math.round(sx + w / 2) + 8, sy - 5, 3, 10); }
-      r.sbox = [sx - w / 2 - 1, sy - 9, sx + w / 2 + 1, sy + 9];
+      const w = 24, h = 16, tw = ctx.measureText(tag).width + 8, x0 = Math.round(sx - (w + tw) / 2), y0 = sy - h / 2;
+      if (sel) { ctx.fillStyle = "#f2efe6"; ctx.fillRect(x0 - 2, y0 - 2, w + tw + 4, h + 4); }
+      sign(ctx, r, x0, y0, w, h, fill);
+      ctx.fillStyle = "rgba(20,20,22,0.85)"; ctx.fillRect(x0 + w, y0, tw, h);
+      ctx.fillStyle = fill; ctx.fillText(tag, x0 + w + 4, sy + 1);
+      if (r.hold) { ctx.fillStyle = "#f2efe6"; ctx.fillRect(x0 + w + tw + 3, sy - 5, 2, 10); ctx.fillRect(x0 + w + tw + 7, sy - 5, 2, 10); }
+      r.sbox = [x0 - 2, y0 - 2, x0 + w + tw + 2, y0 + h + 2];
     }
+  }
+  // NATO-style: infantry a box with a cross, heavy adds the armour oval, conscripts a broken frame, guns a dot
+  function sign(g, r, x0, y0, w, h, fill) {
+    const ink = "#121212", cx = x0 + w / 2, cy = y0 + h / 2, k = h / 16;
+    g.fillStyle = fill; g.fillRect(x0, y0, w, h);
+    g.strokeStyle = ink; g.lineWidth = 1.5 * k;
+    if (r.tier === "conscript") g.setLineDash([3 * k, 2 * k]);
+    g.strokeRect(x0 + 0.75 * k, y0 + 0.75 * k, w - 1.5 * k, h - 1.5 * k);
+    g.setLineDash([]);
+    if (r.form === "gun") { g.fillStyle = ink; g.beginPath(); g.arc(cx, cy, 3 * k, 0, Math.PI * 2); g.fill(); return; }
+    g.beginPath(); g.moveTo(x0 + k, y0 + k); g.lineTo(x0 + w - k, y0 + h - k); g.moveTo(x0 + w - k, y0 + k); g.lineTo(x0 + k, y0 + h - k); g.stroke();
+    if (r.tier === "heavy") { g.fillStyle = fill; g.beginPath(); g.ellipse(cx, cy, 7 * k, 3.6 * k, 0, 0, Math.PI * 2); g.fill(); g.stroke(); }
   }
 
   // ---------- loop ----------
