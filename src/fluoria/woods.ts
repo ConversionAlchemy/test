@@ -30,3 +30,8 @@ export function isDenseWood(cells: Pick<Cells, "biome" | "h" | "c">, i: number):
   for (const j of cells.c[i]) if (cells.h[j] >= 20 && !isForestBiome(cells.biome[j])) return false;
   return true;
 }
+
+/** Ground no road crosses and no settlement stands on: mountains and snow (terrace level 5 and up) and any forest */
+export function blocksRoads(cells: Pick<Cells, "biome" | "h">, i: number): boolean {
+  return cells.h[i] >= 55 || (cells.h[i] >= 20 && isForestBiome(cells.biome[i]));
+}

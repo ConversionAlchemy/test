@@ -1,9 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { paintTerrain, stampOverlay } from "./brushes";
 import { fitView, stepZoom, ZOOM_STEPS, zoomAround } from "./camera";
+import { COAST } from "./ground-tiles";
 import { type MapLabel, placeLabels } from "./labels";
 import { hash2, valueNoise } from "./noise";
-import { Palette, packRGB } from "./palette";
+import { packRGB } from "./palette";
 import { CHUNK, PixelRaster } from "./raster";
 import { crossedPlace, pickNode, pickRoute, snapToPlace } from "./routes";
 import { buildSampleScene } from "./sample-scene";
@@ -80,14 +81,14 @@ describe("raster", () => {
     expect(a.pixels).toEqual(b.pixels);
   });
 
-  test("puts a beach between grass and water, and foam on the water side", () => {
+  test("darkens the shore and lays foam on the water side", () => {
     const raster = new PixelRaster(40, 20, 1);
     for (let y = 0; y < 20; y++) for (let x = 20; x < 40; x++) raster.terrain[y * 40 + x] = Terrain.Water;
     raster.flush();
-    const beach = [packRGB(Palette.sand), packRGB(Palette.sand2)];
-    const surf = [packRGB(Palette.foam), packRGB(Palette.water2)];
-    expect(beach).toContain(raster.pixels[10 * 40 + 19]);
-    expect(surf).toContain(raster.pixels[10 * 40 + 20]);
+    expect(raster.pixels[10 * 40 + 20]).toBe(packRGB(COAST.foam));
+    const inland = new PixelRaster(40, 20, 1);
+    inland.flush();
+    expect(raster.pixels[10 * 40 + 19]).not.toBe(inland.pixels[10 * 40 + 19]);
   });
 
   test("lights slopes facing north-west and shades slopes facing away", () => {
@@ -98,9 +99,9 @@ describe("raster", () => {
     expect(raster.relief(2, 2)).toBe(1);
   });
 
-  test("covers high ground in snow", () => {
+  test("draws snow ground as ice, not grass", () => {
     const raster = new PixelRaster(30, 30, 1);
-    raster.elevation.fill(255);
+    raster.terrain.fill(Terrain.Snow);
     raster.flush();
     expect(raster.pixels[15 * 30 + 15]).not.toBe(new PixelRaster(30, 30, 1).colorAt(15, 15));
   });

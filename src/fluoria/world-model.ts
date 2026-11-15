@@ -129,6 +129,7 @@ export function paintTile(model: WorldModel, job: TileJob): Uint32Array {
   const { scale, ox, oy, width, height } = job;
   const raster = new PixelRaster(width, height, model.seed, ox, oy);
   raster.detail = job.detail;
+  raster.unit = scale;
   raster.snowByHeight = false;
   const region = new Uint16Array(width * height);
   const sub = job.provinces ? new Uint16Array(width * height) : null;

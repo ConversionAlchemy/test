@@ -1,6 +1,6 @@
 import { quadtree } from "d3-quadtree";
 import { AUTO_BURG_LIMIT } from "@/components/options-schema";
-import { isDenseWood } from "@/fluoria/woods";
+import { blocksRoads } from "@/fluoria/woods";
 import { Emblems } from "@/generators/emblems-generator";
 import type { BurgGroup } from "@/types/burg-groups";
 import type { Emblem } from "@/types/emblems";
@@ -142,7 +142,7 @@ class BurgModule {
         const f = cells.f[i];
         if (has.has(f)) continue;
         const was = best.get(f);
-        const rank = (c: number) => (isDenseWood(cells, c) ? -1e4 : 0) + cells.s[c]; // dense woods only if the island is all woods
+        const rank = (c: number) => (blocksRoads(cells, c) ? -1e4 : 0) + cells.s[c]; // forest or mountain only if the island has nothing else
         if (was === undefined || rank(i) > rank(was)) best.set(f, i);
       }
       for (const [feature, cell] of best) {

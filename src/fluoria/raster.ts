@@ -1,5 +1,6 @@
+import { COAST, ditherAt, groundOf, groundPixel, RAISE, shallowPixel } from "./ground-tiles";
 import { fbm, hash2, valueNoise } from "./noise";
-import { Palette, packRGB, type Swatch } from "./palette";
+import { Palette, packRGB, type RGB, type Swatch, shade } from "./palette";
 import { isLine, isOpenWater, isWater, Overlay, Terrain } from "./terrain";
 
 /** Side of one texture chunk in game pixels; a power of two so mipmaps work below 1× */
@@ -57,6 +58,7 @@ export class PixelRaster {
   bandColors: number[] = [];
   /** A band of the owner's colour along coasts, this many pixels wide; 0 for none */
   coastPx = 0;
+  unit = 1; // raster pixels to a map unit
   /** The atlas look: pale sea, a crisp dark coastline, no beaches */
   atlas = false;
   dim = 0; // military view: the ground darkened under the nations' colours, borders and coasts kept bright
@@ -192,14 +194,21 @@ export class PixelRaster {
     const own = this.terrainAt(x, y);
     // ragged, coherent edges: borrow the terrain a pixel or two away, but never across the shoreline
     let t = own;
-    if (this.detail > 0) {
+    if (this.detail > 0 && this.atlas) {
       const jx = Math.floor(valueNoise(x, y, 2.5, s + 11) * 5) - 2;
       const jy = Math.floor(valueNoise(x, y, 2.5, s + 12) * 5) - 2;
       t = this.terrainAt(x + jx, y + jy);
       if (isWater(t) !== isWater(own) || isLine(t) || isLine(own)) t = own;
     }
 
-    let color = t === Terrain.River ? this.river(x, y) : isWater(t) ? this.water(x, y, t) : this.land(x, y, t);
+    let color =
+      t === Terrain.River
+        ? this.river(x, y)
+        : this.atlas || isLine(t) || t === Terrain.Farmland
+          ? isWater(t)
+            ? this.water(x, y, t)
+            : this.land(x, y, t)
+          : this.ground(x, y, t);
     const i = this.at(x, y);
     if (this.dim) {
       color = mixP(color, C.ink, isWater(own) ? this.dim * 0.7 : this.dim);
@@ -260,8 +269,51 @@ export class PixelRaster {
     if (!base || !this.tint) return color;
     const tint = this.atlas ? mixP(base, C.paper, 0.3) : base; // atlas colours are printed light
     if (this.flatten) color = mixP(color, greyP(color), this.flatten);
-    const high = this.flatten ? 0 : Math.min(1, this.elevation[i] / 190); // lighter on high ground, so relief shows
-    return mixP(color, tint, this.tint * (1 - high * 0.65));
+    return mixP(color, tint, this.tint); // flat: relief comes from the ground's own steps, not a smooth wash
+  }
+
+  /** The sandbox ground: a flat-toned tile per terrain, the coast in foam and bands, higher ground casting a stepped shadow */
+  private ground(x: number, y: number, t: number): number {
+    // texture and coast are laid in map units, so the ground keeps the sandbox's chunky pixels at every zoom
+    const u = Math.max(1, Math.round(this.unit));
+    const X = Math.floor(x / u);
+    const Y = Math.floor(y / u);
+    const cx = X * u + (u >> 1);
+    const cy = Y * u + (u >> 1);
+    if (isWater(t)) {
+      const d = this.stepDistance(cx, cy, false, 6, u);
+      if (d === 1) return packRGB(COAST.foam as RGB);
+      if (d === 2 || d === 3) return packRGB(COAST.band as RGB);
+      if (d === 5) return packRGB(COAST.rip as RGB);
+      if (d === 4 || (d === 6 && ditherAt(X, Y) < 0.33)) return packRGB(shallowPixel(X, Y));
+      return packRGB(groundPixel(groundOf(t), X, Y));
+    }
+    const key = groundOf(t);
+    let c = groundPixel(key, X, Y) as RGB;
+    if (this.stepDistance(cx, cy, true, 1, u) === 1) c = shade(c, COAST.shore);
+    const own = RAISE[key] ?? 0;
+    if (own < 3)
+      for (let d = 1; d <= 5; d++) {
+        const q = this.terrainAt(cx - d * u, cy - d * u);
+        const up = isWater(q) ? 0 : (RAISE[groundOf(q)] ?? 0);
+        if (up > own && d <= up) {
+          c = shade(c, 0.66 + d * 0.06);
+          break;
+        }
+      }
+    return packRGB(c);
+  }
+
+  /** distanceTo in steps of `u` pixels: rings of one map unit each */
+  private stepDistance(x: number, y: number, water: boolean, max: number, u: number): number {
+    for (let d = 1; d <= max; d++)
+      for (let oy = -d; oy <= d; oy++)
+        for (let ox = -d; ox <= d; ox++) {
+          if (Math.max(Math.abs(ox), Math.abs(oy)) !== d) continue;
+          const other = this.terrainAt(x + ox * u, y + oy * u);
+          if (water ? isOpenWater(other) : !isWater(other)) return d;
+        }
+    return 0;
   }
 
   private river(x: number, y: number): number {

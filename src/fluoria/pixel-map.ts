@@ -48,7 +48,7 @@ function borderStyle(): { width: number; strength: number } {
     strength: Number.isFinite(opacity) ? Math.max(0, Math.min(1.25, opacity / 0.8)) : 1
   };
 }
-const TINT = [0.2, 0.2, 0.08]; // by level: nations' colour over the terrain, clearest zoomed out
+const TINT = [0.1, 0.08, 0.04]; // by level: a light wash of each nation over the terrain; borders carry the rest
 
 // widths in map pixels, with a floor in screen pixels so roads stay visible zoomed out; solid roads get a dark edge
 // so they read on any ground. Lesser roads show only closer in
@@ -56,12 +56,12 @@ const ROAD_STYLE: Record<
   string,
   { color: number; width: number; minPx: number; dash: number; edge: boolean; from: number; alpha: number }
 > = {
-  roads: { color: 0xb23a26, width: 1.1, minPx: 2.4, dash: 0, edge: true, from: 0, alpha: 1 },
-  trails: { color: 0xd2a862, width: 0.8, minPx: 1.8, dash: 0, edge: true, from: 1.5, alpha: 1 },
+  roads: { color: 0xece6d4, width: 1, minPx: 2, dash: 0, edge: true, from: 0, alpha: 1 },
+  trails: { color: 0xd9cfb6, width: 0.7, minPx: 1.4, dash: 0, edge: false, from: 0, alpha: 0.9 },
   paths: { color: 0x5e4630, width: 0.45, minPx: 1.2, dash: 2.2, edge: false, from: 3, alpha: 0.9 },
   searoutes: { color: 0xb4cadb, width: 0.5, minPx: 1.2, dash: 7, edge: false, from: 0, alpha: 0.75 }
 };
-const ROAD_EDGE = 0x2b2118;
+const ROAD_EDGE = 0x5d5140;
 
 /** A dashed polyline: alternate runs of `dash` map pixels */
 function dashed(g: Graphics, pts: [number, number][], dash: number): void {
