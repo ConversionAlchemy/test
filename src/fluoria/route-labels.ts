@@ -3,7 +3,7 @@
 
 import { Layers } from "@/components/layers";
 import { bareIsland } from "./islands";
-import { highlightPlace, showRoadEdit } from "./pixel-map-sync";
+import { showRoadEdit } from "./pixel-map-sync";
 import { openPlace } from "./place-dialog";
 import { openProvince } from "./province-dialog";
 import { roadLineOf } from "./road-geometry";
@@ -52,13 +52,3 @@ export function provinceLabelClick(label: SVGTextElement): void {
     () => openProvince(id)
   );
 }
-
-let litProvince = 0;
-document.addEventListener("pointerover", event => {
-  const label = (event.target as Element | null)?.closest?.("#labels text[data-label-type='province']");
-  const id = label ? Number((label as SVGElement).dataset.id) : 0;
-  if (id === litProvince) return;
-  litProvince = id;
-  const p = pack.provinces[id];
-  highlightPlace(id && p ? { province: id, state: p.state, capital: false } : null);
-});

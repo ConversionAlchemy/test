@@ -126,21 +126,36 @@ function burgUnder(target: Element | null): number {
   return burg && !burg.removed ? id : 0;
 }
 
+/** The province whose name a pointer is over, or 0 */
+function provinceUnder(target: Element | null): number {
+  const el = target?.closest?.("#labels text[data-label-type='province']") as SVGElement | null;
+  const id = el ? Number(el.dataset.id) : 0;
+  return id && pack.provinces[id] && !pack.provinces[id].removed ? id : 0;
+}
+
 export function hoverAt(event: MouseEvent): void {
   preview(event);
-  const burg = burgUnder(event.target as Element | null);
-  if (burg !== hoveredBurg) {
-    hoveredBurg = burg;
+  const target = event.target as Element | null;
+  const burg = burgUnder(target);
+  // a province name lights its whole province; told apart from settlements by sign
+  const place = burg || -provinceUnder(target);
+  if (place !== hoveredBurg) {
+    hoveredBurg = place;
     const b = pack.burgs[burg];
+    const p = place < 0 ? pack.provinces[-place] : null;
     highlightPlace(
-      burg ? { province: pack.cells.province[b.cell], state: b.state ?? 0, capital: Boolean(b.capital) } : null
+      burg
+        ? { province: pack.cells.province[b.cell], state: b.state ?? 0, capital: Boolean(b.capital) }
+        : p
+          ? { province: p.i, state: p.state, capital: false }
+          : null
     );
-    if (burg) {
+    if (place) {
       hoveredNation = -1;
       hovered = null;
     }
   }
-  if (burg) return;
+  if (place) return;
   const own = (event.target as Element | null)?.closest?.(OWN_CLICK);
   const cell = own || window.customization ? undefined : pointCell(event);
   const nation = zoomedOut() && cell !== undefined && pack.cells.h[cell] >= 20 ? pack.cells.state[cell] : 0;
