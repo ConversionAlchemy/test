@@ -131,6 +131,27 @@ class BurgModule {
       });
     };
 
+    // Fluoria: every island has at least one settlement, so whoever holds it can be fought for
+    const coverIslands = () => {
+      const has = new Set<number>();
+      for (const b of burgs) if (b && b.cell) has.add(cells.f[b.cell]);
+      const best = new Map<number, number>();
+      for (let i = 0; i < cells.i.length; i++) {
+        if (cells.h[i] < 20 || cells.burg[i]) continue;
+        const f = cells.f[i];
+        if (has.has(f)) continue;
+        const was = best.get(f);
+        if (was === undefined || cells.s[i] > cells.s[was]) best.set(f, i);
+      }
+      for (const [feature, cell] of best) {
+        const [x, y] = cells.p[cell];
+        const culture = cells.culture[cell];
+        const burgId = burgs.length;
+        burgs.push({ cell, x, y, i: burgId, state: 0, culture, name: Names.getCulture(culture), feature, capital: 0, tags: [] });
+        cells.burg[cell] = burgId;
+      }
+    };
+
     const generateTowns = () => {
       const randomize = (score: number) => score * gauss(1, 3, 0, 20, 3);
       const score = new Int16Array(cells.s.map(randomize));
@@ -174,6 +195,7 @@ class BurgModule {
 
     generateCapitals();
     generateTowns();
+    coverIslands();
 
     pack.burgs = burgs;
     this.assignPorts();

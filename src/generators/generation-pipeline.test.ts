@@ -12,6 +12,7 @@ test("a new world clears the previous map's collections before rebuilding its gr
   const noop = () => {};
   vi.stubGlobal("Grid", { prepare: noop, addDeepDepressionLakes: noop, openNearSeaLakes: noop });
   vi.stubGlobal("HeightmapGenerator", { generate: noop });
+  vi.stubGlobal("grid", { cells: { h: [], c: [] } });
   vi.stubGlobal("Features", { markupGrid: noop });
   vi.stubGlobal("Temperature", { generate: noop });
   vi.stubGlobal("Precipitation", { generate: noop });

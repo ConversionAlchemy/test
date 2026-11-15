@@ -3,11 +3,13 @@ import { GraphOverride } from "@/generators/graph-override";
 import { Pipeline, type PipelineStep } from "@/generators/pipeline";
 import { Population } from "@/generators/population-generator";
 import type { GridGraph } from "@/types/GridGraph";
+import { applyTerraces } from "@/fluoria/terraces";
 import { Coordinates } from "./coordinates";
 
 const generationPipelineSteps = [
   { id: "grid", run: ({ graph }) => Grid.prepare(graph) },
   { id: "heightmap", run: () => HeightmapGenerator.generate() },
+  { id: "terraces", run: () => applyTerraces(grid.cells) }, // Fluoria: heights in steps
   { id: "markupGrid", run: () => Features.markupGrid() },
   { id: "depressionLakes", run: () => Grid.addDeepDepressionLakes() },
   { id: "nearSeaLakes", run: () => Grid.openNearSeaLakes() },
@@ -20,6 +22,7 @@ const generationPipelineSteps = [
   { id: "markupPack", run: () => Features.markupPack() },
   { id: "defaultRuler", run: () => Measurers.createDefaultRuler() },
   { id: "rivers", run: () => Rivers.generate() },
+  { id: "packTerraces", run: () => applyTerraces(pack.cells) }, // lakes and rivers moved heights; step them again
   { id: "biomes", run: () => Biomes.generate() },
   { id: "featureGroups", run: () => Features.defineGroups() },
   { id: "ice", run: () => Ice.generate() },

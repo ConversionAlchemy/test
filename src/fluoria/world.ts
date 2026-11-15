@@ -63,11 +63,13 @@ function cellTerrain(cell: number): TerrainId {
   const h = cells.h[cell];
   const biome = cells.biome[cell];
   const temp = grid.cells.temp[cells.g[cell]] ?? 10;
-  if (biome === GLACIER || (h >= 60 && temp <= 0)) return Terrain.Snow;
-  if (h >= 62) return Terrain.Mountains;
+  // the terrace levels (see terraces.ts): snowy peaks, mountains, hills, plain, and a sandy coast
+  if (biome === GLACIER || h >= 70 || (h >= 55 && temp <= 0)) return Terrain.Snow;
+  if (h >= 55) return Terrain.Mountains;
   let t = BIOME_TERRAIN[biome] ?? Terrain.Grass;
   if (t === Terrain.Water) t = Terrain.Grass;
-  if (h >= 46 && OPEN_LAND.includes(t)) return Terrain.Hills;
+  if (h >= 40 && OPEN_LAND.includes(t)) return Terrain.Hills;
+  if (h <= 23 && OPEN_LAND.includes(t)) return Terrain.Sand;
   return t;
 }
 
