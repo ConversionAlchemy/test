@@ -351,7 +351,7 @@ class PixelMap {
     const lit = (g: number) => (place.capital ? owner[g] === place.state : province[g] === place.province);
     const dim = (g: number) => (place.capital ? owner[g] !== place.state : owner[g] === place.state && !lit(g));
     for (let g = 0; g < owner.length; g++) if (land[g] && dim(g)) this.polyOf(this.hover, g);
-    this.hover.fill({ color: 0x14120f, alpha: place.capital ? 0.22 : 0.14 });
+    this.hover.fill({ color: 0x14120f, alpha: place.capital ? 0.32 : 0.18 });
     for (let g = 0; g < owner.length; g++) if (land[g] && lit(g)) this.polyOf(this.hover, g);
     this.hover.fill({ color: 0xffffff, alpha: 0.14 });
   }
@@ -429,7 +429,23 @@ class PixelMap {
       const colour = Number.parseInt((state.color ?? "#999999").slice(1, 7), 16) || 0x999999;
       stripes.stroke({ color: colour, width: step * 0.45, alpha: 0.85 });
       stripes.mask = mask;
-      this.occupation.addChild(mask, stripes);
+      // the held ground's edge, dashed in the occupier's colour
+      const held = new Set(state.occupied.map(cell => pack.cells.g?.[cell]).filter(g => g !== undefined));
+      const edge = new Graphics();
+      const dash = Math.max(1.5, grid.spacing * 0.25);
+      for (const g of held)
+        for (const n of grid.cells.c[g]) {
+          if (held.has(n)) continue;
+          const shared = grid.cells.v[g].filter(v => grid.cells.v[n].includes(v));
+          if (shared.length === 2)
+            dashed(
+              edge,
+              shared.map(v => grid.vertices.p[v] as [number, number]),
+              dash
+            );
+        }
+      edge.stroke({ color: colour, width: Math.max(0.6, grid.spacing * 0.08), alpha: 0.95 });
+      this.occupation.addChild(mask, stripes, edge);
     }
   }
 

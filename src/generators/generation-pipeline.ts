@@ -1,6 +1,7 @@
 // Canonical generation sequence, as a declared pipeline instead of a hand-written call list. See docs/architecture/generation-pipeline.md.
 
 import { claimAll } from "@/fluoria/claim";
+import { seatRoads } from "@/fluoria/seat-roads";
 import { applyTerraces } from "@/fluoria/terraces";
 import { thinForests } from "@/fluoria/woods";
 import { GraphOverride } from "@/generators/graph-override";
@@ -44,6 +45,7 @@ const generationPipelineSteps = [
   { id: "stateForms", run: () => States.defineStateForms() },
   { id: "provinces", run: () => Provinces.generate() },
   { id: "provincePoles", run: () => Provinces.getPoles() },
+  { id: "seatRoads", run: () => seatRoads() }, // Fluoria: main roads to every province seat
   { id: "riversSpecify", run: () => Rivers.specify() },
   { id: "featureNames", run: () => Features.defineNames() },
   { id: "markets", run: () => Markets.generate() },
@@ -92,6 +94,7 @@ const erasePipelineSteps = [
   { id: "stateForms", run: () => States.defineStateForms() },
   { id: "provinces", run: () => Provinces.generate() },
   { id: "provincePoles", run: () => Provinces.getPoles() },
+  { id: "seatRoads", run: () => seatRoads() }, // Fluoria: main roads to every province seat
   { id: "riversSpecify", run: () => Rivers.specify() },
   { id: "featureNames", run: () => Features.defineNames() },
   { id: "markets", run: () => Markets.generate() },

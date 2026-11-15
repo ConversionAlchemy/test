@@ -10,6 +10,7 @@ import { viewport } from "@/components/viewport";
 import { zoomTo } from "@/components/zoom";
 import { Controllers } from "@/controllers";
 import { landingCells } from "@/fluoria/boarding";
+import { APPOINT_PRICE, appoint, governorOf, rulerOf, seatOf } from "@/fluoria/court";
 import { dragging, type Payload, pressed, regimentUnder, setDragHooks, watchMapDrags } from "@/fluoria/drag";
 import { addSlot, assign, changeRow, encampRefusal, regimentOf, splitOff } from "@/fluoria/forces/army";
 import { cardUrl } from "@/fluoria/forces/cards";
@@ -33,7 +34,6 @@ import {
 import { KIT } from "@/fluoria/forces/kit";
 import { buttonUrl, iconUrl, short, stallUrl } from "@/fluoria/forces/pixels";
 import { borrowView, returnView } from "@/fluoria/map-view";
-
 import { openNation } from "@/fluoria/nation-panel";
 import { escapeTaken, numberField, wireField } from "@/fluoria/number-field";
 import { cellAtPoint, mainCell, neighbours as neighbourCells } from "@/fluoria/one-grid";
@@ -91,7 +91,7 @@ import {
   stackAll,
   stackOf
 } from "@/fluoria/units";
-import { hasRoom } from "@/fluoria/war";
+import { hasRoom, occupierOf } from "@/fluoria/war";
 import { Notes } from "@/generators/notes";
 import { goodIconLines } from "@/renderers/draw-goods";
 import { placeRegiment } from "@/renderers/draw-military";
@@ -671,6 +671,7 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
   const garrisonTroops = garrison ? troopsOf(garrison) : 0;
   const armyTroops = here.reduce((sum, r) => sum + troopsOf(r), 0);
   const nation = pack.states[state];
+  const province = pack.provinces[pack.cells.province[burg.cell]];
   const name =
     renamingBurg === burgId
       ? `<input class="flFolderName" value="${escapeHtml(burg.name ?? "")}" spellcheck="false" />`
@@ -693,10 +694,11 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
       <svg class="flFolderArt flNationLink" viewBox="0 0 200 200" data-tip="${t("Open the nation")}"><use href="#stateCOA${state}"></use></svg>
       <div>
         <div class="flNameLine">${name}</div>
-        <div class="flFolderSub">${state ? `<a class="flNationLink">${escapeHtml(nation?.name ?? "")}</a>` : t("Neutral")}</div>
+        <div class="flFolderSub">${state ? `<a class="flNationLink">${escapeHtml(nation?.name ?? "")}</a>` : t("Neutral")}${province ? ` · ${escapeHtml(province.name)}` : ""}</div>
         <div class="flFolderSub flSizeLine">${sizePick}${star}${px("lock", burg.lock ? "locked" : "unlocked", burg.lock ? t("Unlock") : t("Lock"))}</div>
       </div>
     </div>
+    ${courtBlock(burg)}
     ${purseBlocks(burg)}
     <div class="flPurse"><div class="flPurseHead">${t("Military")}<span class="flSummary">${size ? `${t("Garrison")} ${short(garrisonTroops)} · ` : ""}${t("Armies")} ${short(armyTroops)}</span></div></div>
     <nav class="flTabs">${tabs.map(([key, label]) => `<button type="button" data-settle-tab="${key}" class="${key === settleTab ? "on" : ""}">${label}</button>`).join("")}</nav>
@@ -759,7 +761,9 @@ function renderSettlement(el: HTMLElement, burgId: number): void {
   el.querySelector<HTMLElement>("[data-burg-note]")?.addEventListener("input", function () {
     Notes.set({ type: "burg", id: burgId }, this.innerHTML.trim());
   });
-  for (const button of el.querySelectorAll<HTMLElement>(".flFolderHead [data-act], .flFolderBottom [data-act]"))
+  for (const button of el.querySelectorAll<HTMLElement>(
+    ".flFolderHead [data-act], .flFolderBottom [data-act], .flCourt [data-act]"
+  ))
     button.addEventListener("click", () => settlementAction(button.dataset.act!, burg, el));
   for (const section of el.querySelectorAll<HTMLDetailsElement>("details.flSection"))
     section.addEventListener("toggle", () => {
@@ -955,7 +959,38 @@ function wireRecruit(el: HTMLElement, burg: Burg): void {
   );
 }
 
+/** Who sits here: the ruler at a capital, the governor at a province seat, and who holds it in war */
+function courtBlock(burg: Burg): string {
+  const state = burg.state ?? 0;
+  const rows: string[] = [];
+  if (isCapital(burg)) {
+    const ruler = rulerOf(state);
+    rows.push(`<div class="flPurseLine">${t("Ruler")} <b>${ruler ? escapeHtml(ruler) : t("Fallen")}</b></div>`);
+  }
+  const seat = seatOf(burg);
+  if (seat) {
+    const governor = governorOf(seat);
+    rows.push(
+      governor
+        ? `<div class="flPurseLine">${t("Governor")} <b>${escapeHtml(governor)}</b></div>`
+        : `<div class="flPurseLine">${t("Governor")} <b>${t("Vacant")}</b><button type="button" data-act="appoint" data-tip="${t("Appoint a governor")}">${t("Appoint")} §${APPOINT_PRICE}</button></div>`
+    );
+  }
+  const holder = occupierOf(burg.cell);
+  if (holder)
+    rows.push(`<div class="flPurseLine">${t("Held by")} <b>${escapeHtml(pack.states[holder].name)}</b></div>`);
+  if (!rows.length) return "";
+  return `<div class="flPurse flCourt"><div class="flPurseHead">${t("Court")}</div>${rows.join("")}</div>`;
+}
+
 function settlementAction(act: string, burg: Burg, el: HTMLElement): void {
+  if (act === "appoint") {
+    const why = appoint(seatOf(burg));
+    if (why) report(t(why), el.querySelector('[data-act="appoint"]'));
+    else play("coin");
+    renderSettlement(el, burg.i);
+    return;
+  }
   if (act === "recruit") {
     recruiting = recruiting === burg.i ? null : burg.i;
     renderSettlement(el, burg.i);

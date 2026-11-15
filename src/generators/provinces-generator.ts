@@ -34,6 +34,7 @@ export interface Province {
   burgs?: number[];
   note?: string;
   tags?: string[];
+  governor?: string | null; // Fluoria: null while the seat is vacant
 }
 
 class ProvinceModule {
@@ -185,6 +186,7 @@ class ProvinceModule {
         const land = cells.h[e] >= 20;
         if (!land && !cells.t[e]) return; // cannot pass deep ocean
         if (land && cells.state[e] !== state) return;
+        if (land && cells.f[e] !== cells.f[provinces[province].center]) return; // Fluoria: an island is its own province
         const evevation = cells.h[e] >= 70 ? 100 : cells.h[e] >= 50 ? 30 : cells.h[e] >= 20 ? 10 : 100;
         const totalCost = p + evevation;
 
@@ -253,6 +255,7 @@ class ProvinceModule {
           cells.c[e].forEach(nextCellId => {
             if (provinceIds[nextCellId]) return;
             const land = cells.h[nextCellId] >= 20;
+            if (land && cells.f[nextCellId] !== cells.f[center]) return; // Fluoria: one landmass to a province
             if (cells.state[nextCellId] && cells.state[nextCellId] !== s.i) return;
             const ter = land ? (cells.state[nextCellId] === s.i ? 3 : 20) : cells.t[nextCellId] ? 10 : 30;
             const totalCost = p + ter;

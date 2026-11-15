@@ -32,6 +32,7 @@ const TIERS: Record<string, Tier> = {
   river: { min: 3, max: Infinity, px: 13, rank: 8 }
 };
 
+const FADE = 0.3; // zoom over which a group fades in or out
 const GROWTH = 0.3; // labels grow with zoom, much slower than the map
 const MAX_GROWTH = 2;
 
@@ -41,7 +42,7 @@ export function labelTier(group: string): { min: number; max: number } | undefin
 }
 
 const STYLE = `
-#labels > g { opacity: 1 !important; }
+#labels > g { opacity: 1 !important; transition: opacity 0.2s; }
 /* dark ink with a hairline pale halo, as an atlas prints it */
 #labels text, #labels textPath, #labels tspan {
   fill: #26262b !important;
@@ -60,7 +61,7 @@ const STYLE = `
   text-transform: uppercase;
 }
 #labels > g[data-group="province"] :is(text, textPath, tspan) { fill: #5b5246 !important; }
-#labels > g[data-group="province"] { opacity: 0.85 !important; }
+
 #labels > g[data-group="river"] :is(text, textPath, tspan) {
   fill: #2c5d93 !important;
   stroke: #e9eef2 !important;
@@ -75,9 +76,11 @@ const STYLE = `
 #labels text.flHidden { visibility: hidden; }
 #burgIcons use { image-rendering: pixelated; }
 /* settlements come in by size as you zoom: cities and capitals first, towns in a region, villages close in */
-body[data-fl-tier="political"] #burgIcons use:is([href="#fl-village"], [href^="#fl-town"]) { display: none; }
-body[data-fl-tier="region"] #burgIcons use[href="#fl-village"] { display: none; }
-#burgIcons use { transition: opacity 0.25s; }
+/* settlements come in by size, fading as the zoom crosses each step */
+#burgIcons use[href^="#fl-town"] { opacity: var(--fl-o-townicon, 1); }
+#burgIcons use[href="#fl-village"] { opacity: var(--fl-o-villageicon, 1); }
+body[data-fl-tier="political"] #burgIcons use:is([href="#fl-village"], [href^="#fl-town"]) { pointer-events: none; }
+body[data-fl-tier="region"] #burgIcons use[href="#fl-village"] { pointer-events: none; }
 #burgIcons use:hover { filter: brightness(1.12) drop-shadow(0 0 1px #ffffff); }
 #burgIcons > g > g[data-group="anchors"] { display: none; }
 #burgIcons > g > g[data-group="icons"] {
@@ -88,6 +91,9 @@ body[data-fl-tier="region"] #burgIcons use[href="#fl-village"] { display: none; 
 ${Object.entries(TIERS)
   .filter(([, tier]) => tier.px)
   .map(([group]) => `#labels > g[data-group="${group}"] { font-size: var(--fl-${group}) !important; }`)
+  .join("\n")}
+${Object.keys(TIERS)
+  .map(group => `#labels > g[data-group="${group}"] { opacity: var(--fl-o-${group}, 1) !important; }`)
   .join("\n")}
 `;
 
@@ -182,6 +188,14 @@ export function applyLabelZoom(scale = viewport.scale): void {
   const art = scale < 1.4 ? 0.8 : 1; // small and crisp, as the sandbox draws them
   document.getElementById("burgIcons")?.style.setProperty("--fl-burg", `${(SYMBOL_BOX * art) / scale}px`);
   labels.style.setProperty("--fl-px", String(1 / scale));
+  // each group fades in over its first steps of zoom, and out over its last
+  const ramp = (min: number, max: number) =>
+    Math.max(0, Math.min(1, (scale - min) / FADE + (min ? 0 : 1), (max - scale) / FADE));
+  for (const [group, { min, max }] of Object.entries(TIERS))
+    labels.style.setProperty(`--fl-o-${group}`, String(ramp(min, max) * (group === "province" ? 0.85 : 1)));
+  const icons = document.getElementById("burgIcons");
+  icons?.style.setProperty("--fl-o-townicon", String(ramp(1.4, Infinity)));
+  icons?.style.setProperty("--fl-o-villageicon", String(ramp(2.6, Infinity)));
   document.body.dataset.flTier = scale < 1.4 ? "political" : scale < 2.6 ? "region" : "close";
   scheduleDeclutter();
 }

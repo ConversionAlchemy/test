@@ -2,6 +2,7 @@
 // manpower. A garrison is a hidden regiment tied to its settlement
 import type { Burg } from "@/generators/burgs-generator";
 import type { Regiment } from "@/generators/military-generator";
+import { courtRefusal } from "./court";
 import { raise } from "./forces/army";
 import { domainOfUnit, kitOf, rows, slotsOf, troopsOf, type Units } from "./forces/forces";
 import { KIT, type KitUnit, slotSize } from "./forces/kit";
@@ -236,7 +237,7 @@ export function setNationMoney(stateId: number, amount: number): void {
   state.treasury = Math.max(0, Math.round(amount));
 }
 
-function spend(burg: Burg, amount: number): void {
+export function spend(burg: Burg, amount: number): void {
   const state = pack.states[burg.state ?? 0];
   let left = amount;
   if (isCapital(burg) && state) {
@@ -411,6 +412,8 @@ export function recruitLimit(burg: Burg, kit: KitUnit): number {
 /** Raise `count` of a unit into the garrison: people from the settlement, money from its treasury */
 export function recruit(burg: Burg, kit: KitUnit, count: number): string {
   if (!recruitable(burg).includes(kit)) return "This settlement can't raise that unit";
+  const court = courtRefusal(burg);
+  if (court) return court;
   const n = Math.round(count);
   if (n <= 0) return "Enter an amount";
   if (n > recruitLimit(burg, kit)) return "Not enough room, manpower or money";

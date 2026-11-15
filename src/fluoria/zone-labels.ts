@@ -1,7 +1,9 @@
 // Named places on the map: forests, mountain ranges, lakes and islands. Forests and ranges are kept as hidden Azgaar
 // zones (so they save with the map); lakes and islands are Azgaar features. Hovering a name lights its ground,
 // double-clicking it edits the name in place
+import { curveBasisClosed, line } from "d3";
 import { viewport } from "@/components/viewport";
+import { getIsolines } from "@/utils/pathUtils";
 import { escapeHtml } from "@/utils/stringUtils";
 import { isForestBiome } from "./woods";
 
@@ -14,6 +16,19 @@ interface Named {
   x: number;
   y: number;
   cells: number[];
+  shape?: string; // the outline, smoothed
+}
+
+const smooth = line().curve(curveBasisClosed);
+
+/** A group of cells as one rounded shape: its outer rings through the cell corners, smoothed */
+function shapeOf(n: Named): string {
+  if (n.shape !== undefined) return n.shape;
+  const inside = new Uint8Array(pack.cells.i.length);
+  for (const c of n.cells) inside[c] = 1;
+  const rings = getIsolines(pack, c => inside[c] || null, { polygons: true })[1]?.polygons ?? [];
+  n.shape = rings.map(ring => smooth(ring as [number, number][]) ?? "").join("");
+  return n.shape;
 }
 
 let named: Named[] = [];
@@ -106,7 +121,10 @@ export function drawZones(rebuild = false): void {
     const hl = document.createElementNS(NS, "g");
     hl.id = "flZoneLight";
     hl.setAttribute("pointer-events", "none");
-    viewbox.append(hl, group);
+    const shapes = document.createElementNS(NS, "g");
+    shapes.id = "flZoneShapes";
+    shapes.setAttribute("pointer-events", "none");
+    viewbox.append(shapes, hl, group);
     group.addEventListener("pointerover", e => light((e.target as Element).closest("text")?.dataset.key));
     group.addEventListener("pointerout", () => light(undefined));
     group.addEventListener("dblclick", e => {
@@ -124,8 +142,23 @@ export function drawZones(rebuild = false): void {
           `<text x="${n.x}" y="${n.y}" data-key="${n.key}" text-anchor="middle" dy="0.35em">${escapeHtml(n.text)}</text>`
       )
       .join("");
-  group.style.fontSize = `${LABEL_PX / (viewport.scale || 1)}px`;
-  group.style.display = (viewport.scale || 1) >= 1.4 ? "" : "none";
+  const shapes = document.getElementById("flZoneShapes");
+  if (shapes && (rebuild || !shapes.childElementCount))
+    shapes.innerHTML = named
+      .filter(n => n.key.startsWith("z:"))
+      .map(
+        n =>
+          `<path d="${shapeOf(n)}" class="${/Forest$/.test(pack.zones[+n.key.slice(2)]?.type ?? "") ? "wood" : "peak"}"/>`
+      )
+      .join("");
+  const scale = viewport.scale || 1;
+  group.style.fontSize = `${LABEL_PX / scale}px`;
+  group.style.display = scale >= 1.4 ? "" : "none";
+  if (shapes) {
+    shapes.style.display = group.style.display;
+    shapes.style.strokeWidth = `${1 / scale}px`;
+    shapes.style.strokeDasharray = `${3 / scale} ${2 / scale}`;
+  }
 }
 
 /** Light the cells of a named place */
@@ -137,9 +170,7 @@ function light(key: string | undefined): void {
     hl.innerHTML = "";
     return;
   }
-  const { cells, vertices } = pack;
-  const d = n.cells.map(c => `M${cells.v[c].map(v => vertices.p[v].join(",")).join("L")}Z`).join("");
-  hl.innerHTML = `<path d="${d}" fill="#f4f0e4" fill-opacity="0.22" stroke="#f4f0e4" stroke-opacity="0.5" stroke-width="${1 / (viewport.scale || 1)}"/>`;
+  hl.innerHTML = `<path d="${shapeOf(n)}" fill="#f4f0e4" fill-opacity="0.22" stroke="#f4f0e4" stroke-opacity="0.6" stroke-width="${1.2 / (viewport.scale || 1)}"/>`;
 }
 
 /** Edit a name where it stands: an input over the label, Enter or leaving it keeps the change, Escape drops it */
@@ -188,6 +219,9 @@ const STYLE = `
 #flZones text { font-family: "IM Fell English", serif; font-style: italic; fill: #2f2a20; stroke: #f4f0e4; stroke-width: 0.14em;
   stroke-opacity: 0.75; paint-order: stroke; cursor: pointer; user-select: none; }
 #flZones text:hover { fill: #111; }
+#flZoneShapes path { fill: none; stroke-opacity: 0.45; }
+#flZoneShapes path.wood { stroke: #2c3d22; }
+#flZoneShapes path.peak { stroke: #3e3830; }
 .flZoneEdit { position: fixed; transform: translate(-50%, -50%); z-index: 1000; text-align: center; font: italic 14px "IM Fell English", serif;
   background: #f4f0e4; color: #26262b; border: 1px solid #26262b; padding: 2px 4px; outline: none; }
 `;

@@ -1,6 +1,7 @@
 // War on the map: occupation of enemy cells, pushing back the loser of a battle, surrender, and annexing.
 // A cell keeps its rightful owner (`pack.cells.state`); an occupier lists it in its `occupied`
 import type { Regiment } from "@/generators/military-generator";
+import { capitalAt, fell, vacate } from "./court";
 import { domainOf, isTransport, kitOf, slotsOf, troopsOf } from "./forces/forces";
 import { canStand } from "./movement";
 import { standing } from "./nation";
@@ -70,7 +71,9 @@ export function afterMove(regiment: Regiment): boolean {
   if (occupier === regiment.state) return false;
   if (atWar(regiment.state, occupier || owner)) {
     occupy(regiment.state, at);
-    takeProvince(regiment.state, at);
+    const fallen = capitalAt(at);
+    if (fallen && fallen === owner) fell(owner, regiment.state, occupy);
+    else takeProvince(regiment.state, at);
     return true;
   }
   return false;
@@ -89,6 +92,7 @@ export function takeProvince(state: number, cell: number): number {
   const p = provinceSeatAt(cell);
   if (!p) return 0;
   const owner = pack.cells.state[cell];
+  vacate(p);
   let n = 0;
   for (let i = 0; i < pack.cells.i.length; i++) {
     if (pack.cells.province[i] !== p || pack.cells.h[i] < 20 || mainCell(i) !== i) continue;
