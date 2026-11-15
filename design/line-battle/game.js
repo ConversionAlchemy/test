@@ -3,7 +3,9 @@
 (() => {
   const WW = 2400, WH = 1500; // world, in map pixels
   const R_SP = 9; // spacing between men in close order
-  const RANGE = 170, BALL = 520;
+  const RANGE = 170, BALL = 520, AMMO = 12;
+  // the chance a ball finds its man: good close in, poor at the edge of range, a long shot past it
+  const acc = d => Math.max(0.002, 0.55 * Math.exp(-d / 160));
   const WALK = 16, RUN = 30;
   const TIER = {
     conscript: { hp: 1, front: 0, ring: 0, r: 3.6, name: "Conscripts" },
@@ -80,6 +82,17 @@
       }
     g.putImageData(im, 0, 0);
   })();
+  // the settled fallen, painted once they stop fading
+  const stains = document.createElement("canvas");
+  stains.width = WW; stains.height = WH;
+  const sctx = stains.getContext("2d");
+  const STAIN = 0.45;
+  function bake(p) {
+    sctx.globalAlpha = STAIN;
+    sctx.fillStyle = `rgb(${p.c[0]},${p.c[1]},${p.c[2]})`;
+    if (p.len) { const c = Math.cos(p.ang), s = Math.sin(p.ang); for (let i = 0; i < p.len; i++) sctx.fillRect(Math.floor(p.x + c * i), Math.floor(p.y + s * i), 1, 1); }
+    else sctx.fillRect(Math.floor(p.x), Math.floor(p.y), 1, 1);
+  }
 
   // ---------- smoke: the sandbox's smoke field, coarser, thicker out of the muzzle ----------
   const SC = 3, SWd = Math.ceil(WW / SC), SHt = Math.ceil(WH / SC);
@@ -183,9 +196,9 @@
   // ---------- armies ----------
   let men = [], regs = [], balls = [], bits = [], flashes = [], nextId = 1;
   function makeReg(side, tier, n, x, y, face) {
-    const r = { id: nextId++, side, tier, n, form: "line", x, y, face, files: Math.max(Math.ceil(n / 3), 16), men: [], morale: 100, rout: false, hold: false, nextVolley: 0, groupFire: {}, n0: n };
+    const r = { id: nextId++, side, tier, n, charge: null, autoCharge: side === "red", form: "line", x, y, face, files: Math.max(Math.ceil(n / 3), 16), men: [], morale: 100, rout: false, hold: false, nextVolley: 0, groupFire: {}, n0: n };
     for (let i = 0; i < n; i++) {
-      const m = { id: nextId++, reg: r, side, tier, x, y, a: face, hp: TIER[tier].hp, loaded: true, reload: 0, kneel: false, chips: [], solo: false, tx: x, ty: y, ta: face, sp: 0.9 + Math.random() * 0.2, fireAt: 0, group: 0, alive: true, cache: null };
+      const m = { id: nextId++, reg: r, side, tier, x, y, a: face, hp: TIER[tier].hp, ammo: AMMO, meleeCd: 0, loaded: true, reload: 0, kneel: false, chips: [], solo: false, tx: x, ty: y, ta: face, sp: 0.9 + Math.random() * 0.2, fireAt: 0, group: 0, alive: true, cache: null };
       r.men.push(m);
       men.push(m);
     }
@@ -196,6 +209,7 @@
   function setup() {
     men = []; regs = []; balls = []; bits = []; flashes = [];
     smoke.fill(0);
+    sctx.clearRect(0, 0, WW, WH);
     const gy = 1050, ry = 520;
     const order = ["conscript", "line", "line", "heavy", "heavy", "line", "line", "conscript"];
     const sizes = [64, 64, 64, 64, 52, 64, 64, 64];
@@ -205,6 +219,7 @@
     makeReg("red", "heavy", 48, WW / 2 + 110, ry, Math.PI / 2);
     selected = new Set();
     soloSel = null;
+    buildCards();
     cam.x = WW / 2; cam.y = (gy + ry) / 2 + 40; cam.z = Math.max(0.6, Math.min(2, (VW - 40) / 1900));
   }
 
@@ -290,15 +305,16 @@
   };
   const alive = r => r.men.filter(m => m.alive).length;
 
-  function step(dt) {
+  function step(dt, ai) {
     time += dt;
     rebuildGrid();
+    for (const r of regs) chargeTick(r);
     // men walk or run to their places; a man far out of place runs
     for (const m of men) {
       if (!m.alive) continue;
       const dx = m.tx - m.x, dy = m.ty - m.y, d = Math.hypot(dx, dy);
       if (d > 0.6) {
-        const v = (d > 24 || m.reg.rout ? RUN : WALK) * m.sp * (m.reg.form === "column" ? 1.15 : 1);
+        const v = (d > 24 || m.reg.rout || m.reg.charge ? RUN : WALK) * m.sp * (m.reg.form === "column" ? 1.15 : 1);
         const st = Math.min(d, v * dt);
         m.x += (dx / d) * st; m.y += (dy / d) * st;
         m.a = turn(m.a, Math.atan2(dy, dx), dt * 8);
@@ -322,7 +338,8 @@
         if (d > 0 && d < 6) { const p = (6 - d) * 0.25; m.x += (dx / d) * p; m.y += (dy / d) * p; }
       });
     }
-    for (const r of regs) regTick(r, dt);
+    melee(dt);
+    for (const r of regs) regTick(r, dt, ai);
     // balls fly
     for (const b of balls) {
       b.t += dt;
@@ -334,6 +351,7 @@
     for (const f of flashes) f.t -= dt;
     flashes = flashes.filter(f => f.t > 0);
     for (const p of bits) {
+      p.age = (p.age || 0) + dt;
       if (p.v > 0) {
         p.x += p.vx * dt; p.y += p.vy * dt;
         const k = Math.pow(0.04, dt);
@@ -342,25 +360,32 @@
       }
       p.life -= dt;
     }
-    bits = bits.filter(p => p.life > 0);
+    // the fallen stay where they fell, fading to a stain; once faded they are painted into the ground for good
+    bits = bits.filter(p => {
+      if (p.life <= 0) return false;
+      if (p.keep && p.v === 0 && p.age > 20) { bake(p); return false; }
+      return true;
+    });
     smokeTick(dt);
   }
   const turn = (a, b, k) => { let d = Math.atan2(Math.sin(b - a), Math.cos(b - a)); return a + d * Math.min(1, k * 0.016 * 60); };
 
-  function regTick(r, dt) {
+  function regTick(r, dt, ai) {
     const live = r.men.filter(m => m.alive);
     if (!live.length) return;
     const strength = live.length / r.n0;
     if (!r.rout && (strength < 0.35 || r.morale < 20)) {
-      r.rout = true;
+      r.rout = true; r.charge = null;
       const c = centroid(r) || [r.x, r.y], away = r.side === "green" ? 1 : -1;
       for (const m of live) { m.solo = false; m.tx = m.x + (Math.random() - 0.5) * 80; m.ty = away > 0 ? WH + 60 : -60; }
       r.x = c[0]; r.y = away > 0 ? WH + 60 : -60;
     }
     if (r.rout) { for (const m of live) if (m.y < -40 || m.y > WH + 40) m.alive = false; return; }
     r.morale = Math.min(100, r.morale + dt * 0.8);
+    if (!ai) return; // paused: men still march, reload and fight hand to hand; nobody decides to fire
     if (r.side === "red") redThink(r);
-    if (r.hold || r.form === "column") return;
+    if (r.autoCharge && !r.charge && live.every(m => m.ammo <= 0)) startCharge(r);
+    if (r.hold || r.form === "column" || r.charge) return;
     // a block still on the move doesn't fire, bar the loose order
     const off = live.reduce((s, m) => s + Math.hypot(m.tx - m.x, m.ty - m.y), 0) / live.length;
     if (off > 5 && r.form !== "loose") return;
@@ -368,12 +393,12 @@
     const groups = new Map();
     for (const m of live) if (m.canFire && !m.solo) (groups.get(m.group) || groups.set(m.group, []).get(m.group)).push(m);
     for (const [g, L] of groups) {
-      const ready = L.filter(m => m.loaded);
+      const ready = L.filter(m => m.loaded && m.ammo > 0);
       if (!ready.length || ready.length < L.length * (r.form === "loose" ? 0 : 0.75)) continue;
       let cx = 0, cy = 0;
       for (const m of L) { cx += m.x; cy += m.y; }
       cx /= L.length; cy /= L.length;
-      const fa = L[0].ta, target = pickTarget(r.side, cx, cy, fa, r.form === "square" ? 0.95 : 0.85);
+      const fa = L[0].ta, target = pickTarget(r.side, cx, cy, fa, r.form === "square" ? 0.95 : 0.85, RANGE);
       if (!target) continue;
       for (const m of ready) m.fireAt = time + (r.form === "loose" ? Math.random() * 0.6 : Math.random() * 0.28);
       for (const m of ready) schedule(m, target);
@@ -382,8 +407,8 @@
     }
   }
   // the nearest enemy regiment in front, within range
-  function pickTarget(side, x, y, face, arc) {
-    let best = null, bd = RANGE;
+  function pickTarget(side, x, y, face, arc, range) {
+    let best = null, bd = range;
     for (const r of regs) {
       if (r.side === side || r.rout) continue;
       for (const m of r.men) {
@@ -398,16 +423,16 @@
   }
   function schedule(m, reg) { m.target = reg; m.pending = true; }
   function fire(m) {
-    m.pending = false;
+    m.pending = false; m.manual = false;
     const r = m.target;
-    if (!m.alive || !m.loaded || !r) return;
+    if (!m.alive || !m.loaded || m.ammo <= 0 || !r) return;
     // aim: three men of the target, the nearest of them
     const cand = r.men.filter(o => o.alive);
     if (!cand.length) return;
     let t = null, td = 1e9;
     for (let i = 0; i < 3; i++) { const o = cand[(Math.random() * cand.length) | 0], d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } }
-    if (td > RANGE * 1.05) return;
-    m.loaded = false; m.kneel = true; m.rlHeard = false;
+    if (td > 1400) return;
+    m.loaded = false; m.kneel = true; m.rlHeard = false; m.ammo--;
     m.reload = 8 + Math.random() * 2;
     const a = Math.atan2(t.y - m.y, t.x - m.x);
     m.a = a;
@@ -416,10 +441,10 @@
     plume(mx, my, a);
     flashes.push({ x: mx, y: my, t: 0.06 });
     shotSound(mx, my);
-    const p = Math.max(0.12, 0.55 - (td / RANGE) * 0.4) * (t.kneel ? 0.85 : 1);
+    const p = acc(td) * (t.kneel ? 0.85 : 1);
     const hit = Math.random() < p;
     let x1 = t.x, y1 = t.y;
-    if (!hit) { const s = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 10); x1 += -Math.sin(a) * s + Math.cos(a) * (Math.random() * 30); y1 += Math.cos(a) * s + Math.sin(a) * (Math.random() * 30); }
+    if (!hit) { const s = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * (10 + td / 20)); x1 += -Math.sin(a) * s + Math.cos(a) * (Math.random() * 30); y1 += Math.cos(a) * s + Math.sin(a) * (Math.random() * 30); }
     balls.push({ x0: mx, y0: my, x1, y1, x: mx, y: my, t: 0, dur: Math.hypot(x1 - mx, y1 - my) / BALL, hit, target: t, a, side: m.side });
   }
   function land(b) {
@@ -427,14 +452,16 @@
     if (!t) near(b.x1, b.y1, 4, o => { if (!t && o.alive && o.side !== b.side && Math.hypot(o.x - b.x1, o.y - b.y1) < 3.5) t = o; });
     if (!t) { dust(b.x1, b.y1); return; }
     // armour turns the ball on its side
-    const T = TIER[t.tier], faceOn = Math.cos(b.a + Math.PI - t.a) > Math.cos((75 * Math.PI) / 180);
-    const save = faceOn ? T.front : T.ring;
+    const T = TIER[t.tier], cosIn = Math.cos(b.a + Math.PI - t.a), faceOn = cosIn > Math.cos((75 * Math.PI) / 180);
+    const behind = cosIn < -0.26; // shot in the back: no armour there worth the name, and it tells on the block
+    const save = faceOn ? T.front : behind ? 0 : T.ring;
     if (Math.random() < save) {
       chip(t, b.a, true, 1);
       hitSound("plate", t.x, t.y);
       return;
     }
-    t.hp--;
+    t.hp -= behind ? 2 : 1;
+    if (behind) t.reg.morale -= 1.5;
     hitSound("flesh", t.x, t.y);
     if (t.hp <= 0) shatter(t, b.a);
     else chip(t, b.a, false, 2 + ((Math.random() * 2) | 0));
@@ -447,7 +474,7 @@
       const ang = rel + (Math.random() - 0.5) * 1.4, rr = T.r - 0.5 - Math.random() * (steel ? 0.6 : 1.6);
       m.chips.push([Math.cos(ang) * rr, Math.sin(ang) * rr]);
       const wa = m.a + ang, wx = m.x + Math.cos(wa) * rr, wy = m.y + Math.sin(wa) * rr;
-      bits.push({ x: wx, y: wy, vx: Math.cos(a) * (14 + Math.random() * 20) + (Math.random() - 0.5) * 12, vy: Math.sin(a) * (14 + Math.random() * 20) + (Math.random() - 0.5) * 12, v: 1, c: steel ? STEEL : SIDE[m.side].fill, life: 20, fade: 2 });
+      bits.push({ x: wx, y: wy, vx: Math.cos(a) * (14 + Math.random() * 20) + (Math.random() - 0.5) * 12, vy: Math.sin(a) * (14 + Math.random() * 20) + (Math.random() - 0.5) * 12, v: 1, c: steel ? STEEL : SIDE[m.side].fill, life: Infinity, keep: true });
     }
     m.cache = null;
     m.reg.morale -= steel ? 0.3 : 1.5;
@@ -461,10 +488,10 @@
       const ang = Math.random() * Math.PI * 2, rr = Math.random() * T.r;
       const kind = rr > T.r - 1 ? (m.tier === "heavy" || (m.tier === "line" && Math.cos(ang) > 0.25) ? STEEL : RIM) : col.fill;
       const sp = 10 + Math.random() * 34, dir = a + (Math.random() - 0.5) * 2.2;
-      bits.push({ x: m.x + Math.cos(ang) * rr, y: m.y + Math.sin(ang) * rr, vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp, v: 1, c: kind, life: 20 + Math.random() * 3, fade: 2.5 });
+      bits.push({ x: m.x + Math.cos(ang) * rr, y: m.y + Math.sin(ang) * rr, vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp, v: 1, c: kind, life: Infinity, keep: true });
     }
     // the musket falls
-    bits.push({ x: m.x, y: m.y, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, v: 1, c: [20, 20, 20], life: 21, fade: 2.5, len: 4, ang: m.a + (Math.random() - 0.5) });
+    bits.push({ x: m.x, y: m.y, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, v: 1, c: [20, 20, 20], life: Infinity, keep: true, len: 4, ang: m.a + (Math.random() - 0.5) });
     const r = m.reg, share = 100 / r.n0;
     r.morale -= share * 1.4;
     // a loss in the block shakes the regiments beside it a little
@@ -472,6 +499,89 @@
     layoutSoon.add(r);
   }
   const layoutSoon = new Set();
+
+  // ---------- charge and hand to hand ----------
+  function nearestReg(r, c) {
+    let best = null, bd = 1e9;
+    for (const o of regs) if (o.side !== r.side && !o.rout && alive(o)) { const k = centroid(o); if (k) { const d = Math.hypot(k[0] - c[0], k[1] - c[1]); if (d < bd) { bd = d; best = o; } } }
+    return best;
+  }
+  function startCharge(r) {
+    const c = centroid(r);
+    if (!c || r.rout) return;
+    const t = nearestReg(r, c);
+    if (!t) return;
+    r.charge = t;
+    for (const m of r.men) m.solo = false;
+  }
+  // every man runs at the nearest foe; when none is left close by, the block forms up where it stands
+  function chargeTick(r) {
+    if (!r.charge || r.rout) return;
+    const c = centroid(r);
+    if (!c) return;
+    if (r.charge.rout || !alive(r.charge)) r.charge = nearestReg(r, c);
+    const foes = r.charge ? r.charge.men.filter(m => m.alive) : [];
+    if (!foes.length || Math.hypot(...(centroid(r.charge) || [1e9, 1e9]).map((v, i) => v - c[i])) > 500) {
+      r.charge = null;
+      const t = nearestReg(r, c), k = t && centroid(t);
+      r.x = c[0]; r.y = c[1];
+      if (k) r.face = Math.atan2(k[1] - c[1], k[0] - c[0]);
+      layout(r);
+      return;
+    }
+    for (const m of r.men) {
+      if (!m.alive || m.solo) continue;
+      let t = null, td = 1e9;
+      near(m.x, m.y, 40, o => { if (o.alive && o.side !== m.side) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } } });
+      if (!t) for (const o of foes) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } }
+      const a = Math.atan2(t.y - m.y, t.x - m.x), stop = TIER[m.tier].r + TIER[t.tier].r - 1;
+      m.tx = t.x - Math.cos(a) * stop; m.ty = t.y - Math.sin(a) * stop; m.ta = a;
+    }
+  }
+  const BEHIND = -0.26;
+  function melee(dt) {
+    for (const m of men) {
+      if (!m.alive) continue;
+      m.meleeCd -= dt;
+      if (m.meleeCd > 0) continue;
+      let t = null, td = TIER[m.tier].r + 4.5;
+      near(m.x, m.y, 10, o => { if (o.alive && o.side !== m.side) { const d = Math.hypot(o.x - m.x, o.y - m.y); if (d < td) { td = d; t = o; } } });
+      if (!t) continue;
+      m.meleeCd = 1.1 + Math.random() * 0.4;
+      const a = Math.atan2(t.y - m.y, t.x - m.x);
+      m.a = a;
+      if (!m.reg.charge && !m.moving) m.ta = a;
+      m.melee = time;
+      if (Math.random() > (m.tier === "heavy" ? 0.6 : 0.5) * (t.reg.rout ? 1.5 : 1)) continue;
+      const T = TIER[t.tier], cosIn = Math.cos(a + Math.PI - t.a), behind = cosIn < BEHIND;
+      const save = behind ? 0 : (cosIn > 0.26 ? T.front : T.ring) * 0.6;
+      if (Math.random() < save) { chip(t, a, true, 1); hitSound("plate", t.x, t.y); continue; }
+      t.hp -= (m.tier === "heavy" ? 2 : 1) * (behind ? 2 : 1);
+      if (behind) t.reg.morale -= 2;
+      hitSound("flesh", t.x, t.y);
+      if (t.hp <= 0) shatter(t, a);
+      else chip(t, a, false, 2);
+    }
+  }
+
+  // ---------- volleys on command: every loaded man who can, at whatever is ahead, near or far ----------
+  function volley(r) {
+    const c = centroid(r);
+    if (!c || r.rout) return;
+    const live = r.men.filter(m => m.alive && !m.solo && m.canFire && m.loaded && m.ammo > 0);
+    const byGroup = new Map();
+    for (const m of live) (byGroup.get(m.group) || byGroup.set(m.group, []).get(m.group)).push(m);
+    let k = 0;
+    for (const [, L] of [...byGroup].sort((a, b) => String(a[0]).localeCompare(String(b[0])))) {
+      let cx = 0, cy = 0;
+      for (const m of L) { cx += m.x; cy += m.y; }
+      const target = pickTarget(r.side, cx / L.length, cy / L.length, L[0].ta, r.form === "square" ? 0.95 : 0.7, Infinity);
+      if (!target) continue;
+      const at = time + (r.form === "loose" || r.form === "square" ? 0 : k++ * 0.9);
+      for (const m of L) { m.fireAt = at + Math.random() * (r.form === "loose" ? 0.6 : 0.28); m.manual = true; schedule(m, target); }
+    }
+    r.nextVolley = time + 1;
+  }
 
   // red holds its ground and wheels to face the nearest threat
   function redThink(r) {
@@ -482,6 +592,7 @@
     let best = null, bd = 1e9;
     for (const o of regs) if (o.side !== r.side && !o.rout) { const k = centroid(o); if (k) { const d = Math.hypot(k[0] - c[0], k[1] - c[1]); if (d < bd) { bd = d; best = k; } } }
     if (!best) return;
+    if (bd < 45 && !r.charge) { startCharge(r); return; }
     const want = Math.atan2(best[1] - c[1], best[0] - c[0]);
     if (Math.abs(Math.atan2(Math.sin(want - r.face), Math.cos(want - r.face))) > (35 * Math.PI) / 180) {
       r.face = want; r.x = c[0]; r.y = c[1];
@@ -501,6 +612,7 @@
       for (const c of cs) { cx += c[0] / cs.length; cy += c[1] / cs.length; }
       const a = Math.atan2(y0 - cy, x0 - cx);
       L.forEach((r, i) => {
+        r.charge = null;
         const off = [cs[i][0] - cx, cs[i][1] - cy];
         // keep the regiments' spread, turned with the march
         const turnA = a - L[0].face;
@@ -522,7 +634,7 @@
     for (const r of sorted) {
       const share = (alive(r) / total) * len, mid = at + share / 2;
       at += share;
-      r.face = face;
+      r.face = face; r.charge = null;
       r.x = x0 + ux * mid; r.y = y0 + uy * mid;
       r.files = Math.max(2, Math.floor((share - 4) / R_SP) + 1);
       if (r.form === "column" || r.form === "square") r.form = "line";
@@ -551,7 +663,7 @@
       if (!alive(r) || r.rout) continue;
       const c = centroid(r);
       if (c) { r.x = c[0]; r.y = c[1]; }
-      r.form = f;
+      r.form = f; r.charge = null;
       if (f === "line") r.files = Math.max(Math.ceil(alive(r) / 3), 2);
       for (const m of r.men) m.solo = false;
       layout(r);
@@ -561,7 +673,32 @@
 
   // ---------- input ----------
   const toWorld = (sx, sy) => [(sx - VW / 2) / cam.z + cam.x, (sy - VH / 2) / cam.z + cam.y];
-  let drag = null, pan = null, spaceHeld = false, spacePanned = false;
+  let drag = null, pan = null, spaceHeld = false, spacePanned = false, hover = false;
+  // the front the selection will form on: follows the cursor, faces away from the selection, the wheel sets its width
+  let pw = null, pwKey = "";
+  const liveSel = () => [...selected].filter(r => alive(r) && !r.rout);
+  const frontOf = (n, files) => (files - 1) * R_SP + 6;
+  function widthBounds(L) {
+    let lo = 0, hi = 0;
+    for (const r of L) { const n = alive(r); lo += frontOf(n, Math.max(2, Math.ceil(n / 3))); hi += frontOf(n, Math.max(2, n)); }
+    return [Math.max(14, lo), hi];
+  }
+  const curWidth = L => L.reduce((s, r) => { const n = alive(r); return s + frontOf(n, r.form === "line" ? Math.max(r.files, Math.ceil(n / 3), 2) : Math.max(2, Math.ceil(n / 3))); }, 0);
+  function previewLine() {
+    const L = liveSel();
+    if (!L.length || soloSel || L.every(r => r.form === "square" || r.form === "column")) return null;
+    const key = L.map(r => r.id).join(",");
+    if (key !== pwKey) { pwKey = key; pw = curWidth(L); }
+    const [lo, hi] = widthBounds(L);
+    pw = Math.max(lo, Math.min(hi, pw));
+    const [mx, my] = toWorld(mouse[0], mouse[1]);
+    let cx = 0, cy = 0, n = 0;
+    for (const r of L) { const c = centroid(r); if (c) { cx += c[0]; cy += c[1]; n++; } }
+    cx /= n; cy /= n;
+    const face = Math.hypot(mx - cx, my - cy) > 30 ? Math.atan2(my - cy, mx - cx) : L[0].face;
+    const ux = -Math.sin(face), uy = Math.cos(face);
+    return { L, face, mx, my, x0: mx - (ux * pw) / 2, y0: my - (uy * pw) / 2, x1: mx + (ux * pw) / 2, y1: my + (uy * pw) / 2 };
+  }
   function regAt(wx, wy) {
     let best = null, bd = 6;
     for (const m of men) if (m.alive && m.side === "green") { const d = Math.hypot(m.x - wx, m.y - wy); if (d < bd) { bd = d; best = m; } }
@@ -585,8 +722,9 @@
       drag = { kind: "box", x0: wx, y0: wy, x1: wx, y1: wy, add: e.ctrlKey || e.metaKey || e.shiftKey };
     } else if (e.button === 2) drag = { kind: "order", x0: wx, y0: wy, x1: wx, y1: wy };
   });
+  cv.addEventListener("pointerleave", () => { hover = false; });
   cv.addEventListener("pointermove", e => {
-    mouse = [e.offsetX, e.offsetY];
+    mouse = [e.offsetX, e.offsetY]; hover = true;
     if (pan) { cam.x = pan.cx - (e.offsetX - pan.sx) / cam.z; cam.y = pan.cy - (e.offsetY - pan.sy) / cam.z; clampCam(); return; }
     if (!drag) return;
     [drag.x1, drag.y1] = toWorld(e.offsetX, e.offsetY);
@@ -611,10 +749,21 @@
       soloSel.ta = Math.hypot(d.x1 - d.x0, d.y1 - d.y0) > 8 ? Math.atan2(d.y1 - d.y0, d.x1 - d.x0) : Math.atan2(d.y0 - soloSel.y, d.x0 - soloSel.x);
       return;
     }
-    order([...selected], d.x0, d.y0, d.x1, d.y1);
+    const pl = Math.hypot(d.x1 - d.x0, d.y1 - d.y0) < 12 && previewLine();
+    if (pl) order(pl.L, pl.x0, pl.y0, pl.x1, pl.y1);
+    else order([...selected], d.x0, d.y0, d.x1, d.y1);
   });
+  const zoomAt = (sx, sy, f) => {
+    const [wx, wy] = toWorld(sx, sy);
+    cam.z = Math.max(0.6, Math.min(6, cam.z * f));
+    const [nx, ny] = toWorld(sx, sy);
+    cam.x += wx - nx; cam.y += wy - ny;
+    clampCam();
+  };
   cv.addEventListener("wheel", e => {
     e.preventDefault();
+    // pinch (ctrl), shift, or nothing selected: zoom; otherwise the wheel widens or narrows the front
+    if (!(e.ctrlKey || e.shiftKey) && previewLine()) { pw *= Math.exp(e.deltaY * 0.002); return; }
     const [wx, wy] = toWorld(e.offsetX, e.offsetY);
     cam.z = Math.max(0.6, Math.min(6, cam.z * Math.exp(-e.deltaY * 0.0015)));
     const [nx, ny] = toWorld(e.offsetX, e.offsetY);
@@ -629,6 +778,10 @@
     const F = { Digit1: "line", Digit2: "column", Digit3: "square", Digit4: "loose" }[e.code];
     if (F) setForm(F);
     if (e.code === "KeyH") toggleHold();
+    if (e.code === "KeyF") fireSel();
+    if (e.code === "KeyC") chargeSel();
+    if (e.code === "Equal" || e.code === "NumpadAdd") zoomAt(VW / 2, VH / 2, 1.25);
+    if (e.code === "Minus" || e.code === "NumpadSubtract") zoomAt(VW / 2, VH / 2, 0.8);
     if (e.code === "Escape") { selected = new Set(); soloSel = null; syncBar(); }
   });
   addEventListener("keyup", e => {
@@ -638,16 +791,75 @@
   const clampCam = () => { cam.x = Math.max(0, Math.min(WW, cam.x)); cam.y = Math.max(0, Math.min(WH, cam.y)); };
 
   // ---------- bar ----------
-  const bar = document.getElementById("bar");
-  const btn = id => bar.querySelector(`[data-k="${id}"]`);
+  const bar = document.getElementById("bar"), forms = document.getElementById("forms"), cardsEl = document.getElementById("cards");
+  const btn = id => document.querySelector(`[data-k="${id}"]`);
+  const fireSel = () => { for (const r of liveSel()) volley(r); };
+  const chargeSel = () => { for (const r of liveSel()) startCharge(r); };
   function setPaused(p) { paused = p; btn("play").textContent = paused ? "▶" : "❚❚"; btn("play").classList.toggle("on", !paused); }
   function toggleHold() { const any = [...selected].some(r => !r.hold); for (const r of selected) r.hold = any; syncBar(); }
   function syncBar() {
-    const forms = new Set([...selected].map(r => r.form));
-    for (const f of ["line", "column", "square", "loose"]) btn(f).classList.toggle("on", forms.size === 1 && forms.has(f));
+    const fs = new Set([...selected].map(r => r.form));
+    for (const f of ["line", "column", "square", "loose"]) btn(f).classList.toggle("on", fs.size === 1 && fs.has(f));
     btn("hold").classList.toggle("on", selected.size > 0 && [...selected].every(r => r.hold));
-    for (const b of bar.querySelectorAll(".sel")) b.disabled = !selected.size;
+    btn("charge").classList.toggle("on", selected.size > 0 && [...selected].every(r => r.charge));
+    forms.hidden = !selected.size;
+    updateCards();
   }
+  // ---------- unit cards: one per regiment, its marker, count, men left and powder left ----------
+  let cards = [];
+  function icon(r) {
+    const c = document.createElement("canvas"), k = 3;
+    c.width = c.height = S_SIZE * k;
+    const g = c.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    const f = (FACE * 3) / 4; // facing up
+    g.drawImage(sprite(r.side, r.tier, f, false, false), 0, 0, S_SIZE * k, S_SIZE * k);
+    g.fillStyle = "#141414";
+    const r0 = TIER[r.tier].r - 0.5;
+    for (let i = 0; i < 5; i++) g.fillRect(Math.floor(S_C) * k, Math.floor(S_C - r0 - i) * k, k, k);
+    return c;
+  }
+  function buildCards() {
+    cardsEl.innerHTML = "";
+    cards = regs.filter(r => r.side === "green").map(r => {
+      const el = document.createElement("button");
+      el.className = "card";
+      el.innerHTML = `<span class="tier">${r.tier[0].toUpperCase()}</span><span class="st"></span><span class="cnt"></span><span class="bar hp"><i></i></span><span class="bar am"><i></i></span>`;
+      el.prepend(icon(r));
+      el.addEventListener("click", e => {
+        soloSel = null;
+        if (e.ctrlKey || e.metaKey || e.shiftKey) { if (selected.has(r)) selected.delete(r); else selected.add(r); }
+        else selected = new Set([r]);
+        syncBar();
+        el.blur();
+      });
+      el.addEventListener("dblclick", () => { const c = centroid(r); if (c) { cam.x = c[0]; cam.y = c[1]; clampCam(); } });
+      cardsEl.append(el);
+      return { r, el, cnt: el.querySelector(".cnt"), st: el.querySelector(".st"), hp: el.querySelector(".hp i"), am: el.querySelector(".am i") };
+    });
+  }
+  function updateCards() {
+    for (const c of cards) {
+      const live = c.r.men.filter(m => m.alive), n = live.length;
+      c.cnt.textContent = n;
+      c.hp.style.width = `${(100 * n) / c.r.n0}%`;
+      c.am.style.width = `${n ? (100 * live.reduce((s, m) => s + m.ammo, 0)) / (n * AMMO) : 0}%`;
+      c.st.textContent = c.r.rout ? "!" : c.r.charge ? "»" : c.r.hold ? "❚❚" : "";
+      c.el.classList.toggle("on", selected.has(c.r));
+      c.el.classList.toggle("gone", !n || c.r.rout);
+      c.el.disabled = !n;
+    }
+  }
+  forms.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    const k = b.dataset.k;
+    if (k === "hold") toggleHold();
+    else if (k === "fire") fireSel();
+    else if (k === "charge") { chargeSel(); syncBar(); }
+    else setForm(k);
+    b.blur();
+  });
   bar.addEventListener("click", e => {
     const b = e.target.closest("button");
     if (!b) return;
@@ -657,7 +869,6 @@
     else if (k === "hold") toggleHold();
     else if (k === "reset") { setup(); setPaused(true); syncBar(); }
     else if (k === "snd") { mute = !mute; b.classList.toggle("off", mute); }
-    else setForm(k);
     b.blur();
   });
 
@@ -702,15 +913,39 @@
     ctx.setTransform(z, 0, 0, z, (VW / 2 - cam.x * cam.z) * dpr, (VH / 2 - cam.y * cam.z) * dpr);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(ground, 0, 0);
-    // fragments on the ground
+    ctx.drawImage(stains, 0, 0);
+    // fragments on the ground; the fallen fade to a stain over 20 s and stay
     for (const p of bits) {
-      const a = p.life < p.fade ? p.life / p.fade : 1;
+      const a = p.keep ? Math.max(STAIN, 1 - (p.age / 20) * (1 - STAIN)) : p.life < p.fade ? p.life / p.fade : 1;
       ctx.globalAlpha = a;
       ctx.fillStyle = `rgb(${p.c[0]},${p.c[1]},${p.c[2]})`;
       if (p.len) { const c = Math.cos(p.ang), s = Math.sin(p.ang); for (let i = 0; i < p.len; i++) ctx.fillRect(Math.floor(p.x + c * i), Math.floor(p.y + s * i), 1, 1); }
       else ctx.fillRect(Math.floor(p.x), Math.floor(p.y), 1, 1);
     }
     ctx.globalAlpha = 1;
+    // reach of the selected: where volleys tell (solid) and where a ball still might (dashed)
+    for (const r of selected) {
+      const c = centroid(r);
+      if (!c || r.rout || r.form === "column") continue;
+      const full = r.form === "square", a0 = r.face - (full ? Math.PI : 0.85), a1 = r.face + (full ? Math.PI : 0.85);
+      ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.arc(c[0], c[1], RANGE, a0, a1); ctx.closePath();
+      ctx.fillStyle = "rgba(250,250,235,0.06)"; ctx.fill();
+      ctx.lineWidth = 1 / cam.z; ctx.strokeStyle = "rgba(250,250,235,0.35)";
+      ctx.beginPath(); ctx.arc(c[0], c[1], RANGE, a0, a1); ctx.stroke();
+      ctx.setLineDash([4 / cam.z, 5 / cam.z]); ctx.strokeStyle = "rgba(250,250,235,0.18)";
+      ctx.beginPath(); ctx.arc(c[0], c[1], RANGE * 2, a0, a1); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // the front under the cursor
+    const pl = hover && !drag && !pan && previewLine();
+    if (pl) {
+      ctx.fillStyle = "rgba(255,255,240,0.45)";
+      for (const [x, y] of ghost(pl.L, pl.x0, pl.y0, pl.x1, pl.y1)) ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
+      const fx = Math.cos(pl.face) * 7, fy = Math.sin(pl.face) * 7;
+      ctx.strokeStyle = "rgba(255,255,240,0.85)"; ctx.lineWidth = 1.5 / cam.z;
+      ctx.beginPath(); ctx.moveTo(pl.x0 + fx, pl.y0 + fy); ctx.lineTo(pl.x1 + fx, pl.y1 + fy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pl.mx + fx, pl.my + fy); ctx.lineTo(pl.mx + fx * 2.2, pl.my + fy * 2.2); ctx.stroke();
+    }
     // order preview
     if (drag && drag.kind === "order" && !soloSel) {
       ctx.fillStyle = "rgba(255,255,240,0.55)";
@@ -751,7 +986,7 @@
       for (const m of r.men) if (m.alive && !m.solo) top = Math.min(top, m.y);
       const sx = (c[0] - cam.x) * cam.z + VW / 2, sy = (top - cam.y) * cam.z + VH / 2 - 14;
       if (sx < -40 || sx > VW + 40 || sy < -20 || sy > VH + 20) continue;
-      const label = `${r.tier === "conscript" ? "C" : r.tier === "line" ? "L" : "H"} ${alive(r)}${r.rout ? " !" : ""}`;
+      const label = `${r.tier === "conscript" ? "C" : r.tier === "line" ? "L" : "H"} ${alive(r)}${r.rout ? " !" : r.charge ? " »" : ""}`;
       const w = ctx.measureText(label).width + 10;
       ctx.fillStyle = selected.has(r) ? "#f2efe6" : "rgba(20,20,22,0.82)";
       ctx.fillRect(Math.round(sx - w / 2) - 1, Math.round(sy - 8) - 1, Math.round(w) + 2, 18);
@@ -764,7 +999,7 @@
   }
 
   // ---------- loop ----------
-  let last = performance.now(), frameMs = 0;
+  let last = performance.now(), frameMs = 0, cardT = 0;
   const stat = document.getElementById("stat");
   function loop(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
@@ -776,14 +1011,15 @@
     if (keys.has("ArrowRight") || keys.has("KeyD")) cam.x += pv;
     if (keys.has("ArrowUp") || keys.has("KeyW")) cam.y -= pv;
     if (keys.has("ArrowDown") || keys.has("KeyS")) cam.y += pv;
-    if (!paused) {
+    // paused stops only the AI and the volleys it calls; orders, marching, reloading and fighting go on
+    {
       const sdt = dt * speed;
-      // shots go off at their own moment inside a volley
-      for (const m of men) if (m.pending && m.fireAt <= time + sdt) fire(m);
-      step(sdt);
-      for (const r of layoutSoon) if (!r.rout) { const live = r.men.filter(m => m.alive && !m.solo); if (live.length) layout(r); }
+      for (const m of men) if (m.pending && m.fireAt <= time + sdt && (!paused || m.manual)) fire(m);
+      step(sdt, !paused);
+      for (const r of layoutSoon) if (!r.rout && !r.charge) { const live = r.men.filter(m => m.alive && !m.solo); if (live.length) layout(r); }
       layoutSoon.clear();
     }
+    if ((cardT -= dt) <= 0) { cardT = 0.2; updateCards(); }
     draw();
     frameMs = frameMs * 0.9 + (performance.now() - t0) * 0.1;
     const g = men.filter(m => m.alive && m.side === "green").length, rd = men.filter(m => m.alive && m.side === "red").length;
@@ -795,6 +1031,6 @@
   resize();
   setup();
   syncBar();
-  window.__lb = { regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
+  window.__lb = { startCharge, volley, fireSel, chargeSel, previewLine, step, setMouse: (x, y) => { mouse = [x, y]; hover = true; }, pw: v => (v == null ? pw : (pw = v)), regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
   requestAnimationFrame(loop);
 })();
