@@ -26,14 +26,13 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1 "VT323
 #dock button { font: inherit; color: var(--text); background: #1b1b1e; border: 1px solid var(--line); padding: 3px 9px; cursor: pointer; }
 #dock button:hover:not(:disabled) { border-color: var(--dim); }
 #forms button.on { background: var(--on); color: #151515; border-color: var(--on); }
-#cards { display: flex; gap: 3px; overflow-x: auto; max-width: 100%; background: var(--panel); border: 1px solid var(--line); padding: 4px; }
+#cards { display: flex; gap: 3px; overflow-x: auto; max-width: 100%; background: #141416; border: 1px solid var(--line); padding: 4px; }
 #cards:empty { display: none; }
-#dock .card { position: relative; flex: none; width: 54px; height: 70px; padding: 0; display: block; background: #1b1b1e; }
+#dock .card { position: relative; flex: none; width: 54px; height: 70px; padding: 0; display: block; background: #2c2d30; }
 #dock .card canvas { position: absolute; left: 7px; top: 14px; width: 40px; height: 26px; }
-#dock .card canvas.crk { left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 #dock .card.on { border-color: var(--on); box-shadow: inset 0 0 0 1px var(--on); background: #2e2f2a; }
-#dock .card.gone { opacity: .5; transform: rotate(-3deg) translateY(4px); clip-path: polygon(0 0, 100% 0, 100% 58%, 82% 66%, 64% 58%, 44% 70%, 22% 60%, 0 52%); }
-#dock .card.gone canvas:not(.crk) { filter: grayscale(1) brightness(.8); }
+#dock .card.gone { opacity: .55; transform: rotate(-3deg) translateY(4px); }
+#dock .card.gone canvas { filter: grayscale(1) brightness(.8); }
 #dock .card.gone .hp i { background: #77766f; }
 #dock .card:disabled { cursor: default; }
 .card .st { position: absolute; right: 3px; top: 2px; font-size: 15px; color: var(--on); }

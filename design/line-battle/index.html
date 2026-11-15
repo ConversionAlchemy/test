@@ -26,14 +26,13 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1 "VT323
 #dock button { font: inherit; color: var(--text); background: #1b1b1e; border: 1px solid var(--line); padding: 3px 9px; cursor: pointer; }
 #dock button:hover:not(:disabled) { border-color: var(--dim); }
 #forms button.on { background: var(--on); color: #151515; border-color: var(--on); }
-#cards { display: flex; gap: 3px; overflow-x: auto; max-width: 100%; background: var(--panel); border: 1px solid var(--line); padding: 4px; }
+#cards { display: flex; gap: 3px; overflow-x: auto; max-width: 100%; background: #141416; border: 1px solid var(--line); padding: 4px; }
 #cards:empty { display: none; }
-#dock .card { position: relative; flex: none; width: 54px; height: 70px; padding: 0; display: block; background: #1b1b1e; }
+#dock .card { position: relative; flex: none; width: 54px; height: 70px; padding: 0; display: block; background: #2c2d30; }
 #dock .card canvas { position: absolute; left: 7px; top: 14px; width: 40px; height: 26px; }
-#dock .card canvas.crk { left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 #dock .card.on { border-color: var(--on); box-shadow: inset 0 0 0 1px var(--on); background: #2e2f2a; }
-#dock .card.gone { opacity: .5; transform: rotate(-3deg) translateY(4px); clip-path: polygon(0 0, 100% 0, 100% 58%, 82% 66%, 64% 58%, 44% 70%, 22% 60%, 0 52%); }
-#dock .card.gone canvas:not(.crk) { filter: grayscale(1) brightness(.8); }
+#dock .card.gone { opacity: .55; transform: rotate(-3deg) translateY(4px); }
+#dock .card.gone canvas { filter: grayscale(1) brightness(.8); }
 #dock .card.gone .hp i { background: #77766f; }
 #dock .card:disabled { cursor: default; }
 .card .st { position: absolute; right: 3px; top: 2px; font-size: 15px; color: var(--on); }
@@ -395,7 +394,23 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const sx = (x - cam.x) * cam.z, sy = (y - cam.y) * cam.z, d = Math.hypot(sx, sy) / Math.max(VW, VH);
     return Math.max(0, 1 - d * 0.9) * Math.min(1, cam.z / 1.5 + 0.3);
   };
-  function shotSound(x, y) { if (audible(x, y) > 0.15) SND.at("musket", x, y); }
+  // muskets heard from high up and far off: the air takes the snap, leaving a dry crackle and a low thump,
+  // and a volley rolls on as one echo
+  let crN = 0, crT = 0, voN = 0, voT = 0;
+  function shotSound(x, y) {
+    const v = audible(x, y);
+    if (v < 0.06 || mute || !gest) return;
+    const n = performance.now();
+    if (n - crT > 100) { crT = n; crN = 0; }
+    if (++crN > 9) return;
+    const far = 1 - v, j = () => 0.75 + Math.random() * 0.5;
+    noise(0.025 + Math.random() * 0.035, (1250 - far * 600) * j(), 0.9, (0.18 + 0.32 * v) * j(), "bandpass", 0.5);
+    if (Math.random() < 0.5) setTimeout(() => noise(0.02, (900 - far * 300) * j(), 1.2, (0.1 + 0.15 * v) * j(), "bandpass", 0.5), 12 + Math.random() * 30);
+    noise(0.09 + Math.random() * 0.08, (210 - far * 60) * j(), 0.7, 0.4 * v * j(), "lowpass", 0.55);
+    if (n - voT > 260) voN = 0;
+    voT = n;
+    if (++voN === 6) noise(1.4, 120, 0.6, 0.45 * v, "lowpass", 0.85);
+  }
   function hitSound(kind, x, y) {
     const v = audible(x, y);
     const n = performance.now();
@@ -1414,8 +1429,37 @@ SFX.mhit=()=>SND.mhit(SVOL);
     c.getContext("2d").drawImage(wornSign(r, 36, 22, k, broken ? "#8b8a84" : SIDE[r.side].ui, level, broken), 2 * k, 2 * k);
     return c;
   }
-  // the sign wears with the regiment: notches knocked out of its edge, cracks running in from them, split clean across when it breaks
+  // wear is pixels lost, not marks drawn on: bites eaten in from the edge, a few pits, and a clean break when it routs
   const wear = r => { const n = alive(r); return n ? Math.round((1 - n / r.n0) * 7) : 7; };
+  function bites(seed, gw, gh, level, broken, big) {
+    const R = rngOf(seed), gone = new Uint8Array(gw * gh);
+    const kill = (x, y) => { if (x >= 0 && y >= 0 && x < gw && y < gh) gone[y * gw + x] = 1; };
+    const edgeCell = () => {
+      const t = (R() * 2 * (gw + gh)) | 0;
+      return t < gw ? [t, 0, 0, 1] : t < gw + gh ? [gw - 1, t - gw, -1, 0] : t < 2 * gw + gh ? [2 * gw + gh - t - 1, gh - 1, 0, -1] : [0, 2 * (gw + gh) - t - 1, 1, 0];
+    };
+    for (let i = 0; i < level * (big ? 2 : 1); i++) {
+      // one bite: a ragged clump chewed inward from the edge
+      let [x, y, nx, ny] = edgeCell();
+      const n = (big ? 6 : 2) + ((R() * (big ? 14 : 5)) | 0);
+      for (let k = 0; k < n; k++) {
+        kill(x, y);
+        if (R() < 0.5) kill(x + ny, y + nx);
+        const q = R();
+        if (q < 0.45) { x += nx; y += ny; } else if (q < 0.72) { x += ny; y += nx; } else { x -= ny; y -= nx; }
+      }
+      for (let k = 0; k < 2; k++) { const [px, py, ix, iy] = edgeCell(), d = (R() * 2) | 0; kill(px + ix * d, py + iy * d); }
+    }
+    if (broken) {
+      // split across, and the lower corner beyond the split is gone
+      let y = (gh * (0.35 + R() * 0.15)) | 0;
+      const path = [];
+      for (let x = 0; x < gw; x++) { if (R() < 0.45) y += R() < 0.5 ? -1 : 1; y = Math.max(2, Math.min(gh - 3, y)); path.push(y); kill(x, y); if (R() < 0.4) kill(x, y + 1); }
+      const from = (gw * (0.45 + R() * 0.2)) | 0;
+      for (let x = from; x < gw; x++) for (let yy = path[x] + 1; yy < gh; yy++) if (x > from + 2 || yy > path[x] + 1 + (gw - x) * 0.15 * R()) kill(x, yy);
+    }
+    return gone;
+  }
   function wornSign(r, w, h, sc, fill, level, broken) {
     const key = `${w}|${sc}|${fill}|${level}|${broken}`;
     if (r.sgnKey !== `${level}${broken}`) { r.sgnKey = `${level}${broken}`; r.sgn = {}; }
@@ -1425,73 +1469,36 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const g = c.getContext("2d");
     g.scale(sc, sc);
     sign(g, r, 0, 0, w, h, fill);
-    const R = rngOf(r.id * 104729), u = h / 16;
-    const path = (pts, lw, col) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); };
-    const edge = () => {
-      const t = R() * 2 * (w + h);
-      return t < w ? [t, 0, 0, 1] : t < w + h ? [w, t - w, -1, 0] : t < 2 * w + h ? [2 * w + h - t, h, 0, -1] : [0, 2 * (w + h) - t, 1, 0];
-    };
-    for (let i = 0; i < Math.min(level, 7); i++) {
-      const [x, y, nx, ny] = edge(), sz = (1.6 + R() * 2.4) * u, tx = -ny, ty = nx;
-      g.globalCompositeOperation = "destination-out";
-      g.beginPath(); g.moveTo(x - tx * sz, y - ty * sz); g.lineTo(x + nx * sz * 0.9, y + ny * sz * 0.9); g.lineTo(x + tx * sz * 0.7, y + ty * sz * 0.7); g.closePath(); g.fill();
-      g.globalCompositeOperation = "source-over";
-      const pts = [[x + nx * sz * 0.9, y + ny * sz * 0.9]];
-      let px = pts[0][0], py = pts[0][1];
-      for (let k = 0; k < 2 + ((R() * 2) | 0); k++) { px += nx * (2 + R() * 3) * u + (R() - 0.5) * 3 * u; py += ny * (2 + R() * 3) * u + (R() - 0.5) * 3 * u; pts.push([px, py]); }
-      path(pts, 1.1 * u, "#0b0b0d");
-      path(pts.map(([a, b]) => [a + 0.6 * u, b + 0.6 * u]), 0.6 * u, "rgba(255,250,235,0.55)");
-    }
-    if (broken) {
-      const pts = [[0, h * (0.3 + R() * 0.15)]];
-      for (let k = 1; k < 5; k++) pts.push([(w * k) / 5, h * (0.35 + R() * 0.35)]);
-      pts.push([w, h * (0.55 + R() * 0.15)]);
-      g.globalCompositeOperation = "destination-out";
-      path(pts, 1.8 * u, "#000");
-      g.beginPath(); g.moveTo(w, h); g.lineTo(w, pts[5][1]); g.lineTo(pts[4][0], pts[4][1]); g.lineTo(w * 0.7, h); g.closePath(); g.fill();
-      g.globalCompositeOperation = "source-over";
-    }
+    // the sign's own pixel grid, one cell a sign pixel at field size
+    const u = h / 16, gw = Math.round(w / u), gh = 16, gone = bites(r.id * 104729, gw, gh, level, broken, false);
+    g.globalCompositeOperation = "destination-out";
+    for (let i = 0; i < gone.length; i++) if (gone[i]) g.fillRect((i % gw) * u, ((i / gw) | 0) * u, u, u);
+    g.globalCompositeOperation = "source-over";
     return (r.sgn[key] = c);
   }
-  function cracks(cv, r, level, broken) {
-    const g = cv.getContext("2d"), W = cv.width, H = cv.height;
-    g.clearRect(0, 0, W, H);
-    const R = rngOf(r.id * 7919);
-    const line = pts => {
-      g.lineJoin = "miter";
-      g.strokeStyle = "#0b0b0d"; g.lineWidth = 2; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
-      g.strokeStyle = "rgba(236,232,220,0.7)"; g.lineWidth = 1; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x + 1, y + 1) : g.moveTo(x + 1, y + 1))); g.stroke();
-    };
-    for (let i = 0; i < level; i++) {
-      const e = (R() * 4) | 0, t = R();
-      let x = e === 0 ? t * W : e === 1 ? W : e === 2 ? t * W : 0, y = e === 0 ? 0 : e === 1 ? t * H : e === 2 ? H : t * H;
-      const pts = [[x, y]], tx = W * (0.3 + R() * 0.4), ty = H * (0.3 + R() * 0.4), n = 3 + ((R() * 3) | 0);
-      for (let s = 1; s <= n; s++) { x += (tx - x) / (n - s + 1.5) + (R() - 0.5) * 10; y += (ty - y) / (n - s + 1.5) + (R() - 0.5) * 10; pts.push([x, y]); }
-      line(pts);
-      // the corner the crack came from is knocked off
-      g.fillStyle = "#26272a";
-      const [x0, y0] = pts[0], s0 = 4 + R() * 5;
-      g.beginPath(); g.moveTo(x0 - s0, y0); g.lineTo(x0, y0 - s0); g.lineTo(x0 + s0, y0); g.lineTo(x0, y0 + s0); g.closePath(); g.fill();
-    }
-    if (broken) {
-      // a break right across, the corner beyond it knocked out
-      const pts = [[0, H * 0.35]];
-      for (let s = 1; s < 6; s++) pts.push([(W * s) / 6, H * 0.35 + (R() - 0.5) * 14 + s * 4]);
-      pts.push([W, H * 0.62]);
-      line(pts);
-    }
+  // the card itself loses pixels, two screen pixels to a cell
+  function cardMask(el, r, level, broken) {
+    const gw = 27, gh = 35, gone = bites(r.id * 7919, gw, gh, level, broken, true);
+    const c = document.createElement("canvas");
+    c.width = gw * 2; c.height = gh * 2;
+    const g = c.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    for (let i = 0; i < gone.length; i++) if (gone[i]) g.clearRect((i % gw) * 2, ((i / gw) | 0) * 2, 2, 2);
+    const url = `url(${c.toDataURL()})`;
+    el.style.webkitMaskImage = el.style.maskImage = url;
+    el.style.webkitMaskSize = el.style.maskSize = "100% 100%";
   }
   function buildCards() {
     cardsEl.innerHTML = "";
     cards = regs.filter(r => r.side === me).map((r, i) => {
       const el = document.createElement("button");
       el.className = "card";
-      el.innerHTML = `<span class="st"></span><span class="cnt"></span><span class="bar hp"><i></i></span><span class="bar am"><i></i></span><canvas class="crk" width="54" height="70"></canvas>`;
+      el.innerHTML = `<span class="st"></span><span class="cnt"></span><span class="bar hp"><i></i></span><span class="bar am"><i></i></span>`;
       el.prepend(icon(r));
       el.dataset.i = i;
       el.addEventListener("dblclick", () => { const c = centroid(r); if (c) { cam.x = c[0]; cam.y = c[1]; clampCam(); } });
       cardsEl.append(el);
-      return { r, el, crk: el.querySelector(".crk"), lv: -1, cnt: el.querySelector(".cnt"), st: el.querySelector(".st"), hp: el.querySelector(".hp i"), am: el.querySelector(".am i") };
+      return { r, el, lv: -1, cnt: el.querySelector(".cnt"), st: el.querySelector(".st"), hp: el.querySelector(".hp i"), am: el.querySelector(".am i") };
     });
   }
   // press a card to select it; sweep across others to take them too; Ctrl/Shift adds to what was held
@@ -1567,9 +1574,8 @@ SFX.mhit=()=>SND.mhit(SVOL);
       const broken = !n || c.r.rout || !!c.r.gun?.dead, lv = broken ? 99 : Math.round((1 - n / c.r.n0) * 7);
       if (lv !== c.lv) {
         c.lv = lv;
-        cracks(c.crk, c.r, Math.min(lv, 7), broken);
-        const ic = icon(c.r, wear(c.r), broken);
-        c.el.querySelector("canvas:not(.crk)").replaceWith(ic);
+        cardMask(c.el, c.r, Math.min(lv, 7), broken);
+        c.el.querySelector("canvas").replaceWith(icon(c.r, wear(c.r), broken));
       }
       c.el.disabled = broken;
       c.el.classList.toggle("gone", broken);
