@@ -107,7 +107,7 @@ class OptionsModel {
         performance: { shapeRendering: "optimizeSpeed", stateHalos: false, viewportRedraw: "continuous" }, // "balance"
         onLoad: "random",
         language: "",
-        zoomExtent: { min: 1, max: 20 },
+        zoomExtent: { min: 1, max: 4 }, // Fluoria: closest in, the scale bar reads 2 miles
         viewport: null,
         autosave: { interval: 15, remind: true },
         ui: {

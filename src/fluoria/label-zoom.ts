@@ -17,19 +17,19 @@ interface Tier {
 
 // political view shows states alone; regions add provinces and big towns; close in, everything
 const TIERS: Record<string, Tier> = {
-  state: { min: 0, max: 4.5, rank: 0 },
-  capital: { min: 1.6, max: Infinity, px: 20, rank: 1 },
-  city: { min: 1.6, max: Infinity, px: 17, rank: 2 },
-  province: { min: 1.6, max: 12, rank: 3 },
-  town: { min: 4.5, max: Infinity, px: 16, rank: 4 },
-  village: { min: 4.5, max: Infinity, px: 15, rank: 5 },
-  hamlet: { min: 6, max: Infinity, px: 14, rank: 6 },
-  fort: { min: 6, max: Infinity, px: 14, rank: 6 },
-  monastery: { min: 6, max: Infinity, px: 14, rank: 6 },
-  trading_post: { min: 6, max: Infinity, px: 14, rank: 6 },
-  caravanserai: { min: 6, max: Infinity, px: 14, rank: 6 },
-  route: { min: 8, max: Infinity, px: 13, rank: 7 },
-  river: { min: 8, max: Infinity, px: 13, rank: 8 }
+  state: { min: 0, max: 2.2, rank: 0 },
+  capital: { min: 1, max: Infinity, px: 20, rank: 1 },
+  city: { min: 1.4, max: Infinity, px: 17, rank: 2 },
+  province: { min: 1.4, max: Infinity, rank: 3 },
+  town: { min: 1.8, max: Infinity, px: 16, rank: 4 },
+  village: { min: 2.6, max: Infinity, px: 15, rank: 5 },
+  hamlet: { min: 3, max: Infinity, px: 14, rank: 6 },
+  fort: { min: 3, max: Infinity, px: 14, rank: 6 },
+  monastery: { min: 3, max: Infinity, px: 14, rank: 6 },
+  trading_post: { min: 3, max: Infinity, px: 14, rank: 6 },
+  caravanserai: { min: 3, max: Infinity, px: 14, rank: 6 },
+  route: { min: 3, max: Infinity, px: 13, rank: 7 },
+  river: { min: 3, max: Infinity, px: 13, rank: 8 }
 };
 
 const GROWTH = 0.3; // labels grow with zoom, much slower than the map
@@ -96,14 +96,13 @@ ${Object.entries(TIERS)
 const DARK = "#26262b";
 const LIGHT = "#f4f1e8";
 const CAPITAL_RED = "#a83424";
-const GLYPHS: Record<SettlementClass, string[]> = {
+export const GLYPHS: Record<SettlementClass, string[]> = {
   barracks: ["#...#", ".#.#.", "..#..", ".#.#.", "#...#"],
   armoury: [".###.", "#...#", "#...#", "#...#", ".###."],
   harbour: ["..#..", "#####", "..#..", "#.#.#", ".###."],
   airbase: ["..#..", "#####", "..#..", "..#..", ".###."],
   market: [".####", "#....", ".###.", "....#", "####."]
 };
-const CENTRE = ["###", "###", "###"]; // a city with no class
 
 // every paint property on the shapes, so none of the group styles Azgaar puts on the icons leaks in
 const rect = (x: number, y: number, w: number, h: number, fill: string) =>
@@ -112,19 +111,14 @@ const rect = (x: number, y: number, w: number, h: number, fill: string) =>
 /** One symbol on the box's pixel grid; a clear margin round it makes it easy to hover and drop on */
 function symbol(id: string, rank: Rank | "capital", c: SettlementClass | null): string {
   const side = SYMBOL[rank];
-  const border = side >= SYMBOL.citadel ? 2 : 1;
-  const o = (SYMBOL_BOX - side) / 2;
-  const fill = rank === "capital" ? CAPITAL_RED : LIGHT;
-  const ink = rank === "capital" ? LIGHT : DARK;
-  const art = c ? GLYPHS[c] : rank === "city" ? CENTRE : null;
-  let pixels = rect(o, o, side, side, DARK) + rect(o + border, o + border, side - border * 2, side - border * 2, fill);
-  if (art && side - border * 2 >= art.length + 2) {
-    const g = (SYMBOL_BOX - art.length) / 2;
-    art.forEach((row, y) => {
-      for (const [x, cell] of [...row].entries()) if (cell === "#") pixels += rect(g + x, g + y, 1, 1, ink);
-    });
-  }
-  return `<symbol id="fl-${id}" data-v="3" viewBox="0 0 ${SYMBOL_BOX} ${SYMBOL_BOX}" overflow="visible" shape-rendering="crispEdges"><rect x="-3" y="-3" width="${SYMBOL_BOX + 6}" height="${SYMBOL_BOX + 6}" fill="none" stroke="none" pointer-events="all"/>${pixels}</symbol>`;
+  // the sandbox markers: a capital a dark-framed red square, towns and cities plain white squares, a village a black one
+  const border = rank === "capital" ? 2 : 1;
+  const o = Math.floor((SYMBOL_BOX - side) / 2);
+  const fill = rank === "capital" ? CAPITAL_RED : rank === "village" ? DARK : LIGHT;
+  void c; // class glyphs (GLYPHS) are kept for the burg panel, not drawn on the map
+  const pixels =
+    rect(o, o, side, side, DARK) + rect(o + border, o + border, side - border * 2, side - border * 2, fill);
+  return `<symbol id="fl-${id}" data-v="4" viewBox="0 0 ${SYMBOL_BOX} ${SYMBOL_BOX}" overflow="visible" shape-rendering="crispEdges"><rect x="-3" y="-3" width="${SYMBOL_BOX + 6}" height="${SYMBOL_BOX + 6}" fill="none" stroke="none" pointer-events="all"/>${pixels}</symbol>`;
 }
 
 const SYMBOLS = [
@@ -185,10 +179,10 @@ export function applyLabelZoom(scale = viewport.scale): void {
     labels.style.setProperty(`--fl-${group}`, `${screen / scale}px`);
   }
   // symbols keep their size on screen, pixel for pixel with the unit cards; at the political view half that
-  const art = scale < 1.6 ? 1 : ART_PX;
+  const art = scale < 1.4 ? 0.8 : 1; // small and crisp, as the sandbox draws them
   document.getElementById("burgIcons")?.style.setProperty("--fl-burg", `${(SYMBOL_BOX * art) / scale}px`);
   labels.style.setProperty("--fl-px", String(1 / scale));
-  document.body.dataset.flTier = scale < 1.6 ? "political" : scale < 4.5 ? "region" : "close";
+  document.body.dataset.flTier = scale < 1.4 ? "political" : scale < 2.6 ? "region" : "close";
   scheduleDeclutter();
 }
 

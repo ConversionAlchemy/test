@@ -28,6 +28,7 @@ import { collectSeas } from "./sea-names";
 import { evictNonInfantry, foldCapitalPurses, garrisonLoners, seedManpower } from "./settlements";
 import { applyUnitZoom, snapAll, snapMarkers, stackAll } from "./units";
 import { spreadCrowds } from "./war";
+import { collectZones, drawZones } from "./zone-labels";
 
 type PixelMapModule = typeof import("./pixel-map")["PixelMapLayer"];
 
@@ -44,6 +45,7 @@ const load = (): Promise<PixelMapModule> => {
       applyLabelZoom();
       applyUnitZoom(viewport.scale);
       drawIslands();
+      drawZones();
     });
     setPixelMapDimmer(map.dim);
     setPixelMapHighlighter(map.highlight);
@@ -67,6 +69,7 @@ Layers.onDraw(ids => {
     stackAll();
   }
   if (ids.some(id => id === "states" || id === "labels")) collectIslands();
+  if (ids.some(id => id === "labels" || id === "biomes")) collectZones();
   if (ids.some(id => id === "states" || id === "military")) refreshNation();
   if (ids.includes("labels")) collectSeas();
   if (ids.includes("military") && Layers.isOn("military")) {

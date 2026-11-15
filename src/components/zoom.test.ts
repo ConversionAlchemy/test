@@ -84,15 +84,15 @@ describe("zoomTo", () => {
   });
 
   it("clamps the requested scale to the extent", () => {
-    setZoomExtent(2, 6);
+    setZoomExtent(2, 3);
     zoomTo(500, 300, 8, 0);
-    expect(viewport.scale).toBe(6);
+    expect(viewport.scale).toBe(3);
   });
 
   it("never leaves the map on the way between two corners", async () => {
     // the transition runs on d3's own clock, which is bound on import and out of reach of faked timers
-    zoomTo(75, 50, 8, 0);
-    zoomTo(925, 550, 8, 400);
+    zoomTo(75, 50, 4, 0);
+    zoomTo(925, 550, 4, 400);
 
     const epsilon = 1e-9; // the view-to-transform round trip leaves float noise
     for (let elapsed = 0; elapsed < 400; elapsed += 25) {
@@ -105,7 +105,7 @@ describe("zoomTo", () => {
       expect(600 * scale + y).toBeGreaterThanOrEqual(600 - epsilon);
     }
     await new Promise(resolve => setTimeout(resolve, 50));
-    expect(viewport).toMatchObject({ scale: 8, x: -6900, y: -4100 });
+    expect(viewport).toMatchObject({ scale: 4, x: -3000, y: -1800 });
   });
 });
 

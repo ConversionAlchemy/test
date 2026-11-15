@@ -197,8 +197,9 @@ function tile(t: Key): Tile {
 export function groundOf(t: number): Key {
   switch (t) {
     case Terrain.DeepWater:
-      return "deep";
+      return "sea";
     case Terrain.Water:
+      return "shallow";
     case Terrain.River:
       return "sea";
     case Terrain.Forest:

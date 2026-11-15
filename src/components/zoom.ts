@@ -6,7 +6,7 @@ import { ViewportLayers } from "@/renderers/viewport/viewport-renderer";
 import { ensureEl, findEl } from "@/utils/nodeUtils";
 import { rn } from "@/utils/numberUtils";
 
-const DEFAULT_SCALE_EXTENT: [number, number] = [1, 20];
+const DEFAULT_SCALE_EXTENT: [number, number] = [1, 4]; // Fluoria: closest in, the scale bar reads 2 miles
 const zoomBehavior = zoom<SVGSVGElement, unknown>().scaleExtent(DEFAULT_SCALE_EXTENT).interpolate(constrainedFlight);
 
 export function applyZoomBehavior(): void {
@@ -177,7 +177,7 @@ export function changeMapZoom(factor: number): void {
 }
 
 export function setZoomExtent(min: number, max: number): void {
-  zoomBehavior.scaleExtent([min, max]);
+  zoomBehavior.scaleExtent([min, Math.min(4, max)]); // Fluoria: never closer than the 2-mile ruler
 }
 
 /**

@@ -258,11 +258,17 @@ export class PixelRaster {
           if (near(d)) return mixP(color, band, Math.min(0.92, (0.78 - (d / reach) * 0.3) * this.bandStrength));
       }
       const sub = this.subregion;
-      if (sub && (x + y) % 4 < 3) {
+      if (sub) {
         const right = lx + 1 < this.width && !isOpenWater(this.terrain[i + 1]) && sub[i + 1] !== sub[i];
         const down =
           ly + 1 < this.height && !isOpenWater(this.terrain[i + this.width]) && sub[i + this.width] !== sub[i];
-        if (right || down) return mixP(color, C.ink, 0.72);
+        if (right || down) return mixP(color, C.ink, 0.62);
+        // a second, softer pixel beside it once the map is drawn at two pixels or more to a map unit
+        if (this.unit >= 2) {
+          const left = lx > 0 && !isOpenWater(this.terrain[i - 1]) && sub[i - 1] !== sub[i];
+          const up = ly > 0 && !isOpenWater(this.terrain[i - this.width]) && sub[i - this.width] !== sub[i];
+          if (left || up) return mixP(color, C.ink, 0.3);
+        }
       }
     }
     const base = this.regionColors[id];

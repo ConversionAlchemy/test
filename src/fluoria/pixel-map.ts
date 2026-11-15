@@ -87,7 +87,7 @@ function dashed(g: Graphics, pts: [number, number][], dash: number): void {
     }
   }
 }
-const CELL_LINES_FROM = 1.1;
+const CELL_LINES_FROM = 2.5;
 
 const TERRAIN: LayerId[] = ["ocean", "landmass", "heightmap", "lakes", "biomes", "coastline", "relief"];
 const LOOK: LayerId[] = ["states", "borders", "provinces", "cultures", "religions"];
@@ -477,16 +477,16 @@ class PixelMap {
       (grid.cells.h[g] >= 20 ? this.landLines : this.seaLines).poly(points);
     }
     // about 1.6 screen pixels on land; at sea half as strong, so the water stays calm
-    const width = 1.6 / (viewport.scale || 1);
-    this.landLines.stroke({ color: 0xf2efe6, width, alpha: 1 });
-    this.seaLines.stroke({ color: 0xf2efe6, width, alpha: 0.5 });
+    const width = 1 / (viewport.scale || 1);
+    this.landLines.stroke({ color: 0x2c241a, width, alpha: 1 });
+    this.seaLines.stroke({ color: 0x2c241a, width, alpha: 0 });
     this.cellLines.alpha = this.lineAlpha();
   }
 
   /** Cell lines: clearer with a unit picked; quieter in the military view, where units and borders lead */
   private lineAlpha(): number {
-    if (this.emphasis) return 0.4;
-    return getMapView() === "military" ? 0.2 : 0.34;
+    if (this.emphasis) return 0.3;
+    return getMapView() === "military" ? 0.12 : 0.16;
   }
 
   /** The highest close-up level the zoom calls for */

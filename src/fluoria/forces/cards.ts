@@ -1,6 +1,6 @@
 // Unit cards: a 21×13 box in the nation's colour with a black symbol; the frame tells the domain (land plain, air with
-// its top corners clipped, sea with its bottom ones) and the symbol tells the type and tier. A stack shows the units
-// under the top card as 1 px strips, one health line under all of them and cargo pips on top
+// its top corners clipped, sea with its bottom ones) and the symbol tells the type and tier. A stack shows one card
+// with the men it holds as a number beside it, one health line under it and cargo pips on top
 import { MAX_PIPS, PIP } from "../constants";
 import type { KitUnit } from "./kit";
 
@@ -8,7 +8,6 @@ export const CARD_W = 21;
 export const CARD_H = 13;
 const CX = 10;
 const CY = 6;
-const STRIP = 2; // art px each card under the top one adds
 
 /** 0 empty, 1 black, 2 nation colour */
 export type Grid = number[][];
@@ -171,34 +170,44 @@ export interface Pile {
   count: number; // cards in the pile, the top one included
   health: number; // 0–1, the pile's average
   pips: number; // units aboard the top card, 0–4
+  men?: number; // shown as a number beside the card, in place of a pile of strips
 }
 
 /** A pile's size in art px, and where its top card's middle is */
-export function pileSize(pile: Pick<Pile, "count" | "pips">): { w: number; h: number; mid: number } {
+export function pileSize(pile: Pick<Pile, "count" | "pips" | "men">): { w: number; h: number; mid: number } {
   const top = pile.pips ? PIP : 0;
-  const strips = Math.max(0, Math.min(pile.count, MAX_STRIPS + 1) - 1) * STRIP;
-  return { w: CARD_W, h: top + CARD_H + strips + 1, mid: top + CARD_H / 2 };
+  return { w: CARD_W + badgeWidth(pile), h: top + CARD_H + 1, mid: top + CARD_H / 2 };
 }
+
+const DIGITS: Record<string, string[]> = {
+  "0": ["###", "#.#", "#.#", "#.#", "###"],
+  "1": [".#.", "##.", ".#.", ".#.", "###"],
+  "2": ["###", "..#", "###", "#..", "###"],
+  "3": ["###", "..#", "###", "..#", "###"],
+  "4": ["#.#", "#.#", "###", "..#", "..#"],
+  "5": ["###", "#..", "###", "..#", "###"],
+  "6": ["###", "#..", "###", "#.#", "###"],
+  "7": ["###", "..#", ".#.", ".#.", ".#."],
+  "8": ["###", "#.#", "###", "#.#", "###"],
+  "9": ["###", "#.#", "###", "..#", "###"]
+};
+const badgeText = (pile: Pick<Pile, "men" | "count">) => {
+  const n = pile.men ?? (pile.count > 1 ? pile.count : 0);
+  return n > 1 ? String(Math.min(9999, n)) : "";
+};
+const badgeWidth = (pile: Pick<Pile, "men" | "count">) => {
+  const t = badgeText(pile);
+  return t ? t.length * 4 + 2 : 0;
+};
 
 /** Strips shown under a pile at most: past this a pile looks the same however big */
 export const MAX_STRIPS = 8;
-
-const rgb = (hex: string) => [1, 3, 5].map(k => Number.parseInt(hex.slice(k, k + 2), 16));
-const shade = (hex: string, f: number) =>
-  `#${rgb(hex)
-    .map(v =>
-      Math.round(v * f)
-        .toString(16)
-        .padStart(2, "0")
-    )
-    .join("")}`;
 
 /** Every art pixel of a pile, as colours by row (null is empty) */
 export function pilePixels(pile: Pile): (string | null)[][] {
   const { w, h } = pileSize(pile);
   const out: (string | null)[][] = Array.from({ length: h }, () => Array(w).fill(null));
   const top = pile.pips ? PIP : 0;
-  const under = Math.min(pile.count, MAX_STRIPS + 1) - 1;
   const put = (grid: Grid, y0: number, fill: string) => {
     for (let y = 0; y < CARD_H; y++)
       for (let x = 0; x < CARD_W; x++) {
@@ -206,9 +215,18 @@ export function pilePixels(pile: Pile): (string | null)[][] {
         if (v) out[y0 + y][x] = v === 1 ? "#111111" : fill;
       }
   };
-  const back = frame(pile.unit.domain);
-  for (let k = under; k > 0; k--) put(back, top + k * STRIP, shade(pile.colour, Math.max(0.42, 0.8 - k * 0.05)));
   put(cardGrid(pile.unit), top, pile.colour);
+  // the men in the pile, as a number on a pale tab at the card's lower right
+  const text = badgeText(pile);
+  if (text) {
+    const bw = badgeWidth(pile);
+    const y0 = top + CARD_H - 7;
+    for (let y = 0; y < 7; y++)
+      for (let x = 0; x < bw; x++) out[y0 + y][CARD_W + x] = y === 0 || y === 6 || x === bw - 1 ? "#111111" : "#f4f1e8";
+    for (const [k, d] of [...text].entries())
+      for (const [y, row] of DIGITS[d].entries())
+        for (let x = 0; x < 3; x++) if (row[x] === "#") out[y0 + 1 + y][CARD_W + 1 + k * 4 + x] = "#26262b";
+  }
   const bar = h - 1;
   const kept = Math.round(CARD_W * Math.max(0, Math.min(1, pile.health)));
   for (let x = 0; x < CARD_W; x++) out[bar][x] = x < kept ? healthColour(pile.health) : HEALTH.lost;
@@ -228,7 +246,7 @@ const healthStep = (health: number) => Math.round(Math.max(0, Math.min(1, health
 
 /** A pile as an image: cached by everything it shows */
 export function pileUrl(pile: Pile): string {
-  const key = `${pile.unit.id}|${pile.colour}|${Math.min(pile.count, MAX_STRIPS + 1)}|${healthStep(pile.health)}|${Math.min(MAX_PIPS, pile.pips)}`;
+  const key = `${pile.unit.id}|${pile.colour}|${badgeText(pile)}|${healthStep(pile.health)}|${Math.min(MAX_PIPS, pile.pips)}`;
   let url = cache.get(key);
   if (url) return url;
   const pixels = pilePixels({ ...pile, health: healthStep(pile.health) / CARD_W });
