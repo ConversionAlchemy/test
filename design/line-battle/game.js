@@ -15,8 +15,8 @@
   };
   // field guns: crew needed, reload with a full crew, shells, reach, blast size, how much shot it takes
   const GUN = {
-    small: { crew: 4, reload: 11, shells: 24, range: 700, blast: 1, hp: 6, w: 24, speed: 0.55, name: "Light Gun" },
-    large: { crew: 8, reload: 17, shells: 16, range: 950, blast: 1.6, hp: 10, w: 34, speed: 0.4, name: "Heavy Gun" }
+    small: { crew: 4, reload: 11, shells: 24, range: 700, blast: 1, hp: 6, w: 24, speed: 0.55, spread: 0.075, name: "Light Gun" },
+    large: { crew: 8, reload: 17, shells: 16, range: 950, blast: 1.6, hp: 10, w: 34, speed: 0.4, spread: 0.045, name: "Heavy Gun" }
   };
   const SIDE = {
     green: { fill: [82, 168, 92], dark: [34, 78, 40], ui: "#5fbf6c" },
@@ -339,6 +339,7 @@
   function setup() {
     men = []; regs = []; balls = []; bits = []; flashes = []; shells = []; fires = []; counts = {};
     for (const k in plans) delete plans[k];
+    for (const k in cmd) delete cmd[k];
     smoke.fill(0);
     sctx.clearRect(0, 0, WW, WH);
     bctx.clearRect(0, 0, WW, WH);
@@ -542,7 +543,7 @@
       const md = Math.atan2(dy, dx);
       if (d > 40 && Math.abs(angDiff(md, r.face)) > 1.2) want = md; // a long march to the side or back: turn, march, turn
       const wait = fast ? 1 : Math.max(0, Math.min(1, 1 - (lag - 6) / 12));
-      const v = (fast ? RUN * 0.95 : WALK * 0.8) * gunK * wait * (Math.abs(angDiff(r.af, want)) > 0.6 ? 0.25 : 1);
+      const v = (fast ? RUN * 0.95 : WALK * 0.8) * gunK * (r.form === "column" ? 1.3 : 1) * wait * (Math.abs(angDiff(r.af, want)) > 0.6 ? 0.25 : 1);
       const st = Math.min(d, v * dt);
       r.ax += (dx / d) * st; r.ay += (dy / d) * st;
       r.moving = true;
@@ -698,11 +699,12 @@
       r.direct = false;
       const c = centroid(r) || [r.x, r.y], foe = nearestReg(r, c), k = foe ? centroid(foe) : [c[0], c[1] + (r.side === "green" ? -1 : 1)];
       const a = Math.atan2(c[1] - k[1], c[0] - k[0]);
+      r.goal = null;
       for (const m of live) { m.solo = false; m.tx = m.x + Math.cos(a) * 3000 + (Math.random() - 0.5) * 120; m.ty = m.y + Math.sin(a) * 3000 + (Math.random() - 0.5) * 120; }
       r.x = c[0]; r.y = c[1];
     }
     if (r.rout) { for (const m of live) if (m.y < -40 || m.y > WH + 40 || m.x < -40 || m.x > WW + 40) m.alive = false; return; }
-    r.morale = Math.min(100, r.morale + dt * 0.8);
+    if (time - (r.flankAt || -9) > 4) r.morale = Math.min(100, r.morale + dt * 0.8);
     if (!ai) return; // paused: men still march, reload and fight hand to hand; nobody decides to fire
     if (r.side !== me) aiThink(r);
     if (r.form === "gun") { if (!r.hold && !r.direct && !(ai && r.siege && r.side !== me)) gunAuto(r); return; }
@@ -716,11 +718,26 @@
     for (const [g, L] of groups) {
       const placed = L.filter(m => Math.hypot(m.tx - m.x, m.ty - m.y) < 9), ready = placed.filter(m => m.loaded && m.ammo > 0);
       if (!ready.length || ready.length < placed.length * (r.form === "loose" ? 0 : 0.75)) continue;
-      const foes = foesNear(r, RANGE + 80);
+      // the AI shoots long when it has shot to spare or is being hit from out there; otherwise it waits for range
+      const ammoAvg = live.reduce((s, m) => s + m.ammo, 0) / live.length;
+      const reach = r.side === me ? RANGE : RANGE * (ammoAvg > AMMO * 0.6 || time - (r.hitAt || -9) < 5 ? W.fireRange : 1.25);
+      let foes = foesNear(r, reach + 80);
       if (!foes.length) continue;
+      if (r.side !== me && brain[r.side] === "v2" && W.focus) {
+        const c = centroid(r), by = new Map();
+        for (const o of foes) if (!o.reg.rout) by.set(o.reg, (by.get(o.reg) || 0) + 1);
+        let best = null, bs = -1e9;
+        for (const [o] of by) {
+          const k = centroid(o), d = Math.hypot(k[0] - c[0], k[1] - c[1]);
+          if (d > reach || Math.abs(angDiff(r.af, Math.atan2(k[1] - c[1], k[0] - c[0]))) > SWIVEL + 0.2) continue;
+          const v = acc(d) * (1.2 - Math.max(0, o.morale) / 100) / Math.max(4, alive(o)) * (time - (o.flankAt || -9) < 5 ? 1.5 : 1) + (cmd[r.side]?.focusReg === o ? 0.02 : 0);
+          if (v > bs) { bs = v; best = o; }
+        }
+        if (best) foes = foes.filter(o => o.reg === best);
+      }
       let n = 0;
       for (const m of ready) {
-        const t = aimFor(m, foes, RANGE);
+        const t = aimFor(m, foes, reach);
         if (!t) continue;
         m.tgtMan = t; m.fireAt = time + (r.form === "loose" ? Math.random() * 0.6 : Math.random() * 0.28);
         schedule(m, t.reg); n++;
@@ -803,7 +820,7 @@
     plume(mx, my, a);
     flashes.push({ x: mx, y: my, t: 0.06 });
     shotSound(mx, my);
-    const p = t ? acc(td) * (t.kneel ? 0.85 : 1) * (m.reg.moving ? 0.7 : 1) : 0;
+    const p = t ? Math.min(0.9, acc(td) * (t.kneel ? 0.85 : 1) * (m.reg.moving ? 0.7 : 1) * FLANK[aspect(t, Math.atan2(py - m.y, px - m.x))].fire) : 0;
     let hit = Math.random() < p, wallHit = null;
     if (hit && t && t.onWall) hit = Math.random() < cover(td);
     let x1 = px, y1 = py;
@@ -816,27 +833,30 @@
     balls.push(ball);
     passBy(ball);
   }
+  const FLANK = { front: { save: 1, dmg: 1, mor: 0, fire: 1, swing: 1 }, side: { save: 0.35, dmg: 1.5, mor: 1.2, fire: 1.5, swing: 1.4 }, rear: { save: 0, dmg: 2, mor: 2.5, fire: 1.3, swing: 1.8 } };
+  function aspect(t, a) {
+    const f = t.reg.charge || t.solo || t.reg.rout ? t.a : t.reg.af + (t.sa || 0), c = Math.cos(a + Math.PI - f);
+    return c > 0.26 ? "front" : c < -0.26 ? "rear" : "side";
+  }
+  function hurt(t, a, base, fire) {
+    const asp = aspect(t, a), K = FLANK[asp], T = TIER[t.tier];
+    t.reg.hitAt = time;
+    const save = asp === "front" ? T.front * (fire ? 1 : 0.8) : T.ring * K.save;
+    if (asp !== "front") { t.reg.morale -= K.mor; t.reg.flankAt = time; }
+    if (Math.random() < save) { chip(t, a, true, 1); hitSound("plate", t.x, t.y); return; }
+    t.hp -= base * K.dmg;
+    hitSound("flesh", t.x, t.y);
+    if (fire) cry(t.x, t.y, 0.08);
+    bleed(t.x, t.y, a, 3);
+    if (t.hp <= 0) shatter(t, a);
+    else chip(t, a, false, 2 + ((Math.random() * 2) | 0));
+  }
   function land(b) {
     if (b.wallHit) { hurtCell(b.wallHit.s, b.wallHit.k, 0.15); dust(b.x1, b.y1); return; }
     let t = b.hit && b.target.alive ? b.target : null;
     if (!t) near(b.x1, b.y1, 4, o => { if (!t && o.alive && o.side !== b.side && Math.hypot(o.x - b.x1, o.y - b.y1) < 3.5 && (!o.onWall || Math.random() < cover(Math.hypot(o.x - b.x0, o.y - b.y0)))) t = o; });
     if (!t) { dust(b.x1, b.y1); return; }
-    // armour turns the ball on its side
-    const T = TIER[t.tier], cosIn = Math.cos(b.a + Math.PI - t.a), faceOn = cosIn > Math.cos((75 * Math.PI) / 180);
-    const behind = cosIn < -0.26; // shot in the back: no armour there worth the name, and it tells on the block
-    const save = faceOn ? T.front : behind ? 0 : T.ring;
-    if (Math.random() < save) {
-      chip(t, b.a, true, 1);
-      hitSound("plate", t.x, t.y);
-      return;
-    }
-    t.hp -= behind ? 2 : 1;
-    if (behind) t.reg.morale -= 1.5;
-    hitSound("flesh", t.x, t.y);
-    cry(t.x, t.y, 0.08);
-    bleed(t.x, t.y, b.a, 3);
-    if (t.hp <= 0) shatter(t, b.a);
-    else chip(t, b.a, false, 2 + ((Math.random() * 2) | 0));
+    hurt(t, b.a, 1, true);
   }
   function dust(x, y) { for (let i = 0; i < 3; i++) bits.push({ x, y, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, v: 1, c: [170, 160, 120], life: 0.6 + Math.random() * 0.4, fade: 0.6 }); }
   // a hit knocks pixels off the side it came from
@@ -902,7 +922,8 @@
     if (!r.charge || r.rout) return;
     const c = centroid(r);
     if (!c) return;
-    if (r.charge.rout || !alive(r.charge)) r.charge = nearestReg(r, c);
+    // a broken foe isn't chased off the field: the next foe close by, or form up again
+    if (r.charge.rout || !alive(r.charge)) { const n = nearestReg(r, c), k = n && centroid(n); r.charge = k && Math.hypot(k[0] - c[0], k[1] - c[1]) < 90 ? n : null; if (!r.charge) { r.x = r.ax = c[0]; r.y = r.ay = c[1]; r.af = r.face; r.goal = null; layout(r); return; } }
     const foes = r.charge ? r.charge.men.filter(m => m.alive) : [];
     if (!foes.length && !(fort && r.plan?.storm)) {
       r.charge = null;
@@ -965,16 +986,8 @@
       const press = Math.max(0.45, Math.min(1.8, (1 + 0.18 * (foes - 1)) / (1 + 0.12 * friends)));
       const shock = m.reg.charge && time - (m.reg.chargeAt || 0) < 4 ? 1.25 : 1;
       const base = { heavy: 0.075, line: 0.055, conscript: 0.045, crew: 0.03 }[m.tier];
-      if (Math.random() > base * press * shock * (t.reg.rout ? 1.6 : 1)) continue;
-      const T = TIER[t.tier], cosIn = Math.cos(a + Math.PI - t.a), behind = cosIn < BEHIND;
-      const save = behind ? 0 : (cosIn > 0.26 ? T.front : T.ring) * 0.8;
-      if (Math.random() < save) { chip(t, a, true, 1); hitSound("plate", t.x, t.y); continue; }
-      t.hp -= (m.tier === "heavy" ? 2 : 1) * (behind ? 2 : 1);
-      if (behind) t.reg.morale -= 2;
-      hitSound("flesh", t.x, t.y);
-      bleed(t.x, t.y, a, 3);
-      if (t.hp <= 0) shatter(t, a);
-      else chip(t, a, false, 2);
+      if (Math.random() > base * press * shock * (t.reg.rout ? 1.6 : 1) * FLANK[aspect(t, a)].swing) continue;
+      hurt(t, a, m.tier === "heavy" ? 2 : 1, false);
     }
   }
 
@@ -987,6 +1000,7 @@
     const [gx, gy] = gunPos(r), t = pickTarget(r.side, gx, gy, r.af, 0.45, r.gun.range), c = t && centroid(t);
     if (c) fireGun(r, c[0], c[1]);
   }
+  const spreadAt = (G, d) => 3 + G.spread * d;
   function fireGun(r, tx, ty) {
     if (!gunReady(r)) return;
     const G = r.gun, [gx, gy] = gunPos(r);
@@ -994,8 +1008,8 @@
     const rel = Math.max(-0.45, Math.min(0.45, angDiff(r.af, a)));
     a = r.af + rel; G.aim = rel;
     const d = Math.min(Math.hypot(tx - gx, ty - gy), G.range * 1.2);
-    const q = d / G.range, sc = 4 + 70 * Math.pow(q, 1.4), along = (Math.random() - 0.5) * 2 * sc * 1.3, across = (Math.random() - 0.5) * 2 * sc * 0.6;
-    const x1 = gx + Math.cos(a) * (d + along) - Math.sin(a) * across, y1 = gy + Math.sin(a) * (d + along) + Math.cos(a) * across;
+    const sc = spreadAt(G, d), sa = Math.random() * Math.PI * 2, sr = sc * Math.sqrt(Math.random());
+    const x1 = gx + Math.cos(a) * d + Math.cos(sa) * sr, y1 = gy + Math.sin(a) * d + Math.sin(sa) * sr;
     const bl = (r.gun.size === "large" ? 13 : 10), mx = gx + Math.cos(a) * bl, my = gy + Math.sin(a) * bl;
     G.loaded = false; G.rl = G.reload; G.shells--; G.kick = 0.35; G.rlOrder = false;
     { const back = G.size === "large" ? 4 : 3; r.ax -= Math.cos(a) * back; r.ay -= Math.sin(a) * back; r.x -= Math.cos(a) * back; r.y -= Math.sin(a) * back; }
@@ -1209,20 +1223,138 @@
     // front: the blocks furthest forward; spare ones behind; each keeps its place left to right
     const lat = r => { const c = centroid(r); return (c[0] - S[0]) * ux + (c[1] - S[1]) * uy; }, fwd = r => { const c = centroid(r); return (c[0] - S[0]) * fx + (c[1] - S[1]) * fy; };
     // the order is chosen once and kept, so blocks never cross each other to swap places
-    if (!P.front) { const byFwd = [...inf].sort((a, b) => fwd(b) - fwd(a)); P.front = byFwd.slice(0, 7).sort((a, b) => lat(a) - lat(b)); P.spare = byFwd.slice(7).sort((a, b) => lat(a) - lat(b)); }
-    const ok = r => !r.rout && alive(r) > 0, front = P.front.filter(ok), spare = P.spare.filter(ok);
+    if (!P.front) { const byFwd = [...inf].sort((a, b) => fwd(b) - fwd(a) + (brain[side] === "v2" && W.heavyBack ? (b.tier === "heavy") - (a.tier === "heavy") : 0) * 1e4); P.front = byFwd.slice(0, 7).sort((a, b) => lat(a) - lat(b)); P.spare = byFwd.slice(7).sort((a, b) => lat(a) - lat(b)); }
+    const ok = r => !r.rout && alive(r) > 0 && !(r.goal && (r.goal.kind === "flank" || r.goal.kind === "shock" || r.goal.kind === "flankHeld")), front = P.front.filter(ok), spare = P.spare.filter(ok);
     const wOf = r => widthFor(r.form === "loose" ? "loose" : "line", Math.max(minFiles(alive(r)), Math.min(alive(r), r.files || 0)));
     const row = (L, back) => {
-      const W = L.reduce((s, r) => s + wOf(r), 0) + GAP * 2 * Math.max(0, L.length - 1);
-      let at = -W / 2;
+      const LW = L.reduce((s, r) => s + wOf(r), 0) + GAP * 2 * Math.max(0, L.length - 1);
+      let at = -LW / 2;
       for (const r of L) { const w = wOf(r), mid = at + w / 2; at += w + GAP * 2; r.station = [S[0] + ux * mid - fx * back, S[1] + uy * mid - fy * back, face]; }
-      return W;
+      return LW;
     };
-    const W = row(front, 0);
+    const LW = row(front, 0);
     row(spare, 90);
     const guns = mine.filter(r => r.gun);
-    guns.forEach((r, i) => { const l = -W / 2 + ((i + 1) * W) / (guns.length + 1); r.station = [S[0] + ux * l - fx * 55, S[1] + uy * l - fy * 55, face]; });
+    guns.forEach((r, i) => { const l = -LW / 2 + ((i + 1) * LW) / (guns.length + 1); r.station = [S[0] + ux * l - fx * 55, S[1] + uy * l - fy * 55, face]; });
   }
+  // ---------- the AI ----------
+  // Two levels, one rule each. The commander, every few seconds, finds the enemy block easiest to beat (alone, shaken,
+  // reloading, already flanked) and sends enough strength at it to win there: one block to hold its front, others to its
+  // flanks and rear, heavies kept back until a blow will tell. Everyone left over pins the rest of the enemy cheaply.
+  // Each block, every second or so, scores a handful of places it could stand (where it is, a turn, a step forward or
+  // back, sideways, its goal, a flank or the rear of its foe) by fire it would deal, less fire it would take, less the
+  // walk, plus nearness to its goal, and moves only if clearly better. Formation follows from the situation.
+  // Both levels see the whole field.
+  const W = {
+    deal: 1, risk: 1.05, close: 3, goal: 0.35, move: 0.12, crowd: 2, keep: 0.25, conc: 1.4, flankR: 0.75, shock: 1.3, cautious: 0.6, columnAt: 420, fireRange: 2, hammerAt: 15, boldAt: 0.8, flankers: 2, heavyBack: 0, charges: 1, hammer: 1, focus: 1, choose: 0, attackAt: 1.15, waitMax: 150
+  };
+  const brain = { green: "v2", red: "v2" };
+  const TW8 = { conscript: 0.8, line: 1, heavy: 1.7, crew: 0.3 };
+  const MELEE = { conscript: 0.045, line: 0.055, heavy: 0.15, crew: 0.03 };
+  const firersOf = r => r.men.filter(m => m.alive && !m.solo && m.canFire && m.ammo > 0).length;
+  function strength(r) {
+    const n = alive(r);
+    if (!n || r.rout) return 0;
+    if (r.gun) return r.gun.dead ? 0 : 25;
+    const ammo = r.men.reduce((s, m) => s + (m.alive ? m.ammo : 0), 0) / n / AMMO;
+    return n * TW8[r.tier] * (0.55 + 0.45 * Math.min(1, ammo * 2)) * (0.5 + 0.5 * Math.max(0, r.morale) / 100);
+  }
+  // ---------- commander ----------
+  // The line is the anvil: it holds and trades volleys (the old line AI, which is hard to beat head on). On top of it:
+  // blocks with nobody in front swing round the nearest end of the enemy line onto its flank; heavies wait behind the
+  // middle and are let go as a hammer at whatever is shaken, flanked or already locked in a fight; and anyone close
+  // enough charges when the blow is worth it.
+  const cmd = {};
+  function commander(side) {
+    const C = cmd[side] || (cmd[side] = { t: 0, since: null });
+    if (C.t > time) return;
+    C.t = time + 2.5;
+    const mine = regs.filter(r => r.side === side && !r.rout && alive(r)), foes = regs.filter(r => r.side !== side && !r.rout && alive(r) && (!r.gun || !r.gun.dead));
+    for (const o of foes) o._c = o.gun ? gunPos(o) : centroid(o);
+    for (const r of mine) r._c = r.gun ? gunPos(r) : centroid(r);
+    const fi = foes.filter(o => !o.gun && o._c), inf = mine.filter(r => !r.gun && r._c);
+    if (!fi.length || !inf.length) return;
+    const S = mine.reduce((s, r) => s + strength(r), 0), E = foes.reduce((s, o) => s + strength(o), 0);
+    if (C.orig == null) C.orig = posture[side];
+    if (W.choose) posture[side] = S > E * W.attackAt || time > W.waitMax ? "advance" : "hold";
+    const nearestFoe = r => { let o = null, d = 1e9; for (const q of fi) { const e = Math.hypot(q._c[0] - r._c[0], q._c[1] - r._c[1]); if (e < d) { d = e; o = q; } } return [o, d]; };
+    // flankers: free blocks (nobody within reach in front), at most two at a time, once the lines have met
+    const met = inf.some(r => nearestFoe(r)[1] < RANGE * 1.2);
+    const flankers = inf.filter(r => r.goal?.kind === "flank" && !r.rout);
+    for (const r of flankers) { const o = r.goal.foe; if (!o || o.rout || !alive(o)) r.goal = null; }
+    if (met && S > E * W.boldAt) {
+      for (const r of inf) {
+        if (r.tier === "heavy" || r.goal?.kind === "flank" || flankers.length >= W.flankers) continue;
+        const [o, d] = nearestFoe(r);
+        if (!o || d < RANGE * 1.35) continue;
+        // the end of the enemy line nearest this block, and its open side
+        const ends = [...fi].sort((a, b) => Math.hypot(a._c[0] - r._c[0], a._c[1] - r._c[1]) - Math.hypot(b._c[0] - r._c[0], b._c[1] - r._c[1]));
+        const t = ends[0], ux = -Math.sin(t.af), uy = Math.cos(t.af), sgn = (r._c[0] - t._c[0]) * ux + (r._c[1] - t._c[1]) * uy >= 0 ? 1 : -1;
+        // only an end that's pinned by our line, with nothing of theirs further out on that side
+        if (!inf.some(q => q !== r && Math.hypot(q._c[0] - t._c[0], q._c[1] - t._c[1]) < RANGE * 1.2)) continue;
+        if (fi.some(q => q !== t && ((q._c[0] - t._c[0]) * ux + (q._c[1] - t._c[1]) * uy) * sgn > 20)) continue;
+        const P = [t._c[0] + ux * sgn * RANGE * W.flankR, t._c[1] + uy * sgn * RANGE * W.flankR];
+        const via = [t._c[0] + ux * sgn * RANGE * 1.1 + Math.cos(t.af) * RANGE * 0.5, t._c[1] + uy * sgn * RANGE * 1.1 + Math.sin(t.af) * RANGE * 0.5];
+        r.goal = { kind: "flank", P, via, f: Math.atan2(t._c[1] - P[1], t._c[0] - P[0]), foe: t };
+        flankers.push(r);
+      }
+    }
+    // the hammer
+    const busy = fi.filter(o => inf.some(r => r.tier !== "heavy" && Math.hypot(r._c[0] - o._c[0], r._c[1] - o._c[1]) < RANGE * 1.1));
+    if (busy.length) C.since = C.since ?? time; else C.since = null;
+    for (const r of W.hammer ? inf.filter(r => r.tier === "heavy") : []) {
+      if (r.goal?.kind === "shock" && r.goal.foe && !r.goal.foe.rout && alive(r.goal.foe)) continue;
+      const soft = o => (Math.max(0, o.morale) / 100) * strength(o) / (1 + 1.5 * (time - (o.flankAt || -9) < 5));
+      const cands = fi.filter(o => o.morale < 50 || time - (o.flankAt || -9) < 5 || (C.since != null && time - C.since > W.hammerAt && busy.includes(o)));
+      const t = cands.sort((a, b) => soft(a) - soft(b))[0];
+      if (!t || Math.hypot(t._c[0] - r._c[0], t._c[1] - r._c[1]) > 600) { r.goal = null; continue; }
+      const sgn = Math.sin(Math.atan2(r._c[1] - t._c[1], r._c[0] - t._c[0]) - t.af) >= 0 ? 1 : -1;
+      const th = t.af + sgn * 2.2, P = [t._c[0] + Math.cos(th) * 50, t._c[1] + Math.sin(th) * 50];
+      const via = [t._c[0] + Math.cos(t.af + sgn * 1.3) * RANGE * 0.9, t._c[1] + Math.sin(t.af + sgn * 1.3) * RANGE * 0.9];
+      r.goal = { kind: "shock", P, via, f: Math.atan2(t._c[1] - P[1], t._c[0] - P[0]), foe: t };
+    }
+  }
+  // ---------- each block: returns true when it acted on its own, false to stand in the line ----------
+  function think2(r) {
+    commander(r.side);
+    const c = centroid(r);
+    if (!c || r.charge || r.gun) return false;
+    // a blow worth striking
+    for (const o of regs) {
+      if (o.side === r.side || o.gun || !alive(o)) continue;
+      const oc = centroid(o);
+      if (!oc) continue;
+      const d = Math.hypot(oc[0] - c[0], oc[1] - c[1]);
+      if (d > (r.tier === "heavy" ? 110 : 70)) continue;
+      const a = Math.atan2(oc[1] - c[1], oc[0] - c[0]), cs = Math.cos(a + Math.PI - o.af);
+      const k = cs > 0.26 ? 1 : cs < -0.26 ? FLANK.rear.swing * FLANK.rear.dmg : FLANK.side.swing * FLANK.side.dmg;
+      const mine = alive(r) * MELEE[r.tier] * 1.25 * k, theirs = alive(o) * MELEE[o.tier] * (0.5 + 0.5 * Math.max(0, o.morale) / 100);
+      const outOfShot = r.men.every(m => !m.alive || m.ammo <= 0);
+      if (!W.charges) break;
+      if (o.rout || outOfShot || (mine > theirs * (r.tier === "heavy" ? 0.9 : 1.4) && (cs < -0.1 || o.morale < 40 || r.goal?.kind === "shock"))) {
+        r.charge = o; r.chargeAt = time; r.direct = false; for (const m of r.men) m.solo = false; return true;
+      }
+    }
+    const G = r.goal;
+    if (G?.kind === "flankHeld") {
+      const o = G.foe, oc = o && !o.rout && alive(o) && centroid(o);
+      if (!oc) { r.goal = null; return false; }
+      if (!canAnswer(r) && time > (r.planUntil || 0)) { turnTo(r, Math.atan2(oc[1] - c[1], oc[0] - c[0])); r.planUntil = time + 4; }
+      return true;
+    }
+    if (!G || (G.kind !== "flank" && G.kind !== "shock")) return false;
+    // on the way: march in column while far, deploy near; head for the waypoint first
+    if (G.via && Math.hypot(G.via[0] - c[0], G.via[1] - c[1]) < 50) G.via = null;
+    const T = G.via || G.P, dist = Math.hypot(T[0] - c[0], T[1] - c[1]) + (G.via ? Math.hypot(G.P[0] - G.via[0], G.P[1] - G.via[1]) : 0);
+    // a flanker that finds itself under fire it can return just fights where it is
+    if (G.kind === "flank" && canAnswer(r) && Math.hypot(G.P[0] - c[0], G.P[1] - c[1]) < RANGE) { if (Math.abs(angDiff(r.face, G.f)) > 0.5) turnTo(r, G.f); r.goal = { ...G, kind: "flankHeld" }; return true; }
+    const wantForm = dist > W.columnAt ? "column" : "line";
+    if (r.form !== wantForm && (r.form === "line" || r.form === "column")) { r.form = wantForm; if (wantForm === "line") r.files = Math.max(minFiles(alive(r)), Math.min(alive(r), r.files || 0)); }
+    const f = G.via || wantForm === "column" ? Math.atan2(T[1] - c[1], T[0] - c[0]) : G.f;
+    if (Math.hypot(r.x - T[0], r.y - T[1]) > 12 || Math.abs(angDiff(r.face, f)) > 0.3) { r.x = T[0]; r.y = T[1]; r.face = f; r.dash = G.kind === "shock"; layout(r); }
+    return true;
+  }
+  const gunBusy = r => !r.gun.loaded && r.gun.rl < r.gun.reload * 0.5;
   function aiThink(r) {
     if ((r.thinkAt || 0) > time) return;
     r.thinkAt = time + 1 + Math.random() * 0.8;
@@ -1233,6 +1365,7 @@
       if (!r.charge) siegeAct(r);
       return;
     }
+    if (brain[r.side] === "v2" && think2(r)) return;
     armyThink(r.side);
     const c = centroid(r);
     if (!c || r.charge) return;
@@ -2096,6 +2229,7 @@
   function drawGun(r) {
     const G = r.gun, [gx, gy] = gunPos(r), a = r.af + G.aim, k = G.size === "large" ? 1.3 : 1, kb = G.kick * 6;
     ctx.save();
+    if (!G.loaded && !G.dead) ctx.globalAlpha = 0.6; // reloading: the piece sits dim until it's ready again
     ctx.translate(gx - Math.cos(a) * kb, gy - Math.sin(a) * kb);
     ctx.rotate(a);
     const dead = G.dead;
@@ -2193,14 +2327,12 @@
     if (hover) for (const r of directs()) {
       const P = toWorld(mouse[0], mouse[1]);
       if (r.form === "gun") {
-        const [gx, gy] = gunPos(r), d = Math.min(Math.hypot(P[0] - gx, P[1] - gy), r.gun.range * 1.2), sc = 4 + 70 * Math.pow(d / r.gun.range, 1.4), a = Math.atan2(P[1] - gy, P[0] - gx);
-        ctx.save(); ctx.translate(P[0], P[1]); ctx.rotate(a);
-        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, sc * 1.3);
-        g.addColorStop(0, "rgba(255,230,180,0.28)"); g.addColorStop(1, "rgba(255,230,180,0)");
-        ctx.scale(1, 0.46); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, sc * 1.3, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        ctx.strokeStyle = "rgba(255,240,200,0.4)"; ctx.lineWidth = 1 / cam.z; ctx.setLineDash([2 / cam.z, 4 / cam.z]);
-        ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(P[0], P[1]); ctx.stroke(); ctx.setLineDash([]);
+        const G = r.gun, [gx, gy] = gunPos(r), d = Math.min(Math.hypot(P[0] - gx, P[1] - gy), G.range * 1.2), R = spreadAt(G, d), k = G.loaded ? 1 : Math.max(0, 1 - G.rl / G.reload);
+        const out = Math.hypot(P[0] - gx, P[1] - gy) > G.range * 1.2;
+        ctx.lineWidth = 1.6 / cam.z;
+        ctx.strokeStyle = "rgba(140,138,130,0.7)"; ctx.beginPath(); ctx.arc(P[0], P[1], R, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = out || G.dead || G.shells <= 0 ? "#e8705e" : "#f2efe6";
+        ctx.beginPath(); ctx.arc(P[0], P[1], R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke();
         continue;
       }
       const Z = zoneOf(r, P), ux = Math.cos(Z.a), uy = Math.sin(Z.a), vx = -uy, vy = ux, W = Z.wide / 2 + Z.lat * 1.5, D = Z.deep * 0.75;
@@ -2309,57 +2441,22 @@
       if (r.hold) { ctx.fillStyle = "#f2efe6"; ctx.fillRect(x0 + w + tw + 3, sy - 5, 2, 10); ctx.fillRect(x0 + w + tw + 7, sy - 5, 2, 10); }
       r.sbox = [x0 - 2, y0 - 2, x0 + w + tw + 2, y0 + h + 2];
     }
-    // your guns: a ring under each sign that fills as the crew reloads, solid green when ready
-    for (const r of regs) {
-      if (!r.gun || r.side !== me || r.gun.dead || !alive(r) || !r.sbox) continue;
-      const G = r.gun, cx = r.sbox[0] - 9, cy = (r.sbox[1] + r.sbox[3]) / 2;
-      ring(cx, cy, 6, G.loaded ? 1 : 1 - G.rl / G.reload, G.loaded ? "#52e06a" : G.shells <= 0 ? "#e8705e" : r.direct && !G.rlOrder ? "#e8b34e" : "#f2efe6");
-    }
     hud();
   }
-  function ring(x, y, R, k, col) {
-    ctx.lineWidth = 2.5; ctx.strokeStyle = "rgba(14,14,16,0.85)"; ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(1, k))); ctx.stroke();
-  }
-  // driving: the cursor is a sight that shows how ready the blocks are, and a strip of keys sits above the cards
+  // driving: the keys strip, and for muskets a line across the aim that greys as they fire and refills as they reload
   function hud() {
     const D = directs();
     cv.style.cursor = D.length && hover ? "none" : "";
     keysEl.hidden = !D.length;
     if (!D.length || !hover) return;
+    let T = 0, prog = 0;
+    for (const r of D) if (!r.gun) for (const m of r.men) if (m.alive && !m.solo && m.canFire) { T++; prog += m.ammo <= 0 ? 0 : m.loaded ? 1 : Math.max(0, 1 - m.reload / 9); }
     const [x, y] = mouse;
-    let L = 0, T = 0, empty = 0, filling = 0, prog = 0;
-    const guns = [];
-    for (const r of D) {
-      if (r.gun) { guns.push(r.gun); continue; }
-      for (const m of r.men) if (m.alive && !m.solo && m.canFire) { T++; prog += m.loaded ? 1 : Math.max(0, 1 - m.reload / 9); if (m.loaded && m.ammo > 0) L++; else if (m.ammo <= 0) empty++; else if (m.rlOrder) filling++; }
-    }
-    ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(14,14,16,0.9)";
-    const cross = col => {
-      ctx.strokeStyle = "rgba(14,14,16,0.9)"; ctx.lineWidth = 3;
-      for (const [a, b, c, d] of [[-15, 0, -7, 0], [7, 0, 15, 0], [0, -15, 0, -7], [0, 7, 0, 15]]) { ctx.beginPath(); ctx.moveTo(x + a, y + b); ctx.lineTo(x + c, y + d); ctx.stroke(); }
-      ctx.strokeStyle = col; ctx.lineWidth = 1.2;
-      for (const [a, b, c, d] of [[-15, 0, -7, 0], [7, 0, 15, 0], [0, -15, 0, -7], [0, 7, 0, 15]]) { ctx.beginPath(); ctx.moveTo(x + a, y + b); ctx.lineTo(x + c, y + d); ctx.stroke(); }
-    };
-    const ready = T ? L / T : guns.some(g => g.loaded) ? 1 : 0;
-    cross(ready >= 0.75 ? "#52e06a" : ready > 0 ? "#f2efe6" : "#e8b34e");
-    const lines = [];
-    if (T) {
-      ring(x, y, 20, prog / T, L === T ? "#52e06a" : filling ? "#f2efe6" : "#e8b34e");
-      lines.push([`${L}/${T} loaded`, empty === T ? "#e8705e" : L === T ? "#52e06a" : "#f2efe6"]);
-      if (L < T && !filling && empty < T) lines.push(["R reload", "#e8b34e"]);
-    }
-    guns.forEach((G, i) => {
-      const k = G.loaded ? 1 : 1 - G.rl / G.reload, R = 26 + i * 6;
-      ring(x, y, R, k, G.loaded ? "#52e06a" : G.rlOrder ? "#f2efe6" : "#e8b34e");
-      lines.push([G.dead ? "Gun lost" : G.shells <= 0 ? "No shells" : G.loaded ? "Gun ready" : G.rlOrder ? `Gun ${Math.ceil(G.rl)}s` : "R reload gun", G.dead || G.shells <= 0 ? "#e8705e" : G.loaded ? "#52e06a" : G.rlOrder ? "#f2efe6" : "#e8b34e"]);
-    });
-    ctx.font = "15px VT323, monospace"; ctx.textBaseline = "top";
-    lines.forEach(([t, col], i) => {
-      const w = ctx.measureText(t).width + 8, tx = x + 18, ty = y + 18 + i * 17;
-      ctx.fillStyle = "rgba(20,20,22,0.85)"; ctx.fillRect(tx, ty, w, 16);
-      ctx.fillStyle = col; ctx.fillText(t, tx + 4, ty + 1);
-    });
+    if (!T) { if (!D.some(r => r.gun)) return; ctx.fillStyle = "#f2efe6"; ctx.fillRect(x - 1, y - 1, 2, 2); return; }
+    const w = 34, k = prog / T;
+    ctx.fillStyle = "rgba(14,14,16,0.85)"; ctx.fillRect(x - w / 2 - 1, y - 2, w + 2, 4);
+    ctx.fillStyle = "#77766f"; ctx.fillRect(x - w / 2, y - 1, w, 2);
+    ctx.fillStyle = "#f2efe6"; ctx.fillRect(x - w / 2, y - 1, Math.round(w * k), 2);
   }
   // NATO-style: infantry a box with a cross, heavy adds the armour oval, conscripts a broken frame, guns a dot
   function sign(g, r, x0, y0, w, h, fill) {
@@ -2410,6 +2507,6 @@
   resize();
   setup();
   syncBar();
-  window.__lb = { baked: () => Object.keys(BAKED).map(k => k + ":" + BAKED[k].duration.toFixed(1)), hoverSeg: () => hoverSeg, fort: () => fort && { gaps: gapsFor('red').length, towers: fort.towers.filter(t => t.dead).length, dmg: fort.segs.map(s => s.cells.reduce((a, c, k) => a + (s.hp0[k] - c), 0) | 0) }, sim: secs => { for (let t = 0; t < secs; t += 1 / 30) advance(1 / 30); return time; }, shootAt, toggleDirect, fireGun, explode, me: v => (v ? (me = v, buildCards(), syncBar()) : me), scen: v => { scen = v; setup(); }, startCharge, volley, fireSel, chargeSel, previewLine, step, setMouse: (x, y) => { mouse = [x, y]; hover = true; }, pw: v => (v == null ? pw : (pw = v)), regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
+  window.__lb = { W, brain, strength, posture, baked: () => Object.keys(BAKED).map(k => k + ":" + BAKED[k].duration.toFixed(1)), hoverSeg: () => hoverSeg, fort: () => fort && { gaps: gapsFor('red').length, towers: fort.towers.filter(t => t.dead).length, dmg: fort.segs.map(s => s.cells.reduce((a, c, k) => a + (s.hp0[k] - c), 0) | 0) }, sim: secs => { for (let t = 0; t < secs; t += 1 / 30) advance(1 / 30); return time; }, shootAt, toggleDirect, fireGun, explode, me: v => (v ? (me = v, buildCards(), syncBar()) : me), scen: v => { scen = v; setup(); }, startCharge, volley, fireSel, chargeSel, previewLine, step, setMouse: (x, y) => { mouse = [x, y]; hover = true; }, pw: v => (v == null ? pw : (pw = v)), regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
   requestAnimationFrame(loop);
 })();
