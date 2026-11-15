@@ -20,7 +20,7 @@ const TIERS: Record<string, Tier> = {
   state: { min: 0, max: 2.2, rank: 0 },
   capital: { min: 1, max: Infinity, px: 20, rank: 1 },
   city: { min: 1.4, max: Infinity, px: 17, rank: 2 },
-  province: { min: 1.4, max: Infinity, rank: 3 },
+  province: { min: 1.4, max: Infinity, px: 12, rank: 3 },
   town: { min: 1.8, max: Infinity, px: 16, rank: 4 },
   village: { min: 2.6, max: Infinity, px: 15, rank: 5 },
   hamlet: { min: 3, max: Infinity, px: 14, rank: 6 },
@@ -60,7 +60,7 @@ const STYLE = `
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-#labels > g[data-group="province"] :is(text, textPath, tspan) { fill: #5b5246 !important; }
+#labels > g[data-group="province"] :is(text, textPath, tspan) { fill: #6e5a64 !important; stroke-width: 0.24em !important; stroke-opacity: 0.7 !important; letter-spacing: 0.2em; }
 
 #labels > g[data-group="river"] :is(text, textPath, tspan) {
   fill: #2c5d93 !important;
@@ -77,7 +77,7 @@ const STYLE = `
   stroke-linejoin: round !important;
   paint-order: stroke fill !important;
   dominant-baseline: central;
-  font-family: "IM Fell English", Georgia, serif !important;
+  font-family: "Redaction", Georgia, serif !important;
   font-style: italic;
   letter-spacing: 0.03em;
   cursor: pointer;

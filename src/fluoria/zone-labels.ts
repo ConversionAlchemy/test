@@ -265,7 +265,7 @@ function openFor(text: SVGTextElement): void {
 }
 
 const STYLE = `
-#flZones text { font-family: "IM Fell English", serif; font-style: italic; fill: #2f2a20; stroke: #f4f0e4; stroke-width: 0.32em;
+#flZones text { font-family: "Redaction", Georgia, serif; font-style: italic; fill: #2f2a20; stroke: #f4f0e4; stroke-width: 0.32em;
   stroke-opacity: 0.6; stroke-linejoin: round; paint-order: stroke; cursor: pointer; user-select: none; }
 #flZones text.wood { fill: #1f2a17; stroke: #eef0e2; }
 #flZones text.peak { fill: #221d17; font-style: normal; font-variant: small-caps; letter-spacing: 0.06em; }
@@ -277,7 +277,7 @@ const STYLE = `
 #flZoneLight path.wood { fill: #6fcf3a; stroke: #9be36b; }
 #flZoneLight path.bay { fill: #5fb4ff; stroke: #a9d8ff; }
 #flZoneLight path.peak { fill: #b9ab97; stroke: #e8e0d0; }
-.flZoneEdit { position: fixed; transform: translate(-50%, -50%); z-index: 1000; text-align: center; font: italic 14px "IM Fell English", serif;
+.flZoneEdit { position: fixed; transform: translate(-50%, -50%); z-index: 1000; text-align: center; font: italic 14px "Redaction", Georgia, serif;
   background: #f4f0e4; color: #26262b; border: 1px solid #26262b; padding: 2px 4px; outline: none; }
 `;
 {

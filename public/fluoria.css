@@ -5,6 +5,36 @@
   font-display: swap;
 }
 
+/* map names: Redaction 20, an old serif with a bitmap grain; the UI stays in VT323 */
+@font-face {
+  font-family: "Redaction";
+  src: url("fonts/redaction-20-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Redaction";
+  src: url("fonts/redaction-20-latin-400-italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Redaction";
+  src: url("fonts/redaction-20-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Redaction";
+  src: url("fonts/redaction-20-latin-700-italic.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root {
   --fl-text: #d8d6cc;
   --fl-dim: #b3b0a6;
@@ -241,6 +271,18 @@ input[type="range"] {
 #labels textPath,
 #labels tspan {
   font-family: "VT323", monospace !important;
+}
+
+/* nations, provinces, capitals, cities and roads in the serif; towns and smaller keep the pixel hand, in italic */
+#labels > g:is([data-group="state"], [data-group="capital"], [data-group="city"], [data-group="province"], [data-group="route"])
+  :is(text, textPath, tspan) {
+  font-family: "Redaction", Georgia, serif !important;
+}
+#labels > g:is([data-group="state"], [data-group="capital"]) :is(text, textPath, tspan) {
+  font-weight: 700;
+}
+#labels > g:is([data-group="town"], [data-group="village"], [data-group="hamlet"]) :is(text, textPath, tspan) {
+  font-style: italic;
 }
 
 /* Settings: the viewport follows the window and zoom uses its defaults */
@@ -532,7 +574,8 @@ body.fl-carrying.fl-cursor-no * {
   stroke-width: 0.08em;
   stroke-linejoin: round;
   paint-order: stroke;
-  font-family: "VT323", monospace;
+  font-family: "Redaction", Georgia, serif;
+  font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -638,7 +681,7 @@ body.fl-atlas #flSeas {
 
 #flSeas text {
   fill: #3d6a98;
-  font-family: "VT323", monospace;
+  font-family: "Redaction", Georgia, serif;
   font-style: italic;
   letter-spacing: 0.3em;
   text-transform: uppercase;

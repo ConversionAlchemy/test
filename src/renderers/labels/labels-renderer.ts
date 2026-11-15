@@ -116,6 +116,7 @@ function isGroupVisible({ group, bounds }: { group: LabelGroup; bounds: Viewport
     if (zoom.min !== null && bounds.scale < zoom.min) return false;
     if (zoom.max !== null && bounds.scale > zoom.max) return false;
   }
+  if (group.name === "province") return true; // Fluoria: the pixel map draws provinces whatever their layer
   const dependency = group.layerDependency;
   return !dependency || !Layers.has(dependency) || Layers.isOn(dependency);
 }
