@@ -726,12 +726,6 @@ export const MAP_COMMANDS: MapCommand[] = [
   },
   { id: "showInfo", name: t("Show App Info"), link: true, aliases: "about version help", run: () => showInfo() },
   {
-    id: "getApp",
-    name: t("Get Desktop App"),
-    aliases: "install download electron",
-    run: () => Services.AppOffer.open()
-  },
-  {
     id: "toggleSaveReminder",
     name: t("Toggle Save Reminder"),
     aliases: "autosave notification",

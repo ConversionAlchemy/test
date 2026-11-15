@@ -19,7 +19,6 @@ export function initShell(): void {
   window.addEventListener("vite:preloadError", onChunkLoadError);
   document.addEventListener("touchstart", onTitlebarButtonTouch, { capture: true, passive: true });
   addDragToUpload();
-  initTourPromptButton();
   initAssistantBubble();
 
   if (!isLocalhost() && !isElectron()) window.onbeforeunload = () => t("Are you sure you want to navigate away?");
@@ -165,28 +164,6 @@ function addDragToUpload(): void {
       mapOverlay.innerHTML = t("Drop a map file to open");
     });
   });
-}
-
-/**
- * Offer the tour to newcomers with a floating button. Shown on the first few visits only, and never
- * again once the user has taken it. The tour itself stays lazy: it is a chunk of its own
- */
-function initTourPromptButton(): void {
-  const MAX_SHOWS = 2;
-  const STORAGE_KEY = "fmg-tour-prompt-count";
-
-  const count = Number.parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
-  if (count >= MAX_SHOWS) return;
-
-  const button = findEl("tourPromptButton");
-  if (!button) return;
-
-  button.style.display = "flex";
-  button.addEventListener("click", () => {
-    Services.UiTour.start();
-    localStorage.setItem(STORAGE_KEY, String(MAX_SHOWS));
-  });
-  localStorage.setItem(STORAGE_KEY, String(count + 1));
 }
 
 /** The app is a static site, but it fetches assets: opening index.html from disk cannot work */

@@ -21,6 +21,7 @@ import {
   setPixelMapDimmer,
   setPixelMapHighlighter,
   setPixelMapNationHighlighter,
+  setPixelMapPlaceHighlighter,
   setPixelMapRoads,
   setPixelMapSync
 } from "./pixel-map-sync";
@@ -50,6 +51,7 @@ const load = (): Promise<PixelMapModule> => {
     setPixelMapDimmer(map.dim);
     setPixelMapHighlighter(map.highlight);
     setPixelMapNationHighlighter(map.highlightNation);
+    setPixelMapPlaceHighlighter(map.highlightPlace);
     setPixelMapRoads({ draw: map.drawRoads, edit: map.showRoadEdit });
     watchRoutes(map.drawRoads);
     onMapView(() => map.restyle());

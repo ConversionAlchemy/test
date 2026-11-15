@@ -40,6 +40,19 @@ export function setPixelMapNationHighlighter(next: (state: number) => void): voi
   nationHighlighter = next;
 }
 
+let placeHighlighter: ((place: { province: number; state: number; capital: boolean } | null) => void) | null = null;
+
+export function setPixelMapPlaceHighlighter(
+  next: (place: { province: number; state: number; capital: boolean } | null) => void
+): void {
+  placeHighlighter = next;
+}
+
+/** Light a settlement's province, or its whole nation for a capital; null for none */
+export function highlightPlace(place: { province: number; state: number; capital: boolean } | null): void {
+  placeHighlighter?.(place);
+}
+
 /** Light up a whole nation, zoomed out; 0 for none */
 export function highlightNation(state: number): void {
   nationHighlighter?.(state);

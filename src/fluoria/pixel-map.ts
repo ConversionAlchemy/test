@@ -29,14 +29,13 @@ interface Level {
   keep: number; // tiles kept once built
 }
 
+// as the Lab draws it: the whole world painted once at two sizes and kept, then only moved and scaled up in hard
+// pixels, never shrunk, never repainted for a zoom (the zoom never goes below 1 or past 4)
 const LEVELS: Level[] = [
-  { scale: 0.25, from: 0, detail: 0, borderPx: 1, bandPx: 0, keep: Infinity }, // a quick first look while the rest paints
-  { scale: 1, from: 0, detail: 0, borderPx: 1, bandPx: 2, keep: Infinity },
-  { scale: 2, from: 1.5, detail: 1, borderPx: 2, bandPx: 4, keep: Infinity },
-  { scale: 4, from: 3, detail: 2, borderPx: 2, bandPx: 5, keep: 28 },
-  { scale: 8, from: 6, detail: 2, borderPx: 2, bandPx: 7, keep: 28 }
+  { scale: 1, from: 0, detail: 1, borderPx: 1, bandPx: 2, keep: Infinity },
+  { scale: 2, from: 1.9, detail: 1, borderPx: 2, bandPx: 4, keep: Infinity }
 ];
-const FADE_MS = 220;
+const FADE_MS = 0;
 
 /** The Style editor's state borders set the line: its width scales line and band, its opacity the band's strength */
 function borderStyle(): { width: number; strength: number } {
@@ -159,7 +158,14 @@ class PixelMap {
     document.head.append(style);
     this.host.id = "pixelMap";
     ensureEl("map").before(this.host);
-    await this.app.init({ width: 1, height: 1, background: css(Palette.deep), antialias: false, resolution: 1 });
+    await this.app.init({
+      width: 1,
+      height: 1,
+      background: css(Palette.deep),
+      antialias: false,
+      resolution: window.devicePixelRatio || 1, // drawn at the screen's own density, so pixels stay sharp on retina screens
+      autoDensity: true
+    });
     this.host.append(this.app.canvas);
     for (const layer of this.layers) this.app.stage.addChild(layer);
     this.cellLines.addChild(this.seaLines, this.landLines);
@@ -229,8 +235,6 @@ class PixelMap {
       layer.visible = index <= level;
       layer.position.set(Math.round(viewport.x), Math.round(viewport.y));
       layer.scale.set(viewport.scale / spec.scale);
-      const smooth = viewport.scale / spec.scale < 1;
-      for (const tile of this.tiles[index].values()) tile.source.scaleMode = smooth ? "linear" : "nearest";
     });
     this.overlay.position.set(viewport.x, viewport.y);
     this.overlay.scale.set(viewport.scale);
@@ -338,6 +342,20 @@ class PixelMap {
   }
 
   /** Light up a whole nation under the pointer, zoomed out; 0 for none */
+  /** A settlement under the pointer: its province lit, the rest of its nation a little darker; a capital lights its
+   * whole nation and darkens the others */
+  highlightPlace(place: { province: number; state: number; capital: boolean } | null): void {
+    this.hover.clear();
+    if (!place || !this.model) return;
+    const { state: owner, province, land } = this.model;
+    const lit = (g: number) => (place.capital ? owner[g] === place.state : province[g] === place.province);
+    const dim = (g: number) => (place.capital ? owner[g] !== place.state : owner[g] === place.state && !lit(g));
+    for (let g = 0; g < owner.length; g++) if (land[g] && dim(g)) this.polyOf(this.hover, g);
+    this.hover.fill({ color: 0x14120f, alpha: place.capital ? 0.22 : 0.14 });
+    for (let g = 0; g < owner.length; g++) if (land[g] && lit(g)) this.polyOf(this.hover, g);
+    this.hover.fill({ color: 0xffffff, alpha: 0.14 });
+  }
+
   highlightNation(state: number): void {
     this.hover.clear();
     if (!state || !this.model) return;
@@ -533,14 +551,8 @@ class PixelMap {
       for (const [col, row] of near) wanted.push([index, col, row]);
     };
     add(0, wholeMap());
-    add(1, view);
+    add(level, view);
     add(1, wholeMap());
-    if (level > 1) {
-      add(level, view);
-      add(level, view, 1);
-    }
-    add(2, view, 2); // the region level fills in around the view, then everywhere, while idle
-    add(2, wholeMap());
 
     const visible = new Set<string>();
     for (const [index, col, row] of wanted) {
@@ -553,7 +565,6 @@ class PixelMap {
       if (pool.busy >= pool.width * 2) continue;
       this.request(tile ?? this.createTile(index, col, row));
     }
-    for (let index = 3; index < LEVELS.length; index++) this.evict(index);
   }
 
   private request(tile: Tile): void {
@@ -588,7 +599,7 @@ class PixelMap {
       borderPx: Math.max(1, Math.round(spec.borderPx * line.width)),
       bandPx: Math.round(spec.bandPx * line.width),
       bandStrength: line.strength,
-      provinces: tile.level >= 1 && view !== "provinces" && borders,
+      provinces: view !== "provinces" && borders,
       outline: isOutlineOnly(),
       coastPx: borders ? Math.max(1, Math.round(spec.scale / 3)) : 0,
       tint: borders ? (TINT[tile.level] ?? 0) : 0
@@ -611,7 +622,7 @@ class PixelMap {
       width,
       height,
       scaleMode: "nearest",
-      autoGenerateMipmaps: true
+      autoGenerateMipmaps: false
     });
     const sprite = new Sprite(new Texture({ source }));
     sprite.position.set(col * TILE, row * TILE);
@@ -692,19 +703,6 @@ class PixelMap {
     return out;
   }
 
-  private evict(index: number): void {
-    const tiles = this.tiles[index];
-    const keep = LEVELS[index].keep;
-    while (tiles.size > keep) {
-      let oldest: [string, Tile] | null = null;
-      for (const entry of tiles) if (!oldest || entry[1].seen < oldest[1].seen) oldest = entry;
-      if (!oldest || oldest[1].seen === this.frame) return;
-      this.layers[index].removeChild(oldest[1].sprite);
-      oldest[1].sprite.destroy({ texture: true, textureSource: true });
-      tiles.delete(oldest[0]);
-    }
-  }
-
   private viewArea(): MapArea {
     const { x, y, scale, width, height } = viewport;
     return { x: -x / scale, y: -y / scale, width: width / scale, height: height / scale };
@@ -725,5 +723,7 @@ export const PixelMapLayer = {
   dim: (bright: ReadonlySet<number> | null, kind?: "land" | "sea" | "grid") => instance?.dim(bright, kind),
   highlight: (cell: number | null) => instance?.highlight(cell),
   highlightNation: (state: number) => instance?.highlightNation(state),
+  highlightPlace: (place: { province: number; state: number; capital: boolean } | null) =>
+    instance?.highlightPlace(place),
   sync: () => instance?.sync()
 };

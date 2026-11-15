@@ -8,7 +8,7 @@ import { convertTemperature, getHeight, getPrecipitation } from "@/utils/unitUti
 import { cellPace } from "./movement";
 import { closeNation, openNation } from "./nation-panel";
 import { cellAtPoint, cellCentre, cellPolygon } from "./one-grid";
-import { highlightCell, highlightNation } from "./pixel-map-sync";
+import { highlightCell, highlightNation, highlightPlace } from "./pixel-map-sync";
 import { seaCellAt } from "./sea-grid";
 import { clearSelection } from "./units";
 
@@ -115,8 +115,32 @@ function preview(event: MouseEvent): void {
 let hoveredNation = 0;
 
 /** Hover: zoomed out, the nation under the pointer lights up; closer in, the cell does, when nothing clickable is there */
+let hoveredBurg = 0;
+
+/** The settlement a pointer is over, by its icon or its name */
+function burgUnder(target: Element | null): number {
+  const el = target?.closest?.("#burgIcons use[data-id], #labels text[id^='burgLabel']");
+  if (!el) return 0;
+  const id = Number((el as HTMLElement).dataset?.id ?? el.id.replace("burgLabel", ""));
+  const burg = pack.burgs[id];
+  return burg && !burg.removed ? id : 0;
+}
+
 export function hoverAt(event: MouseEvent): void {
   preview(event);
+  const burg = burgUnder(event.target as Element | null);
+  if (burg !== hoveredBurg) {
+    hoveredBurg = burg;
+    const b = pack.burgs[burg];
+    highlightPlace(
+      burg ? { province: pack.cells.province[b.cell], state: b.state ?? 0, capital: Boolean(b.capital) } : null
+    );
+    if (burg) {
+      hoveredNation = -1;
+      hovered = null;
+    }
+  }
+  if (burg) return;
   const own = (event.target as Element | null)?.closest?.(OWN_CLICK);
   const cell = own || window.customization ? undefined : pointCell(event);
   const nation = zoomedOut() && cell !== undefined && pack.cells.h[cell] >= 20 ? pack.cells.state[cell] : 0;
@@ -140,6 +164,8 @@ export function hoverAt(event: MouseEvent): void {
 
 export function leave(): void {
   hovered = null;
+  hoveredBurg = 0;
+  highlightPlace(null);
   hoveredNation = 0;
   highlightCell(null);
   highlightNation(0);

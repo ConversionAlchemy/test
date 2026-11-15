@@ -18,33 +18,11 @@
 import { confirmationDialog } from "@/components/dialog/dialog-helpers";
 import { dialogState } from "@/components/dialog/state";
 import { Pins } from "@/components/pins";
-import { tip } from "@/components/tooltips";
 import { findEl } from "@/utils";
 import { sentences, t } from "@/utils/i18n";
 import { isElectron } from "./platform";
 
 export const VERSION = "1.155.0";
-
-// new changes on top, never translated
-const latestPublicChanges = (): string[] => [
-  "Interface translated into 29 languages",
-  "Map context menu",
-  "Advanced Options: configurable map lattice",
-  "Trade tariffs and embargoes",
-  "View-only mode for saved maps",
-  "Free-text tags for states and other entities (hidden by default)",
-  "CSV upload for most entities",
-  "Color picker rework",
-  "Regenerate provinces for selected states",
-  "Heightmap Risk mode: map restoration algorithm rework",
-  "Submap and Transform fixes",
-  "Rivers: lock a river to keep it through regeneration",
-  "Paint editor: lock elements from being painted over",
-  "Military forces: hide/show individual regiments",
-  "Shift + Click to bypass confirmation",
-  "Population layer: colored cells style",
-  "Altitude legend: heightmap colors"
-];
 
 export function parseMapVersion(version: string): string {
   let [major, minor, patch] = version.split(".");
@@ -131,57 +109,8 @@ export async function cleanupData(): Promise<void> {
   await clearCache();
 }
 
-function showUpdateWindow(storedVersion: string | null): void {
-  localStorage.setItem("version", VERSION);
-
-  const changelog = "https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Changelog";
-  const reddit = "https://www.reddit.com/r/FantasyMapGenerator";
-  const discord = "https://discordapp.com/invite/X7E84HU";
-  const patreon = "https://www.patreon.com/azgaar";
-
-  alertMessage.innerHTML = /* html */ `${t(
-    "The Fantasy Map Generator is updated up to version {{version}}. This version is compatible with {{- previous}}, loaded save files will be auto-updated.",
-    {
-      version: VERSION,
-      previous: `<a href="${changelog}" target="_blank" style="white-space: nowrap">${t("previous versions")}</a>`
-    }
-  )}
-    ${storedVersion ? `<span>${t("In case of errors reload the page to update the code.")}</span>` : ""}
-
-    <ul>
-      <strong>${t("Latest changes")}:</strong>
-      ${latestPublicChanges()
-        .map(change => `<li>${change}</li>`)
-        .join("")}
-    </ul>
-
-    ${isElectron() ? "" : `<p>${t("The Generator is also available as a {{- app}} that works offline.", { app: `<a href="#" onclick="window.Services.AppOffer.open(); return false">${t("desktop app")}</a>` })}</p>`}
-
-    <p>${t(
-      "Join our {{- discord}} and {{- reddit}} to ask questions, share maps, discuss the Generator and Worldbuilding, report bugs and propose new features.",
-      {
-        discord: `<a href="${discord}" target="_blank">${t("Discord server")}</a>`,
-        reddit: `<a href="${reddit}" target="_blank">${t("Reddit community")}</a>`
-      }
-    )}</p>
-    <span><i>${t("Thanks for all supporters on {{- patreon}}!", { patreon: `<a href="${patreon}" target="_blank">Patreon</a>` })}</i></span>`;
-
-  $("#alert").dialog({
-    resizable: false,
-    title: t("Fantasy Map Generator update"),
-    width: "28em",
-    position: { my: "center center-4em", at: "center", of: "svg" },
-    buttons: {
-      [t("Clear cache")]: () => clearCache(),
-      [t("Don't show again")]: function (this: HTMLElement) {
-        $(this).dialog("close");
-      }
-    }
-  });
-}
-
 declare const __FL_COMMIT__: string;
-const FL_PASS = 24;
+const FL_PASS = 25;
 
 function announceVersion(): void {
   if (parseMapVersion(VERSION) !== VERSION) alert("versioning: Invalid format or parsing function");
@@ -191,18 +120,8 @@ function announceVersion(): void {
   if (loadingScreenVersion)
     loadingScreenVersion.textContent = `Fluoria · pass ${FL_PASS} · ${typeof __FL_COMMIT__ === "string" ? __FL_COMMIT__ : "dev"}`;
 
-  const storedVersion = localStorage.getItem("version");
-  if (!storedVersion) {
-    setTimeout(() => showUpdateWindow(null), 6000);
-    return;
-  }
-
-  if (compareVersions(storedVersion, VERSION, { major: true, minor: true, patch: false }).isOlder) {
-    setTimeout(() => showUpdateWindow(storedVersion), 6000);
-  } else if (compareVersions(storedVersion, VERSION).isOlder) {
-    localStorage.setItem("version", VERSION);
-    tip(t("Updated to v{{version}}. Reload the page if you get errors", { version: VERSION }), true, "success", 6000);
-  }
+  // Fluoria: no upstream "what's new" window; the version is simply recorded
+  localStorage.setItem("version", VERSION);
 }
 
 announceVersion();
