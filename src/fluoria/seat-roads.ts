@@ -1,4 +1,5 @@
 import { buildRoadNetwork } from "./road-network";
+import { shoreBurgs } from "./shore-burgs";
 import { blocksRoads } from "./woods";
 
 /** Every province gets a seat: its biggest settlement, or a new one on its best open ground */
@@ -27,5 +28,6 @@ export function seatProvinces(): void {
 /** Seats first, then the whole road network laid out from settlement to settlement */
 export function seatRoads(): number {
   seatProvinces();
+  shoreBurgs();
   return buildRoadNetwork();
 }

@@ -237,7 +237,7 @@ class PixelMap {
   /** The view changed: repaint every tile, keeping the old ones on screen until the new arrive */
   restyle(): void {
     this.look++;
-    this.cellLines.alpha = this.lineAlpha();
+    this.applyLineAlpha();
   }
 
   /** Follow Azgaar's zoom and pan, and keep the canvas over the SVG */
@@ -272,7 +272,7 @@ class PixelMap {
   dim(bright: ReadonlySet<number> | null, kind: "land" | "sea" | "grid" = "land"): void {
     this.shade.clear();
     this.emphasis = Boolean(bright);
-    this.cellLines.alpha = this.lineAlpha();
+    this.applyLineAlpha();
     this.sync();
     if (!bright || !this.model) return;
     const { land } = this.model;
@@ -536,21 +536,26 @@ class PixelMap {
     this.landLines.clear();
     this.seaLines.clear();
     const { c, v, h } = grid.cells;
-    for (let g = 0; g < c.length; g++) {
-      if (h[g] < 20) continue;
+    // dark lines between land cells, pale ones between sea cells; none along the coast, which is the ground's own edge
+    for (let g = 0; g < c.length; g++)
       for (const n of c[g]) {
-        if (n < g || h[n] < 20) continue;
+        if (n < g || h[g] < 20 !== h[n] < 20) continue;
         const shared = v[g].filter(x => v[n].includes(x));
         if (shared.length !== 2) continue;
         const [a, b] = shared.map(x => grid.vertices.p[x]);
-        this.landLines.moveTo(a[0], a[1]).lineTo(b[0], b[1]);
+        (h[g] < 20 ? this.seaLines : this.landLines).moveTo(a[0], a[1]).lineTo(b[0], b[1]);
       }
-    }
-    // about 1.6 screen pixels on land; at sea half as strong, so the water stays calm
     const width = 1 / (viewport.scale || 1);
     this.landLines.stroke({ color: 0x2c241a, width, alpha: 1 });
-    this.seaLines.stroke({ color: 0x2c241a, width, alpha: 0 });
-    this.cellLines.alpha = this.lineAlpha();
+    this.seaLines.stroke({ color: 0xffffff, width, alpha: 1 });
+    this.applyLineAlpha();
+  }
+
+  /** White sea lines read fainter than ink on land, so they are drawn stronger */
+  private applyLineAlpha(): void {
+    const a = this.lineAlpha();
+    this.landLines.alpha = a;
+    this.seaLines.alpha = Math.min(1, a * 2.6);
   }
 
   /** Cell lines: clearer with a unit picked; quieter in the military view, where units and borders lead */

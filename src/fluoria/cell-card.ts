@@ -152,7 +152,7 @@ export function hoverAt(event: MouseEvent): void {
   if (zoomedOut()) return;
   // at sea the even grid is what's drawn, so that's what lights up; sea cells are told apart by sign
   let next = cell === undefined ? null : cell;
-  if (next !== null && pack.cells.h[next] < 20) {
+  if (!own && !window.customization && (cell === undefined || pack.cells.h[cell] < 20)) {
     const point = mapPoint(event);
     const g = point && seaCellAt(point.x, point.y);
     next = g === undefined || g === null ? null : -1 - g;

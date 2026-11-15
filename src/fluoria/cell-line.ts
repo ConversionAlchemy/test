@@ -1,8 +1,10 @@
 // What the hover line says about a cell, most specific place first:
-// "Zundinar (10,489), Kiramunz, Skurnax, Tropical Rainforest, 72°F, 13 ft"
+// "Zundinar · Kiramunz · Skurnax (in its colour) · Grassland"
+
+import { hsl } from "d3";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
-import { convertTemperature, getArea, getAreaUnit, getHeight } from "@/utils/unitUtils";
+import { islandName } from "./islands";
 import { focusedNation, STANDING_LABEL, standing } from "./nation";
 import { isPort } from "./one-grid";
 import { ownerText } from "./owners";
@@ -21,66 +23,47 @@ function laneCells(): Set<number> {
   return cells;
 }
 
-/** A grid cell's land size in the map's area unit */
-function cellArea(g: number): string {
-  const p = grid.cells.v[g].map(v => grid.vertices.p[v]);
-  let twice = 0;
-  for (let k = 0; k < p.length; k++) {
-    const [x1, y1] = p[k];
-    const [x2, y2] = p[(k + 1) % p.length];
-    twice += x1 * y2 - x2 * y1;
-  }
-  return `${Math.round(getArea(Math.abs(twice) / 2)).toLocaleString()} ${getAreaUnit()}`;
+const join = (parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" · ");
+
+/** A nation's name in a bright tint of its colour, so it reads on the dark line */
+function nationTag(state: number, text: string): string {
+  const c = hsl(pack.states[state]?.color ?? "#cccccc");
+  const bright = Number.isNaN(c.h) ? "#e8e4d8" : hsl(c.h, Math.min(0.75, (c.s || 0.4) + 0.1), 0.72).formatHex();
+  return `<span style="color:${bright}">${escapeHtml(text)}</span>`;
 }
 
-const join = (parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(", ");
+/** The named place a water cell belongs to: a lake, a bay or sound, else the open sea */
+function waterName(cell: number | undefined, g: number): string {
+  if (cell !== undefined) {
+    const f = pack.features[pack.cells.f[cell]];
+    if (f?.type === "lake") return f.name ? `Lake ${f.name.replace(/^Lake\s+|\s+(Lake|Bay|Water)$/gi, "")}` : t("Lake");
+    const zone = pack.zones?.find(z => z.type === "Bay" && z.cells.includes(cell));
+    if (zone) return zone.name;
+  }
+  return laneCells().has(g) ? t("Sea lane") : t("Open sea");
+}
 
-/** The hover line for a packed cell (undefined over open ocean) and the grid cell under the pointer */
+/** The hover line, short: where it is (settlement, province, nation in its colour) and what the ground is */
 export function cellLine(cell: number | undefined, g: number): string {
-  const temp = grid.cells.temp[g];
-  const temperature = temp === undefined ? "" : convertTemperature(temp);
   const { cells } = pack;
   const water = cell === undefined || cells.h[cell] < 20;
-  if (water && !(cell !== undefined && isPort(cell))) {
-    const lake = cell !== undefined && pack.features[cells.f[cell]]?.type === "lake";
-    const where = lake ? t("Lake") : laneCells().has(g) ? t("Sea lane") : t("Open sea");
-    return join([where, temperature]);
-  }
+  if (water && !(cell !== undefined && isPort(cell))) return escapeHtml(waterName(cell, g));
   const at = cell as number;
   const burg = cells.burg[at] ? pack.burgs[cells.burg[at]] : null;
   const living = burg && !burg.removed ? burg : null;
-  const people = (n: number) => Math.round(n).toLocaleString();
-  const urban = living
-    ? (living.population || 0) * options.map.units.population.scale * options.map.units.population.urbanization.rate
-    : 0;
-  const rural = (cells.pop?.[at] ?? 0) * options.map.units.population.scale;
   const provinceId = cells.province?.[at] ?? 0;
   const province = provinceId ? pack.provinces[provinceId] : null;
   const state = cells.state[at];
-  const owner = state ? ownerText(at) : t("Unclaimed");
   const focus = focusedNation();
   const relation = focus && state && state !== focus ? standing(focus, state) : null;
   const occupier = occupierOf(at);
-  const held = occupier ? `${t("occupied by")} ${pack.states[occupier].name}` : "";
-  const ownerPart = join([
-    relation && pack.states[focus]
-      ? `${owner} (${t(STANDING_LABEL[relation])} ${t("of")} ${pack.states[focus].name})`
-      : owner,
-    held
-  ]);
   const biome = pack.biomes[cells.biome[at]]?.name ?? "";
-  const port = Boolean(living?.port) || isPort(at);
-  return escapeHtml(
-    join([
-      living && `${living.name} (${people(urban)})`,
-      port && t("port"),
-      province && "name" in province && province.name,
-      ownerPart,
-      !port && biome,
-      !living && rural >= 1 && `${t("pop.")} ${people(rural)}`,
-      temperature,
-      !port && getHeight(cells.h[at]),
-      cellArea(g)
-    ])
-  );
+  return join([
+    living && escapeHtml(living.name ?? ""),
+    province && !province.removed && escapeHtml(islandName(provinceId) ?? province.name),
+    state ? nationTag(state, ownerText(at)) : escapeHtml(t("Unclaimed")),
+    relation && relation !== "neutral" && escapeHtml(t(STANDING_LABEL[relation])),
+    occupier > 0 && `${escapeHtml(t("held by"))} ${nationTag(occupier, pack.states[occupier].name)}`,
+    escapeHtml(biome)
+  ]);
 }

@@ -1,7 +1,7 @@
 // Fluoria's map lettering, atlas-style: which label groups show at which zoom, how big they are on screen, how each
 // kind looks, and which give way where they overlap. Labels and icons stay Azgaar's; this styles and gates them
 import { viewport } from "@/components/viewport";
-import { ART_PX, SYMBOL, SYMBOL_BOX } from "./constants";
+import { SYMBOL, SYMBOL_BOX } from "./constants";
 import { islandNoun } from "./islands";
 import { cellsOfState, stateInk, TINY_FROM, TINY_STATE } from "./owners";
 import { type Rank, rankOf, sizeOf } from "./settlement-size";
@@ -23,7 +23,7 @@ const TIERS: Record<string, Tier> = {
   capital: { min: 1, max: Infinity, px: 19, rank: 0 },
   state: { min: 0, max: 2.1, px: 20, rank: 1, fade: 0.6 },
   city: { min: 1.4, max: Infinity, px: 16, rank: 2 },
-  province: { min: 1.4, max: Infinity, px: 12, rank: 3 },
+  province: { min: 1.4, max: Infinity, px: 12, rank: 6.5 }, // after every settlement: their names come first
   town: { min: 1.8, max: Infinity, px: 14, rank: 4 },
   village: { min: 2.6, max: Infinity, px: 12.5, rank: 5 },
   hamlet: { min: 3, max: Infinity, px: 11.5, rank: 6 },
@@ -283,9 +283,16 @@ const SIDES: Side[] = ["right", "left", "top", "bottom"];
 function declutter(): void {
   const labels = document.querySelectorAll<SVGTextElement>("#labels > g > text");
   const placed: DOMRect[] = [];
+  // each mark as drawn, not its wider hit area
   for (const use of document.querySelectorAll<SVGUseElement>('#burgIcons g[data-group="icons"] > use')) {
     const box = use.getBoundingClientRect();
-    if (box.width && Number(getComputedStyle(use).opacity) > 0.3) placed.push(box);
+    if (!box.width || Number(getComputedStyle(use).opacity) <= 0.3) continue;
+    const burg = pack.burgs[Number(use.dataset.id)];
+    const side = burg ? SYMBOL[isCapital(burg) ? "capital" : rankOf(burg)] : SYMBOL.town;
+    const half = (side / 2) * (box.width / (SYMBOL_BOX + 6)); // the symbol's hit pad is 3 units each side
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    placed.push(new DOMRect(cx - half, cy - half, half * 2, half * 2));
   }
   const items: { text: SVGTextElement; rank: number }[] = [];
   const close = (viewport.scale || 1) >= TINY_FROM;
@@ -373,7 +380,8 @@ function declutter(): void {
 /** Put a settlement's name on one side of its mark */
 function setSide(text: SVGTextElement, side: Side): void {
   const burg = pack.burgs[Number(text.dataset.id)];
-  const half = ((burg ? SYMBOL[isCapital(burg) ? "capital" : rankOf(burg)] : SYMBOL.town) / 2) * ART_PX + 4;
+  const art = (viewport.scale || 1) < 1.4 ? 0.8 : 1; // as the marks are sized in applyLabelZoom
+  const half = ((burg ? SYMBOL[isCapital(burg) ? "capital" : rankOf(burg)] : SYMBOL.town) / 2) * art + 5;
   const px = (n: number) => `calc(var(--fl-px, 1) * ${n}px)`;
   text.dataset.side = side;
   text.style.textAnchor = side === "right" ? "start" : side === "left" ? "end" : "middle";

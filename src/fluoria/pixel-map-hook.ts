@@ -27,6 +27,7 @@ import {
 } from "./pixel-map-sync";
 import { collectSeas } from "./sea-names";
 import { evictNonInfantry, foldCapitalPurses, garrisonLoners, seedManpower } from "./settlements";
+import { shoreBurgs } from "./shore-burgs";
 import { applyUnitZoom, snapAll, snapMarkers, stackAll } from "./units";
 import { spreadCrowds } from "./war";
 import { collectZones, drawZones } from "./zone-labels";
@@ -107,6 +108,7 @@ function coloursChanged(): boolean {
 window.addEventListener("map:generated", () => {
   setFocus(0);
   const { moved, clashes } = foldMap();
+  shoreBurgs(); // after: a settlement beside water stands on its shore, not its cell's centre
   const relations = simplifyDiplomacy();
   const retired = retireUnits(emoji => Icons.glyph(emoji)); // before the rest: they don't know the old types
   const converted = convertUnitTypes(emoji => Icons.glyph(emoji));
