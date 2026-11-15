@@ -203,11 +203,13 @@ function hoverRegiment(r: Regiment | undefined): void {
 }
 
 /** Cards drag at any time (drag.ts); hovering spreads a pile and tells what it is; a double-click opens a folder */
+const bound = new WeakSet<Element>();
 function bindRegiments(): void {
   watchMapDrags();
   const node = document.getElementById("armies");
-  if (!node || node.dataset.flDouble) return;
-  node.dataset.flDouble = "1";
+  // kept in memory: a saved map's svg would carry a flag set on the element
+  if (!node || bound.has(node)) return;
+  bound.add(node);
   // hovering: the card under the pointer, even beneath a label
   let frame = 0;
   document.getElementById("map")?.addEventListener("mousemove", event => {

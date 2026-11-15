@@ -715,6 +715,7 @@ export function regimentUnder(clientX: number, clientY: number): Regiment | unde
 }
 
 /** Map cards: the top of a pile peels off one unit, Shift takes the whole pile; far out a card carries its merged pile */
+const bound = new WeakSet<Element>();
 export function watchMapDrags(): void {
   installCursors();
   if (!document.body.dataset.flNoNativeDrag) {
@@ -725,8 +726,9 @@ export function watchMapDrags(): void {
     });
   }
   const map = document.getElementById("map");
-  if (!map || map.dataset.flDrag) return;
-  map.dataset.flDrag = "1";
+  // kept in memory, not on the element: a saved map carries its svg's attributes, and a flag there would skip this
+  if (!map || bound.has(map)) return;
+  bound.add(map);
   map.addEventListener(
     "pointerdown",
     event => {

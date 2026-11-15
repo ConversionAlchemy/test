@@ -297,4 +297,13 @@ if (new URL(location.href).searchParams.get("front")) {
   }, 500);
 }
 
-(window as unknown as { front: object }).front = { start, stop, play, tick, state: () => front };
+/** Walk a regiment into a cell as a move would: occupation, province seats and capitals follow */
+function march(r: Regiment, cell: number): boolean {
+  moveToCell(r, cell);
+  const changed = afterMove(r);
+  if (changed) window.dispatchEvent(new Event("fl:occupation"));
+  stackAll();
+  return changed;
+}
+
+(window as unknown as { front: object }).front = { start, stop, play, tick, march, state: () => front };
