@@ -4,6 +4,7 @@
 import { viewport } from "@/components/viewport";
 import { getIsolines } from "@/utils/pathUtils";
 import { escapeHtml } from "@/utils/stringUtils";
+import { openPlace } from "./place-dialog";
 import { isForestBiome } from "./woods";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -156,12 +157,14 @@ export function drawZones(rebuild = false): void {
     viewbox.append(hl, group);
     group.addEventListener("pointerover", e => light((e.target as Element).closest("text")?.dataset.key));
     group.addEventListener("pointerout", () => light(undefined));
-    group.addEventListener("dblclick", e => {
+    group.addEventListener("click", e => {
       const t = (e.target as Element).closest("text") as SVGTextElement | null;
-      if (t?.dataset.key) {
-        e.stopPropagation();
-        edit(t);
-      }
+      if (t?.dataset.key)
+        clickOrDouble(
+          e,
+          () => edit(t),
+          () => openFor(t)
+        );
     });
   }
   if (rebuild || group.childElementCount !== named.length)
@@ -197,41 +200,44 @@ function light(key: string | undefined): void {
 }
 
 /** Edit a name where it stands: an input over the label, Enter or leaving it keeps the change, Escape drops it */
+/** Rename a place where its name stands */
 function edit(text: SVGTextElement): void {
   const key = text.dataset.key as string;
   const n = named.find(m => m.key === key);
   if (!n) return;
+  const zone = key.startsWith("z:") ? pack.zones[Number(key.slice(2))] : null;
+  const feature = zone ? null : pack.features[Number(key.slice(2))];
+  inlineEdit(text, zone ? zone.name : (feature?.name ?? ""), value => {
+    if (zone) zone.name = value;
+    else if (feature) feature.name = value.replace(/ Bay$/, "");
+    n.text = zone ? zone.name : `${feature?.name} Bay`;
+    text.textContent = n.text;
+  });
+}
+
+/** An input over a label: Enter or leaving it keeps the change, Escape drops it */
+export function inlineEdit(text: SVGTextElement, value: string, done: (value: string) => void): void {
   const box = text.getBoundingClientRect();
   const input = document.createElement("input");
-  input.value = n.text;
+  input.value = value;
   input.className = "flZoneEdit";
   Object.assign(input.style, {
     left: `${box.left + box.width / 2}px`,
     top: `${box.top + box.height / 2}px`,
-    width: `${Math.max(80, box.width + 24)}px`
+    width: `${Math.max(80, Math.min(320, box.width + 24))}px`
   });
   document.body.append(input);
   text.style.visibility = "hidden";
   input.focus();
   input.select();
-  let done = false;
+  let finished = false;
   const finish = (keep: boolean) => {
-    if (done) return;
-    done = true;
-    const value = input.value.trim();
+    if (finished) return;
+    finished = true;
+    const next = input.value.trim();
     input.remove();
     text.style.visibility = "";
-    if (!keep || !value || value === n.text) return;
-    if (key.startsWith("z:")) pack.zones[Number(key.slice(2))].name = value;
-    else {
-      const f = pack.features[Number(key.slice(2))];
-      if (f) f.name = value.replace(/ Bay$/, "");
-      n.text = `${f?.name ?? value} Bay`;
-      text.textContent = n.text;
-      return;
-    }
-    n.text = value;
-    text.textContent = value;
+    if (keep && next && next !== value) done(next);
   };
   input.addEventListener("keydown", e => {
     if (e.key === "Enter") finish(true);
@@ -241,12 +247,29 @@ function edit(text: SVGTextElement): void {
   input.addEventListener("blur", () => finish(true));
 }
 
+/** One click renames in place; a second click soon after opens the place's dialog instead */
+export function clickOrDouble(event: MouseEvent, single: () => void, double: () => void): void {
+  event.stopPropagation();
+  clearTimeout(pendingClick);
+  if (event.detail >= 2) double();
+  else pendingClick = window.setTimeout(single, 260);
+}
+let pendingClick = 0;
+
+/** The dialog for a named place on the map */
+function openFor(text: SVGTextElement): void {
+  const key = text.dataset.key as string;
+  const id = Number(key.slice(2));
+  const kind = key.startsWith("f:") ? "bay" : pack.zones[id]?.type === KINDS.Forest ? "forest" : "mountain";
+  openPlace(kind, id, () => collectZones());
+}
+
 const STYLE = `
-#flZones text { font-family: "IM Fell English", serif; font-style: italic; fill: #2f2a20; stroke: #f4f0e4; stroke-width: 0.14em;
-  stroke-opacity: 0.75; paint-order: stroke; cursor: pointer; user-select: none; }
-#flZones text.wood { fill: #2d5a1e; stroke: #eef2e2; }
-#flZones text.peak { fill: #4a4036; }
-#flZones text.bay { fill: #2c5d93; stroke: #e9eef2; }
+#flZones text { font-family: "IM Fell English", serif; font-style: italic; fill: #2f2a20; stroke: #f4f0e4; stroke-width: 0.32em;
+  stroke-opacity: 0.6; stroke-linejoin: round; paint-order: stroke; cursor: pointer; user-select: none; }
+#flZones text.wood { fill: #1f2a17; stroke: #eef0e2; }
+#flZones text.peak { fill: #221d17; font-style: normal; font-variant: small-caps; letter-spacing: 0.06em; }
+#flZones text.bay { fill: #23415e; stroke: #e8eef2; letter-spacing: 0.04em; }
 #flZones text.t0 { font-size: var(--z0); opacity: var(--zo0); }
 #flZones text.t1 { font-size: var(--z1); opacity: var(--zo1); }
 #flZones text.t2 { font-size: var(--z2); opacity: var(--zo2); }

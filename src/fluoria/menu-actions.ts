@@ -11,6 +11,7 @@ import { drawMilitary } from "@/renderers/draw-military";
 import { t } from "@/utils/i18n";
 import { openNation } from "./nation-panel";
 import { cellCentre, mainCell } from "./one-grid";
+import { openPlace } from "./place-dialog";
 import { stackAll } from "./units";
 
 export interface MenuAction {
@@ -97,10 +98,7 @@ export function actionsFor(
       ];
   }
   if (ref?.type === "route")
-    return [
-      { label: t("Edit route"), icon: "route", run: () => Controllers.RouteEditor.open(`route${ref.id}`) },
-      ...tools(at, point)
-    ];
+    return [{ label: t("Edit route"), icon: "route", run: () => openPlace("route", ref.id) }, ...tools(at, point)];
   const burgId = ref?.type === "burg" ? ref.id : pack.cells.burg[at];
   const burg = living(pack.burgs[burgId]);
   if (burg?.i)

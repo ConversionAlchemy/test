@@ -68,11 +68,19 @@ const STYLE = `
   stroke-width: 0.12em !important;
   font-style: italic;
 }
+/* a road's name runs along the road itself, on a faded band so it reads over the line */
 #labels > g[data-group="route"] :is(text, textPath, tspan) {
-  fill: #6e4a28 !important;
-  stroke: #efe7da !important;
-  stroke-width: 0.12em !important;
+  fill: #3a2b1b !important;
+  stroke: #f0ebde !important;
+  stroke-opacity: 0.82 !important;
+  stroke-width: 0.5em !important;
+  dominant-baseline: central;
+  font-family: "IM Fell English", Georgia, serif !important;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  cursor: pointer;
 }
+#labels > g[data-group="route"] text:hover :is(textPath, tspan) { fill: #000 !important; stroke-opacity: 1 !important; }
 #labels text.flHidden { visibility: hidden; }
 #burgIcons use { image-rendering: pixelated; }
 /* settlements come in by size as you zoom: cities and capitals first, towns in a region, villages close in */

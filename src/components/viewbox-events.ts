@@ -1,11 +1,15 @@
 // Default interaction on the map canvas: pan/zoom, click-to-edit, the context menu and hover tooltips
+
 import { drag, select } from "d3";
 import { Controllers } from "@/controllers";
 import { groundClick, hoverAt, leave, zoomedOut } from "@/fluoria/cell-card";
 import { openNation } from "@/fluoria/nation-panel";
 import { showRoadEdit } from "@/fluoria/pixel-map-sync";
+import { openPlace } from "@/fluoria/place-dialog";
 import { nodePoint, roadUnder } from "@/fluoria/road-geometry";
 import { roadModeOn } from "@/fluoria/road-mode";
+import { routeLabelClick } from "@/fluoria/route-labels";
+import { collectZones } from "@/fluoria/zone-labels";
 import type { LabelType } from "@/generators/labels-generator";
 import { dragLegendBox } from "@/renderers/draw-legend";
 import { findEl } from "@/utils";
@@ -52,13 +56,13 @@ const PARENT_EDITORS: Record<string, Opener> = {
 
 const GRAND_EDITORS: Record<string, Opener> = {
   emblems: target => Controllers.EmblemsEditor.open(undefined, undefined, undefined, target),
-  routes: target => Controllers.RouteEditor.open(target.id),
+  routes: target => openPlace("route", Number(target.id.replace("route", ""))), // Fluoria: the simple place dialog
   journeys: (_target, parent) => Controllers.JourneyEditor.open(Number(parent.id.replace("journey", ""))),
   markers: target => Controllers.MarkersEditor.open(undefined, target),
   ruler: () => Controllers.MeasurersEditor.open(),
   goodsIcons: () => Controllers.GoodsEditor.open(),
   goodsBurgs: (_target, parent) => Controllers.ProductionOverview.open(Number(parent.dataset.id)),
-  lakes: target => Controllers.LakesEditor.open(target),
+  lakes: target => openPlace("bay", Number((target as SVGElement).dataset.f), () => collectZones()),
   markets: (target, parent) => {
     if (target.tagName !== "path") Controllers.MarketOverview.open(Number(parent.dataset.id));
   }
@@ -87,6 +91,10 @@ export function openEditor(element: Element): boolean {
     const type = label.dataset.labelType as LabelType;
     if (type === "state") {
       openNation(id); // Fluoria: a nation's name opens the nation
+      return true;
+    }
+    if (type === "route") {
+      routeLabelClick(label); // Fluoria: click renames on the spot, double-click opens the dialog
       return true;
     }
     if (type === "burg") {
