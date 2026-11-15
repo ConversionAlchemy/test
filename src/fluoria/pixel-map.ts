@@ -282,7 +282,7 @@ class PixelMap {
       g.moveTo(pts[0][0], pts[0][1]);
       for (let n = 1; n < pts.length; n++) g.lineTo(pts[n][0], pts[n][1]);
     };
-    for (const group of ["paths", "searoutes", "trails", "roads"]) {
+    for (const group of ["paths", "trails", "roads"]) {
       const style = ROAD_STYLE[group];
       if (k < style.from) continue;
       const mine = lines.filter(road => (ROAD_STYLE[road.group] ? road.group : "paths") === group);
@@ -501,14 +501,20 @@ class PixelMap {
     this.sync();
   }
 
-  /** Every cell on the one even grid, land and sea alike */
+  /** Lines between land cells only: the coast is the ground's own edge, so no cell outline runs out to sea */
   private drawCellLines(): void {
     this.landLines.clear();
     this.seaLines.clear();
-    for (let g = 0; g < grid.cells.i.length; g++) {
-      const points = grid.cells.v[g].flatMap(v => grid.vertices.p[v]);
-      if (points.length < 6) continue;
-      (grid.cells.h[g] >= 20 ? this.landLines : this.seaLines).poly(points);
+    const { c, v, h } = grid.cells;
+    for (let g = 0; g < c.length; g++) {
+      if (h[g] < 20) continue;
+      for (const n of c[g]) {
+        if (n < g || h[n] < 20) continue;
+        const shared = v[g].filter(x => v[n].includes(x));
+        if (shared.length !== 2) continue;
+        const [a, b] = shared.map(x => grid.vertices.p[x]);
+        this.landLines.moveTo(a[0], a[1]).lineTo(b[0], b[1]);
+      }
     }
     // about 1.6 screen pixels on land; at sea half as strong, so the water stays calm
     const width = 1 / (viewport.scale || 1);

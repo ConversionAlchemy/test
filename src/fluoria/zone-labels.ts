@@ -100,7 +100,7 @@ export function collectZones(): void {
     const [x, y] = centre(group);
     named.push({
       key: `f:${f}`,
-      text: `${feature.name}${feature.group === "lake" ? " Water" : ""}`,
+      text: `${feature.name.replace(/ Bay$/, "")} Bay`,
       x,
       y,
       cells: group
@@ -139,7 +139,7 @@ export function drawZones(rebuild = false): void {
     group.innerHTML = named
       .map(
         n =>
-          `<text x="${n.x}" y="${n.y}" data-key="${n.key}" text-anchor="middle" dy="0.35em">${escapeHtml(n.text)}</text>`
+          `<text x="${n.x}" y="${n.y}" data-key="${n.key}" class="${kindOf(n)}" text-anchor="middle" dy="0.35em">${escapeHtml(n.text)}</text>`
       )
       .join("");
   const shapes = document.getElementById("flZoneShapes");
@@ -160,6 +160,9 @@ export function drawZones(rebuild = false): void {
     shapes.style.strokeDasharray = `${3 / scale} ${2 / scale}`;
   }
 }
+
+const kindOf = (n: Named) =>
+  n.key.startsWith("f:") ? "bay" : pack.zones[+n.key.slice(2)]?.type === KINDS.Forest ? "wood" : "peak";
 
 /** Light the cells of a named place */
 function light(key: string | undefined): void {
@@ -202,7 +205,10 @@ function edit(text: SVGTextElement): void {
     if (key.startsWith("z:")) pack.zones[Number(key.slice(2))].name = value;
     else {
       const f = pack.features[Number(key.slice(2))];
-      if (f) f.name = value.replace(/ Water$/, "");
+      if (f) f.name = value.replace(/ Bay$/, "");
+      n.text = `${f?.name ?? value} Bay`;
+      text.textContent = n.text;
+      return;
     }
     n.text = value;
     text.textContent = value;
@@ -218,7 +224,10 @@ function edit(text: SVGTextElement): void {
 const STYLE = `
 #flZones text { font-family: "IM Fell English", serif; font-style: italic; fill: #2f2a20; stroke: #f4f0e4; stroke-width: 0.14em;
   stroke-opacity: 0.75; paint-order: stroke; cursor: pointer; user-select: none; }
-#flZones text:hover { fill: #111; }
+#flZones text.wood { fill: #2d5a1e; stroke: #eef2e2; }
+#flZones text.peak { fill: #4a4036; }
+#flZones text.bay { fill: #2c5d93; stroke: #e9eef2; }
+#flZones text:hover { filter: brightness(0.7); }
 #flZoneShapes path { fill: none; stroke-opacity: 0.45; }
 #flZoneShapes path.wood { stroke: #2c3d22; }
 #flZoneShapes path.peak { stroke: #3e3830; }

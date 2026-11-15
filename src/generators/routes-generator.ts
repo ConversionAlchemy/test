@@ -479,30 +479,6 @@ class RoutesModule {
     return trails;
   }
 
-  private generateSeaRoutes() {
-    TIME && console.time("generateSeaRoutes");
-    const { portsByFeature } = this.sortBurgsByFeature(pack.burgs);
-    const seaRoutes: Route[] = [];
-
-    for (const [featureId, featurePorts] of Object.entries(portsByFeature)) {
-      const points = featurePorts.map(burg => [burg.x, burg.y] as Point);
-      const urquhartEdges = this.calculateUrquhartEdges(points);
-
-      urquhartEdges.forEach(([fromId, toId]) => {
-        const start = featurePorts[fromId].cell;
-        const exit = featurePorts[toId].cell;
-        const segments = this.findPathSegments({ isWater: true, start, exit });
-        for (const segment of segments) {
-          this.addConnections(segment);
-          seaRoutes.push({ feature: Number(featureId), cells: segment } as Route);
-        }
-      });
-    }
-
-    TIME && console.timeEnd("generateSeaRoutes");
-    return seaRoutes;
-  }
-
   private preparePointsArray(): Point[] {
     return pack.cells.p.map((_point, cellId) => this.getCellAnchor(cellId));
   }
@@ -698,7 +674,7 @@ class RoutesModule {
   }
 
   private createRoutesData(routes: Route[]) {
-    const seaRoutes = this.generateSeaRoutes();
+    const seaRoutes: Route[] = []; // Fluoria: no sea routes
     const mainRoads = this.generateMainRoads();
     const trails = this.generateTrails();
     const pointsArray = this.preparePointsArray();

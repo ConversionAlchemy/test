@@ -1,8 +1,9 @@
 // Canonical generation sequence, as a declared pipeline instead of a hand-written call list. See docs/architecture/generation-pipeline.md.
 
 import { claimAll } from "@/fluoria/claim";
+import { dropRivers } from "@/fluoria/no-rivers";
 import { seatRoads } from "@/fluoria/seat-roads";
-import { applyTerraces } from "@/fluoria/terraces";
+import { applyTerraces, growIslets } from "@/fluoria/terraces";
 import { thinForests } from "@/fluoria/woods";
 import { GraphOverride } from "@/generators/graph-override";
 import { Pipeline, type PipelineStep } from "@/generators/pipeline";
@@ -13,7 +14,13 @@ import { Coordinates } from "./coordinates";
 const generationPipelineSteps = [
   { id: "grid", run: ({ graph }) => Grid.prepare(graph) },
   { id: "heightmap", run: () => HeightmapGenerator.generate() },
-  { id: "terraces", run: () => applyTerraces(grid.cells) }, // Fluoria: heights in steps
+  {
+    id: "terraces",
+    run: () => {
+      growIslets(grid.cells);
+      applyTerraces(grid.cells);
+    }
+  }, // Fluoria: heights in steps, no specks of island
   { id: "markupGrid", run: () => Features.markupGrid() },
   { id: "depressionLakes", run: () => Grid.addDeepDepressionLakes() },
   { id: "nearSeaLakes", run: () => Grid.openNearSeaLakes() },
@@ -23,9 +30,17 @@ const generationPipelineSteps = [
   { id: "clearPack", run: () => Pack.clear() },
   { id: "clearGraphOverride", run: () => GraphOverride.clear() },
   { id: "regraph", run: () => Pack.generate(false) }, // Fluoria: one cell size
+  {
+    id: "packIslets",
+    run: () => {
+      growIslets(pack.cells);
+      applyTerraces(pack.cells);
+    }
+  }, // Fluoria: no specks of island
   { id: "markupPack", run: () => Features.markupPack() },
   { id: "defaultRuler", run: () => Measurers.createDefaultRuler() },
   { id: "rivers", run: () => Rivers.generate() },
+  { id: "noRivers", run: () => dropRivers() }, // Fluoria: rivers shape the land, then go
   { id: "packTerraces", run: () => applyTerraces(pack.cells) }, // lakes and rivers moved heights; step them again
   { id: "biomes", run: () => Biomes.generate() },
   { id: "woods", run: () => thinForests(pack.cells, Number.parseInt(String(options.map.seed), 10) % 100000 || 1) }, // Fluoria: forests in patches
@@ -77,6 +92,7 @@ const erasePipelineSteps = [
   { id: "regraph", run: () => Pack.generate(false) }, // Fluoria: one cell size
   { id: "markupPack", run: () => Features.markupPack() },
   { id: "rivers", run: ({ erosion }) => Rivers.generate(erosion) },
+  { id: "noRivers", run: () => dropRivers() },
   { id: "biomes", run: () => Biomes.define() },
   { id: "featureGroups", run: () => Features.defineGroups() },
   { id: "ice", run: () => Ice.generate() },

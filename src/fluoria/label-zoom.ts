@@ -157,7 +157,18 @@ function install(): void {
   new MutationObserver(records => {
     let icons = false;
     let labels = false;
-    for (const { target } of records) {
+    for (const { target, addedNodes } of records) {
+      // a settlement name goes under its symbol before it is first painted, and waits for the declutter to show
+      for (const node of addedNodes)
+        for (const text of node instanceof SVGTextElement
+          ? [node]
+          : node instanceof Element
+            ? node.querySelectorAll<SVGTextElement>("text[data-label-type='burg']")
+            : [])
+          if (text.dataset.labelType === "burg") {
+            landSide(text);
+            text.classList.add("flHidden");
+          }
       const element = target as Element;
       icons ||= Boolean(element.closest?.("#burgIcons") || element.querySelector?.("#burgIcons"));
       labels ||= Boolean(element.closest?.("#labels") || element.querySelector?.("#labels"));
@@ -220,6 +231,17 @@ function symbolFor(burg: (typeof pack.burgs)[number]): string {
 
 let declutterTimer = 0;
 
+const SMALL_PROVINCE = 6;
+let sizes: { of: unknown; n: Map<number, number> } = { of: null, n: new Map() };
+function provinceSize(province: number): number {
+  if (sizes.of !== pack.cells.province) {
+    const n = new Map<number, number>();
+    for (const p of pack.cells.province) n.set(p, (n.get(p) ?? 0) + 1);
+    sizes = { of: pack.cells.province, n };
+  }
+  return sizes.n.get(province) ?? 0;
+}
+
 /** Where labels overlap on screen, the lower rank gives way; settlement names sit under their symbols */
 function declutter(): void {
   const labels = document.querySelectorAll<SVGTextElement>("#labels > g > text");
@@ -241,6 +263,12 @@ function declutter(): void {
         text.classList.add("flHidden");
         continue;
       }
+    }
+    // a small province (an island) is named by its seat alone
+    const province = group === "province" ? Number(text.id.replace("provinceLabel", "")) : 0;
+    if (province && provinceSize(province) < SMALL_PROVINCE) {
+      text.classList.add("flHidden");
+      continue;
     }
     items.push({ text, rank: TIERS[group]?.rank ?? 6 });
   }

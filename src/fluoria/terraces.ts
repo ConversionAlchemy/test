@@ -68,3 +68,32 @@ export function applyTerraces(cells: Cells): void {
     cells.h[i] = Math.min(hi, Math.max(lo, cells.h[i]));
   }
 }
+
+const ISLET = 4; // the fewest cells an island has
+
+/** Islands of one to three cells grow into the shallows round them, so each reads as a small island, not a speck */
+export function growIslets(cells: Cells & { b?: { [i: number]: number | boolean } }): number {
+  const n = cells.h.length;
+  const seen = new Uint8Array(n);
+  let grown = 0;
+  for (let i = 0; i < n; i++) {
+    if (seen[i] || cells.h[i] < 20) continue;
+    const isle = [i];
+    seen[i] = 1;
+    for (let q = 0; q < isle.length; q++)
+      for (const j of cells.c[isle[q]]) if (!seen[j] && cells.h[j] >= 20) (seen[j] = 1), isle.push(j);
+    while (isle.length < ISLET) {
+      let best = -1;
+      for (const k of isle)
+        for (const j of cells.c[k])
+          if (cells.h[j] < 20 && !cells.b?.[j] && (best < 0 || cells.h[j] > cells.h[best])) best = j;
+      if (best < 0) break;
+      cells.h[best] = 20;
+      seen[best] = 1;
+      isle.push(best);
+      grown++;
+      if (cells.c[best].some(j => cells.h[j] >= 20 && !isle.includes(j))) break; // it joined another island
+    }
+  }
+  return grown;
+}
