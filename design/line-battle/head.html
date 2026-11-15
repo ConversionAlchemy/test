@@ -54,6 +54,10 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1 "VT323
 #side .pr span { color: var(--dim); } #side .pr b { font-weight: normal; text-align: right; }
 #side .pr i { grid-column: 1 / -1; height: 3px; background: #0e0e10; } #side .pr u { display: block; height: 100%; }
 @media (max-width: 700px) { #side { width: 160px; } }
+#keys { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; background: var(--panel); border: 1px solid var(--line); padding: 4px 8px; color: var(--dim); }
+#keys[hidden] { display: none; }
+#keys span { display: flex; gap: 3px; align-items: center; }
+#keys kbd { font: inherit; color: var(--text); background: #1b1b1e; border: 1px solid var(--line); border-bottom-width: 2px; padding: 0 5px; margin-right: 2px; }
 #stat { position: fixed; right: max(10px, env(safe-area-inset-right, 0px)); bottom: calc(8px + env(safe-area-inset-bottom, 0px)); color: var(--dim); font-size: 16px; pointer-events: none; }
 </style>
 <canvas id="field"></canvas>
@@ -69,6 +73,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1 "VT323
   <button data-k="fort">Fort</button>
 </div>
 <div id="dock">
+  <div id="keys" hidden><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>move</span><span><kbd>Shift</kbd>run</span><span><kbd>Click</kbd>fire</span><span><kbd>Wheel</kbd>spread</span><span><kbd>R</kbd>reload</span><span><kbd>E</kbd>release</span></div>
   <div id="forms" hidden>
     <button data-k="line" title="1">Line</button>
     <button data-k="column" title="2">Column</button>

@@ -54,6 +54,10 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1 "VT323
 #side .pr span { color: var(--dim); } #side .pr b { font-weight: normal; text-align: right; }
 #side .pr i { grid-column: 1 / -1; height: 3px; background: #0e0e10; } #side .pr u { display: block; height: 100%; }
 @media (max-width: 700px) { #side { width: 160px; } }
+#keys { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; background: var(--panel); border: 1px solid var(--line); padding: 4px 8px; color: var(--dim); }
+#keys[hidden] { display: none; }
+#keys span { display: flex; gap: 3px; align-items: center; }
+#keys kbd { font: inherit; color: var(--text); background: #1b1b1e; border: 1px solid var(--line); border-bottom-width: 2px; padding: 0 5px; margin-right: 2px; }
 #stat { position: fixed; right: max(10px, env(safe-area-inset-right, 0px)); bottom: calc(8px + env(safe-area-inset-bottom, 0px)); color: var(--dim); font-size: 16px; pointer-events: none; }
 </style>
 <canvas id="field"></canvas>
@@ -69,6 +73,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1 "VT323
   <button data-k="fort">Fort</button>
 </div>
 <div id="dock">
+  <div id="keys" hidden><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>move</span><span><kbd>Shift</kbd>run</span><span><kbd>Click</kbd>fire</span><span><kbd>Wheel</kbd>spread</span><span><kbd>R</kbd>reload</span><span><kbd>E</kbd>release</span></div>
   <div id="forms" hidden>
     <button data-k="line" title="1">Line</button>
     <button data-k="column" title="2">Column</button>
@@ -435,6 +440,39 @@ SFX.mhit=()=>SND.mhit(SVOL);
     return Math.max(0, 1 - d * 0.9) * Math.min(1, cam.z / 1.5 + 0.3);
   };
   // ---------- the volley recording: fire heard from above, shouts, and the long roll after ----------
+  // The sandbox builds each blast from ~150 filtered noise layers. Played live, a volley's worth of them floods the
+  // audio thread and the sound drops out, so each blast is rendered once offline and then played as a plain buffer.
+  const BAKED = {}, baking = {};
+  async function bakeBlast(k) {
+    if (BAKED[k] || baking[k] || !AC) return;
+    baking[k] = true;
+    const real = { AC, MS, RV }, sr = AC.sampleRate, off = new OfflineAudioContext(2, (sr * 3.5) | 0, sr);
+    off.resume = () => Promise.resolve();
+    try {
+      AC = off; MS = off.createGain(); MS.connect(off.destination); RV = off.createGain(); RV.gain.value = 0.3; RV.connect(off.destination);
+      const g0 = gest, m0 = mute; gest = true; mute = false;
+      SND.at(k, 0, 0);
+      gest = g0; mute = m0;
+    } catch (e) {} finally { AC = real.AC; MS = real.MS; RV = real.RV; }
+    try { const b = await off.startRendering(); let pk = 0; const d = b.getChannelData(0); for (let i = 0; i < d.length; i += 64) pk = Math.max(pk, Math.abs(d[i])); if (pk > 0.01) BAKED[k] = b; else baking[k] = false; } catch (e) { baking[k] = false; }
+  }
+  const boomT = [];
+  function boom(k, x, y) {
+    if (mute || !gest) return;
+    const v = audible(x, y), n = performance.now();
+    if (v < 0.05) return;
+    while (boomT.length && n - boomT[0] > 200) boomT.shift();
+    if (boomT.length >= 3) return;
+    boomT.push(n);
+    const b = BAKED[k];
+    if (!b) { bakeBlast(k); return; }
+    const a = au(), s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(), t = a.currentTime + 0.01;
+    s.buffer = b; s.playbackRate.value = 0.92 + Math.random() * 0.16;
+    f.type = "lowpass"; f.frequency.value = 1500 + v * v * 12000;
+    g.gain.value = 0.9 * v;
+    s.connect(f).connect(g).connect(MS);
+    s.start(t);
+  }
   // shots gather into a burst for a moment, then sound as one stretch of the recording sized to how many fired
   const burst = { n: 0, x: 0, y: 0, t: 0 };
   let voices = 0, lastGren = 0;
@@ -457,21 +495,22 @@ SFX.mhit=()=>SND.mhit(SVOL);
   }
   function soundTick() {
     if (gest && !VBP) vbuf();
+    if (gest && AC && !baking.grenade) { bakeBlast("grenade"); bakeBlast("bomb"); }
     height();
     if (!burst.n || performance.now() - burst.t < 90) return;
     const n = burst.n, x = burst.x / n, y = burst.y / n, v = audible(x, y);
     burst.n = burst.x = burst.y = 0;
     if (v < 0.04 || voices >= 5) return;
     voices++; setTimeout(() => voices--, 1500);
-    if (n >= 3 && n < 4) SND.at("grenade", x, y);
+    if (n >= 3 && n < 4) boom("grenade", x, y);
     if (n < 4) {
       // a few shots: single cracks out of the recording
       for (let i = 0; i < Math.min(n, 3); i++) setTimeout(() => vplay(VOLLEY_SHOTS[(Math.random() * VOLLEY_SHOTS.length) | 0] - 0.02, 0.55, 0.5 * v, v, 0.92 + Math.random() * 0.16, 0.005, 0.3), i * (40 + Math.random() * 120));
       return;
     }
     // the sandbox's grenade under the recording gives the volley its body; a big one gets a second, a beat later
-    if (performance.now() - lastGren > 200) { lastGren = performance.now(); SND.at("grenade", x, y); }
-    if (n >= 16) setTimeout(() => SND.at("grenade", x + 20, y), 110 + Math.random() * 120);
+    if (performance.now() - lastGren > 200) { lastGren = performance.now(); boom("grenade", x, y); }
+    if (n >= 16) setTimeout(() => boom("grenade", x + 20, y), 110 + Math.random() * 120);
     const len = Math.min(3.2, 0.7 + n * 0.06), off = Math.random() * (VOLLEY_BED[1] - len);
     vplay(off, len, Math.min(1, 0.35 + n / 30) * v, v, 0.95 + Math.random() * 0.1, 0.02, Math.min(1, len * 0.45));
     if (n >= 8) rumble(Math.min(0.5, n / 60) * v, 4.5);
@@ -713,6 +752,25 @@ SFX.mhit=()=>SND.mhit(SVOL);
   function place(r) {
     for (const m of r.men) if (m.alive && !m.solo) { [m.tx, m.ty] = slotAt(r.ax, r.ay, r.af, m); m.ta = r.af + m.sa; }
   }
+  // a new facing for a block standing where it is: a small change is left to the men's swivel; a target behind
+  // has every man turn about where he stands; only a flank needs the block to wheel
+  function turnTo(r, a) {
+    const d = Math.abs(angDiff(r.face, a));
+    if (d < 0.35) return false;
+    if (d > 2.0 && !r.gun && r.form !== "square" && r.form !== "wall") return aboutFace(r, a);
+    r.face = a; r.x = r.ax; r.y = r.ay;
+    return true;
+  }
+  function aboutFace(r, a) {
+    const live = r.men.filter(m => m.alive && !m.solo), c = centroid(r);
+    if (!live.length || !c) return false;
+    let depth = 0;
+    for (const m of live) depth = Math.max(depth, m.sy);
+    r.face = r.af = a;
+    r.x = r.ax = c[0] + Math.cos(a) * depth / 2; r.y = r.ay = c[1] + Math.sin(a) * depth / 2;
+    layout(r);
+    return true;
+  }
   const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
   // the frame marches to its order and wheels on its front; a formed block waits for stragglers, a running one doesn't
   function march(r, dt) {
@@ -736,7 +794,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
       r.ax += (dx / d) * st; r.ay += (dy / d) * st;
       r.moving = true;
     } else { r.ax = r.x; r.ay = r.y; r.moving = false; r.dash = false; }
-    const da = angDiff(r.af, want), wr = Math.min(r.gun ? 0.5 : 1.2, ((fast ? RUN * 1.2 : RUN * 0.8)) / half);
+    const da = angDiff(r.af, want), wr = Math.min(r.gun ? 0.6 : 1.4, ((fast ? RUN * 1.6 : RUN * 1.3)) / half);
     r.af += Math.sign(da) * Math.min(Math.abs(da), wr * dt);
     place(r);
   }
@@ -780,9 +838,9 @@ SFX.mhit=()=>SND.mhit(SVOL);
         m.moving = false;
         m.a = turn(m.a, m.ta, dt * 6);
       }
-      if (!m.loaded) {
+      if (!m.loaded && (!m.reg.direct || m.rlOrder)) {
         m.reload -= dt;
-        if (m.reload <= 0) { m.loaded = true; m.kneel = false; }
+        if (m.reload <= 0) { m.loaded = true; m.kneel = false; m.rlOrder = false; }
         else if (m.reload < 2.2 && !m.rlHeard) { m.rlHeard = true; if (audible(m.x, m.y) > 0.5 && Math.random() < 0.08) rlPlay(0.25 * audible(m.x, m.y)); }
       }
     }
@@ -832,7 +890,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
       const G = r.gun;
       if (!G) continue;
       G.kick = Math.max(0, G.kick - dt);
-      if (!G.loaded && !G.dead) { const k = Math.min(1, crewOf(r) / G.crew); G.rl -= dt * k; if (G.rl <= 0) G.loaded = true; }
+      if (!G.loaded && !G.dead && (!r.direct || G.rlOrder)) { const k = Math.min(1, crewOf(r) / G.crew); G.rl -= dt * k; if (G.rl <= 0) G.loaded = true; }
     }
     for (const b of shells) {
       b.t += dt;
@@ -901,7 +959,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const groups = new Map();
     for (const m of live) if (m.canFire && !m.solo) (groups.get(m.group) || groups.set(m.group, []).get(m.group)).push(m);
     for (const [g, L] of groups) {
-      const placed = L.filter(m => Math.hypot(m.tx - m.x, m.ty - m.y) < 5), ready = placed.filter(m => m.loaded && m.ammo > 0);
+      const placed = L.filter(m => Math.hypot(m.tx - m.x, m.ty - m.y) < 9), ready = placed.filter(m => m.loaded && m.ammo > 0);
       if (!ready.length || ready.length < placed.length * (r.form === "loose" ? 0 : 0.75)) continue;
       const foes = foesNear(r, RANGE + 80);
       if (!foes.length) continue;
@@ -917,7 +975,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
       break;
     }
   }
-  const SWIVEL = 0.95; // how far a man turns his musket off his facing
+  const SWIVEL = 1.1; // how far a man turns his musket off his facing
   function foesNear(r, R) {
     const c = centroid(r), out = [];
     if (!c) return out;
@@ -1184,12 +1242,12 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const q = d / G.range, sc = 4 + 70 * Math.pow(q, 1.4), along = (Math.random() - 0.5) * 2 * sc * 1.3, across = (Math.random() - 0.5) * 2 * sc * 0.6;
     const x1 = gx + Math.cos(a) * (d + along) - Math.sin(a) * across, y1 = gy + Math.sin(a) * (d + along) + Math.cos(a) * across;
     const bl = (r.gun.size === "large" ? 13 : 10), mx = gx + Math.cos(a) * bl, my = gy + Math.sin(a) * bl;
-    G.loaded = false; G.rl = G.reload; G.shells--; G.kick = 0.35;
+    G.loaded = false; G.rl = G.reload; G.shells--; G.kick = 0.35; G.rlOrder = false;
     { const back = G.size === "large" ? 4 : 3; r.ax -= Math.cos(a) * back; r.ay -= Math.sin(a) * back; r.x -= Math.cos(a) * back; r.y -= Math.sin(a) * back; }
     for (let i = 0; i < 3; i++) plume(mx + Math.cos(a) * i * 6, my + Math.sin(a) * i * 6, a + (Math.random() - 0.5) * 0.6);
     dab(mx, my, 1.2, 3);
     flashes.push({ x: mx, y: my, t: 0.1, big: 1.6 * G.blast });
-    if (audible(mx, my) > 0.1) { SND.at("grenade", mx, my); shake = Math.max(shake, 1.5 * G.blast * audible(mx, my)); }
+    if (audible(mx, my) > 0.1) { boom("grenade", mx, my); shake = Math.max(shake, 1.5 * G.blast * audible(mx, my)); }
     shells.push({ x0: mx, y0: my, x1, y1, x: mx, y: my, t: 0, dur: Math.hypot(x1 - mx, y1 - my) / 380, s: G.blast });
   }
   const DIRT = [[96, 80, 56], [78, 66, 46], [112, 98, 68], [64, 54, 40]];
@@ -1197,7 +1255,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
   function explode(x, y, s) {
     flashes.push({ x, y, t: 0.16, big: 2.4 * s });
     const au = audible(x, y);
-    if (au > 0.05) { SND.at(s > 1.3 ? "bomb" : "grenade", x, y); shake = Math.max(shake, 5 * s * au); rumble((s > 1.3 ? 0.55 : 0.3) * au, s > 1.3 ? 6 : 3.5); }
+    if (au > 0.05) { boom(s > 1.3 ? "bomb" : "grenade", x, y); shake = Math.max(shake, 5 * s * au); rumble((s > 1.3 ? 0.55 : 0.3) * au, s > 1.3 ? 6 : 3.5); }
     // soot: a dark core, a mottled ring, and rays
     const R0 = 9 * s;
     for (let Y = -R0; Y <= R0; Y++)
@@ -1284,6 +1342,12 @@ SFX.mhit=()=>SND.mhit(SVOL);
 
   // ---------- direct control (E): the block faces the cursor, WASD walks it, Shift runs, a click fires where you point ----------
   const directs = () => liveSel().filter(r => r.direct);
+  function reloadDirect() {
+    for (const r of directs()) {
+      for (const m of r.men) if (m.alive && !m.loaded && m.ammo > 0) m.rlOrder = true;
+      if (r.gun && !r.gun.loaded && r.gun.shells > 0) r.gun.rlOrder = true;
+    }
+  }
   function toggleDirect() {
     const L = liveSel(), on = L.some(r => !r.direct);
     for (const r of L) { r.direct = on; r.charge = null; r.x = r.ax; r.y = r.ay; }
@@ -1325,7 +1389,10 @@ SFX.mhit=()=>SND.mhit(SVOL);
     if (keys.has("KeyS")) vy++;
     const l = Math.hypot(vx, vy) || 1, [mx, my] = toWorld(mouse[0], mouse[1]), run = keys.has("ShiftLeft") || keys.has("ShiftRight");
     for (const r of D) {
-      if (Math.hypot(mx - r.ax, my - r.ay) > 30) r.face = Math.atan2(my - r.ay, mx - r.ax);
+      if (Math.hypot(mx - r.ax, my - r.ay) > 30) {
+        const a = Math.atan2(my - r.ay, mx - r.ax);
+        if (Math.abs(angDiff(r.face, a)) > SWIVEL * 0.8) turnTo(r, a);
+      }
       r.x = r.ax + (vx / l) * 28; r.y = r.ay + (vy / l) * 28;
       r.dash = run && (vx || vy);
     }
@@ -1371,20 +1438,24 @@ SFX.mhit=()=>SND.mhit(SVOL);
     if (!A || !E) return;
     // the line keeps its facing; only a foe well round its flank swings it, and then a little at a time
     let face = Math.atan2(E[1] - A[1], E[0] - A[0]);
-    if (P.face != null) { const d = angDiff(P.face, face); face = Math.abs(d) < 0.6 ? P.face : P.face + Math.sign(d) * 0.25; }
+    if (P.face != null) { const d = angDiff(P.face, face); face = Math.abs(d) < 1.1 ? P.face : P.face + Math.sign(d) * 0.2; }
     P.face = face;
     const fx = Math.cos(face), fy = Math.sin(face), ux = -fy, uy = fx;
     if (!P.home) P.home = A;
     // the enemy's nearest front, along our facing
+    // measured from the line's own front, which only ever moves straight forward or back
+    const B = P.S || A;
     let dE = 1e9;
-    for (const o of foes) for (const m of o.men) if (m.alive) dE = Math.min(dE, (m.x - A[0]) * fx + (m.y - A[1]) * fy);
-    let S = P.S || A;
-    if (posture[side] === "advance") { const go = Math.max(-30, Math.min(70, dE - RANGE * 0.8)); S = [A[0] + fx * go, A[1] + fy * go]; }
+    for (const o of foes) for (const m of o.men) if (m.alive) dE = Math.min(dE, (m.x - B[0]) * fx + (m.y - B[1]) * fy);
+    let S = B;
+    if (posture[side] === "advance") { const go = Math.max(-30, Math.min(70, dE - RANGE * 0.75)); S = Math.abs(go) < 12 ? B : [B[0] + fx * go, B[1] + fy * go]; }
     else S = P.home;
     P.S = S;
     // front: the blocks furthest forward; spare ones behind; each keeps its place left to right
     const lat = r => { const c = centroid(r); return (c[0] - S[0]) * ux + (c[1] - S[1]) * uy; }, fwd = r => { const c = centroid(r); return (c[0] - S[0]) * fx + (c[1] - S[1]) * fy; };
-    const byFwd = [...inf].sort((a, b) => fwd(b) - fwd(a)), front = byFwd.slice(0, 7).sort((a, b) => lat(a) - lat(b)), spare = byFwd.slice(7).sort((a, b) => lat(a) - lat(b));
+    // the order is chosen once and kept, so blocks never cross each other to swap places
+    if (!P.front) { const byFwd = [...inf].sort((a, b) => fwd(b) - fwd(a)); P.front = byFwd.slice(0, 7).sort((a, b) => lat(a) - lat(b)); P.spare = byFwd.slice(7).sort((a, b) => lat(a) - lat(b)); }
+    const ok = r => !r.rout && alive(r) > 0, front = P.front.filter(ok), spare = P.spare.filter(ok);
     const wOf = r => widthFor(r.form === "loose" ? "loose" : "line", Math.max(minFiles(alive(r)), Math.min(alive(r), r.files || 0)));
     const row = (L, back) => {
       const W = L.reduce((s, r) => s + wOf(r), 0) + GAP * 2 * Math.max(0, L.length - 1);
@@ -1415,16 +1486,21 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const bd = Math.hypot(k[0] - c[0], k[1] - c[1]), want = Math.atan2(k[1] - c[1], k[0] - c[0]);
     const gun = r.form === "gun";
     if (!gun && bd < 45) { startCharge(r); return; }
-    const st = r.station;
-    if (!st) return;
-    // shooting back: stay and fire; a foe well off the front turns it a little, never past 40 degrees off the line
-    if (gun ? bd < r.gun.range : canAnswer(r)) {
-      const a = st[2] + Math.max(-0.7, Math.min(0.7, angDiff(st[2], want)));
-      if (Math.abs(angDiff(r.face, a)) > 0.35 && time > (r.planUntil || 0)) { r.face = a; r.x = r.ax; r.y = r.ay; r.planUntil = time + 5; }
-      if (!gun || Math.hypot(st[0] - r.ax, st[1] - r.ay) < 40) return;
+    const st = r.station, settled = time > (r.planUntil || 0);
+    if (gun) {
+      if (bd < r.gun.range) { if (settled && Math.abs(angDiff(r.face, want)) > 0.3 && turnTo(r, want)) r.planUntil = time + 4; return; }
+    } else if (canAnswer(r)) {
+      // firing: stay put; turn only for a foe well round the flank that is nearer than what it is shooting
+      if (settled && Math.abs(angDiff(r.face, want)) > SWIVEL + 0.2 && turnTo(r, want)) r.planUntil = time + 5;
+      return;
+    } else if (bd < RANGE * 1.3 && Math.abs(angDiff(r.face, want)) > SWIVEL) {
+      // a foe in reach but out of the men's arcs: turn to it where it stands, no marching
+      if (settled && turnTo(r, want)) r.planUntil = time + 4;
+      return;
     }
-    // otherwise to its place in the line
-    if (Math.hypot(st[0] - r.x, st[1] - r.y) > 6 || Math.abs(angDiff(r.face, st[2])) > 0.15) { r.x = st[0]; r.y = st[1]; r.face = st[2]; }
+    if (!st || !settled) return;
+    // nothing in reach: back to its place in the line, if it has drifted well off it
+    if (Math.hypot(st[0] - r.ax, st[1] - r.ay) > 25 || Math.abs(angDiff(r.face, st[2])) > 0.35) { r.x = st[0]; r.y = st[1]; r.face = st[2]; r.planUntil = time + 3; }
   }
   // can the block shoot back at anyone at all from where it stands
   function canAnswer(r) {
@@ -1560,7 +1636,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
     for (let i = 0; i < 6; i++) dab(t.x + (Math.random() - 0.5) * 16, t.y + (Math.random() - 0.5) * 16, 0.9, 3);
     for (const m of t.crew) if (m.alive) { m.tower = null; m.onWall = false; m.solo = false; if (Math.random() < 0.5) shatter(m, Math.random() * 6.28); }
     t.crew = [];
-    if (audible(t.x, t.y) > 0.05) { SND.at("bomb", t.x, t.y); rumble(0.5 * audible(t.x, t.y), 5); }
+    if (audible(t.x, t.y) > 0.05) { boom("bomb", t.x, t.y); rumble(0.5 * audible(t.x, t.y), 5); }
     for (const s of fort.segs) if (s.a === t || s.b === t) checkRuns(s);
   }
   // a run of cells with no standing tower at either end comes down a moment later
@@ -2032,7 +2108,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
     if (e.code === "KeyH") toggleHold();
     if (e.code === "KeyF") fireSel();
     if (e.code === "KeyC") chargeSel();
-    if (e.code === "KeyR") toggleRun();
+    if (e.code === "KeyR") { if (directs().length) reloadDirect(); else toggleRun(); }
     if (e.code === "KeyE") toggleDirect();
     if (e.code === "Equal" || e.code === "NumpadAdd") zoomAt(VW / 2, VH / 2, 1.25);
     if (e.code === "Minus" || e.code === "NumpadSubtract") zoomAt(VW / 2, VH / 2, 0.8);
@@ -2045,6 +2121,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
   const clampCam = () => { cam.x = Math.max(0, Math.min(WW, cam.x)); cam.y = Math.max(0, Math.min(WH, cam.y)); };
 
   // ---------- bar ----------
+  const keysEl = document.getElementById("keys");
   const bar = document.getElementById("bar"), forms = document.getElementById("forms"), cardsEl = document.getElementById("cards");
   const btn = id => document.querySelector(`[data-k="${id}"]`);
   const fireSel = () => {
@@ -2411,6 +2488,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
       if (!m.alive) continue;
       const img = bodyImg(m);
       const x = Math.round(m.x), y = Math.round(m.y);
+      if (m.reg.direct) { ctx.fillStyle = "#52e06a"; ctx.beginPath(); ctx.arc(m.x, m.y, TIER[m.tier].r + 1.3, 0, Math.PI * 2); ctx.fill(); }
       ctx.drawImage(img, x - Math.floor(S_C), y - Math.floor(S_C));
       // the musket: a short black line out of the front; shortened while he reloads
       if (m.tier === "crew") continue;
@@ -2476,6 +2554,57 @@ SFX.mhit=()=>SND.mhit(SVOL);
       if (r.hold) { ctx.fillStyle = "#f2efe6"; ctx.fillRect(x0 + w + tw + 3, sy - 5, 2, 10); ctx.fillRect(x0 + w + tw + 7, sy - 5, 2, 10); }
       r.sbox = [x0 - 2, y0 - 2, x0 + w + tw + 2, y0 + h + 2];
     }
+    // your guns: a ring under each sign that fills as the crew reloads, solid green when ready
+    for (const r of regs) {
+      if (!r.gun || r.side !== me || r.gun.dead || !alive(r) || !r.sbox) continue;
+      const G = r.gun, cx = r.sbox[0] - 9, cy = (r.sbox[1] + r.sbox[3]) / 2;
+      ring(cx, cy, 6, G.loaded ? 1 : 1 - G.rl / G.reload, G.loaded ? "#52e06a" : G.shells <= 0 ? "#e8705e" : r.direct && !G.rlOrder ? "#e8b34e" : "#f2efe6");
+    }
+    hud();
+  }
+  function ring(x, y, R, k, col) {
+    ctx.lineWidth = 2.5; ctx.strokeStyle = "rgba(14,14,16,0.85)"; ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(1, k))); ctx.stroke();
+  }
+  // driving: the cursor is a sight that shows how ready the blocks are, and a strip of keys sits above the cards
+  function hud() {
+    const D = directs();
+    cv.style.cursor = D.length && hover ? "none" : "";
+    keysEl.hidden = !D.length;
+    if (!D.length || !hover) return;
+    const [x, y] = mouse;
+    let L = 0, T = 0, empty = 0, filling = 0, prog = 0;
+    const guns = [];
+    for (const r of D) {
+      if (r.gun) { guns.push(r.gun); continue; }
+      for (const m of r.men) if (m.alive && !m.solo && m.canFire) { T++; prog += m.loaded ? 1 : Math.max(0, 1 - m.reload / 9); if (m.loaded && m.ammo > 0) L++; else if (m.ammo <= 0) empty++; else if (m.rlOrder) filling++; }
+    }
+    ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(14,14,16,0.9)";
+    const cross = col => {
+      ctx.strokeStyle = "rgba(14,14,16,0.9)"; ctx.lineWidth = 3;
+      for (const [a, b, c, d] of [[-15, 0, -7, 0], [7, 0, 15, 0], [0, -15, 0, -7], [0, 7, 0, 15]]) { ctx.beginPath(); ctx.moveTo(x + a, y + b); ctx.lineTo(x + c, y + d); ctx.stroke(); }
+      ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+      for (const [a, b, c, d] of [[-15, 0, -7, 0], [7, 0, 15, 0], [0, -15, 0, -7], [0, 7, 0, 15]]) { ctx.beginPath(); ctx.moveTo(x + a, y + b); ctx.lineTo(x + c, y + d); ctx.stroke(); }
+    };
+    const ready = T ? L / T : guns.some(g => g.loaded) ? 1 : 0;
+    cross(ready >= 0.75 ? "#52e06a" : ready > 0 ? "#f2efe6" : "#e8b34e");
+    const lines = [];
+    if (T) {
+      ring(x, y, 20, prog / T, L === T ? "#52e06a" : filling ? "#f2efe6" : "#e8b34e");
+      lines.push([`${L}/${T} loaded`, empty === T ? "#e8705e" : L === T ? "#52e06a" : "#f2efe6"]);
+      if (L < T && !filling && empty < T) lines.push(["R reload", "#e8b34e"]);
+    }
+    guns.forEach((G, i) => {
+      const k = G.loaded ? 1 : 1 - G.rl / G.reload, R = 26 + i * 6;
+      ring(x, y, R, k, G.loaded ? "#52e06a" : G.rlOrder ? "#f2efe6" : "#e8b34e");
+      lines.push([G.dead ? "Gun lost" : G.shells <= 0 ? "No shells" : G.loaded ? "Gun ready" : G.rlOrder ? `Gun ${Math.ceil(G.rl)}s` : "R reload gun", G.dead || G.shells <= 0 ? "#e8705e" : G.loaded ? "#52e06a" : G.rlOrder ? "#f2efe6" : "#e8b34e"]);
+    });
+    ctx.font = "15px VT323, monospace"; ctx.textBaseline = "top";
+    lines.forEach(([t, col], i) => {
+      const w = ctx.measureText(t).width + 8, tx = x + 18, ty = y + 18 + i * 17;
+      ctx.fillStyle = "rgba(20,20,22,0.85)"; ctx.fillRect(tx, ty, w, 16);
+      ctx.fillStyle = col; ctx.fillText(t, tx + 4, ty + 1);
+    });
   }
   // NATO-style: infantry a box with a cross, heavy adds the armour oval, conscripts a broken frame, guns a dot
   function sign(g, r, x0, y0, w, h, fill) {
@@ -2526,7 +2655,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
   resize();
   setup();
   syncBar();
-  window.__lb = { hoverSeg: () => hoverSeg, fort: () => fort && { gaps: gapsFor('red').length, towers: fort.towers.filter(t => t.dead).length, dmg: fort.segs.map(s => s.cells.reduce((a, c, k) => a + (s.hp0[k] - c), 0) | 0) }, sim: secs => { for (let t = 0; t < secs; t += 1 / 30) advance(1 / 30); return time; }, shootAt, toggleDirect, fireGun, explode, me: v => (v ? (me = v, buildCards(), syncBar()) : me), scen: v => { scen = v; setup(); }, startCharge, volley, fireSel, chargeSel, previewLine, step, setMouse: (x, y) => { mouse = [x, y]; hover = true; }, pw: v => (v == null ? pw : (pw = v)), regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
+  window.__lb = { baked: () => Object.keys(BAKED).map(k => k + ":" + BAKED[k].duration.toFixed(1)), hoverSeg: () => hoverSeg, fort: () => fort && { gaps: gapsFor('red').length, towers: fort.towers.filter(t => t.dead).length, dmg: fort.segs.map(s => s.cells.reduce((a, c, k) => a + (s.hp0[k] - c), 0) | 0) }, sim: secs => { for (let t = 0; t < secs; t += 1 / 30) advance(1 / 30); return time; }, shootAt, toggleDirect, fireGun, explode, me: v => (v ? (me = v, buildCards(), syncBar()) : me), scen: v => { scen = v; setup(); }, startCharge, volley, fireSel, chargeSel, previewLine, step, setMouse: (x, y) => { mouse = [x, y]; hover = true; }, pw: v => (v == null ? pw : (pw = v)), regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
   requestAnimationFrame(loop);
 })();
 </script>
