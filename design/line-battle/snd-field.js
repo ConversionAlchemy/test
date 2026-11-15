@@ -15,15 +15,22 @@ function vplay(off, len, vol, v, rate = 1, fadeIn = 0.03, fadeOut = 0.35) {
   s.start(t, off, len + 0.05); s.stop(end + 0.1);
 }
 // a long low roll that dies away slowly, for volleys and heavy shells
+// one shared low noise, looped, for every roll
+let RB = null;
+function rumbleBuf(a) {
+  if (RB) return RB;
+  const len = 4 * a.sampleRate, d = (RB = a.createBuffer(1, len, a.sampleRate)).getChannelData(0);
+  let lp = 0;
+  for (let i = 0; i < len; i++) { lp += (Math.random() * 2 - 1 - lp) * 0.08; d[i] = lp * 3; }
+  return RB;
+}
 function rumble(vol, secs) {
   if (mute || !gest || vol < 0.01) return;
-  const a = au(), t = a.currentTime + 0.02, len = (secs + 1) * a.sampleRate | 0, b = a.createBuffer(1, len, a.sampleRate), d = b.getChannelData(0);
-  let lp = 0;
-  for (let i = 0; i < len; i++) { lp += ((Math.random() * 2 - 1) - lp) * 0.08; d[i] = lp * 3; }
+  const a = au(), t = a.currentTime + 0.02;
   const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
-  s.buffer = b; f.type = "lowpass"; f.frequency.setValueAtTime(220, t); f.frequency.exponentialRampToValueAtTime(70, t + secs);
+  s.buffer = rumbleBuf(a); s.loop = true; f.type = "lowpass"; f.frequency.setValueAtTime(220, t); f.frequency.exponentialRampToValueAtTime(70, t + secs);
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.25); g.gain.setTargetAtTime(0, t + 0.35, secs / 3.2);
   s.connect(f).connect(g).connect(MS);
   const w = a.createGain(); w.gain.value = 0.5; g.connect(w).connect(RV);
-  s.start(t); s.stop(t + secs + 1);
+  s.start(t, Math.random() * 3); s.stop(t + secs + 1);
 }

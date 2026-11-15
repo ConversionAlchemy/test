@@ -116,17 +116,24 @@ function vplay(off, len, vol, v, rate = 1, fadeIn = 0.03, fadeOut = 0.35) {
   s.start(t, off, len + 0.05); s.stop(end + 0.1);
 }
 // a long low roll that dies away slowly, for volleys and heavy shells
+// one shared low noise, looped, for every roll
+let RB = null;
+function rumbleBuf(a) {
+  if (RB) return RB;
+  const len = 4 * a.sampleRate, d = (RB = a.createBuffer(1, len, a.sampleRate)).getChannelData(0);
+  let lp = 0;
+  for (let i = 0; i < len; i++) { lp += (Math.random() * 2 - 1 - lp) * 0.08; d[i] = lp * 3; }
+  return RB;
+}
 function rumble(vol, secs) {
   if (mute || !gest || vol < 0.01) return;
-  const a = au(), t = a.currentTime + 0.02, len = (secs + 1) * a.sampleRate | 0, b = a.createBuffer(1, len, a.sampleRate), d = b.getChannelData(0);
-  let lp = 0;
-  for (let i = 0; i < len; i++) { lp += ((Math.random() * 2 - 1) - lp) * 0.08; d[i] = lp * 3; }
+  const a = au(), t = a.currentTime + 0.02;
   const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
-  s.buffer = b; f.type = "lowpass"; f.frequency.setValueAtTime(220, t); f.frequency.exponentialRampToValueAtTime(70, t + secs);
+  s.buffer = rumbleBuf(a); s.loop = true; f.type = "lowpass"; f.frequency.setValueAtTime(220, t); f.frequency.exponentialRampToValueAtTime(70, t + secs);
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.25); g.gain.setTargetAtTime(0, t + 0.35, secs / 3.2);
   s.connect(f).connect(g).connect(MS);
   const w = a.createGain(); w.gain.value = 0.5; g.connect(w).connect(RV);
-  s.start(t); s.stop(t + secs + 1);
+  s.start(t, Math.random() * 3); s.stop(t + secs + 1);
 }
 const BE={edges:[25, 50, 90, 150, 240, 380, 600, 950, 1500, 2400, 3800, 6000, 9500, 15000],env:[[-1,-9,-8,-4,-9,-16,-20,-23,-20,-19,-23,-21,-25,-31,-27,-31,-32,-31,-29,-27,-30,-24,-22,-28,-27,-26,-30,-30,-28,-31,-38,-35,-35,-32,-31,-31,-28,-30,-37,-39,-40,-35,-35,-37,-36,-40,-38,-44,-44,-44,-54,-48,-41,-40,-60,-54,-48,-60,-54,-60,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[0,-1,-4,-9,-21,-18,-18,-21,-19,-20,-16,-13,-15,-19,-26,-27,-28,-30,-32,-22,-19,-17,-18,-21,-21,-24,-30,-34,-34,-28,-26,-25,-27,-28,-29,-25,-23,-27,-34,-34,-32,-33,-38,-32,-33,-33,-34,-36,-42,-40,-37,-38,-36,-37,-43,-46,-44,-46,-50,-48,-54,-60,-50,-54,-54,-60,-60,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-80,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-7,-7,-11,-15,-24,-20,-23,-21,-19,-22,-29,-25,-22,-21,-20,-26,-24,-26,-27,-28,-32,-28,-27,-25,-27,-23,-26,-36,-34,-34,-30,-30,-33,-26,-25,-29,-30,-32,-35,-36,-33,-34,-35,-43,-44,-35,-38,-40,-42,-40,-39,-44,-38,-44,-43,-48,-50,-46,-54,-54,-54,-54,-60,-80,-54,-60,-80,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-80,-60,-60,-80,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-13,-7,-7,-16,-20,-17,-18,-19,-19,-21,-21,-21,-22,-22,-19,-18,-22,-26,-28,-30,-29,-30,-29,-28,-29,-29,-29,-32,-33,-30,-32,-35,-35,-27,-24,-27,-33,-33,-34,-35,-36,-35,-38,-36,-38,-37,-42,-42,-46,-43,-42,-46,-46,-50,-48,-48,-48,-50,-54,-54,-54,-60,-54,-54,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-60,-60,-80,-60,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-22,-18,-18,-24,-23,-23,-29,-28,-28,-29,-30,-32,-31,-30,-30,-29,-34,-40,-34,-32,-31,-38,-40,-37,-37,-35,-37,-42,-44,-46,-48,-44,-39,-37,-40,-43,-44,-46,-48,-48,-46,-48,-48,-46,-46,-46,-44,-44,-46,-44,-48,-42,-42,-42,-46,-40,-46,-48,-60,-50,-50,-54,-54,-54,-50,-54,-50,-54,-54,-54,-48,-54,-54,-54,-50,-54,-54,-54,-60,-54,-60,-60,-54,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-60,-60,-60,-60,-60,-80,-60,-80,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-22,-17,-19,-27,-25,-26,-32,-33,-34,-38,-42,-41,-39,-38,-39,-43,-48,-48,-40,-34,-35,-38,-36,-37,-42,-43,-43,-42,-41,-40,-40,-40,-40,-38,-39,-40,-39,-39,-43,-43,-41,-40,-36,-41,-41,-40,-38,-38,-39,-43,-39,-36,-42,-43,-42,-41,-44,-46,-50,-48,-50,-50,-48,-50,-50,-50,-50,-50,-54,-54,-48,-50,-60,-54,-54,-54,-54,-54,-54,-60,-54,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-26,-23,-22,-27,-31,-31,-34,-34,-32,-36,-42,-46,-46,-44,-43,-44,-46,-46,-46,-43,-42,-42,-43,-43,-40,-42,-43,-44,-44,-41,-39,-41,-44,-44,-46,-48,-44,-44,-46,-48,-46,-48,-48,-50,-50,-48,-50,-48,-50,-50,-50,-50,-50,-54,-50,-54,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-80,-60,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-28,-27,-28,-30,-32,-34,-36,-37,-38,-40,-44,-48,-46,-44,-46,-46,-46,-46,-46,-42,-41,-44,-46,-46,-46,-48,-50,-48,-46,-44,-46,-46,-48,-50,-50,-54,-54,-54,-54,-54,-50,-50,-50,-54,-54,-54,-54,-54,-54,-60,-54,-54,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-32,-32,-31,-33,-34,-34,-36,-38,-38,-41,-42,-42,-43,-44,-46,-48,-48,-50,-48,-48,-48,-48,-48,-46,-46,-48,-50,-50,-50,-50,-50,-50,-50,-50,-54,-54,-54,-54,-54,-54,-54,-54,-54,-54,-54,-54,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-34,-36,-36,-37,-38,-38,-39,-40,-41,-43,-44,-43,-44,-46,-48,-48,-48,-48,-50,-50,-50,-50,-50,-50,-48,-48,-50,-54,-54,-54,-54,-54,-54,-54,-54,-54,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-42,-44,-44,-44,-44,-44,-46,-46,-48,-48,-48,-48,-48,-48,-50,-50,-50,-54,-54,-54,-54,-54,-54,-54,-54,-54,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-54,-54,-54,-54,-50,-54,-54,-54,-54,-54,-54,-54,-54,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80],[-80,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-60,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80,-80]]};
 // where a sound happens shapes it: room size, open air, a wall between it and the listener. The listener is the selected character, else the bottom of the view
@@ -429,24 +436,41 @@ SFX.mhit=()=>SND.mhit(SVOL);
   // ---------- the volley recording: fire heard from above, shouts, and the long roll after ----------
   // shots gather into a burst for a moment, then sound as one stretch of the recording sized to how many fired
   const burst = { n: 0, x: 0, y: 0, t: 0 };
-  let voices = 0;
+  let voices = 0, lastGren = 0;
   function shotSound(x, y) {
     if (mute || !gest) return;
     if (!burst.n) burst.t = performance.now();
     burst.n++; burst.x += x; burst.y += y;
   }
+  // the listener's height: zoomed out you hear the field from far above, the top end gone and everything quieter
+  let hearLP = null, hearG = null;
+  function height() {
+    if (!AC || !MS) return;
+    if (!hearLP) {
+      hearLP = AC.createBiquadFilter(); hearLP.type = "lowpass"; hearG = AC.createGain();
+      MS.disconnect(); MS.connect(hearLP).connect(hearG).connect(AC.destination);
+    }
+    const k = Math.max(0, Math.min(1, Math.log(cam.z / 0.7) / Math.log(4 / 0.7))); // 0 far (zoomed out) .. 1 near
+    hearLP.frequency.setTargetAtTime(1300 * Math.pow(14, k), AC.currentTime, 0.1);
+    hearG.gain.setTargetAtTime(0.6 + 0.4 * k, AC.currentTime, 0.1);
+  }
   function soundTick() {
     if (gest && !VBP) vbuf();
+    height();
     if (!burst.n || performance.now() - burst.t < 90) return;
     const n = burst.n, x = burst.x / n, y = burst.y / n, v = audible(x, y);
     burst.n = burst.x = burst.y = 0;
     if (v < 0.04 || voices >= 5) return;
     voices++; setTimeout(() => voices--, 1500);
+    if (n >= 3 && n < 4) SND.at("grenade", x, y);
     if (n < 4) {
       // a few shots: single cracks out of the recording
       for (let i = 0; i < Math.min(n, 3); i++) setTimeout(() => vplay(VOLLEY_SHOTS[(Math.random() * VOLLEY_SHOTS.length) | 0] - 0.02, 0.55, 0.5 * v, v, 0.92 + Math.random() * 0.16, 0.005, 0.3), i * (40 + Math.random() * 120));
       return;
     }
+    // the sandbox's grenade under the recording gives the volley its body; a big one gets a second, a beat later
+    if (performance.now() - lastGren > 200) { lastGren = performance.now(); SND.at("grenade", x, y); }
+    if (n >= 16) setTimeout(() => SND.at("grenade", x + 20, y), 110 + Math.random() * 120);
     const len = Math.min(3.2, 0.7 + n * 0.06), off = Math.random() * (VOLLEY_BED[1] - len);
     vplay(off, len, Math.min(1, 0.35 + n / 30) * v, v, 0.95 + Math.random() * 0.1, 0.02, Math.min(1, len * 0.45));
     if (n >= 8) rumble(Math.min(0.5, n / 60) * v, 4.5);
@@ -521,6 +545,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
   let scen = { kind: "classic" };
   function setup() {
     men = []; regs = []; balls = []; bits = []; flashes = []; shells = []; fires = []; counts = {};
+    for (const k in plans) delete plans[k];
     smoke.fill(0);
     sctx.clearRect(0, 0, WW, WH);
     bctx.clearRect(0, 0, WW, WH);
@@ -653,6 +678,24 @@ SFX.mhit=()=>SND.mhit(SVOL);
     }
     place(r);
     if (snap) for (const m of live) { m.x = m.tx; m.y = m.ty; m.a = m.ta; }
+  }
+  function closeRanks(r) {
+    const live = r.men.filter(m => m.alive && !m.solo);
+    if (!live.length) return;
+    const S = slots(r, r.files).sort((a, b) => a.y - b.y || a.x - b.x), holder = new Map(), pool = new Set(live);
+    for (const m of live) holder.set(`${m.sx},${m.sy}`, m);
+    for (const sl of S) {
+      let m = holder.get(`${sl.x},${sl.y}`);
+      if (!m || !pool.has(m)) {
+        let bd = 1e9;
+        m = null;
+        for (const o of pool) { const d = Math.hypot(o.sx - sl.x, o.sy - sl.y) + (o.sy < sl.y ? 60 : 0); if (d < bd) { bd = d; m = o; } }
+      }
+      if (!m) break;
+      pool.delete(m);
+      m.sx = sl.x; m.sy = sl.y; m.sa = sl.a; m.group = sl.group; m.canFire = sl.fire;
+    }
+    place(r);
   }
   const slotAt = (x, y, f, m) => { const c = Math.cos(f), s = Math.sin(f); return [x + c * -m.sy - s * m.sx, y + s * -m.sy + c * m.sx]; };
   function place(r) {
@@ -820,7 +863,8 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const live = r.men.filter(m => m.alive);
     if (!live.length) return;
     const strength = live.length / r.n0;
-    if (!r.rout && (r.tier === "heavy" ? strength < 0.1 : strength < 0.35 || r.morale < 20)) {
+    const breaks = r.tier === "heavy" ? strength < 0.1 : r.tier === "line" ? strength < 0.15 || r.morale < 8 : strength < 0.35 || r.morale < 20;
+    if (!r.rout && breaks) {
       r.rout = true; r.charge = null;
       if (selected.delete(r)) syncBar();
       r.direct = false;
@@ -838,14 +882,12 @@ SFX.mhit=()=>SND.mhit(SVOL);
     if (r.hold || r.direct || r.form === "column" || r.charge) return;
     // a running block doesn't fire; a formed one fires on the march; a disordered one doesn't
     if (r.moving && (r.run || r.dash)) return;
-    const off = live.reduce((s, m) => s + Math.hypot(m.tx - m.x, m.ty - m.y), 0) / live.length;
-    if (off > 8 && r.form !== "loose") return;
     if (time < r.nextVolley) return;
     const groups = new Map();
     for (const m of live) if (m.canFire && !m.solo) (groups.get(m.group) || groups.set(m.group, []).get(m.group)).push(m);
     for (const [g, L] of groups) {
-      const ready = L.filter(m => m.loaded && m.ammo > 0);
-      if (!ready.length || ready.length < L.length * (r.form === "loose" ? 0 : 0.75)) continue;
+      const placed = L.filter(m => Math.hypot(m.tx - m.x, m.ty - m.y) < 5), ready = placed.filter(m => m.loaded && m.ammo > 0);
+      if (!ready.length || ready.length < placed.length * (r.form === "loose" ? 0 : 0.75)) continue;
       const foes = foesNear(r, RANGE + 80);
       if (!foes.length) continue;
       let n = 0;
@@ -902,6 +944,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
     m.pending = false; m.manual = false;
     const r = m.target;
     if (!m.alive || !m.loaded || m.ammo <= 0 || (!r && !m.aimPt) || time - (m.melee || -9) < 3) { m.aimPt = null; return; }
+    if (m.aimPt && m.zoneShot) { const [px, py] = m.aimPt; m.aimPt = null; m.zoneShot = false; return shoot(m, null, px, py, true); }
     if (m.aimPt) return fireAtPoint(m);
     if (m.tgtMan) { const t = m.tgtMan; m.tgtMan = null; if (t.alive) return shoot(m, t, t.x, t.y); }
     // aim: three men of the target, the nearest of them
@@ -919,9 +962,10 @@ SFX.mhit=()=>SND.mhit(SVOL);
     near(px, py, 12, o => { if (o.alive && o.side !== m.side) { const d = Math.hypot(o.x - px, o.y - py); if (d < bd) { bd = d; t = o; } } });
     shoot(m, t, px, py);
   }
-  function shoot(m, t, px, py) {
+  function shoot(m, t, px, py, exact) {
     const td = Math.hypot(px - m.x, py - m.y);
     m.loaded = false; m.kneel = !m.reg.moving; m.rlHeard = false; m.ammo--;
+    { const ra = Math.atan2(py - m.y, px - m.x); m.x -= Math.cos(ra) * 1.2; m.y -= Math.sin(ra) * 1.2; }
     if (Math.random() < 0.35 && m.chips.filter(c => c[2] === 4).length < 5) { const T = TIER[m.tier], g = (Math.random() - 0.5) * 1.2; m.chips.push([Math.cos(g) * (T.r - 1.5 - Math.random()), Math.sin(g) * (T.r - 1.5), 4]); m.cache = null; }
     m.reload = 8 + Math.random() * 2;
     const a = Math.atan2(py - m.y, px - m.x);
@@ -934,7 +978,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const p = t ? acc(td) * (t.kneel ? 0.85 : 1) * (m.reg.moving ? 0.7 : 1) : 0;
     const hit = Math.random() < p;
     let x1 = px, y1 = py;
-    if (!hit) { const s = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * (10 + td / 20)); x1 += -Math.sin(a) * s + Math.cos(a) * (Math.random() * 30); y1 += Math.cos(a) * s + Math.sin(a) * (Math.random() * 30); }
+    if (!hit && !exact) { const s = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * (10 + td / 20)); x1 += -Math.sin(a) * s + Math.cos(a) * (Math.random() * 30); y1 += Math.cos(a) * s + Math.sin(a) * (Math.random() * 30); }
     const ball = { x0: mx, y0: my, x1, y1, x: mx, y: my, t: 0, dur: Math.hypot(x1 - mx, y1 - my) / BALL, hit, target: t, a, side: m.side };
     balls.push(ball);
     passBy(ball);
@@ -1098,6 +1142,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const x1 = gx + Math.cos(a) * (d + along) - Math.sin(a) * across, y1 = gy + Math.sin(a) * (d + along) + Math.cos(a) * across;
     const bl = (r.gun.size === "large" ? 13 : 10), mx = gx + Math.cos(a) * bl, my = gy + Math.sin(a) * bl;
     G.loaded = false; G.rl = G.reload; G.shells--; G.kick = 0.35;
+    { const back = G.size === "large" ? 4 : 3; r.ax -= Math.cos(a) * back; r.ay -= Math.sin(a) * back; r.x -= Math.cos(a) * back; r.y -= Math.sin(a) * back; }
     for (let i = 0; i < 3; i++) plume(mx + Math.cos(a) * i * 6, my + Math.sin(a) * i * 6, a + (Math.random() - 0.5) * 0.6);
     dab(mx, my, 1.2, 3);
     flashes.push({ x: mx, y: my, t: 0.1, big: 1.6 * G.blast });
@@ -1197,14 +1242,27 @@ SFX.mhit=()=>SND.mhit(SVOL);
     for (const r of L) { r.direct = on; r.charge = null; r.x = r.ax; r.y = r.ay; }
     syncBar();
   }
+  // where a block's fire falls when it aims at P: its front narrowed by focus, widened and lengthened by distance
+  function zoneOf(r, P) {
+    let lo = 1e9, hi = -1e9;
+    for (const m of r.men) if (m.alive && !m.solo && m.canFire) { lo = Math.min(lo, m.sx); hi = Math.max(hi, m.sx); }
+    if (lo > hi) lo = hi = 0;
+    const L = slotAt(r.ax, r.ay, r.af, { sx: lo, sy: 0 }), Rt = slotAt(r.ax, r.ay, r.af, { sx: hi, sy: 0 });
+    const C = [(L[0] + Rt[0]) / 2, (L[1] + Rt[1]) / 2], d = Math.hypot(P[0] - C[0], P[1] - C[1]), a = Math.atan2(P[1] - C[1], P[0] - C[0]);
+    const front = Math.hypot(Rt[0] - L[0], Rt[1] - L[1]), f = r.focus ?? 0.5;
+    return { L, Rt, C, d, a, front, mid: (lo + hi) / 2, wide: front * (1 - f), lat: 4 + d * 0.06, deep: 6 + d * 0.35 };
+  }
+  const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
   function shootAt(x, y) {
     for (const r of directs()) {
       if (r.form === "gun") { fireGun(r, x, y); continue; }
       const L = r.men.filter(m => m.alive && !m.solo && m.canFire && m.loaded && m.ammo > 0 && !m.pending);
-      const ranks = [...new Set(L.map(m => m.group))].sort();
+      const ranks = [...new Set(L.map(m => m.group))].sort(), Z = zoneOf(r, [x, y]);
+      const ux = Math.cos(Z.a), uy = Math.sin(Z.a), vx = -uy, vy = ux;
       for (const m of L) {
         const k = r.form === "line" ? ranks.indexOf(m.group) : 0;
-        m.aimPt = [x + (Math.random() - 0.5) * 16, y + (Math.random() - 0.5) * 16];
+        const u = Z.front ? (m.sx - Z.mid) / Z.front : 0, lat = u * Z.wide + gauss() * Z.lat, along = gauss() * Z.deep / 2;
+        m.aimPt = [x + vx * lat + ux * along, y + vy * lat + uy * along]; m.zoneShot = true;
         m.fireAt = time + k * 0.9 + Math.random() * (r.form === "loose" ? 0.6 : 0.28);
         m.manual = true; m.pending = true;
       }
@@ -1250,9 +1308,52 @@ SFX.mhit=()=>SND.mhit(SVOL);
   }
 
   // the side not under your hand: faces the nearest threat, closes to musket range if it means to attack, charges when close
+  // the side not under your hand fights as an army: one line facing the enemy's mass, blocks side by side in the order
+  // they already stand, a second line behind for the spare, guns behind the middle. The line closes to musket range
+  // when it attacks and stands where it deployed when it holds; each block then fires, wheels a little, or charges
+  const plans = {};
+  function armyThink(side) {
+    const P = plans[side] || (plans[side] = { t: 0 });
+    if (P.t > time) return;
+    P.t = time + 2.5;
+    const mine = regs.filter(r => r.side === side && !r.rout && alive(r)), foes = regs.filter(r => r.side !== side && !r.rout && alive(r));
+    if (!mine.length || !foes.length) return;
+    const mass = L => { let x = 0, y = 0, n = 0; for (const r of L) { const c = centroid(r); if (c) { x += c[0] * alive(r); y += c[1] * alive(r); n += alive(r); } } return n ? [x / n, y / n] : null; };
+    const inf = mine.filter(r => !r.gun), fInf = foes.filter(r => !r.gun);
+    const A = mass(inf.length ? inf : mine), E = mass(fInf.length ? fInf : foes);
+    if (!A || !E) return;
+    // the line keeps its facing; only a foe well round its flank swings it, and then a little at a time
+    let face = Math.atan2(E[1] - A[1], E[0] - A[0]);
+    if (P.face != null) { const d = angDiff(P.face, face); face = Math.abs(d) < 0.6 ? P.face : P.face + Math.sign(d) * 0.25; }
+    P.face = face;
+    const fx = Math.cos(face), fy = Math.sin(face), ux = -fy, uy = fx;
+    if (!P.home) P.home = A;
+    // the enemy's nearest front, along our facing
+    let dE = 1e9;
+    for (const o of foes) for (const m of o.men) if (m.alive) dE = Math.min(dE, (m.x - A[0]) * fx + (m.y - A[1]) * fy);
+    let S = P.S || A;
+    if (posture[side] === "advance") { const go = Math.max(-30, Math.min(70, dE - RANGE * 0.8)); S = [A[0] + fx * go, A[1] + fy * go]; }
+    else S = P.home;
+    P.S = S;
+    // front: the blocks furthest forward; spare ones behind; each keeps its place left to right
+    const lat = r => { const c = centroid(r); return (c[0] - S[0]) * ux + (c[1] - S[1]) * uy; }, fwd = r => { const c = centroid(r); return (c[0] - S[0]) * fx + (c[1] - S[1]) * fy; };
+    const byFwd = [...inf].sort((a, b) => fwd(b) - fwd(a)), front = byFwd.slice(0, 7).sort((a, b) => lat(a) - lat(b)), spare = byFwd.slice(7).sort((a, b) => lat(a) - lat(b));
+    const wOf = r => widthFor(r.form === "loose" ? "loose" : "line", Math.max(minFiles(alive(r)), Math.min(alive(r), r.files || 0)));
+    const row = (L, back) => {
+      const W = L.reduce((s, r) => s + wOf(r), 0) + GAP * 2 * Math.max(0, L.length - 1);
+      let at = -W / 2;
+      for (const r of L) { const w = wOf(r), mid = at + w / 2; at += w + GAP * 2; r.station = [S[0] + ux * mid - fx * back, S[1] + uy * mid - fy * back, face]; }
+      return W;
+    };
+    const W = row(front, 0);
+    row(spare, 90);
+    const guns = mine.filter(r => r.gun);
+    guns.forEach((r, i) => { const l = -W / 2 + ((i + 1) * W) / (guns.length + 1); r.station = [S[0] + ux * l - fx * 55, S[1] + uy * l - fy * 55, face]; });
+  }
   function aiThink(r) {
     if ((r.thinkAt || 0) > time) return;
-    r.thinkAt = time + 2 + Math.random() * 1.5;
+    r.thinkAt = time + 1 + Math.random() * 0.8;
+    armyThink(r.side);
     const c = centroid(r);
     if (!c || r.charge) return;
     const foe = nearestReg(r, c), k = foe && centroid(foe);
@@ -1260,13 +1361,21 @@ SFX.mhit=()=>SND.mhit(SVOL);
     const bd = Math.hypot(k[0] - c[0], k[1] - c[1]), want = Math.atan2(k[1] - c[1], k[0] - c[0]);
     const gun = r.form === "gun";
     if (!gun && bd < 45) { startCharge(r); return; }
-    if (!gun && posture[r.side] === "advance" && bd > RANGE * 0.95) {
-      const go = Math.min(bd - RANGE * 0.75, 260);
-      r.face = want; r.x = r.ax + Math.cos(want) * go; r.y = r.ay + Math.sin(want) * go;
-      return;
+    const st = r.station;
+    if (!st) return;
+    // shooting back: stay and fire; a foe well off the front turns it a little, never past 40 degrees off the line
+    if (gun ? bd < r.gun.range : canAnswer(r)) {
+      const a = st[2] + Math.max(-0.7, Math.min(0.7, angDiff(st[2], want)));
+      if (Math.abs(angDiff(r.face, a)) > 0.35 && time > (r.planUntil || 0)) { r.face = a; r.x = r.ax; r.y = r.ay; r.planUntil = time + 5; }
+      if (!gun || Math.hypot(st[0] - r.ax, st[1] - r.ay) < 40) return;
     }
-    if (gun && bd > r.gun.range) return;
-    if (Math.abs(angDiff(r.face, want)) > ((gun ? 18 : 35) * Math.PI) / 180) { r.face = want; r.x = r.ax; r.y = r.ay; }
+    // otherwise to its place in the line
+    if (Math.hypot(st[0] - r.x, st[1] - r.y) > 6 || Math.abs(angDiff(r.face, st[2])) > 0.15) { r.x = st[0]; r.y = st[1]; r.face = st[2]; }
+  }
+  // can the block shoot back at anyone at all from where it stands
+  function canAnswer(r) {
+    const foes = foesNear(r, RANGE);
+    return r.men.some(m => m.alive && m.canFire && aimFor(m, foes, RANGE));
   }
 
   // ---------- orders ----------
@@ -1445,6 +1554,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
   cv.addEventListener("wheel", e => {
     e.preventDefault();
     // pinch (ctrl), shift, or nothing selected: zoom; otherwise the wheel widens or narrows the front
+    if (!(e.ctrlKey || e.shiftKey) && directs().length) { for (const r of directs()) r.focus = Math.max(0, Math.min(1, (r.focus ?? 0.5) - e.deltaY * 0.0015)); return; }
     if (!(e.ctrlKey || e.shiftKey) && previewLine()) { pw *= Math.exp(e.deltaY * 0.002); return; }
     const [wx, wy] = toWorld(e.offsetX, e.offsetY);
     cam.z = Math.max(0.6, Math.min(6, cam.z * Math.exp(-e.deltaY * 0.0015)));
@@ -1768,7 +1878,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
       const reach = R => {
         ctx.beginPath();
         if (r.form === "square") { ctx.arc(c[0], c[1], R + 12, 0, Math.PI * 2); return; }
-        ctx.moveTo(L[0], L[1]); ctx.arc(L[0], L[1], R, f - sw, f); ctx.arc(Rt[0], Rt[1], R, f, f + sw); ctx.closePath();
+        ctx.moveTo(L[0], L[1]); ctx.arc(L[0], L[1], R, f - sw, f); ctx.arc(Rt[0], Rt[1], R, f, f + sw); ctx.lineTo(Rt[0], Rt[1]); ctx.closePath();
       };
       reach(Rn); ctx.fillStyle = "rgba(250,250,235,0.06)"; ctx.fill();
       ctx.lineWidth = 1 / cam.z; ctx.strokeStyle = "rgba(250,250,235,0.35)"; ctx.stroke();
@@ -1786,13 +1896,37 @@ SFX.mhit=()=>SND.mhit(SVOL);
       ctx.fillStyle = "rgba(255,255,240,0.35)";
       for (const m of r.men) if (m.alive && !m.solo) { const [x, y] = slotAt(r.x, r.y, r.face, m); ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2); }
     }
-    // driving: a sight line to where the block will fire
+    // driving: the beaten zone, a band from the front out to where the fire falls, fading and loosening with distance
     if (hover) for (const r of directs()) {
-      const c = r.form === "gun" ? gunPos(r) : centroid(r), [mx, my] = toWorld(mouse[0], mouse[1]);
-      if (!c) continue;
-      ctx.strokeStyle = "rgba(255,240,200,0.55)"; ctx.lineWidth = 1 / cam.z; ctx.setLineDash([2 / cam.z, 3 / cam.z]);
-      ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(mx, my); ctx.stroke(); ctx.setLineDash([]);
-      ctx.beginPath(); ctx.arc(mx, my, 8 / cam.z, 0, Math.PI * 2); ctx.stroke();
+      const P = toWorld(mouse[0], mouse[1]);
+      if (r.form === "gun") {
+        const [gx, gy] = gunPos(r), d = Math.min(Math.hypot(P[0] - gx, P[1] - gy), r.gun.range * 1.2), sc = 4 + 70 * Math.pow(d / r.gun.range, 1.4), a = Math.atan2(P[1] - gy, P[0] - gx);
+        ctx.save(); ctx.translate(P[0], P[1]); ctx.rotate(a);
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, sc * 1.3);
+        g.addColorStop(0, "rgba(255,230,180,0.28)"); g.addColorStop(1, "rgba(255,230,180,0)");
+        ctx.scale(1, 0.46); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, sc * 1.3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        ctx.strokeStyle = "rgba(255,240,200,0.4)"; ctx.lineWidth = 1 / cam.z; ctx.setLineDash([2 / cam.z, 4 / cam.z]);
+        ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(P[0], P[1]); ctx.stroke(); ctx.setLineDash([]);
+        continue;
+      }
+      const Z = zoneOf(r, P), ux = Math.cos(Z.a), uy = Math.sin(Z.a), vx = -uy, vy = ux, W = Z.wide / 2 + Z.lat * 1.5, D = Z.deep * 0.75;
+      const near = (s, k) => [P[0] + vx * W * s - ux * D * k, P[1] + vy * W * s - uy * D * k];
+      const a0 = near(-1, 1), a1 = near(1, 1), b0 = near(-1, -1), b1 = near(1, -1);
+      const g = ctx.createLinearGradient(Z.C[0], Z.C[1], P[0] + ux * D, P[1] + uy * D);
+      const k = Math.min(1, Z.d / 600);
+      g.addColorStop(0, "rgba(255,240,200,0.16)"); g.addColorStop(0.75, `rgba(255,240,200,${0.12 - k * 0.07})`); g.addColorStop(1, "rgba(255,240,200,0)");
+      ctx.fillStyle = g;
+      // the band: the front's two ends out to the zone's near corners, then the zone itself
+      const [la, ra] = angDiff(Z.a, Math.atan2(Z.L[1] - Z.C[1], Z.L[0] - Z.C[0])) < 0 ? [Z.L, Z.Rt] : [Z.Rt, Z.L];
+      ctx.beginPath(); ctx.moveTo(la[0], la[1]); ctx.lineTo(a0[0], a0[1]); ctx.lineTo(b0[0], b0[1]); ctx.lineTo(b1[0], b1[1]); ctx.lineTo(a1[0], a1[1]); ctx.lineTo(ra[0], ra[1]); ctx.closePath(); ctx.fill();
+      // the zone itself, where the balls land
+      ctx.fillStyle = `rgba(255,236,190,${0.16 - k * 0.06})`;
+      ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.lineTo(b1[0], b1[1]); ctx.lineTo(b0[0], b0[1]); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = `rgba(255,240,200,${0.75 - k * 0.35})`; ctx.lineWidth = 1.2 / cam.z;
+      ctx.setLineDash([(2 + k * 2) / cam.z, (3 + k * 8) / cam.z]);
+      ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.lineTo(b1[0], b1[1]); ctx.lineTo(b0[0], b0[1]); ctx.closePath(); ctx.stroke();
+      ctx.setLineDash([]);
     }
     // the front under the cursor
     const pl = hover && !drag && !pan && previewLine();
@@ -1894,6 +2028,11 @@ SFX.mhit=()=>SND.mhit(SVOL);
     if (r.tier === "heavy") { g.fillStyle = fill; g.beginPath(); g.ellipse(cx, cy, 7 * k, 3.6 * k, 0, 0, Math.PI * 2); g.fill(); g.stroke(); }
   }
 
+  function advance(sdt) {
+    for (const m of men) if (m.pending && m.fireAt <= time + sdt && (!paused || m.manual)) fire(m);
+    step(sdt, !paused);
+    for (const r of layoutSoon) if (!r.rout && !r.charge && time > (r.closeAt || 0)) { r.closeAt = time + 1.2; closeRanks(r); layoutSoon.delete(r); }
+  }
   // ---------- loop ----------
   let last = performance.now(), frameMs = 0, cardT = 0;
   const stat = document.getElementById("stat");
@@ -1910,10 +2049,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
     // paused stops only the AI and the volleys it calls; orders, marching, reloading and fighting go on
     {
       const sdt = dt * speed;
-      for (const m of men) if (m.pending && m.fireAt <= time + sdt && (!paused || m.manual)) fire(m);
-      step(sdt, !paused);
-      for (const r of layoutSoon) if (!r.rout && !r.charge) { const live = r.men.filter(m => m.alive && !m.solo); if (live.length) layout(r); }
-      layoutSoon.clear();
+      advance(sdt);
     }
     soundTick();
     if ((cardT -= dt) <= 0) { cardT = 0.2; updateCards(); }
@@ -1928,7 +2064,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
   resize();
   setup();
   syncBar();
-  window.__lb = { shootAt, toggleDirect, fireGun, explode, me: v => (v ? (me = v, buildCards(), syncBar()) : me), scen: v => { scen = v; setup(); }, startCharge, volley, fireSel, chargeSel, previewLine, step, setMouse: (x, y) => { mouse = [x, y]; hover = true; }, pw: v => (v == null ? pw : (pw = v)), regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
+  window.__lb = { sim: secs => { for (let t = 0; t < secs; t += 1 / 30) advance(1 / 30); return time; }, shootAt, toggleDirect, fireGun, explode, me: v => (v ? (me = v, buildCards(), syncBar()) : me), scen: v => { scen = v; setup(); }, startCharge, volley, fireSel, chargeSel, previewLine, step, setMouse: (x, y) => { mouse = [x, y]; hover = true; }, pw: v => (v == null ? pw : (pw = v)), regs, men: () => men, order: (...a) => order(...a), select: L => { selected = new Set(L); syncBar(); }, setPaused, regsNow: () => regs, cam, setForm };
   requestAnimationFrame(loop);
 })();
 </script>
