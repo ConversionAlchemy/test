@@ -4,11 +4,13 @@
 import { viewport } from "@/components/viewport";
 import { getIsolines } from "@/utils/pathUtils";
 import { escapeHtml } from "@/utils/stringUtils";
+import { seaInlets } from "./inlets";
 import { openPlace } from "./place-dialog";
 import { isForestBiome } from "./woods";
 
 const NS = "http://www.w3.org/2000/svg";
-const KINDS = { Forest: "Forest", Mountains: "Mountains" } as const;
+const KINDS = { Forest: "Forest", Mountains: "Mountains", Bay: "Bay" } as const;
+const isNamed = (type: string) => type === KINDS.Forest || type === KINDS.Mountains || type === KINDS.Bay;
 
 interface Named {
   key: string; // z:<zone id> or f:<feature id>
@@ -61,8 +63,7 @@ export function nameZones(): void {
   pack.zones ??= [];
   const { cells } = pack;
   const taken = new Uint8Array(cells.i.length);
-  for (const z of pack.zones)
-    if (z.type === KINDS.Forest || z.type === KINDS.Mountains) for (const c of z.cells) taken[c] = 1;
+  for (const z of pack.zones) if (isNamed(z.type)) for (const c of z.cells) taken[c] = 1;
   const add = (type: string, group: number[], name: string) =>
     pack.zones.push({ i: pack.zones.length, name, type, cells: group, color: "#000000", hidden: true });
   const culture = (group: number[]) => cells.culture[group[(group.length / 2) | 0]] || 1;
@@ -81,6 +82,11 @@ export function nameZones(): void {
         g,
         g.length >= 2 ? `Mount ${Names.getCultureShort(culture(g))}` : `${Names.getCultureShort(culture(g))} Peak`
       );
+  const shore = (g: number[]) => {
+    for (const c of g) for (const j of cells.c[c]) if (cells.h[j] >= 20 && cells.culture[j]) return cells.culture[j];
+    return 1;
+  };
+  for (const g of seaInlets()) if (fresh(g)) add(KINDS.Bay, g, `${Names.getCultureShort(shore(g))} Bay`);
 }
 
 /** The middle of a place: the centre of its cells deepest inside it, so the name sits in its widest part */
@@ -120,7 +126,7 @@ export function collectZones(): void {
   nameZones();
   named = [];
   for (const z of pack.zones ?? [])
-    if ((z.type === KINDS.Forest || z.type === KINDS.Mountains) && z.cells.length) {
+    if (isNamed(z.type) && z.cells.length) {
       const [x, y] = centre(z.cells);
       named.push({ key: `z:${z.i}`, text: z.name, x, y, cells: z.cells });
     }
@@ -184,8 +190,15 @@ export function drawZones(rebuild = false): void {
   group.style.display = scale >= TIERS[0].from ? "" : "none";
 }
 
-const kindOf = (n: Named) =>
-  n.key.startsWith("f:") ? "bay" : pack.zones[+n.key.slice(2)]?.type === KINDS.Forest ? "wood" : "peak";
+const zoneKind = (id: number) => {
+  const type = pack.zones[id]?.type;
+  return type === KINDS.Forest ? "forest" : type === KINDS.Bay ? "inlet" : "mountain";
+};
+const kindOf = (n: Named) => {
+  if (n.key.startsWith("f:")) return "bay";
+  const kind = zoneKind(+n.key.slice(2));
+  return kind === "forest" ? "wood" : kind === "inlet" ? "bay" : "peak";
+};
 
 /** Light the cells of a named place */
 function light(key: string | undefined): void {
@@ -260,7 +273,7 @@ let pendingClick = 0;
 function openFor(text: SVGTextElement): void {
   const key = text.dataset.key as string;
   const id = Number(key.slice(2));
-  const kind = key.startsWith("f:") ? "bay" : pack.zones[id]?.type === KINDS.Forest ? "forest" : "mountain";
+  const kind = key.startsWith("f:") ? "bay" : zoneKind(id);
   openPlace(kind, id, () => collectZones());
 }
 

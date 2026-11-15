@@ -1,5 +1,4 @@
-// Main roads from each nation's capital out to its province seats on the same land: each seat joins the nearest
-// place already on the network, so the roads branch like a tree
+import { buildRoadNetwork } from "./road-network";
 import { blocksRoads } from "./woods";
 
 /** Every province gets a seat: its biggest settlement, or a new one on its best open ground */
@@ -25,34 +24,8 @@ export function seatProvinces(): void {
   }
 }
 
+/** Seats first, then the whole road network laid out from settlement to settlement */
 export function seatRoads(): number {
   seatProvinces();
-  let made = 0;
-  for (const state of pack.states) {
-    if (!state?.i || state.removed) continue;
-    const seats = (state.provinces ?? [])
-      .map(p => pack.burgs[pack.provinces[p]?.burg ?? 0])
-      .filter(b => b?.i && !b.removed && b.i !== state.capital);
-    const capital = pack.burgs[state.capital];
-    if (!capital?.i || !seats.length) continue;
-    const joined = [capital];
-    const left = seats.filter(b => pack.cells.f[b.cell] === pack.cells.f[capital.cell]);
-    while (left.length) {
-      let best: [number, number, number] = [0, 0, Infinity];
-      for (const [i, b] of left.entries())
-        for (const [k, j] of joined.entries()) {
-          const d = (b.x - j.x) ** 2 + (b.y - j.y) ** 2;
-          if (d < best[2]) best = [i, k, d];
-        }
-      const [seat] = left.splice(best[0], 1);
-      try {
-        Routes.add(joined[best[1]].i, seat.i, "roads");
-        made++;
-      } catch {
-        // no way through by land: the seat stays on its trails
-      }
-      joined.push(seat);
-    }
-  }
-  return made;
+  return buildRoadNetwork();
 }

@@ -1,20 +1,32 @@
-// Road mode: every road node shows as a dot at its cell centre. Press on any land cell and drag: the road snaps cell
-// to cell (cells skipped over are filled with the shortest way across land), and letting go builds it at the chosen
-// level. Hovering a segment highlights it; right-click it to change its level or delete just that step
+// Road mode: click one settlement, then another, and the road is laid between them by the best way over land, if
+// there is one within the rules (road-network.ts). Hovering a road highlights it; right-click it for its level or to
+// remove it
+
+import { tip } from "@/components/tooltips";
+import { drawRoutes } from "@/renderers/draw-routes";
 import { t } from "@/utils/i18n";
-import { cellAtPoint, mainCell, neighbours } from "./one-grid";
+import { cellAtPoint, mainCell } from "./one-grid";
 import { showRoadEdit } from "./pixel-map-sync";
 import { nodePoint, routeCells, segmentAt } from "./road-geometry";
-import { changeSegment, createRoadThrough, ROUTE_LEVELS, type RouteGroup } from "./routes";
+import { layRoad, roadPath } from "./road-network";
+import { deleteRoute, ROUTE_LEVELS, type RouteGroup, setRouteGroup } from "./routes";
 
 let active = false;
 let level: RouteGroup = "trails";
-let drawing: number[] | null = null;
+let start = 0; // the settlement a road is being laid from
+let drawing: number[] | null = null; // the way to the settlement under the pointer
+let invalid = false;
 let hovered: ReturnType<typeof segmentAt> = null;
 let menu: HTMLDivElement | null = null;
 const listeners = new Set<(on: boolean, level: RouteGroup) => void>();
 
-const isLand = (cell: number | undefined): cell is number => cell !== undefined && pack.cells.h[cell] >= 20;
+const burgUnder = (event: MouseEvent): number => {
+  const point = toMap(event);
+  const cell = point ? cellAtPoint(point[0], point[1]) : undefined;
+  if (cell === undefined) return 0;
+  const burg = pack.burgs[pack.cells.burg[mainCell(cell)]];
+  return burg?.i && !burg.removed ? burg.i : 0;
+};
 
 const toMap = (event: MouseEvent): [number, number] | null => {
   const viewbox = document.getElementById("viewbox") as SVGGraphicsElement | null;
@@ -48,7 +60,6 @@ export function setRoadMode(on: boolean, next: RouteGroup = level): void {
     map?.addEventListener("contextmenu", onContext, true);
     map?.addEventListener("mousedown", swallow, true);
     map?.addEventListener("click", swallow, true);
-    window.addEventListener("pointerup", onUp, true);
     window.addEventListener("keyup", onKey, true);
   } else {
     map?.removeEventListener("pointerdown", onDown, true);
@@ -56,9 +67,9 @@ export function setRoadMode(on: boolean, next: RouteGroup = level): void {
     map?.removeEventListener("contextmenu", onContext, true);
     map?.removeEventListener("mousedown", swallow, true);
     map?.removeEventListener("click", swallow, true);
-    window.removeEventListener("pointerup", onUp, true);
     window.removeEventListener("keyup", onKey, true);
     drawing = null;
+    start = 0;
     hovered = null;
     closeMenu();
   }
@@ -96,7 +107,8 @@ function paint(): void {
     nodes: fresh ? nodes() : undefined,
     segment: drawing ? undefined : segment,
     drawing: drawing?.map(nodePoint),
-    cells: drawing ?? undefined
+    cells: drawing ?? (start ? [pack.burgs[start].cell] : undefined),
+    invalid
   });
 }
 
@@ -111,26 +123,40 @@ function swallow(event: MouseEvent): void {
 function onDown(event: PointerEvent): void {
   if (event.button !== 0) return;
   closeMenu();
-  const point = toMap(event);
-  const cell = point ? cellAtPoint(point[0], point[1]) : undefined;
-  if (!isLand(cell)) return;
   event.stopPropagation();
   event.preventDefault();
-  drawing = [cell];
-  render();
+  const burg = burgUnder(event);
+  if (!burg) {
+    tip("Roads run from settlement to settlement: click one", false, "warn");
+    return;
+  }
+  if (!start || burg === start) {
+    start = burg === start ? 0 : burg;
+    drawing = null;
+    render();
+    return;
+  }
+  const made = layRoad(start, burg, level);
+  if (typeof made === "string") tip(made, false, "error");
+  else {
+    pack.cells.routes = Routes.buildLinks(pack.routes);
+    drawRoutes();
+    start = 0;
+  }
+  drawing = null;
+  render(true);
 }
 
 function onMove(event: PointerEvent): void {
   const point = toMap(event);
   if (!point) return;
-  if (drawing) {
+  if (start) {
     event.stopPropagation();
-    const cell = cellAtPoint(point[0], point[1]);
-    if (!isLand(cell) || cell === drawing.at(-1)) return;
-    const back = drawing.indexOf(cell);
-    if (back >= 0)
-      drawing = drawing.slice(0, back + 1); // dragging back undoes
-    else drawing.push(...landPath(drawing.at(-1) as number, cell).slice(1));
+    const burg = burgUnder(event);
+    const path = burg && burg !== start ? roadPath(start, burg) : null;
+    drawing = Array.isArray(path) ? path : null;
+    invalid = typeof path === "string";
+    if (invalid) drawing = [pack.burgs[start].cell, pack.burgs[burg].cell];
     render();
     return;
   }
@@ -140,14 +166,6 @@ function onMove(event: PointerEvent): void {
   render();
 }
 
-function onUp(): void {
-  if (!drawing) return;
-  const cells = drawing;
-  drawing = null;
-  if (cells.length >= 2) createRoadThrough(cells, level);
-  render(true);
-}
-
 function onKey(event: KeyboardEvent): void {
   if (event.key !== "Escape") return;
   event.stopImmediatePropagation();
@@ -155,7 +173,8 @@ function onKey(event: KeyboardEvent): void {
     closeMenu();
     return;
   }
-  if (drawing) {
+  if (start) {
+    start = 0;
     drawing = null;
     render();
     return;
@@ -163,12 +182,12 @@ function onKey(event: KeyboardEvent): void {
   setRoadMode(false);
 }
 
-/** Right-click on a segment: its level, or delete just that step */
+/** Right-click on a road: its level, or remove it */
 function onContext(event: MouseEvent): void {
   if (!hovered) return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  const { id, k } = hovered;
+  const { id } = hovered;
   closeMenu();
   menu = document.createElement("div");
   menu.id = "contextMenu";
@@ -179,7 +198,7 @@ function onContext(event: MouseEvent): void {
       `<button type="button" data-group="${l.group}" ${route?.group === l.group ? "disabled class='off'" : ""}><span class="name">${t(l.name)}</span></button>`
   );
   rows.push(
-    `<hr /><button type="button" data-group="" class="danger"><span class="name">${t("Delete segment")}</span></button>`
+    `<hr /><button type="button" data-group="" class="danger"><span class="name">${t("Remove road")}</span></button>`
   );
   menu.innerHTML = rows.join("");
   document.body.append(menu);
@@ -190,7 +209,8 @@ function onContext(event: MouseEvent): void {
     if (!button || button.disabled) return;
     const group = (button.dataset.group || null) as RouteGroup | null;
     closeMenu();
-    changeSegment(id, k, group);
+    if (group) setRouteGroup(id, group);
+    else deleteRoute(id);
     hovered = null;
     render(true);
   });
@@ -205,24 +225,3 @@ const viewportScale = () => {
   const viewbox = document.getElementById("viewbox") as SVGGraphicsElement | null;
   return viewbox?.getScreenCTM()?.a ?? 1;
 };
-
-/** Shortest run of land cells between two cells, both included; a straight hop when they touch */
-function landPath(from: number, to: number): number[] {
-  if (neighbours(from).includes(to)) return [from, to];
-  const previous = new Map<number, number>([[from, from]]);
-  let frontier = [from];
-  for (let step = 0; step < 40 && frontier.length && !previous.has(to); step++) {
-    const next: number[] = [];
-    for (const cell of frontier)
-      for (const n of neighbours(cell)) {
-        if (previous.has(n) || !isLand(n)) continue;
-        previous.set(n, cell);
-        next.push(n);
-      }
-    frontier = next;
-  }
-  if (!previous.has(to)) return [from];
-  const path = [to];
-  while (path[0] !== from) path.unshift(previous.get(path[0]) as number);
-  return path;
-}

@@ -144,7 +144,19 @@ export function roadLines(): RoadLine[] {
 function landLine(route: (typeof pack.routes)[number]): RoadLine | null {
   const cells = trimToSettlements(foldCells(routeCells(route)));
   if (cells.length < 2) return null;
-  const line = roundedLine(cells.map(nodePoint), 0.22, k => hasBurg(cells[k]));
+  // a port stands on its cell's shore: the road comes to the cell's centre on land, then out to it
+  const nodes = cells.map(nodePoint);
+  const kept = cells.map(hasBurg);
+  const portEnd = (cell: number) => Boolean(pack.burgs[pack.cells.burg[mainCell(cell)]]?.port);
+  if (portEnd(cells[0])) {
+    nodes.splice(1, 0, cellCentre(mainCell(cells[0])));
+    kept.splice(1, 0, true);
+  }
+  if (portEnd(cells[cells.length - 1])) {
+    nodes.splice(nodes.length - 1, 0, cellCentre(mainCell(cells[cells.length - 1])));
+    kept.splice(kept.length - 1, 0, true);
+  }
+  const line = roundedLine(nodes, 0.22, k => kept[k]);
   return { id: route.i, group: route.group, cells, line };
 }
 

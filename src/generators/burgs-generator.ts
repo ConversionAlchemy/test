@@ -371,7 +371,7 @@ class BurgModule {
     const [x2, y2] = vertices.p[commonVertices[1]];
     const xEdge = (x1 + x2) / 2;
     const yEdge = (y1 + y2) / 2;
-    return [rn(x0 + 0.95 * (xEdge - x0), 2), rn(y0 + 0.95 * (yEdge - y0), 2)];
+    return [rn(x0 + 0.97 * (xEdge - x0), 2), rn(y0 + 0.97 * (yEdge - y0), 2)]; // Fluoria: on the shore edge's middle
   }
 
   // Move a river burg off the river centerline onto a bank
@@ -857,7 +857,7 @@ class BurgModule {
     pack.burgs.push(burg);
     cells.burg[cellId] = burgId;
 
-    Routes.connect(cellId);
+    // Fluoria: no road is run to a new settlement; roads are laid from settlement to settlement
     return burgId;
   }
 

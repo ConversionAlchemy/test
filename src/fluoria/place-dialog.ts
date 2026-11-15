@@ -9,7 +9,7 @@ import { escapeHtml } from "@/utils/stringUtils";
 import { getArea, getAreaUnit, getHeight, si } from "@/utils/unitUtils";
 import { ROUTE_LEVELS, type RouteGroup, renameRoute, setRouteGroup } from "./routes";
 
-export type PlaceKind = "bay" | "forest" | "mountain" | "route";
+export type PlaceKind = "bay" | "inlet" | "forest" | "mountain" | "route";
 
 interface Place {
   title: string;
@@ -19,11 +19,14 @@ interface Place {
   kind: string;
   setKind: (kind: string) => void;
   stats: [string, string][];
-  ref: { type: "feature" | "zone" | "route"; id: number };
+  ref: NoteRef;
 }
+
+export type NoteRef = { type: "feature" | "zone" | "route" | "province"; id: number };
 
 const FOREST_NOUNS = ["Forest", "Wood", "Copse", "Grove"];
 const PEAK_NOUNS = ["Mount", "Peak", "Range", "Hills"];
+const BAY_NOUNS = ["Bay", "Inlet", "Cove", "Sound", "Firth"];
 
 /** A zone's name split into its own part and its noun ("Mount X" puts the noun first) */
 function splitName(name: string, nouns: string[]): [base: string, noun: string] {
@@ -83,10 +86,10 @@ function placeOf(kind: PlaceKind, id: number, redraw: () => void): Place | null 
   }
   const z = pack.zones[id];
   if (!z) return null;
-  const nouns = kind === "forest" ? FOREST_NOUNS : PEAK_NOUNS;
+  const nouns = kind === "forest" ? FOREST_NOUNS : kind === "inlet" ? BAY_NOUNS : PEAK_NOUNS;
   const heights = z.cells.map(c => pack.cells.h[c]);
   return {
-    title: kind === "forest" ? "Forest" : "Mountain",
+    title: kind === "forest" ? "Forest" : kind === "inlet" ? "Bay" : "Mountain",
     name: splitName(z.name, nouns)[0],
     setName: name => {
       z.name = joinName(name, splitName(z.name, nouns)[1]);
@@ -117,16 +120,13 @@ export function openPlace(kind: PlaceKind, id: number, redraw: () => void = () =
   const el = document.createElement("div");
   el.className = "dialog flPlace";
   open = el;
-  const note = Notes.get(place.ref) ?? "";
   el.innerHTML = /* html */ `
     <label class="flPlaceRow"><span>Name</span><input class="flPlaceName" value="${escapeHtml(place.name)}" spellcheck="false" /></label>
     <label class="flPlaceRow"><span>Type</span><select class="flPlaceKind">${place.kinds
       .map(([v, l]) => `<option value="${v}" ${v === place.kind ? "selected" : ""}>${escapeHtml(l)}</option>`)
       .join("")}</select></label>
     ${place.stats.map(([k, v]) => `<div class="flPlaceRow flStat"><span>${k}</span><b>${escapeHtml(v)}</b></div>`).join("")}
-    <div class="flNoteBox" contenteditable="true" data-placeholder="Notes">${note}</div>
-    <button type="button" class="flMore" hidden>… Show more</button>
-    <div class="flPlaceBottom"><button type="button" class="flNoteIcon icon-book" title="Notes"></button></div>`;
+    ${notesHtml(place.ref)}`;
   document.body.append(el);
   $(el).dialog({
     title: place.title,
@@ -143,15 +143,25 @@ export function openPlace(kind: PlaceKind, id: number, redraw: () => void = () =
   el.querySelector<HTMLSelectElement>(".flPlaceKind")!.addEventListener("change", function () {
     place.setKind(this.value);
   });
+  wireNotes(el, place.title, place.ref);
+}
+
+/** The notes box, open to type in, with "… Show more" past three lines and the note icon */
+export const notesHtml = (ref: NoteRef) => /* html */ `
+  <div class="flNoteBox" contenteditable="true" data-placeholder="Notes">${Notes.get(ref) ?? ""}</div>
+  <button type="button" class="flMore" hidden>… Show more</button>
+  <div class="flPlaceBottom"><button type="button" class="flNoteIcon icon-book" title="Notes"></button></div>`;
+
+export function wireNotes(el: HTMLElement, title: string, ref: NoteRef): void {
   const box = el.querySelector<HTMLElement>(".flNoteBox")!;
   const more = el.querySelector<HTMLButtonElement>(".flMore")!;
   const overflowing = () => (more.hidden = document.activeElement === box || box.scrollHeight <= box.clientHeight + 1);
-  box.addEventListener("input", () => Notes.set(place.ref, box.innerHTML.trim()));
+  box.addEventListener("input", () => Notes.set(ref, box.innerHTML.trim()));
   box.addEventListener("focus", overflowing);
   box.addEventListener("blur", overflowing);
   overflowing();
   const popup = () =>
-    openNotes(place.title, place.ref, html => {
+    openNotes(title, ref, html => {
       box.innerHTML = html;
       overflowing();
     });
@@ -160,11 +170,7 @@ export function openPlace(kind: PlaceKind, id: number, redraw: () => void = () =
 }
 
 /** The notes on their own, in a big box */
-function openNotes(
-  title: string,
-  ref: { type: "feature" | "zone" | "route"; id: number },
-  changed: (html: string) => void
-): void {
+function openNotes(title: string, ref: NoteRef, changed: (html: string) => void): void {
   const el = document.createElement("div");
   el.className = "dialog flNotesPopup";
   el.innerHTML = `<div class="flNoteFull" contenteditable="true">${Notes.get(ref) ?? ""}</div>`;
@@ -188,7 +194,7 @@ const STYLE = `
 .flPlaceRow > span { opacity: 0.8; }
 .flPlaceRow input, .flPlaceRow select { width: 11em; font: inherit; }
 .flStat b { font-weight: normal; width: 11em; padding: 0 4px; }
-.flNoteBox { box-sizing: border-box; width: 100%; margin-top: 6px; min-height: 3.6em; max-height: 3.6em; line-height: 1.2em; overflow: hidden; padding: 3px 5px;
+.flNoteBox { box-sizing: border-box; width: 100%; min-width: 100%; margin-top: 6px; min-height: 3.6em; max-height: 3.6em; line-height: 1.2em; overflow: hidden; padding: 3px 5px;
   border: 1px solid #555; background: #1b1b1b; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
   white-space: pre-wrap; outline: none; }
 .flNoteBox:focus { display: block; max-height: 8em; overflow: auto; }

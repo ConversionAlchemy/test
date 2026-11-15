@@ -143,7 +143,8 @@ export function paintTile(model: WorldModel, job: TileJob): Uint32Array {
       const my = (y + oy + 0.5) / scale;
       const cell = cellAt(model, mx, my);
       const rock = model.rock?.[cell] && isRock(model, cell, mx, my);
-      if ((!model.land[cell] && !rock) || inHarbour(model, cell, mx, my)) {
+      if (!model.land[cell] && !rock) {
+        // a cell is land or water whole: ports stand on the shore, not half in the sea
         const depth = sample(model.depth, model.width, model.height, mx, my);
         raster.terrain[i] =
           !model.lake[cell] && depth < 12 + (valueNoise(mx, my, 9, model.seed + 2) - 0.5) * 3
@@ -200,15 +201,6 @@ export function paintTile(model: WorldModel, job: TileJob): Uint32Array {
     out.set(raster.pixels.subarray(from, from + w), row * w);
   }
   return out;
-}
-
-/** In a port cell, past a ragged line through its centre on the side facing the sea */
-function inHarbour(model: WorldModel, cell: number, x: number, y: number): boolean {
-  const hx = model.harbour?.[cell * 2];
-  const hy = model.harbour?.[cell * 2 + 1];
-  if (!hx && !hy) return false;
-  const along = (x - model.sites[cell * 2]) * hx + (y - model.sites[cell * 2 + 1]) * hy;
-  return along > (fbm(x, y, 3, 2, model.seed + 311) - 0.5) * 2.4;
 }
 
 /** A rock: a ragged speck around the cell's centre */

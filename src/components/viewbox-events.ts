@@ -8,7 +8,7 @@ import { showRoadEdit } from "@/fluoria/pixel-map-sync";
 import { openPlace } from "@/fluoria/place-dialog";
 import { nodePoint, roadUnder } from "@/fluoria/road-geometry";
 import { roadModeOn } from "@/fluoria/road-mode";
-import { routeLabelClick } from "@/fluoria/route-labels";
+import { provinceLabelClick, routeLabelClick } from "@/fluoria/route-labels";
 import { collectZones } from "@/fluoria/zone-labels";
 import type { LabelType } from "@/generators/labels-generator";
 import { dragLegendBox } from "@/renderers/draw-legend";
@@ -91,6 +91,10 @@ export function openEditor(element: Element): boolean {
     const type = label.dataset.labelType as LabelType;
     if (type === "state") {
       openNation(id); // Fluoria: a nation's name opens the nation
+      return true;
+    }
+    if (type === "province") {
+      provinceLabelClick(label);
       return true;
     }
     if (type === "route") {
