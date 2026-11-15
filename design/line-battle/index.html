@@ -822,10 +822,12 @@ SFX.mhit=()=>SND.mhit(SVOL);
   function step(dt, ai) {
     time += dt;
     rebuildGrid();
-    for (const r of regs) { chargeTick(r); march(r, dt); }
+    const held = m => !ai && m.side !== me;
+    for (const r of regs) { if (!ai && r.side !== me) continue; chargeTick(r); march(r, dt); }
     // men walk or run to their places; a man far out of place runs
     for (const m of men) {
       if (!m.alive) continue;
+      if (held(m)) { m.moving = false; if (!m.loaded && (!m.reg.direct || m.rlOrder)) { m.reload -= dt; if (m.reload <= 0) { m.loaded = true; m.kneel = false; } } continue; }
       const via = fort && (m.tx !== m.x || m.ty !== m.y) ? routeAround(m, m.tx, m.ty) : null;
       const dx = (via ? via[0] : m.tx) - m.x, dy = (via ? via[1] : m.ty) - m.y, d = Math.hypot(dx, dy);
       if (d > 0.6) {
@@ -884,7 +886,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
       if (d > 3 && m.hwD != null && m.hwD - d < 1) m.slip = time + 1;
       m.hwT = time; m.hwD = d;
     }
-    melee(dt);
+    melee(dt, ai);
     for (const r of regs) regTick(r, dt, ai);
     for (const r of regs) {
       const G = r.gun;
@@ -901,7 +903,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
     shells = shells.filter(b => !b.done);
     shake = Math.max(0, shake - dt * 18);
     fireTick(dt);
-    fortTick(dt);
+    fortTick(dt, ai);
     // balls fly
     for (const b of balls) {
       b.t += dt;
@@ -1178,9 +1180,9 @@ SFX.mhit=()=>SND.mhit(SVOL);
   }
   const BEHIND = -0.26;
   // a press of men: each swing is a small chance, better with friends at your shoulder and worse with foes all round you
-  function melee(dt) {
+  function melee(dt, ai = true) {
     for (const m of men) {
-      if (!m.alive) continue;
+      if (!m.alive || (!ai && m.side !== me)) continue;
       m.meleeCd -= dt;
       if (m.meleeCd > 0) continue;
       let t = null, td = TIER[m.tier].r + 4.5;
@@ -1680,7 +1682,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
   }
   // cover on a wall: from far off a man up there is hard to hit; close in, still a fifth harder
   const cover = d => 0.8 - 0.35 * Math.min(1, d / RANGE);
-  function fortTick(dt) {
+  function fortTick(dt, ai = true) {
     if (!fort) return;
     for (const p of fort.pending) if (time >= p.at) { p.done = true; let k = p.k; while (k < p.e && p.s.cells[k] > 0) k++; collapse(p.s, p.k, Math.max(k, p.k)); }
     fort.pending = fort.pending.filter(p => !p.done);
@@ -1697,7 +1699,7 @@ SFX.mhit=()=>SND.mhit(SVOL);
       }
       if (!onW && !m.tower) { m.onWall = false; m.climb = false; }
     }
-    if ((fort.t -= dt) > 0) return;
+    if ((fort.t -= dt) > 0 || !ai) return;
     fort.t = 0.5;
     // towers draw two men from the nearest block close by, and throw grenades at anyone near enough
     for (const t of fort.towers) {
