@@ -41,6 +41,7 @@ import {
   isFar,
   measuredAt,
   outline,
+  pileOf,
   rangeFor,
   selectRegiment,
   spotIn,
@@ -713,7 +714,7 @@ export function regimentUnder(clientX: number, clientY: number): Regiment | unde
   return undefined;
 }
 
-/** Map cards: the top of a pile peels off one unit, Shift takes the whole pile; far out piles don't drag */
+/** Map cards: the top of a pile peels off one unit, Shift takes the whole pile; far out a card carries its merged pile */
 export function watchMapDrags(): void {
   installCursors();
   if (!document.body.dataset.flNoNativeDrag) {
@@ -729,11 +730,17 @@ export function watchMapDrags(): void {
   map.addEventListener(
     "pointerdown",
     event => {
-      if (event.button !== 0 || isFar() || drag) return;
+      if (event.button !== 0 || drag) return;
       const r = regimentUnder(event.clientX, event.clientY);
       if (!r) return;
       event.preventDefault(); // the map doesn't pan
       const shiftKey = event.shiftKey;
+      // far out a card stands for a merged pile, and carries all of it
+      if (isFar()) {
+        const members = pileOf(r);
+        pressed(event, () => ({ kind: "units", regs: [r, ...members.filter(o => o !== r)], from: "map" }));
+        return;
+      }
       pressed(event, () => {
         const pile = stackOf(r)?.members ?? [r];
         return { kind: "units", regs: shiftKey ? [r, ...pile.filter(o => o !== r)] : [r], from: "map" };

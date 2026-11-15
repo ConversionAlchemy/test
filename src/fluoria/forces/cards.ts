@@ -171,6 +171,54 @@ export interface Pile {
   health: number; // 0–1, the pile's average
   pips: number; // units aboard the top card, 0–4
   men?: number; // shown as a number beside the card, in place of a pile of strips
+  wear?: number; // 0–1: pixels knocked out of the card's edge by losses
+  broken?: boolean; // split across and greyed: routed, out of the fight
+  seed?: number; // where the bites fall, the same for a unit every time
+}
+
+/** Bites eaten in from the card's edge as it loses men, and a split across it when it breaks: pixels gone, not drawn */
+export function chipped(seed: number, wear: number, broken: boolean): Set<number> {
+  let h = seed | 0 || 1;
+  const R = () => {
+    h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909);
+    h >>>= 0;
+    return (h % 10000) / 10000;
+  };
+  const gone = new Set<number>();
+  const kill = (x: number, y: number) => {
+    if (x >= 0 && y >= 0 && x < CARD_W && y < CARD_H) gone.add(y * CARD_W + x);
+  };
+  const bites = Math.round(Math.max(0, Math.min(1, wear)) * 9);
+  for (let i = 0; i < bites; i++) {
+    const t = Math.floor(R() * 2 * (CARD_W + CARD_H));
+    let [x, y, nx, ny] =
+      t < CARD_W
+        ? [t, 0, 0, 1]
+        : t < CARD_W + CARD_H
+          ? [CARD_W - 1, t - CARD_W, -1, 0]
+          : t < 2 * CARD_W + CARD_H
+            ? [2 * CARD_W + CARD_H - t - 1, CARD_H - 1, 0, -1]
+            : [0, 2 * (CARD_W + CARD_H) - t - 1, 1, 0];
+    const n = 2 + Math.floor(R() * 4);
+    for (let k = 0; k < n; k++) {
+      kill(x, y);
+      if (R() < 0.5) kill(x + ny, y + nx);
+      const q = R();
+      if (q < 0.45) [x, y] = [x + nx, y + ny];
+      else if (q < 0.72) [x, y] = [x + ny, y + nx];
+      else [x, y] = [x - ny, y - nx];
+    }
+  }
+  if (broken) {
+    let y = Math.floor(CARD_H * (0.35 + R() * 0.2));
+    const from = Math.floor(CARD_W * (0.45 + R() * 0.2));
+    for (let x = 0; x < CARD_W; x++) {
+      if (R() < 0.45) y = Math.max(2, Math.min(CARD_H - 3, y + (R() < 0.5 ? -1 : 1)));
+      kill(x, y);
+      if (x > from) for (let yy = y + 1; yy < CARD_H; yy++) kill(x, yy);
+    }
+  }
+  return gone;
 }
 
 /** A pile's size in art px, and where its top card's middle is */
@@ -220,7 +268,10 @@ export function pilePixels(pile: Pile): (string | null)[][] {
         if (v) out[y0 + y][x] = v === 1 ? "#111111" : fill;
       }
   };
-  put(cardGrid(pile.unit), top, pile.colour);
+  put(cardGrid(pile.unit), top, pile.broken ? "#8b8a84" : pile.colour);
+  if (pile.wear || pile.broken)
+    for (const i of chipped(pile.seed ?? 1, pile.wear ?? 0, Boolean(pile.broken)))
+      out[top + Math.floor(i / CARD_W)][i % CARD_W] = null;
   // the men in the pile, as a number on a pale tab at the card's lower right
   const text = badgeText(pile);
   if (text) {
@@ -251,7 +302,8 @@ const healthStep = (health: number) => Math.round(Math.max(0, Math.min(1, health
 
 /** A pile as an image: cached by everything it shows */
 export function pileUrl(pile: Pile): string {
-  const key = `${pile.unit.id}|${pile.colour}|${badgeText(pile)}|${healthStep(pile.health)}|${Math.min(MAX_PIPS, pile.pips)}`;
+  const wearStep = Math.round((pile.wear ?? 0) * 9);
+  const key = `${pile.unit.id}|${pile.colour}|${badgeText(pile)}|${healthStep(pile.health)}|${Math.min(MAX_PIPS, pile.pips)}|${wearStep ? `${wearStep}:${pile.seed}` : ""}|${pile.broken ? "b" : ""}`;
   let url = cache.get(key);
   if (url) return url;
   const pixels = pilePixels({ ...pile, health: healthStep(pile.health) / CARD_W });

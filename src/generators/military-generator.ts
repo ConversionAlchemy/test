@@ -38,6 +38,7 @@ export interface Regiment {
   tags?: string[];
   carrier?: [state: number, regiment: number]; // Fluoria, older maps: the fleet this regiment was aboard
   cargo?: Record<string, number>; // Fluoria: land units a transport carries
+  broken?: boolean; // Fluoria: routed on a front, out of the fight
   full?: number; // Fluoria: power when last at full strength
   named?: boolean; // Fluoria: renamed by the user, so its name shows on the map
   garrison?: number; // Fluoria: the settlement whose garrison this is (kept off the map)

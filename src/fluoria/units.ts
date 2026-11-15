@@ -326,7 +326,10 @@ const pileArt = (members: Regiment[], unit = typeOf(members[0]) ?? "") => {
     count: members.length,
     men: members.reduce((sum, r) => sum + troopsOf(r), 0),
     health: members.reduce((sum, r) => sum + health(r), 0) / members.length,
-    pips: Math.min(MAX_PIPS, rows(lead.cargo).length)
+    pips: Math.min(MAX_PIPS, rows(lead.cargo).length),
+    wear: 1 - health(lead),
+    broken: Boolean(lead.broken),
+    seed: lead.state * 7919 + lead.i * 104729
   };
 };
 
