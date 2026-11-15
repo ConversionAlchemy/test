@@ -29,8 +29,7 @@
     if (Math.random() < 0.5) setTimeout(() => noise(0.02, 900 * j(), 1.2, 0.25 * j(), "bandpass", 0.5), 12 + Math.random() * 30);
     noise(0.09 + Math.random() * 0.08, 210 * j(), 0.7, 0.4 * j(), "lowpass", 0.55);
   };
-  const roll = () => noise(1.4, 120, 0.6, 0.45, "lowpass", 0.85);
-  const armour = () => { SND.spr(); if (!SND.clip(au().currentTime + 0.005, "ms", 0.5, 1.1 + Math.random() * 0.3, MS)) sfx("mhit")(); };
+    const armour = () => { SND.spr(); if (!SND.clip(au().currentTime + 0.005, "ms", 0.5, 1.1 + Math.random() * 0.3, MS)) sfx("mhit")(); };
   // candidates for a musket heard from high and far
   const CAND = [
     ["Sandbox musket", at("musket")],
@@ -45,7 +44,17 @@
     ["pistol", at("pistol")]
   ];
   const MATRIX = [["Stone", "stonehit", "crack", "ricos", "thunk", "crack"], ["Wood", "woodhit", "thunk", "crack", "thunk", "crack"], ["Metal", "mhit", "mhit", "rico", "chink", "clank"], ["Foliage", "rustle", "rustle", "rustle", "rustle", "rustle"]];
-  const NOW = [["Musket", () => { crackle(); }], ["Volley roll", roll], ["Armour hit", armour], ["Flesh hit", sfx("pthud", 0.6)], ["Reload", rec("rl_musket")], ["Cannon", at("grenade")], ["Light shell", at("grenade")], ["Heavy shell", at("bomb")]];
+  const v = () => (dist === "near" ? 1 : dist === "mid" ? 0.7 : 0.45);
+  const NOW = [
+    ["Volley", () => { vbuf(); vplay(Math.random() * 7, 1.6, 0.8 * v(), v(), 1, 0.02, 0.7); rumble(0.3 * v(), 4.5); }],
+    ["Single shot", () => { vbuf(); vplay(VOLLEY_SHOTS[(Math.random() * VOLLEY_SHOTS.length) | 0] - 0.02, 0.55, 0.5 * v(), v(), 1, 0.005, 0.3); }],
+    ["Cry", () => { vbuf(); const c = VOLLEY_CRIES[(Math.random() * VOLLEY_CRIES.length) | 0]; vplay(c[0], c[1], 0.14 * v(), v() * 0.6, 1, 0.04, c[1] * 0.5); }],
+    ["Volley roll", () => rumble(0.4 * v(), 4.5)],
+    ["Ball passing", () => SND.pass(0.8, Math.random() < 0.5 ? 1 : -1)],
+    ["Armour hit", armour], ["Flesh hit", sfx("pthud", 0.6)], ["Reload", rec("rl_musket")], ["Cannon", at("grenade")],
+    ["Light shell", () => { at("grenade")(); rumble(0.3 * v(), 3.5); }], ["Heavy shell", () => { at("bomb")(); rumble(0.55 * v(), 6); }],
+    ["Old crackle", crackle]
+  ];
   const GUNS = ["pistol", "blunder", "musket", "grenade", "bomb", "ricos"];
   const CLIPS = [["mb", "Metal bash"], ["ms", "Metal strike"], ["w1", "Whizz 1"], ["w2", "Whizz 2"]];
   const fire = fn => {
@@ -61,7 +70,7 @@
   h += `<h2>Musket candidates</h2><div class="grid">${CAND.map(([n, f], i) => reg(`B${i + 1}`, n, f)).join("")}</div>`;
   h += `<h2>Material matrix</h2><div class="wrap"><table><tr><th></th><th>Hit</th><th>Knock</th><th>Glance</th><th>Drag</th><th>Crush</th></tr>${MATRIX.map((row, r) => `<tr><th>${row[0]}</th>${row.slice(1).map((k, c) => `<td>${reg(`C${r + 1}${"abcde"[c]}`, k, sfx(k))}</td>`).join("")}</tr>`).join("")}</table></div>`;
   h += `<h2>Guns and blasts</h2><div class="grid">${GUNS.map((k, i) => reg(`D${i + 1}`, k, at(k))).join("")}</div>`;
-  h += `<h2>Recordings</h2><div class="grid">${CLIPS.map(([k, n], i) => reg(`E${i + 1}`, n, clipK(k))).join("")}${Object.keys(SND64).map((k, i) => reg(`E${i + CLIPS.length + 1}`, k, rec(k))).join("")}</div>`;
+  h += `<h2>Recordings</h2><div class="grid">${reg("E0", "Volley recording", () => { vbuf().then(() => vplay(0, VOLLEY_BED[1], 0.9, 1, 1, 0.02, 1)); })}${CLIPS.map(([k, n], i) => reg(`E${i + 1}`, n, clipK(k))).join("")}${Object.keys(SND64).map((k, i) => reg(`E${i + CLIPS.length + 1}`, k, rec(k))).join("")}</div>`;
   h += `<h2>Every effect</h2><div class="grid">${Object.keys(SFX).sort().map((k, i) => reg(`F${i + 1}`, k, sfx(k))).join("")}</div>`;
   const lib = document.getElementById("lib");
   lib.innerHTML = h;

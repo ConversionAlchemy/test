@@ -192,22 +192,56 @@
     const sx = (x - cam.x) * cam.z, sy = (y - cam.y) * cam.z, d = Math.hypot(sx, sy) / Math.max(VW, VH);
     return Math.max(0, 1 - d * 0.9) * Math.min(1, cam.z / 1.5 + 0.3);
   };
-  // muskets heard from high up and far off: the air takes the snap, leaving a dry crackle and a low thump,
-  // and a volley rolls on as one echo
-  let crN = 0, crT = 0, voN = 0, voT = 0;
+  // ---------- the volley recording: fire heard from above, shouts, and the long roll after ----------
+  // shots gather into a burst for a moment, then sound as one stretch of the recording sized to how many fired
+  const burst = { n: 0, x: 0, y: 0, t: 0 };
+  let voices = 0;
   function shotSound(x, y) {
-    const v = audible(x, y);
-    if (v < 0.06 || mute || !gest) return;
+    if (mute || !gest) return;
+    if (!burst.n) burst.t = performance.now();
+    burst.n++; burst.x += x; burst.y += y;
+  }
+  function soundTick() {
+    if (gest && !VBP) vbuf();
+    if (!burst.n || performance.now() - burst.t < 90) return;
+    const n = burst.n, x = burst.x / n, y = burst.y / n, v = audible(x, y);
+    burst.n = burst.x = burst.y = 0;
+    if (v < 0.04 || voices >= 5) return;
+    voices++; setTimeout(() => voices--, 1500);
+    if (n < 4) {
+      // a few shots: single cracks out of the recording
+      for (let i = 0; i < Math.min(n, 3); i++) setTimeout(() => vplay(VOLLEY_SHOTS[(Math.random() * VOLLEY_SHOTS.length) | 0] - 0.02, 0.55, 0.5 * v, v, 0.92 + Math.random() * 0.16, 0.005, 0.3), i * (40 + Math.random() * 120));
+      return;
+    }
+    const len = Math.min(3.2, 0.7 + n * 0.06), off = Math.random() * (VOLLEY_BED[1] - len);
+    vplay(off, len, Math.min(1, 0.35 + n / 30) * v, v, 0.95 + Math.random() * 0.1, 0.02, Math.min(1, len * 0.45));
+    if (n >= 8) rumble(Math.min(0.5, n / 60) * v, 4.5);
+  }
+  // the hurt cry out now and then, faint and far
+  let lastCry = 0;
+  function cry(x, y, k) {
+    const v = audible(x, y), n = performance.now();
+    if (mute || !gest || v < 0.15 || n - lastCry < 600 || Math.random() > k) return;
+    lastCry = n;
+    const c = VOLLEY_CRIES[(Math.random() * VOLLEY_CRIES.length) | 0];
+    vplay(c[0], c[1], 0.14 * v, v * 0.6, 0.9 + Math.random() * 0.25, 0.04, c[1] * 0.5);
+  }
+  // a ball passing close by the eye at the centre of the view snaps past, as in the sandbox
+  let passT = [];
+  function passBy(b) {
+    if (mute || !gest || cam.z < 0.9) return;
+    const R = 48 * Math.min(1, cam.z / 2), dx = b.x1 - b.x0, dy = b.y1 - b.y0, l2 = dx * dx + dy * dy;
+    if (l2 < 1) return;
+    const t = ((cam.x - b.x0) * dx + (cam.y - b.y0) * dy) / l2;
+    if (t < 0 || t > 1) return;
+    const d = Math.hypot(cam.x - b.x0 - dx * t, cam.y - b.y0 - dy * t);
+    if (d > R) return;
     const n = performance.now();
-    if (n - crT > 100) { crT = n; crN = 0; }
-    if (++crN > 9) return;
-    const far = 1 - v, j = () => 0.75 + Math.random() * 0.5;
-    noise(0.025 + Math.random() * 0.035, (1250 - far * 600) * j(), 0.9, (0.18 + 0.32 * v) * j(), "bandpass", 0.5);
-    if (Math.random() < 0.5) setTimeout(() => noise(0.02, (900 - far * 300) * j(), 1.2, (0.1 + 0.15 * v) * j(), "bandpass", 0.5), 12 + Math.random() * 30);
-    noise(0.09 + Math.random() * 0.08, (210 - far * 60) * j(), 0.7, 0.4 * v * j(), "lowpass", 0.55);
-    if (n - voT > 260) voN = 0;
-    voT = n;
-    if (++voN === 6) noise(1.4, 120, 0.6, 0.45 * v, "lowpass", 0.85);
+    passT = passT.filter(q => n - q < 120);
+    if (passT.length >= 4) return;
+    passT.push(n);
+    const side = dx * (cam.y - b.y0) - dy * (cam.x - b.x0) > 0 ? 1 : -1, v = (0.45 + 0.55 * (1 - d / R)) * Math.min(1, cam.z / 2);
+    setTimeout(() => SND.pass(v, side), (b.dur * t * 1000) / speed);
   }
   function hitSound(kind, x, y) {
     const v = audible(x, y);
@@ -667,7 +701,9 @@
     const hit = Math.random() < p;
     let x1 = px, y1 = py;
     if (!hit) { const s = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * (10 + td / 20)); x1 += -Math.sin(a) * s + Math.cos(a) * (Math.random() * 30); y1 += Math.cos(a) * s + Math.sin(a) * (Math.random() * 30); }
-    balls.push({ x0: mx, y0: my, x1, y1, x: mx, y: my, t: 0, dur: Math.hypot(x1 - mx, y1 - my) / BALL, hit, target: t, a, side: m.side });
+    const ball = { x0: mx, y0: my, x1, y1, x: mx, y: my, t: 0, dur: Math.hypot(x1 - mx, y1 - my) / BALL, hit, target: t, a, side: m.side };
+    balls.push(ball);
+    passBy(ball);
   }
   function land(b) {
     let t = b.hit && b.target.alive ? b.target : null;
@@ -685,6 +721,7 @@
     t.hp -= behind ? 2 : 1;
     if (behind) t.reg.morale -= 1.5;
     hitSound("flesh", t.x, t.y);
+    cry(t.x, t.y, 0.08);
     bleed(t.x, t.y, b.a, 3);
     if (t.hp <= 0) shatter(t, b.a);
     else chip(t, b.a, false, 2 + ((Math.random() * 2) | 0));
@@ -713,6 +750,7 @@
   // death: the marker shatters into its own pixels, which drift, settle, and fade after about 20 s
   function shatter(m, a) {
     m.alive = false;
+    cry(m.x, m.y, 0.18);
     bleed(m.x, m.y, a, 9 + ((Math.random() * 5) | 0));
     const T = TIER[m.tier], col = SIDE[m.side];
     const n = 18 + ((Math.random() * 8) | 0);
@@ -837,7 +875,7 @@
   function explode(x, y, s) {
     flashes.push({ x, y, t: 0.16, big: 2.4 * s });
     const au = audible(x, y);
-    if (au > 0.05) { SND.at(s > 1.3 ? "bomb" : "grenade", x, y); shake = Math.max(shake, 5 * s * au); }
+    if (au > 0.05) { SND.at(s > 1.3 ? "bomb" : "grenade", x, y); shake = Math.max(shake, 5 * s * au); rumble((s > 1.3 ? 0.55 : 0.3) * au, s > 1.3 ? 6 : 3.5); }
     // soot: a dark core, a mottled ring, and rays
     const R0 = 9 * s;
     for (let Y = -R0; Y <= R0; Y++)
@@ -1643,6 +1681,7 @@
       for (const r of layoutSoon) if (!r.rout && !r.charge) { const live = r.men.filter(m => m.alive && !m.solo); if (live.length) layout(r); }
       layoutSoon.clear();
     }
+    soundTick();
     if ((cardT -= dt) <= 0) { cardT = 0.2; updateCards(); }
     draw();
     frameMs = frameMs * 0.9 + (performance.now() - t0) * 0.1;

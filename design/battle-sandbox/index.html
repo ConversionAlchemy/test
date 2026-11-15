@@ -3106,7 +3106,7 @@ var SND=(()=>{let OUT=null,RVIN=null,WIN=null,sp='room',NBUF=null,NWB=null,WIR=n
  function clip(t,kind,v,rate,dst,lp){if(!SB)return false;const L=CLIPS.filter(c=>c[0]===kind||kind==='w'&&c[0][0]==='w'),c=L[Math.random()*L.length|0],a=AC,s=a.createBufferSource(),g=a.createGain();s.buffer=SB;s.playbackRate.value=rate;g.gain.value=v;let n=s;if(lp){const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=lp;n=s.connect(f)}n.connect(g).connect(dst);s.start(t,c[1],c[2]);return true}
  // bullet on metal: a short clang with a crack, dry
  function mhit(v){const a=au();spr();const t=a.currentTime+.005,o=a.createGain();o.gain.value=v;o.connect(MS);if(clip(t,'ms',.55,R(1.1,1.4),o))layer(t,{type:'highpass',f:4000,vol:.35,att:.0005,dur:.01,dst:o});else noise(.06,2800,2.5,.4,'bandpass')}
- return{at,near,fireTick,spaceAt,mhit,spr,clip,ricos:()=>{try{setup('room');PLAY.ricos()}catch(e){}}}})();
+ return{at,near,fireTick,spaceAt,mhit,spr,clip,pass:(v,side)=>{if(mute||!gest)return;spr();try{setup('hall');PLAY.nm_ball(v,side)}catch(e){}},ricos:()=>{try{setup('room');PLAY.ricos()}catch(e){}}}})();
 SFX.ricos=()=>SND.ricos();
 SFX.mhit=()=>SND.mhit(SVOL);
 // editors: base content is read-only; every save is a mod kept apart from it
