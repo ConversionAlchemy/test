@@ -49,18 +49,40 @@ function borderStyle(): { width: number; strength: number } {
 }
 const TINT = [0.1, 0.08, 0.04]; // by level: a light wash of each nation over the terrain; borders carry the rest
 
-// widths in map pixels, with a floor in screen pixels so roads stay visible zoomed out; solid roads get a dark edge
-// so they read on any ground. Lesser roads show only closer in
-const ROAD_STYLE: Record<
-  string,
-  { color: number; width: number; minPx: number; dash: number; edge: boolean; from: number; alpha: number }
-> = {
-  roads: { color: 0xece6d4, width: 1, minPx: 2, dash: 0, edge: true, from: 0, alpha: 1 },
-  trails: { color: 0xd9cfb6, width: 0.7, minPx: 1.4, dash: 0, edge: false, from: 0, alpha: 0.9 },
-  paths: { color: 0x5e4630, width: 0.45, minPx: 1.2, dash: 2.2, edge: false, from: 3, alpha: 0.9 },
-  searoutes: { color: 0xb4cadb, width: 0.5, minPx: 1.2, dash: 7, edge: false, from: 0, alpha: 0.75 }
-};
 const ROAD_EDGE = 0x5d5140;
+
+// in texels of the ground: width, rim strength (0 for none), dotted
+const PIXEL_ROAD: Record<string, { color: number; width: number; rim: number; dots: boolean; from: number }> = {
+  roads: { color: 0xece6d4, width: 2, rim: 0.55, dots: false, from: 0 },
+  trails: { color: 0xd9cfb6, width: 1, rim: 0.35, dots: false, from: 0 },
+  paths: { color: 0x6e5236, width: 1, rim: 0, dots: true, from: 2.5 }
+};
+
+/** Every texel a straight line crosses, stepped like a pixel line (Bresenham), in texel coordinates */
+function stepLine(a: [number, number], b: [number, number], t: number, put: (x: number, y: number) => void): void {
+  let x0 = Math.floor(a[0] / t);
+  let y0 = Math.floor(a[1] / t);
+  const x1 = Math.floor(b[0] / t);
+  const y1 = Math.floor(b[1] / t);
+  const dx = Math.abs(x1 - x0);
+  const dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (let guard = 0; guard < 100000; guard++) {
+    put(x0, y0);
+    if (x0 === x1 && y0 === y1) return;
+    const e2 = 2 * err;
+    if (e2 >= dy) {
+      err += dy;
+      x0 += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      y0 += sy;
+    }
+  }
+}
 
 /** A dashed polyline: alternate runs of `dash` map pixels */
 function dashed(g: Graphics, pts: [number, number][], dash: number): void {
@@ -267,34 +289,47 @@ class PixelMap {
     this.shade.fill({ color: 0x0c0c10, alpha: 0.42 });
   }
 
-  /** Roads as pixel-style lines over the terrain: redrawn on every edit, so changes show at once */
+  /** Roads drawn in the ground's own pixels: each line stepped across the texel grid of the level in view, a pale
+   * core with a darker rim, paths dotted */
   drawRoads(): void {
     const g = this.roads;
     g.clear();
     if (!Layers.isOn("routes") || !pack?.routes) return;
     const k = viewport.scale || 1;
+    const t = 1 / LEVELS[this.level()].scale; // one texel, in map units
     const lines = roadLines();
-    const trace = (pts: [number, number][], dash: number) => {
-      if (dash) {
-        dashed(g, pts, dash);
-        return;
-      }
-      g.moveTo(pts[0][0], pts[0][1]);
-      for (let n = 1; n < pts.length; n++) g.lineTo(pts[n][0], pts[n][1]);
-    };
+    const key = (x: number, y: number) => x * 65536 + y;
     for (const group of ["paths", "trails", "roads"]) {
-      const style = ROAD_STYLE[group];
+      const style = PIXEL_ROAD[group];
       if (k < style.from) continue;
-      const mine = lines.filter(road => (ROAD_STYLE[road.group] ? road.group : "paths") === group);
-      if (!mine.length) continue;
-      const width = (style.minPx * Math.min(3, k ** 0.45)) / k; // grows on screen as you zoom in, gently
-      const alpha = group === "searoutes" && k < 1.5 ? style.alpha * 0.75 : style.alpha;
-      if (style.edge) {
-        for (const road of mine) trace(road.line, 0);
-        g.stroke({ color: ROAD_EDGE, width: width + 1.4 / k, cap: "round", join: "round", alpha: 0.85 });
+      const core = new Map<number, [number, number]>();
+      for (const road of lines) {
+        if ((PIXEL_ROAD[road.group] ? road.group : "paths") !== group) continue;
+        let step = 0;
+        for (let n = 1; n < road.line.length; n++)
+          stepLine(road.line[n - 1], road.line[n], t, (x, y) => {
+            step++;
+            if (style.dots && step % 4 >= 2) return;
+            for (let dx = 0; dx < style.width; dx++)
+              for (let dy = 0; dy < style.width; dy++) core.set(key(x + dx, y + dy), [x + dx, y + dy]);
+          });
       }
-      for (const road of mine) trace(road.line, style.dash ? style.dash / k : 0);
-      g.stroke({ color: style.color, width, cap: "round", join: "round", alpha });
+      if (!core.size) continue;
+      if (style.rim) {
+        const rim = new Map<number, [number, number]>();
+        for (const [x, y] of core.values())
+          for (const [dx, dy] of [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1]
+          ])
+            if (!core.has(key(x + dx, y + dy))) rim.set(key(x + dx, y + dy), [x + dx, y + dy]);
+        for (const [x, y] of rim.values()) g.rect(x * t, y * t, t, t);
+        g.fill({ color: ROAD_EDGE, alpha: style.rim });
+      }
+      for (const [x, y] of core.values()) g.rect(x * t, y * t, t, t);
+      g.fill({ color: style.color, alpha: 1 });
     }
   }
 

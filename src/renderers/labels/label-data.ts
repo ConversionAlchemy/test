@@ -1,3 +1,4 @@
+import { roadLineOf } from "@/fluoria/road-geometry";
 import type { AddedLabel } from "@/generators/added-labels";
 import type { Burg } from "@/generators/burgs-generator";
 import type { Label, LabelType } from "@/generators/labels-generator";
@@ -125,7 +126,8 @@ function buildRiverLabel(river: River, geometry: boolean): LabelData | undefined
 function buildRouteLabel(route: Route, geometry: boolean): LabelData | undefined {
   if (!route.name) return undefined;
   const customPath = getCustomPath(route.label);
-  const defaultPath = geometry && !isPlainText(route.label) ? formatPathPoints(route.points) : undefined;
+  const drawn = geometry && !isPlainText(route.label) ? roadLineOf(route) : null; // Fluoria: along the drawn road
+  const defaultPath = drawn ? formatPathPoints(drawn) : undefined;
   return {
     ...route.label,
     id: `routeLabel${route.i}`,

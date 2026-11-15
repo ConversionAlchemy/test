@@ -72,8 +72,10 @@ const STYLE = `
 #labels > g[data-group="route"] :is(text, textPath, tspan) {
   fill: #3a2b1b !important;
   stroke: #f0ebde !important;
-  stroke-opacity: 0.82 !important;
-  stroke-width: 0.5em !important;
+  stroke-opacity: 0.85 !important;
+  stroke-width: 0.3em !important;
+  stroke-linejoin: round !important;
+  paint-order: stroke fill !important;
   dominant-baseline: central;
   font-family: "IM Fell English", Georgia, serif !important;
   font-style: italic;

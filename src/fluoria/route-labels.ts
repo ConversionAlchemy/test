@@ -3,6 +3,7 @@
 import { Layers } from "@/components/layers";
 import { showRoadEdit } from "./pixel-map-sync";
 import { openPlace } from "./place-dialog";
+import { roadLineOf } from "./road-geometry";
 import { renameRoute } from "./routes";
 import { clickOrDouble, inlineEdit } from "./zone-labels";
 
@@ -30,5 +31,5 @@ document.addEventListener("pointerover", event => {
   const id = route?.i ?? -1;
   if (id === lit) return;
   lit = id;
-  showRoadEdit({ hover: route ? route.points.map(([x, y]) => [x, y] as [number, number]) : [] });
+  showRoadEdit({ hover: (route && roadLineOf(route)) || [] });
 });

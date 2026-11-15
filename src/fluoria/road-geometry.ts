@@ -135,12 +135,24 @@ export function roadLines(): RoadLine[] {
       out.push({ id: route.i, group: route.group, cells: lane, line: roundedLine(nodes) });
       continue;
     }
-    const cells = trimToSettlements(foldCells(routeCells(route)));
-    if (cells.length < 2) continue;
-    const line = roundedLine(cells.map(nodePoint), 0.22, k => hasBurg(cells[k]));
-    out.push({ id: route.i, group: route.group, cells, line });
+    const road = landLine(route);
+    if (road) out.push(road);
   }
   return out;
+}
+
+function landLine(route: (typeof pack.routes)[number]): RoadLine | null {
+  const cells = trimToSettlements(foldCells(routeCells(route)));
+  if (cells.length < 2) return null;
+  const line = roundedLine(cells.map(nodePoint), 0.22, k => hasBurg(cells[k]));
+  return { id: route.i, group: route.group, cells, line };
+}
+
+/** The line a road is drawn along, for its name and its hover to follow; read left to right */
+export function roadLineOf(route: (typeof pack.routes)[number]): Point[] | null {
+  const line = route.group === "searoutes" ? null : landLine(route)?.line;
+  if (!line) return null;
+  return line[0][0] > line[line.length - 1][0] ? [...line].reverse() : line;
 }
 
 /** The segment nearest a map point within `tolerance`: route id and the index of its first cell */
