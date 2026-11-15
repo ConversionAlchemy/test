@@ -1,7 +1,6 @@
 // Named places on the map: forests, mountain ranges, lakes and islands. Forests and ranges are kept as hidden Azgaar
 // zones (so they save with the map); lakes and islands are Azgaar features. Hovering a name lights its ground,
 // double-clicking it edits the name in place
-import { curveBasisClosed, line } from "d3";
 import { viewport } from "@/components/viewport";
 import { getIsolines } from "@/utils/pathUtils";
 import { escapeHtml } from "@/utils/stringUtils";
@@ -16,20 +15,26 @@ interface Named {
   x: number;
   y: number;
   cells: number[];
-  shape?: string; // the outline, smoothed
+  shape?: string; // the outline along the cell edges
 }
 
-const smooth = line().curve(curveBasisClosed);
-
-/** A group of cells as one rounded shape: its outer rings through the cell corners, smoothed */
+/** A group of cells as one shape: its outer rings along the cell edges */
 function shapeOf(n: Named): string {
   if (n.shape !== undefined) return n.shape;
   const inside = new Uint8Array(pack.cells.i.length);
   for (const c of n.cells) inside[c] = 1;
   const rings = getIsolines(pack, c => inside[c] || null, { polygons: true })[1]?.polygons ?? [];
-  n.shape = rings.map(ring => smooth(ring as [number, number][]) ?? "").join("");
+  n.shape = rings.map(ring => `M${ring.map(p => p.join(",")).join("L")}Z`).join("");
   return n.shape;
 }
+
+// by size: the biggest named from the region view, the smallest only close in, in a smaller hand
+const TIERS = [
+  { px: 13, from: 1.4 },
+  { px: 11, from: 2 },
+  { px: 10, from: 2.6 }
+];
+const tierOf = (n: Named) => (n.cells.length >= 6 ? 0 : n.cells.length >= 3 ? 1 : 2);
 
 let named: Named[] = [];
 
@@ -49,36 +54,65 @@ function clusters(test: (i: number) => boolean, min: number): number[][] {
   return out.sort((a, b) => b.length - a.length);
 }
 
-/** Name every forest of 3 cells and up and every range of 2 mountain cells and up, once per map */
+/** Name every forest and every mountain not yet named: a forest, wood or copse, a range or a peak, by its size */
 export function nameZones(): void {
   if (!pack?.cells?.i) return;
   pack.zones ??= [];
-  if (pack.zones.some(z => z.type === KINDS.Forest || z.type === KINDS.Mountains)) return;
   const { cells } = pack;
+  const taken = new Uint8Array(cells.i.length);
+  for (const z of pack.zones)
+    if (z.type === KINDS.Forest || z.type === KINDS.Mountains) for (const c of z.cells) taken[c] = 1;
   const add = (type: string, group: number[], name: string) =>
     pack.zones.push({ i: pack.zones.length, name, type, cells: group, color: "#000000", hidden: true });
   const culture = (group: number[]) => cells.culture[group[(group.length / 2) | 0]] || 1;
-  for (const g of clusters(i => cells.h[i] >= 20 && cells.h[i] < 55 && isForestBiome(cells.biome[i]), 3))
-    add(KINDS.Forest, g, `${Names.getCultureShort(culture(g))} Forest`);
-  for (const g of clusters(i => cells.h[i] >= 55, 2))
-    add(KINDS.Mountains, g, `Mount ${Names.getCultureShort(culture(g))}`);
+  const fresh = (g: number[]) => !g.some(c => taken[c]);
+  for (const g of clusters(i => cells.h[i] >= 20 && cells.h[i] < 55 && isForestBiome(cells.biome[i]), 1))
+    if (fresh(g))
+      add(
+        KINDS.Forest,
+        g,
+        `${Names.getCultureShort(culture(g))} ${g.length >= 6 ? "Forest" : g.length >= 3 ? "Wood" : "Copse"}`
+      );
+  for (const g of clusters(i => cells.h[i] >= 55, 1))
+    if (fresh(g))
+      add(
+        KINDS.Mountains,
+        g,
+        g.length >= 2 ? `Mount ${Names.getCultureShort(culture(g))}` : `${Names.getCultureShort(culture(g))} Peak`
+      );
 }
 
-/** The cell of a group nearest its middle, so the name sits on the place itself */
+/** The middle of a place: the centre of its cells deepest inside it, so the name sits in its widest part */
 function centre(group: number[]): [number, number] {
   const p = pack.cells.p;
-  let sx = 0;
-  let sy = 0;
-  for (const c of group) (sx += p[c][0]), (sy += p[c][1]);
-  sx /= group.length;
-  sy /= group.length;
-  let best = group[0];
-  let bd = Infinity;
-  for (const c of group) {
-    const d = (p[c][0] - sx) ** 2 + (p[c][1] - sy) ** 2;
-    if (d < bd) (bd = d), (best = c);
+  const inside = new Set(group);
+  const depth = new Map<number, number>();
+  const queue: number[] = [];
+  for (const c of group)
+    if (pack.cells.c[c].some(j => !inside.has(j))) {
+      depth.set(c, 0);
+      queue.push(c);
+    }
+  for (let q = 0; q < queue.length; q++)
+    for (const j of pack.cells.c[queue[q]])
+      if (inside.has(j) && !depth.has(j)) {
+        depth.set(j, depth.get(queue[q])! + 1);
+        queue.push(j);
+      }
+  const deepest = Math.max(0, ...depth.values());
+  const core = group.filter(c => (depth.get(c) ?? 0) === deepest);
+  let x = 0;
+  let y = 0;
+  for (const c of core) {
+    x += p[c][0] / core.length;
+    y += p[c][1] / core.length;
   }
-  return p[best];
+  // the core's middle, unless it falls outside the place: then the core cell nearest it
+  const near = core.reduce((a, b) =>
+    (p[a][0] - x) ** 2 + (p[a][1] - y) ** 2 <= (p[b][0] - x) ** 2 + (p[b][1] - y) ** 2 ? a : b
+  );
+  const at = Pack.findCell(x, y, Infinity, pack) as number;
+  return inside.has(at) ? [x, y] : p[near];
 }
 
 export function collectZones(): void {
@@ -109,8 +143,6 @@ export function collectZones(): void {
   drawZones(true);
 }
 
-const LABEL_PX = 13;
-
 export function drawZones(rebuild = false): void {
   const viewbox = document.getElementById("viewbox");
   if (!viewbox) return;
@@ -121,10 +153,7 @@ export function drawZones(rebuild = false): void {
     const hl = document.createElementNS(NS, "g");
     hl.id = "flZoneLight";
     hl.setAttribute("pointer-events", "none");
-    const shapes = document.createElementNS(NS, "g");
-    shapes.id = "flZoneShapes";
-    shapes.setAttribute("pointer-events", "none");
-    viewbox.append(shapes, hl, group);
+    viewbox.append(hl, group);
     group.addEventListener("pointerover", e => light((e.target as Element).closest("text")?.dataset.key));
     group.addEventListener("pointerout", () => light(undefined));
     group.addEventListener("dblclick", e => {
@@ -139,26 +168,17 @@ export function drawZones(rebuild = false): void {
     group.innerHTML = named
       .map(
         n =>
-          `<text x="${n.x}" y="${n.y}" data-key="${n.key}" class="${kindOf(n)}" text-anchor="middle" dy="0.35em">${escapeHtml(n.text)}</text>`
+          `<text x="${n.x}" y="${n.y}" data-key="${n.key}" class="${kindOf(n)} t${tierOf(n)}" text-anchor="middle" dy="0.35em">${escapeHtml(n.text)}</text>`
       )
       .join("");
-  const shapes = document.getElementById("flZoneShapes");
-  if (shapes && (rebuild || !shapes.childElementCount))
-    shapes.innerHTML = named
-      .filter(n => n.key.startsWith("z:"))
-      .map(
-        n =>
-          `<path d="${shapeOf(n)}" class="${/Forest$/.test(pack.zones[+n.key.slice(2)]?.type ?? "") ? "wood" : "peak"}"/>`
-      )
-      .join("");
+  // kept on top of the layers Azgaar redraws (lakes over a bay's name would take its pointer)
+  if (viewbox.lastElementChild !== group) viewbox.append(document.getElementById("flZoneLight")!, group);
   const scale = viewport.scale || 1;
-  group.style.fontSize = `${LABEL_PX / scale}px`;
-  group.style.display = scale >= 1.4 ? "" : "none";
-  if (shapes) {
-    shapes.style.display = group.style.display;
-    shapes.style.strokeWidth = `${1 / scale}px`;
-    shapes.style.strokeDasharray = `${3 / scale} ${2 / scale}`;
-  }
+  TIERS.forEach(({ px, from }, t) => {
+    group.style.setProperty(`--z${t}`, `${px / scale}px`);
+    group.style.setProperty(`--zo${t}`, String(Math.max(0, Math.min(1, (scale - from) / 0.3))));
+  });
+  group.style.display = scale >= TIERS[0].from ? "" : "none";
 }
 
 const kindOf = (n: Named) =>
@@ -173,7 +193,7 @@ function light(key: string | undefined): void {
     hl.innerHTML = "";
     return;
   }
-  hl.innerHTML = `<path d="${shapeOf(n)}" fill="#f4f0e4" fill-opacity="0.22" stroke="#f4f0e4" stroke-opacity="0.6" stroke-width="${1.2 / (viewport.scale || 1)}"/>`;
+  hl.innerHTML = `<path d="${shapeOf(n)}" class="${kindOf(n)}" shape-rendering="crispEdges" stroke-width="${1 / (viewport.scale || 1)}"/>`;
 }
 
 /** Edit a name where it stands: an input over the label, Enter or leaving it keeps the change, Escape drops it */
@@ -227,10 +247,13 @@ const STYLE = `
 #flZones text.wood { fill: #2d5a1e; stroke: #eef2e2; }
 #flZones text.peak { fill: #4a4036; }
 #flZones text.bay { fill: #2c5d93; stroke: #e9eef2; }
-#flZones text:hover { filter: brightness(0.7); }
-#flZoneShapes path { fill: none; stroke-opacity: 0.45; }
-#flZoneShapes path.wood { stroke: #2c3d22; }
-#flZoneShapes path.peak { stroke: #3e3830; }
+#flZones text.t0 { font-size: var(--z0); opacity: var(--zo0); }
+#flZones text.t1 { font-size: var(--z1); opacity: var(--zo1); }
+#flZones text.t2 { font-size: var(--z2); opacity: var(--zo2); }
+#flZoneLight path { stroke-opacity: 0.9; fill-opacity: 0.26; }
+#flZoneLight path.wood { fill: #6fcf3a; stroke: #9be36b; }
+#flZoneLight path.bay { fill: #5fb4ff; stroke: #a9d8ff; }
+#flZoneLight path.peak { fill: #b9ab97; stroke: #e8e0d0; }
 .flZoneEdit { position: fixed; transform: translate(-50%, -50%); z-index: 1000; text-align: center; font: italic 14px "IM Fell English", serif;
   background: #f4f0e4; color: #26262b; border: 1px solid #26262b; padding: 2px 4px; outline: none; }
 `;
