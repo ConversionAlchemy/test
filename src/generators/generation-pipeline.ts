@@ -2,6 +2,7 @@
 
 import { applyTerraces } from "@/fluoria/terraces";
 import { thinForests } from "@/fluoria/woods";
+import { claimAll } from "@/fluoria/claim";
 import { GraphOverride } from "@/generators/graph-override";
 import { Pipeline, type PipelineStep } from "@/generators/pipeline";
 import { Population } from "@/generators/population-generator";
@@ -35,6 +36,7 @@ const generationPipelineSteps = [
   { id: "culturesExpand", run: () => Cultures.expand() },
   { id: "burgs", run: () => Burgs.generate() },
   { id: "states", run: () => States.generate() },
+  { id: "claimAll", run: () => claimAll(pack.cells, pack.burgs) }, // Fluoria: no unclaimed land
   { id: "routes", run: () => Routes.generate() },
   { id: "religions", run: () => Religions.generate() },
   { id: "burgsSpecify", run: () => Burgs.specify() },
@@ -82,6 +84,7 @@ const erasePipelineSteps = [
   { id: "culturesExpand", run: () => Cultures.expand() },
   { id: "burgs", run: () => Burgs.generate() },
   { id: "states", run: () => States.generate() },
+  { id: "claimAll", run: () => claimAll(pack.cells, pack.burgs) }, // Fluoria: no unclaimed land
   { id: "routes", run: () => Routes.generate() },
   { id: "religions", run: () => Religions.generate() },
   { id: "burgsSpecify", run: () => Burgs.specify() },

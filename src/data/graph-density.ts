@@ -19,7 +19,7 @@ export const POINTS_BY_DENSITY: Record<number, number> = {
 export const DENSITY_STEPS = Object.keys(POINTS_BY_DENSITY).map(Number);
 export const MIN_DENSITY = Math.min(...DENSITY_STEPS);
 export const MAX_DENSITY = Math.max(...DENSITY_STEPS);
-export const DEFAULT_DENSITY = 4;
+export const DEFAULT_DENSITY = 3; // Fluoria: a smaller world, about 5,000 cells
 
 export function getPointsNumber(density: number): number {
   return POINTS_BY_DENSITY[density] ?? POINTS_BY_DENSITY[DEFAULT_DENSITY];

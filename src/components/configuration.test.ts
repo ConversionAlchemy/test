@@ -477,11 +477,11 @@ describe("a request and what it produced are not the same field", () => {
   it("asks for the graph in one place and records it in another", () => {
     // the request holds a density step; the cell count it stands for is derived, never stored
     const asked = Options.getDefaultOptions().generation.graph;
-    expect(asked).toEqual({ width: 1280, height: 800, density: 4, sampling: "square", jitter: 0.9 });
-    expect(getPointsNumber(asked.density)).toBe(10000);
+    expect(asked).toEqual({ width: 1280, height: 800, density: 3, sampling: "square", jitter: 0.9 });
+    expect(getPointsNumber(asked.density)).toBe(5000);
 
     // the record has no density: a step is how the request was phrased, not what was built
-    expect(defaults().graph).toEqual({ width: 1280, height: 800, points: 10000, sampling: "square", jitter: 0.9 });
+    expect(defaults().graph).toEqual({ width: 1280, height: 800, points: 5000, sampling: "square", jitter: 0.9 });
   });
 });
 

@@ -225,7 +225,7 @@ class BurgModule {
     }
 
     function getTownsNumber() {
-      if (isAutoBurgLimit()) return rn(populatedCells.length / 5 / (grid.points.length / 10000) ** 0.8);
+      if (isAutoBurgLimit()) return Math.min(rn(populatedCells.length / 8), options.generation.states.limit * 11); // Fluoria: about four provinces a nation, three settlements each
       return Math.min(options.generation.burgs.limit, populatedCells.length);
     }
   }

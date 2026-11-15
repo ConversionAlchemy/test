@@ -156,7 +156,7 @@ it("rejects invalid pin ranges without losing valid pins", () => {
   localStorage.setItem("fmg-locks", JSON.stringify({ prec: -100, points: 99, statesNumber: 8, imaginary: 3 }));
   Options.randomize();
   expect(options.map.climate.precipitation).toBeGreaterThanOrEqual(0);
-  expect(options.generation.graph.density).toBe(4);
+  expect(options.generation.graph.density).toBe(3);
   expect(options.generation.states.limit).toBe(8);
   expect(Pins.has("imaginary")).toBe(false);
 });

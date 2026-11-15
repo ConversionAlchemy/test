@@ -31,7 +31,7 @@ describe("options schema", () => {
 
   it("resolves the density step to a cell count", () => {
     const { graph } = Options.getDefaultOptions().generation;
-    expect(graph.density).toBe(4);
+    expect(graph.density).toBe(3);
     expect(graph).not.toHaveProperty("points"); // derived from the step, never stored beside it
   });
 
@@ -74,7 +74,7 @@ describe("the schema describes the value, not merely its type", () => {
   });
 
   it("repairs an extent nothing could be generated on", () => {
-    const generation = { ...Options.getDefaultOptions().generation, graph: { width: 0, height: -5, density: 4 } };
+    const generation = { ...Options.getDefaultOptions().generation, graph: { width: 0, height: -5, density: 3 } };
     const parsed = repair("generation", generation);
 
     expect(parsed.generation.graph).toEqual(Options.getDefaultOptions().generation.graph);

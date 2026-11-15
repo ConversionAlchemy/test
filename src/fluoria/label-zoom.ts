@@ -74,7 +74,10 @@ const STYLE = `
 }
 #labels text.flHidden { visibility: hidden; }
 #burgIcons use { image-rendering: pixelated; }
-body[data-fl-tier="political"] #burgIcons use[href="#fl-village"] { display: none; }
+/* settlements come in by size as you zoom: cities and capitals first, towns in a region, villages close in */
+body[data-fl-tier="political"] #burgIcons use:is([href="#fl-village"], [href^="#fl-town"]) { display: none; }
+body[data-fl-tier="region"] #burgIcons use[href="#fl-village"] { display: none; }
+#burgIcons use { transition: opacity 0.25s; }
 #burgIcons use:hover { filter: brightness(1.12) drop-shadow(0 0 1px #ffffff); }
 #burgIcons > g > g[data-group="anchors"] { display: none; }
 #burgIcons > g > g[data-group="icons"] {

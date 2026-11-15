@@ -57,7 +57,7 @@ class OptionsModel {
     return {
       map: {
         seed: "",
-        graph: { width: 1280, height: 800, points: 10000, sampling: "square", jitter: DEFAULT_JITTER },
+        graph: { width: 1280, height: 800, points: 5000, sampling: "square", jitter: DEFAULT_JITTER },
         geography: {
           mapSize: 100,
           latitude: 50,
@@ -72,7 +72,7 @@ class OptionsModel {
         cultures: { set: "world" },
         lore: { name: "", description: "", calendar: { year: 1000, era: "Era", eraShort: "E" } },
         units: {
-          distance: { unit: isImperial() ? "mi" : "km", scale: 3 },
+          distance: { unit: isImperial() ? "mi" : "km", scale: 0.04 }, // Fluoria: the whole map is about 50 miles across
           area: { unit: "square" },
           height: { unit: isImperial() ? "ft" : "m", exponent: 2 },
           temperature: { unit: locale() === "en-US" ? "°F" : "°C" },
@@ -93,9 +93,9 @@ class OptionsModel {
         template: "",
         resolveDepressionsSteps: 250,
         lakeElevationLimit: 20,
-        cultures: { limit: 12, set: "world", sizeVariety: 4, growthRate: 1 },
-        states: { limit: 18, sizeVariety: 4, growthRate: 1 },
-        provinces: { ratio: 20 },
+        cultures: { limit: 8, set: "world", sizeVariety: 4, growthRate: 1 }, // Fluoria: a smaller world
+        states: { limit: 9, sizeVariety: 4, growthRate: 1 },
+        provinces: { ratio: 34 }, // Fluoria: a seat and two or so other settlements to each province
         religions: { limit: 6 },
         burgs: { limit: 1000 }
       },
@@ -237,9 +237,9 @@ class OptionsModel {
     generation.template = Pins.rolls("template")
       ? this.randomTemplate()
       : Pins.valueOr("template", generation.template);
-    states.limit = Pins.rolls("statesNumber") ? gauss(18, 5, 2, 30) : Pins.valueOr("statesNumber", states.limit);
+    states.limit = Pins.rolls("statesNumber") ? gauss(8, 2, 5, 12) : Pins.valueOr("statesNumber", states.limit);
     provinces.ratio = Pins.rolls("provincesRatio")
-      ? gauss(20, 10, 20, 100)
+      ? gauss(34, 6, 25, 45)
       : Pins.valueOr("provincesRatio", provinces.ratio);
     burgs.limit = Pins.rolls("manors") ? AUTO_BURG_LIMIT : Pins.valueOr("manors", burgs.limit);
     religions.limit = Pins.rolls("religionsNumber")
@@ -252,7 +252,7 @@ class OptionsModel {
     states.sizeVariety = cultures.sizeVariety = variety;
     states.growthRate = cultures.growthRate = growth;
 
-    cultures.limit = Pins.rolls("cultures") ? gauss(12, 3, 5, 30) : Pins.valueOr("cultures", cultures.limit);
+    cultures.limit = Pins.rolls("cultures") ? gauss(7, 2, 4, 12) : Pins.valueOr("cultures", cultures.limit);
     cultures.set = Pins.rolls("culturesSet") ? this.randomCultureSet() : Pins.valueOr("culturesSet", cultures.set);
     this.capCultures();
 
@@ -290,7 +290,7 @@ class OptionsModel {
       : Pins.valueOr("temperatureSouthPole", temperature.southPole);
     climate.precipitation = Pins.rolls("prec") ? gauss(100, 40, 5, 500) : Pins.valueOr("prec", climate.precipitation);
     units.distance.scale = Pins.rolls("distanceScale")
-      ? gauss(3, 1, 1, 5)
+      ? 0.04
       : Pins.valueOr("distanceScale", units.distance.scale);
     lore.calendar.year = Pins.rolls("year") ? rand(100, 2000) : Pins.valueOr("year", lore.calendar.year);
 

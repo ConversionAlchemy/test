@@ -588,7 +588,7 @@ class PixelMap {
       borderPx: Math.max(1, Math.round(spec.borderPx * line.width)),
       bandPx: Math.round(spec.bandPx * line.width),
       bandStrength: line.strength,
-      provinces: tile.level >= 2 && (view === "terrain" || view === "military") && borders,
+      provinces: tile.level >= 1 && view !== "provinces" && borders,
       outline: isOutlineOnly(),
       coastPx: borders ? Math.max(1, Math.round(spec.scale / 3)) : 0,
       tint: borders ? (TINT[tile.level] ?? 0) : 0

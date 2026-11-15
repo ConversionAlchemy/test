@@ -70,9 +70,34 @@ export function afterMove(regiment: Regiment): boolean {
   if (occupier === regiment.state) return false;
   if (atWar(regiment.state, occupier || owner)) {
     occupy(regiment.state, at);
+    takeProvince(regiment.state, at);
     return true;
   }
   return false;
+}
+
+/** The province whose seat stands in this cell, or 0 */
+export function provinceSeatAt(cell: number): number {
+  const p = pack.cells.province?.[cell];
+  const prov = p ? pack.provinces[p] : null;
+  if (!prov || prov.removed || !prov.burg) return 0;
+  return mainCell(pack.burgs[prov.burg].cell) === cell ? p : 0;
+}
+
+/** Taking a province's seat takes the province: every cell its owner still holds goes to the taker */
+export function takeProvince(state: number, cell: number): number {
+  const p = provinceSeatAt(cell);
+  if (!p) return 0;
+  const owner = pack.cells.state[cell];
+  let n = 0;
+  for (let i = 0; i < pack.cells.i.length; i++) {
+    if (pack.cells.province[i] !== p || pack.cells.h[i] < 20 || mainCell(i) !== i) continue;
+    if (pack.cells.state[i] !== owner || occupierOf(i)) continue;
+    if (enemiesIn(state, i).length) continue; // a cell its defenders still stand in holds out
+    occupy(state, i);
+    n++;
+  }
+  return n;
 }
 
 /** Cells a regiment may not end a move in: any held by an enemy army */

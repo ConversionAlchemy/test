@@ -125,9 +125,9 @@ class ProvinceModule {
         .map(burg => ({ burg: burg, score: burg.population! * gauss(1, 0.2, 0.5, 1.5, 3) }))
         .sort((a, b) => b.burg.capital! - a.burg.capital! || b.score - a.score) // capitals first, biggest population next
         .map(b => b.burg);
-      if (stateBurgs.length < 2) return; // at least 2 provinces are required
+      if (!stateBurgs.length) return; // Fluoria: a nation of one settlement is one province
 
-      const provincesNumber = Math.max(Math.ceil((stateBurgs.length * provincesRatio) / 100), 2);
+      const provincesNumber = Math.min(stateBurgs.length, Math.max(Math.ceil((stateBurgs.length * provincesRatio) / 100), 2));
       const form = Object.assign({}, this.forms[s.form!]);
 
       for (let i = 0; i < provincesNumber; i++) {
