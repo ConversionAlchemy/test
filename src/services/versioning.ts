@@ -110,7 +110,7 @@ export async function cleanupData(): Promise<void> {
 }
 
 declare const __FL_COMMIT__: string;
-const FL_PASS = 32;
+const FL_PASS = 33;
 
 function announceVersion(): void {
   if (parseMapVersion(VERSION) !== VERSION) alert("versioning: Invalid format or parsing function");

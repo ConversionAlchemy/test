@@ -141,22 +141,40 @@ export function roadLines(): RoadLine[] {
   return out;
 }
 
+/** The middle of the wall two neighbouring cells share; halfway between their centres if they don't touch */
+function wallMiddle(a: number, b: number): Point {
+  const { cells, vertices } = pack;
+  const shared = (cells.v[a] ?? []).filter(v => (cells.v[b] ?? []).includes(v));
+  if (shared.length >= 2) {
+    const [p, q] = [vertices.p[shared[0]], vertices.p[shared[1]]];
+    return [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+  }
+  const [ca, cb] = [cellCentre(a), cellCentre(b)];
+  return [(ca[0] + cb[0]) / 2, (ca[1] + cb[1]) / 2];
+}
+
+/** A road in straight runs, as the sandbox lays it: out of its settlement to the cell's centre, then wall middle to
+ * wall middle through each cell it crosses, then to the far cell's centre and its settlement */
 function landLine(route: (typeof pack.routes)[number]): RoadLine | null {
-  const cells = trimToSettlements(foldCells(routeCells(route)));
+  const cells = trimToSettlements(foldCells(routeCells(route))).map(mainCell);
   if (cells.length < 2) return null;
-  // a port stands on its cell's shore: the road comes to the cell's centre on land, then out to it
-  const nodes = cells.map(nodePoint);
-  const kept = cells.map(hasBurg);
-  const portEnd = (cell: number) => Boolean(pack.burgs[pack.cells.burg[mainCell(cell)]]?.port);
-  if (portEnd(cells[0])) {
-    nodes.splice(1, 0, cellCentre(mainCell(cells[0])));
-    kept.splice(1, 0, true);
+  const line: Point[] = [];
+  const push = (p: Point) => {
+    const last = line.at(-1);
+    if (!last || Math.hypot(last[0] - p[0], last[1] - p[1]) > 0.05) line.push(p);
+  };
+  const end = (cell: number) => {
+    if (hasBurg(cell)) push(nodePoint(cell));
+    push(cellCentre(cell));
+  };
+  end(cells[0]);
+  for (let k = 1; k < cells.length; k++) {
+    push(wallMiddle(cells[k - 1], cells[k]));
+    // a settlement on the way: the road runs through its centre
+    if (k < cells.length - 1 && hasBurg(cells[k])) push(cellCentre(cells[k]));
   }
-  if (portEnd(cells[cells.length - 1])) {
-    nodes.splice(nodes.length - 1, 0, cellCentre(mainCell(cells[cells.length - 1])));
-    kept.splice(kept.length - 1, 0, true);
-  }
-  const line = roundedLine(nodes, 0.22, k => kept[k]);
+  push(cellCentre(cells[cells.length - 1]));
+  if (hasBurg(cells[cells.length - 1])) push(nodePoint(cells[cells.length - 1]));
   return { id: route.i, group: route.group, cells, line };
 }
 

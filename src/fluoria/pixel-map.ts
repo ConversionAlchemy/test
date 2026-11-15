@@ -49,13 +49,11 @@ function borderStyle(): { width: number; strength: number } {
 }
 const TINT = [0.1, 0.08, 0.04]; // by level: a light wash of each nation over the terrain; borders carry the rest
 
-const ROAD_EDGE = 0x5d5140;
-
-// in texels of the ground: width, rim strength (0 for none), dotted
-const PIXEL_ROAD: Record<string, { color: number; width: number; rim: number; dots: boolean; from: number }> = {
-  roads: { color: 0xece6d4, width: 2, rim: 0.55, dots: false, from: 0 },
-  trails: { color: 0xd9cfb6, width: 1, rim: 0.35, dots: false, from: 0 },
-  paths: { color: 0x6e5236, width: 1, rim: 0, dots: true, from: 2.5 }
+// the sandbox's road colours: a main road cream, a lesser road cream half into the ground, a path a dotted brown
+const PIXEL_ROAD: Record<string, { color: number; alpha: number; dots: boolean; from: number }> = {
+  roads: { color: 0xece6d4, alpha: 1, dots: false, from: 0 },
+  trails: { color: 0xece6d4, alpha: 0.5, dots: false, from: 0 },
+  paths: { color: 0x8d6f4c, alpha: 0.8, dots: true, from: 2.5 }
 };
 
 /** Every texel a straight line crosses, stepped like a pixel line (Bresenham), in texel coordinates */
@@ -289,8 +287,8 @@ class PixelMap {
     this.shade.fill({ color: 0x0c0c10, alpha: 0.42 });
   }
 
-  /** Roads drawn in the ground's own pixels: each line stepped across the texel grid of the level in view, a pale
-   * core with a darker rim, paths dotted */
+  /** Roads drawn in the ground's own pixels, as the sandbox draws them: one pale pixel wide in straight stepped runs,
+   * a main road with a shadow pixel below and right, a lesser road half blended into the ground, paths dotted */
   drawRoads(): void {
     const g = this.roads;
     g.clear();
@@ -299,37 +297,34 @@ class PixelMap {
     const t = 1 / LEVELS[this.level()].scale; // one texel, in map units
     const lines = roadLines();
     const key = (x: number, y: number) => x * 65536 + y;
+    const groupOf = (group: string) => (PIXEL_ROAD[group] ? group : "paths");
+    const cores = new Map<string, Map<number, [number, number]>>();
     for (const group of ["paths", "trails", "roads"]) {
       const style = PIXEL_ROAD[group];
-      if (k < style.from) continue;
       const core = new Map<number, [number, number]>();
+      cores.set(group, core);
+      if (k < style.from) continue;
       for (const road of lines) {
-        if ((PIXEL_ROAD[road.group] ? road.group : "paths") !== group) continue;
+        if (groupOf(road.group) !== group) continue;
         let step = 0;
         for (let n = 1; n < road.line.length; n++)
           stepLine(road.line[n - 1], road.line[n], t, (x, y) => {
-            step++;
-            if (style.dots && step % 4 >= 2) return;
-            for (let dx = 0; dx < style.width; dx++)
-              for (let dy = 0; dy < style.width; dy++) core.set(key(x + dx, y + dy), [x + dx, y + dy]);
+            if (style.dots && step++ % 4 >= 2) return;
+            core.set(key(x, y), [x, y]);
           });
       }
+    }
+    // shadows first, where no road pixel is
+    const roads = cores.get("roads")!;
+    const any = (x: number, y: number) => [...cores.values()].some(c => c.has(key(x, y)));
+    for (const [x, y] of roads.values()) if (!any(x + 1, y + 1)) g.rect((x + 1) * t, (y + 1) * t, t, t);
+    g.fill({ color: 0x1c140c, alpha: 0.22 });
+    for (const group of ["paths", "trails", "roads"]) {
+      const style = PIXEL_ROAD[group];
+      const core = cores.get(group)!;
       if (!core.size) continue;
-      if (style.rim) {
-        const rim = new Map<number, [number, number]>();
-        for (const [x, y] of core.values())
-          for (const [dx, dy] of [
-            [1, 0],
-            [-1, 0],
-            [0, 1],
-            [0, -1]
-          ])
-            if (!core.has(key(x + dx, y + dy))) rim.set(key(x + dx, y + dy), [x + dx, y + dy]);
-        for (const [x, y] of rim.values()) g.rect(x * t, y * t, t, t);
-        g.fill({ color: ROAD_EDGE, alpha: style.rim });
-      }
       for (const [x, y] of core.values()) g.rect(x * t, y * t, t, t);
-      g.fill({ color: style.color, alpha: 1 });
+      g.fill({ color: style.color, alpha: style.alpha });
     }
   }
 

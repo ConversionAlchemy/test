@@ -11,30 +11,41 @@ const SMALL_STATE = 8; // cells under which a nation is named by its city once z
 interface Tier {
   min: number; // Azgaar zoom from which the group shows
   max: number;
-  px?: number; // on-screen font size when it first shows; none keeps Azgaar's, which path labels are fitted to
+  px?: number; // on-screen font size at zoom 1.4; grows with the square root of the zoom, within the sandbox's bounds
   rank: number; // where labels overlap, the lower rank gives way
+  fade?: number; // zoom over which it fades in and out
 }
 
 // political view shows states alone; regions add provinces and big towns; close in, everything
+// sizes and steps from the sandbox: nations fade out as the land comes into view, settlements come in by size
 const TIERS: Record<string, Tier> = {
-  state: { min: 0, max: 2.2, rank: 0 },
-  capital: { min: 1, max: Infinity, px: 20, rank: 1 },
-  city: { min: 1.4, max: Infinity, px: 17, rank: 2 },
+  capital: { min: 1, max: Infinity, px: 19, rank: 0 },
+  state: { min: 0, max: 2.1, px: 20, rank: 1, fade: 0.6 },
+  city: { min: 1.4, max: Infinity, px: 16, rank: 2 },
   province: { min: 1.4, max: Infinity, px: 12, rank: 3 },
-  town: { min: 1.8, max: Infinity, px: 16, rank: 4 },
-  village: { min: 2.6, max: Infinity, px: 15, rank: 5 },
-  hamlet: { min: 3, max: Infinity, px: 14, rank: 6 },
-  fort: { min: 3, max: Infinity, px: 14, rank: 6 },
-  monastery: { min: 3, max: Infinity, px: 14, rank: 6 },
-  trading_post: { min: 3, max: Infinity, px: 14, rank: 6 },
-  caravanserai: { min: 3, max: Infinity, px: 14, rank: 6 },
+  town: { min: 1.8, max: Infinity, px: 14, rank: 4 },
+  village: { min: 2.6, max: Infinity, px: 12.5, rank: 5 },
+  hamlet: { min: 3, max: Infinity, px: 11.5, rank: 6 },
+  fort: { min: 3, max: Infinity, px: 11.5, rank: 6 },
+  monastery: { min: 3, max: Infinity, px: 11.5, rank: 6 },
+  trading_post: { min: 3, max: Infinity, px: 11.5, rank: 6 },
+  caravanserai: { min: 3, max: Infinity, px: 11.5, rank: 6 },
   route: { min: 3, max: Infinity, px: 13, rank: 7 },
   river: { min: 3, max: Infinity, px: 13, rank: 8 }
 };
 
 const FADE = 0.3; // zoom over which a group fades in or out
-const GROWTH = 0.3; // labels grow with zoom, much slower than the map
-const MAX_GROWTH = 2;
+const BURG_GROUPS = new Set([
+  "capital",
+  "city",
+  "town",
+  "village",
+  "hamlet",
+  "fort",
+  "monastery",
+  "trading_post",
+  "caravanserai"
+]);
 
 /** Fluoria's zoom range for a label group, or undefined to keep Azgaar's */
 export function labelTier(group: string): { min: number; max: number } | undefined {
@@ -45,22 +56,27 @@ const STYLE = `
 #labels > g { opacity: 1 !important; transition: opacity 0.2s; }
 /* dark ink with a hairline pale halo, as an atlas prints it */
 #labels text, #labels textPath, #labels tspan {
-  fill: #26262b !important;
+  fill: #3a2e24 !important;
   fill-opacity: 1 !important;
-  stroke: #f4f0e4 !important;
+  stroke: #f0e8d0 !important;
   stroke-opacity: 0.85 !important;
-  stroke-width: 0.1em !important; /* in step with each label's own size */
+  stroke-width: 0.22em !important; /* in step with each label's own size */
   stroke-linejoin: round !important;
   paint-order: stroke !important;
   text-shadow: none !important;
 }
 /* areas in spaced capitals: states in their own deep colour (set per label), provinces muted */
 #labels > g:is([data-group="state"], [data-group="province"]) :is(text, textPath, tspan) {
-  stroke-width: 0.07em !important;
-  letter-spacing: 0.14em;
+  stroke-width: 0.16em !important;
+  stroke: #f4eede !important;
+  stroke-opacity: 0.8 !important;
+  letter-spacing: 0.35em;
   text-transform: uppercase;
+  font-size: inherit !important; /* one size for every nation, as the sandbox sets them */
 }
-#labels > g[data-group="province"] :is(text, textPath, tspan) { fill: #6e5a64 !important; stroke-width: 0.24em !important; stroke-opacity: 0.7 !important; letter-spacing: 0.2em; }
+#labels > g:is([data-group="capital"], [data-group="city"]) :is(text, textPath, tspan) { fill: #2a1f18 !important; }
+#labels > g[data-group="state"] { opacity: calc(0.9 * var(--fl-o-state, 1)) !important; }
+#labels > g[data-group="province"] :is(text, textPath, tspan) { fill: #6e5a64 !important; stroke-width: 0.24em !important; stroke-opacity: 0.7 !important; letter-spacing: 0.2em; font-size: inherit !important; }
 
 #labels > g[data-group="river"] :is(text, textPath, tspan) {
   fill: #2c5d93 !important;
@@ -77,7 +93,6 @@ const STYLE = `
   stroke-linejoin: round !important;
   paint-order: stroke fill !important;
   dominant-baseline: central;
-  font-family: "Redaction", Georgia, serif !important;
   font-style: italic;
   letter-spacing: 0.03em;
   cursor: pointer;
@@ -103,6 +118,7 @@ ${Object.entries(TIERS)
   .map(([group]) => `#labels > g[data-group="${group}"] { font-size: var(--fl-${group}) !important; }`)
   .join("\n")}
 ${Object.keys(TIERS)
+  .filter(group => group !== "state")
   .map(group => `#labels > g[data-group="${group}"] { opacity: var(--fl-o-${group}, 1) !important; }`)
   .join("\n")}
 `;
@@ -176,7 +192,7 @@ function install(): void {
             ? node.querySelectorAll<SVGTextElement>("text[data-label-type='burg']")
             : [])
           if (text.dataset.labelType === "burg") {
-            landSide(text);
+            setSide(text, (text.dataset.side as Side | undefined) ?? "right");
             text.classList.add("flHidden");
           }
       const element = target as Element;
@@ -199,10 +215,11 @@ export function applyLabelZoom(scale = viewport.scale): void {
   const labels = document.getElementById("labels");
   if (!labels || !scale) return;
   install();
-  for (const [group, { min, px }] of Object.entries(TIERS)) {
+  // as the sandbox: a name grows with the square root of the zoom, within bounds, smoothly (no rounding)
+  const grow = Math.min(1.25, Math.max(0.85, Math.sqrt(scale / 1.4)));
+  for (const [group, { px }] of Object.entries(TIERS)) {
     if (!px) continue;
-    const growth = Math.min(MAX_GROWTH, (scale / Math.max(1, min)) ** GROWTH);
-    const screen = Math.round(px * Math.max(1, growth));
+    const screen = group === "state" ? Math.min(24, px * Math.sqrt(scale * 0.8)) : px * grow;
     labels.style.setProperty(`--fl-${group}`, `${screen / scale}px`);
   }
   // symbols keep their size on screen, pixel for pixel with the unit cards; at the political view half that
@@ -210,10 +227,13 @@ export function applyLabelZoom(scale = viewport.scale): void {
   document.getElementById("burgIcons")?.style.setProperty("--fl-burg", `${(SYMBOL_BOX * art) / scale}px`);
   labels.style.setProperty("--fl-px", String(1 / scale));
   // each group fades in over its first steps of zoom, and out over its last
-  const ramp = (min: number, max: number) =>
-    Math.max(0, Math.min(1, (scale - min) / FADE + (min ? 0 : 1), (max - scale) / FADE));
-  for (const [group, { min, max }] of Object.entries(TIERS))
-    labels.style.setProperty(`--fl-o-${group}`, String(ramp(min, max) * (group === "province" ? 0.85 : 1)));
+  const ramp = (min: number, max: number, fade = FADE) =>
+    Math.max(0, Math.min(1, (scale - min) / fade + (min ? 0 : 1), (max - scale) / fade));
+  for (const [group, { min, max, fade }] of Object.entries(TIERS))
+    labels.style.setProperty(`--fl-o-${group}`, String(ramp(min, max, fade) * (group === "province" ? 0.85 : 1)));
+  // a nation's name on its islands fades with its name on the mainland
+  const isles = document.getElementById("flIslands");
+  if (isles) isles.style.opacity = String(0.9 * ramp(0, TIERS.state.max, TIERS.state.fade));
   const icons = document.getElementById("burgIcons");
   icons?.style.setProperty("--fl-o-townicon", String(ramp(1.4, Infinity)));
   icons?.style.setProperty("--fl-o-villageicon", String(ramp(2.6, Infinity)));
@@ -252,16 +272,23 @@ function provinceSize(province: number): number {
   return sizes.n.get(province) ?? 0;
 }
 
-/** Where labels overlap on screen, the lower rank gives way; settlement names sit under their symbols */
+type Side = "right" | "left" | "top" | "bottom";
+const SIDES: Side[] = ["right", "left", "top", "bottom"];
+
+/** Where labels overlap on screen, the lower rank gives way. A settlement's name sits beside its mark, right or
+ * left, else above or below, whichever is clear; it keeps the side it had while that stays clear */
 function declutter(): void {
   const labels = document.querySelectorAll<SVGTextElement>("#labels > g > text");
   const placed: DOMRect[] = [];
+  for (const use of document.querySelectorAll<SVGUseElement>('#burgIcons g[data-group="icons"] > use')) {
+    const box = use.getBoundingClientRect();
+    if (box.width && Number(getComputedStyle(use).opacity) > 0.3) placed.push(box);
+  }
   const items: { text: SVGTextElement; rank: number }[] = [];
   const close = (viewport.scale || 1) >= TINY_FROM;
   for (const text of labels) {
     text.classList.remove("flHidden");
     const group = (text.parentElement as HTMLElement | null)?.dataset.group ?? "";
-    if (text.dataset.labelType === "burg") landSide(text);
     const state = group === "state" ? Number(text.id.replace("stateLabel", "")) : 0;
     if (state) {
       const ink = stateInk(state);
@@ -283,25 +310,52 @@ function declutter(): void {
     items.push({ text, rank: TIERS[group]?.rank ?? 6 });
   }
   items.sort((a, b) => a.rank - b.rank);
+  const clear = (box: DOMRect) =>
+    !placed.some(
+      other =>
+        box.left < other.right - 1 &&
+        box.right > other.left + 1 &&
+        box.top < other.bottom - 1 &&
+        box.bottom > other.top + 1
+    );
   for (const { text } of items) {
+    const group = (text.parentElement as HTMLElement | null)?.dataset.group ?? "";
+    if (BURG_GROUPS.has(group) && text.dataset.labelType === "burg") {
+      const before = text.dataset.side as Side | undefined;
+      const order = before ? [before, ...SIDES.filter(s => s !== before)] : SIDES;
+      let done = false;
+      for (const side of order) {
+        setSide(text, side);
+        const box = text.getBoundingClientRect();
+        if (!box.width) break;
+        if (!clear(box)) continue;
+        placed.push(box);
+        done = true;
+        break;
+      }
+      if (!done) text.classList.add("flHidden");
+      continue;
+    }
     const box = text.getBoundingClientRect();
     if (!box.width) continue;
-    const pad = 1;
-    const hit = placed.some(
-      other =>
-        box.left < other.right - pad &&
-        box.right > other.left + pad &&
-        box.top < other.bottom - pad &&
-        box.bottom > other.top + pad
-    );
-    if (hit) text.classList.add("flHidden");
-    else placed.push(box);
+    if (clear(box)) placed.push(box);
+    else text.classList.add("flHidden");
   }
 }
 
-/** A settlement's name sits under its symbol; its units and garrison pips stand above */
-function landSide(text: SVGTextElement): void {
+/** Put a settlement's name on one side of its mark */
+function setSide(text: SVGTextElement, side: Side): void {
   const burg = pack.burgs[Number(text.dataset.id)];
-  const side = burg ? SYMBOL[isCapital(burg) ? "capital" : rankOf(burg)] : SYMBOL.town;
-  text.style.translate = `0 calc(var(--fl-px, 1) * ${(side / 2) * ART_PX + 2}px + 0.8em)`;
+  const half = ((burg ? SYMBOL[isCapital(burg) ? "capital" : rankOf(burg)] : SYMBOL.town) / 2) * ART_PX + 4;
+  const px = (n: number) => `calc(var(--fl-px, 1) * ${n}px)`;
+  text.dataset.side = side;
+  text.style.textAnchor = side === "right" ? "start" : side === "left" ? "end" : "middle";
+  text.style.translate =
+    side === "right"
+      ? `${px(half)} 0.35em`
+      : side === "left"
+        ? `${px(-half)} 0.35em`
+        : side === "top"
+          ? `0 ${px(-half)}`
+          : `0 calc(var(--fl-px, 1) * ${half}px + 0.8em)`;
 }

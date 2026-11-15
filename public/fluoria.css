@@ -5,32 +5,21 @@
   font-display: swap;
 }
 
-/* map names: Redaction 20, an old serif with a bitmap grain; the UI stays in VT323 */
+/* map names in IM Fell, as the sandbox sets them; the UI stays in VT323 */
 @font-face {
-  font-family: "Redaction";
-  src: url("fonts/redaction-20-latin-400-normal.woff2") format("woff2");
-  font-weight: 400;
+  font-family: "IM Fell English SC";
+  src: url("fonts/im-fell-english-sc-latin-400-normal.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "IM Fell English";
+  src: url("fonts/im-fell-english-latin-400-normal.woff2") format("woff2");
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "Redaction";
-  src: url("fonts/redaction-20-latin-400-italic.woff2") format("woff2");
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Redaction";
-  src: url("fonts/redaction-20-latin-700-normal.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Redaction";
-  src: url("fonts/redaction-20-latin-700-italic.woff2") format("woff2");
-  font-weight: 700;
+  font-family: "IM Fell English";
+  src: url("fonts/im-fell-english-latin-400-italic.woff2") format("woff2");
   font-style: italic;
   font-display: swap;
 }
@@ -273,15 +262,20 @@ input[type="range"] {
   font-family: "VT323", monospace !important;
 }
 
-/* nations, provinces, capitals, cities and roads in the serif; towns and smaller keep the pixel hand, in italic */
-#labels > g:is([data-group="state"], [data-group="capital"], [data-group="city"], [data-group="province"], [data-group="route"])
+/* the sandbox's hierarchy: nations, provinces, capitals and cities in small capitals; towns in the plain hand,
+   smaller places and roads in its italic */
+#labels > g:is([data-group="state"], [data-group="province"], [data-group="capital"], [data-group="city"])
   :is(text, textPath, tspan) {
-  font-family: "Redaction", Georgia, serif !important;
+  font-family: "IM Fell English SC", Georgia, serif !important;
 }
-#labels > g:is([data-group="state"], [data-group="capital"]) :is(text, textPath, tspan) {
-  font-weight: 700;
+#labels > g:is([data-group="town"], [data-group="village"], [data-group="hamlet"], [data-group="fort"],
+    [data-group="monastery"], [data-group="trading_post"], [data-group="caravanserai"], [data-group="route"])
+  :is(text, textPath, tspan) {
+  font-family: "IM Fell English", Georgia, serif !important;
 }
-#labels > g:is([data-group="town"], [data-group="village"], [data-group="hamlet"]) :is(text, textPath, tspan) {
+#labels > g:is([data-group="village"], [data-group="hamlet"], [data-group="fort"], [data-group="monastery"],
+    [data-group="trading_post"], [data-group="caravanserai"], [data-group="route"])
+  :is(text, textPath, tspan) {
   font-style: italic;
 }
 
@@ -574,9 +568,8 @@ body.fl-carrying.fl-cursor-no * {
   stroke-width: 0.08em;
   stroke-linejoin: round;
   paint-order: stroke;
-  font-family: "Redaction", Georgia, serif;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-family: "IM Fell English SC", Georgia, serif;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
 }
 
@@ -681,7 +674,7 @@ body.fl-atlas #flSeas {
 
 #flSeas text {
   fill: #3d6a98;
-  font-family: "Redaction", Georgia, serif;
+  font-family: "IM Fell English", Georgia, serif;
   font-style: italic;
   letter-spacing: 0.3em;
   text-transform: uppercase;
