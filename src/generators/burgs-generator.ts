@@ -147,7 +147,18 @@ class BurgModule {
         const [x, y] = cells.p[cell];
         const culture = cells.culture[cell];
         const burgId = burgs.length;
-        burgs.push({ cell, x, y, i: burgId, state: 0, culture, name: Names.getCulture(culture), feature, capital: 0, tags: [] });
+        burgs.push({
+          cell,
+          x,
+          y,
+          i: burgId,
+          state: 0,
+          culture,
+          name: Names.getCulture(culture),
+          feature,
+          capital: 0,
+          tags: []
+        });
         cells.burg[cell] = burgId;
       }
     };

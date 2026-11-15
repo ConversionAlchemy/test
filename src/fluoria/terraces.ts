@@ -14,7 +14,7 @@ export const LEVEL_BANDS: readonly (readonly [number, number])[] = [
 export const levelOf = (h: number): number => LEVEL_BANDS.findIndex(([lo, hi]) => h >= lo && h <= hi);
 
 interface Cells {
-  h: Uint8Array | number[];
+  h: { length: number; [i: number]: number };
   c: number[][];
 }
 
@@ -30,10 +30,10 @@ export function applyTerraces(cells: Cells): void {
   // land is capped by how far it is from the sea: coast at the shore, one level more per cell inland
   const dist = new Int32Array(n).fill(-1);
   const queue: number[] = [];
-  for (let i = 0; i < n; i++) if (land(i) && cells.c[i].some(j => !land(j))) ((dist[i] = 1), queue.push(i));
+  for (let i = 0; i < n; i++) if (land(i) && cells.c[i].some(j => !land(j))) (dist[i] = 1), queue.push(i);
   for (let q = 0; q < queue.length; q++) {
     const i = queue[q];
-    for (const j of cells.c[i]) if (land(j) && dist[j] < 0) ((dist[j] = dist[i] + 1), queue.push(j));
+    for (const j of cells.c[i]) if (land(j) && dist[j] < 0) (dist[j] = dist[i] + 1), queue.push(j);
   }
   const cap = (i: number) => (dist[i] < 0 ? 6 : Math.min(6, 1 + dist[i]));
   for (let i = 0; i < n; i++) {
@@ -49,7 +49,7 @@ export function applyTerraces(cells: Cells): void {
       let want = L[i];
       for (const j of cells.c[i]) if (land(j)) want = Math.max(want, L[j] - 1);
       want = Math.min(want, cap(i));
-      if (want > L[i]) ((L[i] = want), (changed = true));
+      if (want > L[i]) (L[i] = want), (changed = true);
     }
   }
   // where a cap held a slope back, the high side comes down to meet it
@@ -59,7 +59,7 @@ export function applyTerraces(cells: Cells): void {
       if (!land(i)) continue;
       let want = L[i];
       for (const j of cells.c[i]) if (land(j)) want = Math.min(want, L[j] + 1);
-      if (want < L[i]) ((L[i] = want), (changed = true));
+      if (want < L[i]) (L[i] = want), (changed = true);
     }
   }
 

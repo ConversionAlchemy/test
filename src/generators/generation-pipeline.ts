@@ -1,9 +1,10 @@
 // Canonical generation sequence, as a declared pipeline instead of a hand-written call list. See docs/architecture/generation-pipeline.md.
+
+import { applyTerraces } from "@/fluoria/terraces";
 import { GraphOverride } from "@/generators/graph-override";
 import { Pipeline, type PipelineStep } from "@/generators/pipeline";
 import { Population } from "@/generators/population-generator";
 import type { GridGraph } from "@/types/GridGraph";
-import { applyTerraces } from "@/fluoria/terraces";
 import { Coordinates } from "./coordinates";
 
 const generationPipelineSteps = [
