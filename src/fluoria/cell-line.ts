@@ -32,6 +32,20 @@ function nationTag(state: number, text: string): string {
   return `<span style="color:${bright}">${escapeHtml(text)}</span>`;
 }
 
+let counts: { at: number; n: Map<number, number> } = { at: 0, n: new Map() };
+
+/** A province's land cells, counted afresh at most once a second */
+function provinceCells(id: number): number {
+  if (performance.now() - counts.at > 1000) {
+    const n = new Map<number, number>();
+    const { cells } = pack;
+    for (let i = 0; i < cells.i.length; i++)
+      if (cells.h[i] >= 20 && cells.province[i]) n.set(cells.province[i], (n.get(cells.province[i]) ?? 0) + 1);
+    counts = { at: performance.now(), n };
+  }
+  return counts.n.get(id) ?? 0;
+}
+
 /** The named place a water cell belongs to: a lake, a bay or sound, else the open sea */
 function waterName(cell: number | undefined, g: number): string {
   if (cell !== undefined) {
@@ -60,7 +74,9 @@ export function cellLine(cell: number | undefined, g: number): string {
   const biome = pack.biomes[cells.biome[at]]?.name ?? "";
   return join([
     living && escapeHtml(living.name ?? ""),
-    province && !province.removed && escapeHtml(islandName(provinceId) ?? province.name),
+    province &&
+      !province.removed &&
+      `${escapeHtml(islandName(provinceId) ?? province.name)} (${provinceCells(provinceId).toLocaleString()})`,
     state ? nationTag(state, ownerText(at)) : escapeHtml(t("Unclaimed")),
     relation && relation !== "neutral" && escapeHtml(t(STANDING_LABEL[relation])),
     occupier > 0 && `${escapeHtml(t("held by"))} ${nationTag(occupier, pack.states[occupier].name)}`,
