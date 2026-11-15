@@ -59,15 +59,20 @@ const isLand = (cell: number) => Boolean(pack.features[pack.cells.f[cell]]?.land
 
 const GLACIER = 11;
 
-/** A cell's one look, from its biome, height and temperature */
+/** The top level of the mountains (70+), with mountain (55+) on every side */
+export const isIceCap = (cell: number): boolean =>
+  pack.cells.h[cell] >= 70 && pack.cells.c[cell].every(j => pack.cells.h[j] >= 55);
+
+/** A cell's one look, from its biome and height */
 function cellTerrain(cell: number): TerrainId {
   const { cells } = pack;
   const h = cells.h[cell];
   const biome = cells.biome[cell];
-  const temp = grid.cells.temp[cells.g[cell]] ?? 10;
-  // the terrace levels (see terraces.ts): snowy peaks, mountains, hills, plain, and a sandy coast
-  if (biome === GLACIER || h >= 70 || (h >= 55 && temp <= 0)) return Terrain.Snow;
+  // the terrace levels (see terraces.ts): snow only on the highest peaks ringed all round by mountain, then
+  // mountains, hills, plain, and a sandy coast; cold lowland the generator would ice over is tundra
+  if (isIceCap(cell)) return Terrain.Snow;
   if (h >= 55) return Terrain.Mountains;
+  if (biome === GLACIER) return Terrain.Tundra;
   let t = BIOME_TERRAIN[biome] ?? Terrain.Grass;
   if (t === Terrain.Water) t = Terrain.Grass;
   if (h >= 40 && OPEN_LAND.includes(t)) return Terrain.Hills;

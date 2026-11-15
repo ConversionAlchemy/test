@@ -9,7 +9,7 @@ import { escapeHtml } from "@/utils/stringUtils";
 import { getArea, getAreaUnit, getHeight, si } from "@/utils/unitUtils";
 import { ROUTE_LEVELS, type RouteGroup, renameRoute, setRouteGroup } from "./routes";
 
-export type PlaceKind = "bay" | "inlet" | "forest" | "mountain" | "route";
+export type PlaceKind = "bay" | "inlet" | "forest" | "mountain" | "glacier" | "route";
 
 interface Place {
   title: string;
@@ -27,6 +27,7 @@ export type NoteRef = { type: "feature" | "zone" | "route" | "province"; id: num
 const FOREST_NOUNS = ["Forest", "Wood", "Copse", "Grove"];
 const PEAK_NOUNS = ["Mount", "Peak", "Range", "Hills"];
 const BAY_NOUNS = ["Bay", "Inlet", "Cove", "Sound", "Firth"];
+const ICE_NOUNS = ["Glacier", "Icecap", "Icefield"];
 
 /** A zone's name split into its own part and its noun ("Mount X" puts the noun first) */
 function splitName(name: string, nouns: string[]): [base: string, noun: string] {
@@ -49,10 +50,10 @@ function placeOf(kind: PlaceKind, id: number, redraw: () => void): Place | null 
     const cells = [...pack.cells.i].filter(i => pack.cells.f[i] === id);
     const shore = polygonLength((f.vertices ?? []).map(v => pack.vertices.p[v] as [number, number]));
     return {
-      title: "Bay",
+      title: "Lake",
       name: f.name,
       setName: name => {
-        f.name = name.replace(/ Bay$/, "");
+        f.name = name.replace(/^Lake\s+/i, "").replace(/\s+(Lake|Bay|Water)$/i, "");
         redraw();
       },
       kinds: LAKE_SUBTYPES.map(s => [s, FEATURE_SUBTYPE_LABELS[s]?.replace(/ lake$/, "") ?? s]),
@@ -86,10 +87,11 @@ function placeOf(kind: PlaceKind, id: number, redraw: () => void): Place | null 
   }
   const z = pack.zones[id];
   if (!z) return null;
-  const nouns = kind === "forest" ? FOREST_NOUNS : kind === "inlet" ? BAY_NOUNS : PEAK_NOUNS;
+  const nouns =
+    kind === "forest" ? FOREST_NOUNS : kind === "inlet" ? BAY_NOUNS : kind === "glacier" ? ICE_NOUNS : PEAK_NOUNS;
   const heights = z.cells.map(c => pack.cells.h[c]);
   return {
-    title: kind === "forest" ? "Forest" : kind === "inlet" ? "Bay" : "Mountain",
+    title: kind === "forest" ? "Forest" : kind === "inlet" ? "Bay" : kind === "glacier" ? "Glacier" : "Mountain",
     name: splitName(z.name, nouns)[0],
     setName: name => {
       z.name = joinName(name, splitName(z.name, nouns)[1]);

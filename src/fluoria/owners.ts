@@ -1,6 +1,6 @@
 // Who owns what, made clear: the owner's name on hover, short names on a state's outlying islands, and a colour fix
 // for neighbours that look alike. Ownership itself stays Azgaar's: states, cells and diplomacy are only read
-import { color, hsl } from "d3";
+import { color, hsl, rgb } from "d3";
 import { viewport } from "@/components/viewport";
 import { t } from "@/utils/i18n";
 import { escapeHtml } from "@/utils/stringUtils";
@@ -42,9 +42,11 @@ export const cellsOfState = (state: number): number => stateCells.get(state) ?? 
 
 /** Ink for a state's name: a deep shade of its own colour */
 export function stateInk(state: number): string {
-  const base = hsl(living(state)?.color ?? "#555");
-  if (Number.isNaN(base.h)) return "#2a2a30";
-  return hsl(base.h, Math.min(0.6, base.s || 0.4), 0.24).formatHex();
+  // as the sandbox tints them: the nation's colour, 62% of the way to a dark brown ink
+  const c = rgb(living(state)?.color ?? "#555555");
+  if (Number.isNaN(c.r)) return "#2a2a30";
+  const mix = (v: number, ink: number) => Math.round(v * 0.38 + ink * 0.62);
+  return rgb(mix(c.r, 30), mix(c.g, 22), mix(c.b, 18)).formatHex();
 }
 
 /** Find every piece of a state's land off the island it mostly lives on */

@@ -1,5 +1,6 @@
 // A province's dialog: its flag, name and form; who holds it; what can be done with it (rebel, release, gift, merge);
 // its figures; and its notes
+
 import { confirmationDialog } from "@/components/dialog/dialog-helpers";
 import { Layers } from "@/components/layers";
 import { tip } from "@/components/tooltips";
@@ -9,6 +10,7 @@ import { escapeHtml } from "@/utils/stringUtils";
 import { getArea, getAreaUnit, si } from "@/utils/unitUtils";
 import { APPOINT_PRICE, appoint, governorOf } from "./court";
 import { troopsOf } from "./forces/forces";
+import { bareIsland, islandNoun } from "./islands";
 import { mainCell } from "./one-grid";
 import { notesHtml, wireNotes } from "./place-dialog";
 import { occupierOf } from "./war";
@@ -49,7 +51,7 @@ export function openProvince(id: number): void {
   document.body.append(el);
   render(el, id);
   $(el).dialog({
-    title: "Province",
+    title: islandNoun(id) ? "Island" : "Province",
     width: "22em",
     resizable: false,
     position: { my: "left top", at: "left+10 top+10", of: "#map" },
@@ -82,7 +84,7 @@ function render(el: HTMLElement, id: number): void {
     <div class="flProvHead">
       <svg class="flProvFlag" viewBox="0 0 200 200"><use href="#provinceCOA${id}"></use></svg>
       <div>
-        <input class="flPlaceName" value="${escapeHtml(p.name)}" spellcheck="false" />
+        <input class="flPlaceName" value="${escapeHtml(bareIsland(p.name))}" spellcheck="false" />
         <select class="flProvForm">${forms()
           .map(form => `<option ${form === p.formName ? "selected" : ""}>${escapeHtml(form)}</option>`)
           .join("")}</select>
@@ -123,7 +125,7 @@ function render(el: HTMLElement, id: number): void {
   const name = el.querySelector<HTMLInputElement>(".flPlaceName")!;
   name.addEventListener("change", () => {
     if (!name.value.trim()) return;
-    Provinces.rename(id, name.value.trim());
+    Provinces.rename(id, bareIsland(name.value.trim()));
     redraw();
   });
   el.querySelector<HTMLSelectElement>(".flProvForm")!.addEventListener("change", function () {

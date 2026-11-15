@@ -7,10 +7,14 @@ import { escapeHtml } from "@/utils/stringUtils";
 import { seaInlets } from "./inlets";
 import { openPlace } from "./place-dialog";
 import { isForestBiome } from "./woods";
+import { isIceCap } from "./world";
 
 const NS = "http://www.w3.org/2000/svg";
-const KINDS = { Forest: "Forest", Mountains: "Mountains", Bay: "Bay" } as const;
-const isNamed = (type: string) => type === KINDS.Forest || type === KINDS.Mountains || type === KINDS.Bay;
+const KINDS = { Forest: "Forest", Mountains: "Mountains", Bay: "Bay", Ice: "Glacier" } as const;
+/** A lake's name always carries "Lake" */
+export const bareLake = (name: string) => name.replace(/^Lake\s+/i, "").replace(/\s+(Lake|Bay|Water)$/i, "");
+const lakeName = (name: string) => `Lake ${bareLake(name)}`;
+const isNamed = (type: string) => (Object.values(KINDS) as string[]).includes(type);
 
 interface Named {
   key: string; // z:<zone id> or f:<feature id>
@@ -86,7 +90,14 @@ export function nameZones(): void {
     for (const c of g) for (const j of cells.c[c]) if (cells.h[j] >= 20 && cells.culture[j]) return cells.culture[j];
     return 1;
   };
-  for (const g of seaInlets()) if (fresh(g)) add(KINDS.Bay, g, `${Names.getCultureShort(shore(g))} Bay`);
+  // ice caps lie on mountains already named, so they are checked only against other ice
+  const iced = new Uint8Array(cells.i.length);
+  for (const z of pack.zones) if (z.type === KINDS.Ice) for (const c of z.cells) iced[c] = 1;
+  for (const g of clusters(isIceCap, 3))
+    if (!g.some(c => iced[c]))
+      add(KINDS.Ice, g, `${Names.getCultureShort(culture(g))} ${g.length >= 8 ? "Icecap" : "Glacier"}`);
+  for (const { cells: g, kind } of seaInlets())
+    if (fresh(g)) add(KINDS.Bay, g, `${Names.getCultureShort(shore(g))} ${kind}`);
 }
 
 /** The middle of a place: the centre of its cells deepest inside it, so the name sits in its widest part */
@@ -141,7 +152,7 @@ export function collectZones(): void {
     const [x, y] = centre(group);
     named.push({
       key: `f:${f}`,
-      text: `${feature.name.replace(/ Bay$/, "")} Bay`,
+      text: lakeName(feature.name),
       x,
       y,
       cells: group
@@ -192,12 +203,12 @@ export function drawZones(rebuild = false): void {
 
 const zoneKind = (id: number) => {
   const type = pack.zones[id]?.type;
-  return type === KINDS.Forest ? "forest" : type === KINDS.Bay ? "inlet" : "mountain";
+  return type === KINDS.Forest ? "forest" : type === KINDS.Bay ? "inlet" : type === KINDS.Ice ? "glacier" : "mountain";
 };
 const kindOf = (n: Named) => {
   if (n.key.startsWith("f:")) return "bay";
   const kind = zoneKind(+n.key.slice(2));
-  return kind === "forest" ? "wood" : kind === "inlet" ? "bay" : "peak";
+  return kind === "forest" ? "wood" : kind === "inlet" ? "bay" : kind === "glacier" ? "ice" : "peak";
 };
 
 /** Light the cells of a named place */
@@ -222,8 +233,8 @@ function edit(text: SVGTextElement): void {
   const feature = zone ? null : pack.features[Number(key.slice(2))];
   inlineEdit(text, zone ? zone.name : (feature?.name ?? ""), value => {
     if (zone) zone.name = value;
-    else if (feature) feature.name = value.replace(/ Bay$/, "");
-    n.text = zone ? zone.name : `${feature?.name} Bay`;
+    else if (feature) feature.name = bareLake(value);
+    n.text = zone ? zone.name : lakeName(feature?.name ?? value);
     text.textContent = n.text;
   });
 }
@@ -290,6 +301,9 @@ const STYLE = `
 #flZoneLight path.wood { fill: #6fcf3a; stroke: #9be36b; }
 #flZoneLight path.bay { fill: #5fb4ff; stroke: #a9d8ff; }
 #flZoneLight path.peak { fill: #b9ab97; stroke: #e8e0d0; }
+#flZones text.flHidden { visibility: hidden; }
+#flZoneLight path.ice { fill: #ffffff; stroke: #ffffff; }
+#flZones text.ice { fill: #3d5566; stroke: #f4f8fa; font-family: "IM Fell English SC", Georgia, serif; font-style: normal; letter-spacing: 0.06em; }
 .flZoneEdit { position: fixed; transform: translate(-50%, -50%); z-index: 1000; text-align: center; font: italic 14px "IM Fell English", Georgia, serif;
   background: #f4f0e4; color: #26262b; border: 1px solid #26262b; padding: 2px 4px; outline: none; }
 `;

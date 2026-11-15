@@ -2,6 +2,7 @@
 // kind looks, and which give way where they overlap. Labels and icons stay Azgaar's; this styles and gates them
 import { viewport } from "@/components/viewport";
 import { ART_PX, SYMBOL, SYMBOL_BOX } from "./constants";
+import { islandNoun } from "./islands";
 import { cellsOfState, stateInk, TINY_FROM, TINY_STATE } from "./owners";
 import { type Rank, rankOf, sizeOf } from "./settlement-size";
 import { CLASS_ORDER, classOf, isCapital, type SettlementClass } from "./settlements";
@@ -30,7 +31,7 @@ const TIERS: Record<string, Tier> = {
   monastery: { min: 3, max: Infinity, px: 11.5, rank: 6 },
   trading_post: { min: 3, max: Infinity, px: 11.5, rank: 6 },
   caravanserai: { min: 3, max: Infinity, px: 11.5, rank: 6 },
-  route: { min: 3, max: Infinity, px: 13, rank: 7 },
+  route: { min: 3, max: Infinity, px: 10, rank: 7 }, // always smaller than the smallest settlement name
   river: { min: 3, max: Infinity, px: 13, rank: 8 }
 };
 
@@ -86,10 +87,11 @@ const STYLE = `
 }
 /* a road's name runs along the road itself, on a faded band so it reads over the line */
 #labels > g[data-group="route"] :is(text, textPath, tspan) {
-  fill: #3a2b1b !important;
+  fill: #6b5a48 !important;
+  fill-opacity: 0.8 !important;
   stroke: #f0ebde !important;
-  stroke-opacity: 0.85 !important;
-  stroke-width: 0.3em !important;
+  stroke-opacity: 0.6 !important;
+  stroke-width: 0.22em !important;
   stroke-linejoin: round !important;
   paint-order: stroke fill !important;
   dominant-baseline: central;
@@ -273,6 +275,7 @@ function provinceSize(province: number): number {
 }
 
 type Side = "right" | "left" | "top" | "bottom";
+const ISLAND_SHIFTS = ["", "0 -1.6em", "0 1.6em", "0 -2.6em", "0 2.6em"];
 const SIDES: Side[] = ["right", "left", "top", "bottom"];
 
 /** Where labels overlap on screen, the lower rank gives way. A settlement's name sits beside its mark, right or
@@ -303,7 +306,13 @@ function declutter(): void {
     }
     // a small province (an island) is named by its seat alone
     const province = group === "province" ? Number(text.id.replace("provinceLabel", "")) : 0;
-    if (province && provinceSize(province) < SMALL_PROVINCE) {
+    const island = province ? islandNoun(province) : "";
+    if (island) {
+      // an island is named in its owner's ink
+      const ink = stateInk(pack.provinces[province]?.state ?? 0);
+      for (const part of [text, ...text.querySelectorAll<SVGElement>("textPath, tspan")])
+        part.style.setProperty("fill", ink, "important");
+    } else if (province && provinceSize(province) < SMALL_PROVINCE) {
       text.classList.add("flHidden");
       continue;
     }
@@ -336,8 +345,26 @@ function declutter(): void {
       if (!done) text.classList.add("flHidden");
       continue;
     }
+    // an island's name may step above or below its settlement rather than give way
+    const shifts =
+      group === "province" && islandNoun(Number(text.id.replace("provinceLabel", ""))) ? ISLAND_SHIFTS : [""];
+    let done = false;
+    for (const shift of shifts) {
+      text.style.translate = shift;
+      const box = text.getBoundingClientRect();
+      if (!box.width) break;
+      if (!clear(box)) continue;
+      placed.push(box);
+      done = true;
+      break;
+    }
+    if (!done) text.classList.add("flHidden");
+  }
+  // forests, bays and mountains give way to settlements and every other name
+  for (const text of document.querySelectorAll<SVGTextElement>("#flZones text")) {
+    text.classList.remove("flHidden");
     const box = text.getBoundingClientRect();
-    if (!box.width) continue;
+    if (!box.width || Number(getComputedStyle(text).opacity) < 0.05) continue;
     if (clear(box)) placed.push(box);
     else text.classList.add("flHidden");
   }
@@ -350,11 +377,13 @@ function setSide(text: SVGTextElement, side: Side): void {
   const px = (n: number) => `calc(var(--fl-px, 1) * ${n}px)`;
   text.dataset.side = side;
   text.style.textAnchor = side === "right" ? "start" : side === "left" ? "end" : "middle";
+  // beside the mark the name's middle sits level with the mark's middle
+  text.style.dominantBaseline = side === "right" || side === "left" ? "central" : "";
   text.style.translate =
     side === "right"
-      ? `${px(half)} 0.35em`
+      ? `${px(half)} 0`
       : side === "left"
-        ? `${px(-half)} 0.35em`
+        ? `${px(-half)} 0`
         : side === "top"
           ? `0 ${px(-half)}`
           : `0 calc(var(--fl-px, 1) * ${half}px + 0.8em)`;

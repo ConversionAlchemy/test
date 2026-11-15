@@ -1,3 +1,4 @@
+import { islandName } from "@/fluoria/islands";
 import { roadLineOf } from "@/fluoria/road-geometry";
 import type { AddedLabel } from "@/generators/added-labels";
 import type { Burg } from "@/generators/burgs-generator";
@@ -68,7 +69,7 @@ function buildProvinceLabel(province: Province): LabelData | undefined {
     ...province.label,
     id: `provinceLabel${province.i}`,
     entityId: province.i,
-    text: province.label?.text ?? province.name,
+    text: province.label?.text ?? islandName(province.i) ?? province.name, // Fluoria: an island's name
     type: "province",
     group: province.label?.group || "province",
     anchor: province.pole || pack.cells.p[province.center],

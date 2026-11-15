@@ -1,6 +1,8 @@
 // Road and province names: hovering one lights its road or its province; a click renames it on the spot, a
 // double-click opens its dialog
+
 import { Layers } from "@/components/layers";
+import { bareIsland } from "./islands";
 import { highlightPlace, showRoadEdit } from "./pixel-map-sync";
 import { openPlace } from "./place-dialog";
 import { openProvince } from "./province-dialog";
@@ -43,8 +45,8 @@ export function provinceLabelClick(label: SVGTextElement): void {
   clickOrDouble(
     event,
     () =>
-      inlineEdit(label, province.name, name => {
-        Provinces.rename(id, name);
+      inlineEdit(label, bareIsland(province.name), name => {
+        Provinces.rename(id, bareIsland(name));
         Layers.draw("labels");
       }),
     () => openProvince(id)

@@ -561,7 +561,11 @@ body.fl-carrying.fl-cursor-no * {
   padding-right: 1.4em;
 }
 
-/* Every piece of a state's land carries its name: big pieces always, small ones close in */
+/* islands are named as provinces now ("X Isle"), in their owner's ink, so the owner's name isn't repeated on them */
+#flIslands {
+  display: none;
+}
+
 #flIslands text {
   stroke: #f4f0e4;
   stroke-opacity: 0.85;

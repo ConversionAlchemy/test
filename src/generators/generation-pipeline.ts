@@ -45,7 +45,13 @@ const generationPipelineSteps = [
   { id: "biomes", run: () => Biomes.generate() },
   { id: "woods", run: () => thinForests(pack.cells, Number.parseInt(String(options.map.seed), 10) % 100000 || 1) }, // Fluoria: forests in patches
   { id: "featureGroups", run: () => Features.defineGroups() },
-  { id: "ice", run: () => Ice.generate() },
+  {
+    id: "ice",
+    run: () => {
+      Ice.generate();
+      pack.ice = pack.ice.filter(ice => ice.type !== "glacier"); // Fluoria: ice caps are the peaks', no ice sheets
+    }
+  },
   { id: "goods", run: () => Goods.generate() },
   { id: "rankCells", run: () => Population.rankCells() },
   { id: "cultures", run: () => Cultures.generate() },
@@ -95,7 +101,13 @@ const erasePipelineSteps = [
   { id: "noRivers", run: () => dropRivers() },
   { id: "biomes", run: () => Biomes.define() },
   { id: "featureGroups", run: () => Features.defineGroups() },
-  { id: "ice", run: () => Ice.generate() },
+  {
+    id: "ice",
+    run: () => {
+      Ice.generate();
+      pack.ice = pack.ice.filter(ice => ice.type !== "glacier"); // Fluoria: ice caps are the peaks', no ice sheets
+    }
+  },
   { id: "goods", run: () => Goods.generate() },
   { id: "rankCells", run: () => Population.rankCells() },
   { id: "cultures", run: () => Cultures.generate() },
