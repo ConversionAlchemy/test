@@ -289,9 +289,7 @@ class OptionsModel {
       ? gauss(-15, 7, -40, 10, 0)
       : Pins.valueOr("temperatureSouthPole", temperature.southPole);
     climate.precipitation = Pins.rolls("prec") ? gauss(100, 40, 5, 500) : Pins.valueOr("prec", climate.precipitation);
-    units.distance.scale = Pins.rolls("distanceScale")
-      ? 0.04
-      : Pins.valueOr("distanceScale", units.distance.scale);
+    units.distance.scale = Pins.rolls("distanceScale") ? 0.04 : Pins.valueOr("distanceScale", units.distance.scale);
     lore.calendar.year = Pins.rolls("year") ? rand(100, 2000) : Pins.valueOr("year", lore.calendar.year);
 
     if (Pins.rolls("era")) {

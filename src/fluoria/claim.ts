@@ -19,7 +19,7 @@ export function claimAll(cells: Cells, burgs: { state?: number }[]): number {
     for (let q = 0; q < queue.length; q++) {
       const i = queue[q];
       for (const j of cells.c[i])
-        if (land(j) && !cells.state[j]) ((cells.state[j] = cells.state[i]), claimed++, queue.push(j));
+        if (land(j) && !cells.state[j]) (cells.state[j] = cells.state[i]), claimed++, queue.push(j);
     }
   };
   spread();
@@ -31,7 +31,7 @@ export function claimAll(cells: Cells, burgs: { state?: number }[]): number {
     let bd = Infinity;
     for (const o of owned) {
       const d = (cells.p[o][0] - cells.p[i][0]) ** 2 + (cells.p[o][1] - cells.p[i][1]) ** 2;
-      if (d < bd) ((bd = d), (best = o));
+      if (d < bd) (bd = d), (best = o);
     }
     cells.state[i] = cells.state[best];
     claimed++;

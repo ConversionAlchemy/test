@@ -127,7 +127,10 @@ class ProvinceModule {
         .map(b => b.burg);
       if (!stateBurgs.length) return; // Fluoria: a nation of one settlement is one province
 
-      const provincesNumber = Math.min(stateBurgs.length, Math.max(Math.ceil((stateBurgs.length * provincesRatio) / 100), 2));
+      const provincesNumber = Math.min(
+        stateBurgs.length,
+        Math.max(Math.ceil((stateBurgs.length * provincesRatio) / 100), 2)
+      );
       const form = Object.assign({}, this.forms[s.form!]);
 
       for (let i = 0; i < provincesNumber; i++) {
