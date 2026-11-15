@@ -747,7 +747,7 @@ Z('.rq').oninput=e=>{q=e.target.value.trim().toLowerCase();list2();draw()};
 const governed=c=>{const p=R.prov[PROV[c]];return!!p&&!!holderOf(p.cc)},incomeOf=n=>D.burgs.reduce((a,b)=>{const c=near([b.x,b.y]),o=OWN[c];return o&&(n==='all'||o===n)&&governed(c)?a+INCOME[STYPE(b)]:a},0);
 // ---- economy: Solari, manpower and rounds per nation; every nation is paid at the end of each turn
 const PRICE={home:40,rifle:90,guard:180,civ:25},PMEN={home:8,rifle:8,guard:8,civ:1},TIERN={home:'Conscripts',rifle:'Line',guard:'Guard',civ:'Civilian'},CRATE=20,CRATEP=2,
- LFB={civ:'Townsman',home:'Conscript',rifle:'Musketeer',guard:'Praetorian'},lookFor=(n,t)=>{const L=LOOK[NATS[n]&&NATS[n].gn||n];return L&&L[t]||LFB[t]};
+ LFB={civ:'Townsman',home:'Astrian Conscript',rifle:'Astrian Line',guard:'Astrian Guard'},lookFor=(n,t)=>{const L=LOOK[NATS[n]&&NATS[n].gn||n];return L&&L[t]||LFB[t]};
 const alive=n=>NATS[n]&&!(R.fallen&&R.fallen[n]);
 const mpGain=n=>D.burgs.reduce((a,b)=>{const c=near([b.x,b.y]);return OWN[c]===n&&governed(c)?a+MPG[STYPE(b)]:a},0),mpCap=n=>3*mpGain(n);
 if(!R.eco){R.eco=1;R.tres={};R.mp={};R.ars={};R.auto={};R.turn=R.turn||1;for(const n in NATS){R.tres[n]=Math.round(NATS[n].gold/800)*10;R.mp[n]=2*mpGain(n);R.ars[n]=100;R.auto[n]=true}}

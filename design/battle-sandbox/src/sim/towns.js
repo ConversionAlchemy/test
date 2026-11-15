@@ -20,11 +20,11 @@ function unitsCouncil(){const[a,b]=dbl(2,176,248,207,240,0,2,false);mahogany(a,E
  U('Hierarch Aurex','Sanctis','civ',9.5,2.5,DN,null,'Hierarch');U('Hierarch Senna','Sanctis','civ',14.5,2.5,DN,null,'Hierarch');U('Brother Ilm','Sanctis','civ',2,1.8,DN,null,'Acolyte');
  for(const[n,x,y]of[['Eternal Kael',8.5,1.5],['Eternal Voss',15.5,1.5],['Eternal Ithar',7.5,4.2],['Eternal Mor',16.5,4.2]])U(n,'Sanctis','guard',x,y,DN);
  U('Warder Sel','Sanctis','rifle',10.2,14.2,UP);U('Warder Tane','Sanctis','rifle',13.8,14.2,UP);U('Warder Oss','Sanctis','rifle',1.6,8.5,RT);U('Warder Pell','Sanctis','rifle',22.4,8.5,LF);
- [['Lord Castor','Imperial Noble'],['Lord Ysander','Imperial Noble'],['Lord Aemon','Imperial Noble'],['Legate Varro','Officer']].forEach(([n,l],i)=>U(n,'Imperium','civ',8.5,6.5+i,RT,null,l));
+ [['Lord Castor','Imperial Noble'],['Lord Ysander','Imperial Noble'],['Lord Aemon','Imperial Noble'],['Legate Varro','Astrian Officer']].forEach(([n,l],i)=>U(n,'Imperium','civ',8.5,6.5+i,RT,null,l));
  [['Lord Vane','Bank Lord'],['Master Orsk','Banker'],['Archivist Lell','Head Clerk'],['Clerk Toll','Clerk']].forEach(([n,l],i)=>U(n,'Goldbank','civ',15.5,6.5+i,LF,null,l));
- U('Alba','Imperium','civ',11.5,10.5,UP,'pistol','Officer');U('Meran','Imperium','civ',12.5,10.5,UP,null,'Imperial Noble');
+ U('Alba','Imperium','civ',11.5,10.5,UP,'pistol','Astrian Officer');U('Meran','Imperium','civ',12.5,10.5,UP,null,'Imperial Noble');
  for(const[n,x,y,a]of[['Quill',6.2,6.2,RT],['Brask',6.2,9.4,RT],['Hode',10.4,12.6,UP],['Lusk',4.6,13.4,UP]])U(n,'Imperium','rifle',x,y,a,undefined,'Imperial Striped Guard');
- U('Ser Davin','Imperium','civ',19.5,13.5,UP,'pistol','Officer')}
+ U('Ser Davin','Imperium','civ',19.5,13.5,UP,'pistol','Astrian Officer')}
 // Aurum halls: a mirrored hall of the Goldbank for two sides; a hall at each end, three ways through the middle (west gallery, the vault, east gallery), each with its own narrow doors
 const HALLP={A:[24,4],B:[24,60],W:[5,32],C:[24,32],E:[43,32]},HALLA=[[2,2],[1,22],[21,22]];
 function hallGrid(){const G=Array.from({length:65},()=>Array(49).fill('stone.gold.block.w')),R=(x0,y0,x1,y1,k)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)G[y][x]=k};
@@ -104,7 +104,7 @@ function unitsStock(){for(const x of [3,9,15,21]){const d=slab(3,x*T,5*T+8,0);d.
  const col=i=>7+i*1.375,R=[['home',7.2,['Vey','Oren','Brisk','Calo','Dunmer','Fen','Garr','Holm','Iler']],['rifle',8.8,['Aurel','Ivo','Hale','Jory','Kest','Lomas','Merrow','Nolt','Orrin']],['guard',10.4,[null,'Pallas','Quint','Rhun','Sabine','Tarquin','Ulric','Vesk',null]]];
  for(const[u,y,ns]of R)ns.forEach((n,i)=>{if(n)U(n,'Imperium',u,col(i),y,DN)});U('Drust','Imperium','shock',col(0),10.4,DN);U('Ennis','Imperium','shock',col(8),10.4,DN);
  U('Warden Crass','Imperium','guard',5.4,8.8,RT);
- U('Overseer Malcor','Imperium','civ',12.5,12.4,UP,null,'Overseer');U('Legate Thane','Imperium','civ',10.9,13.2,UP,'pistol','Officer');U('Tribune Corvin','Imperium','civ',14.1,13.2,UP,'pistol','Officer');U('Capt. Sorne','Imperium','civ',12.5,14.2,UP,'pistol','Officer');
+ U('Overseer Malcor','Imperium','civ',12.5,12.4,UP,null,'Overseer');U('Legate Thane','Imperium','civ',10.9,13.2,UP,'pistol','Astrian Officer');U('Tribune Corvin','Imperium','civ',14.1,13.2,UP,'pistol','Astrian Officer');U('Capt. Sorne','Imperium','civ',12.5,14.2,UP,'pistol','Astrian Officer');
  U('Pip','Imperium','civ',3.4,12.4,UP,null);U('Mercer',null,'civ',4.6,9.8,RT,null,'Merchant')}
 function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone.grey.block.w'));
  for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){let k='stone.grey.block.w';

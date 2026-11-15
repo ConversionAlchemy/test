@@ -211,7 +211,7 @@ function reset(){ds0Need=true;EDG.clear();{const sz=MAPSZ[curMap]||[18,14];if(sz
  token('Orla','Goldbank','home',28,82);token('Rook','Goldbank','cmd',28,150).leader=true;token('Tam','Goldbank','shock',150,150);token('Hask','Goldbank','shock',150,186);
  const c=token('Corin',null,'civ',90,180);c.status='captured';c.held=null;
  const v=token('Varn','Imperium','shock',226,56);v.ang=Math.PI;const k=token('Kade','Imperium','shock',262,72);k.ang=Math.PI;
- const m=token('Mira','Imperium','cmd',228,150);m.ang=Math.PI;const i=token('Ivo','Imperium','civ',206,196,false,'pistol');i.look='Officer';i.leader=true;i.ang=Math.PI;const se=token('Sela','Imperium','home',258,196);se.ang=Math.PI;
+ const m=token('Mira','Imperium','cmd',228,150);m.ang=Math.PI;const i=token('Ivo','Imperium','civ',206,196,false,'pistol');i.look='Astrian Officer';i.leader=true;i.ang=Math.PI;const se=token('Sela','Imperium','home',258,196);se.ang=Math.PI;
  const d=token('Dunn','Imperium','rifle',262,136,false,null);d.status='dead';weapon('musket',248,124,2.4);
  slab(2,180,32,1);dbl(3,180,96,187,127,1,3,false);dbl(3,224,171,255,164,0,2,true);
  weapon('grenade',120,196,0);weapon('bomb',60,200,0);weapon('sspear',236,104,.3);
