@@ -21,3 +21,4 @@
 # nix build output
 /result
 /result-*
+design/battle-sandbox/tests/.events.html
