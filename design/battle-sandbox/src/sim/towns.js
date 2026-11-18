@@ -116,3 +116,36 @@ function buildBank(){map=Array.from({length:CH},()=>Array(CW).fill('stone.grey.b
   paintCell(cx,cy,k)}
  for(const a of [...Object.values(FX),TF,SF,SS,GM,ST,BURN,TRK,FH])a.fill(0);fxDirty=true}
 
+function buildDocks(){paintAll((cx,cy)=>{let k='stone';
+ if(cx===0&&(cy===2||cy===3))k='flag';if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cy<5)k='flag';else if(cy===5)k=(cx===3||cx===8||cx===9)?'flag':'stone';else if(cx===12)k=(cy===8||cy===9)?'flag':'stone';else if(cx>12)k=(cx+cy)%2?'marble':'dmarble';else k='planks';
+  if((cx===5&&cy===9)||(cx===9&&cy===10))k='stone';if(cx===11&&(cy===6||cy===7)||cx===8&&cy===12||cx===11&&cy===12||cx===16&&(cy===6||cy===7))k='chest'}
+ return k})}
+function unitsDocks(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
+ face(token('Corvan','Imperium','shock',56,50,false,'pgun'),dn);face(token('Varn','Imperium','shock',122,50,false,'spear'),dn);face(token('Kade','Imperium','shock',168,50,false,'pgun'),dn);
+ face(token('Aurel','Imperium','rifle',36,26),dn);face(token('Ostra','Imperium','guard',96,26,true),dn);face(token('Mira','Imperium','cmd',196,26),dn);face(token('Ivo','Imperium','rifle',248,26),dn);
+ const sd=slab(2,48,91,0);sd.locked=true;dbl(2,128,91,159,84,0,2,true);dbl(3,196,128,203,159,1,3,true);
+ face(token('Gull','Reapers','home',100,118,false,'pistol'),up);face(token('Rask','Reapers','home',60,128),up);face(token('Mott','Reapers','civ',160,118,false,'pistol'),up);
+ face(token('Teague','Reapers','rifle',112,176),up);face(token('Brine','Reapers','home',68,190,false,'blunder'),up);
+ face(token('Skerry','Reapers','home',236,120),Math.PI);face(token('Fen','Reapers','civ',244,176,false,'pistol'),Math.PI);
+ for(const[x,y]of[[24,200],[38,201],[24,186],[52,201],[36,188],[24,172]])weapon('bomb',x,y,0);
+ container(11,6,[{k:'musket',n:3,ammo:12,res:24},{k:'pistol',n:4,ammo:18,res:18}]);container(8,12,[{k:'blunder',n:2,ammo:8,res:16}]);container(11,12,[{k:'grenade',n:4}]);
+ container(16,6,[{k:'sspear',n:2,ammo:4,res:4},{k:'bomb',n:2}])}
+function buildTavern(){paintAll((cx,cy)=>{let k='stone';
+ if(cx>0&&cx<CW-1&&cy>0&&cy<CH-1){if(cy>=11)k='flag';else if(cy===10)k=(cx===8||cx===9)?'flag':'stone';else if(cx===13)k=cy===4?'flag':'stone';else if(cx>13)k='dmarble';else k='planks';
+  if(((cx===3||cx===4)&&cy===6)||((cx===8||cx===9)&&cy===6)||((cx===10||cx===11)&&cy===2))k='table';if((cx===5&&cy===6)||(cx===7&&cy===6)||(cx===2&&cy===6))k='seat';if(cy===2&&cx>=2&&cx<=5||cx===15&&cy===8)k='chest'}
+ if((cx===0||cx===CW-1)&&(cy===11||cy===12))k='flag';return k})}
+function unitsTavern(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;return t};
+ container(2,2,[]);container(15,8,[{k:'pistol',n:3,ammo:18,res:18},{k:'musket',n:1,ammo:12,res:12}]);
+ dbl(2,128,171,159,164,0,2,false);slab(2,212,64,1);
+ face(token('Wick','Havenport','civ',64,24,false,null),dn);face(token('Harbourmaster Rourke','Havenport','civ',244,60,false,'pistol'),Math.PI).look='Harbourmaster';
+ face(token('Capt. Hale','Havenport','home',110,84,false,'pistol'),dn);face(token('Nell','Havenport','rifle',168,104),dn);face(token('Tobin','Havenport','civ',52,126,false,null),0);face(token('Mara','Havenport','civ',180,70,false,null),dn);
+ face(token('Gull','Reapers','home',116,142,false,'pistol'),up);face(token('Bones','Reapers','rifle',150,142,false,'pistol'),up);face(token('Teague','Reapers','shock',84,140,false,'spear'),0);
+ face(token('Rask','Reapers','guard',60,192),0);face(token('Skiff','Reapers','cmd',14,188,false,'pistol'),0);face(token('Brine','Reapers','home',240,192,false,'spear'),Math.PI);face(token('Old Mags',null,'civ',200,192,false,null),up).look='Merchant'}
+function buildSewer(){paintAll((cx,cy)=>{if(cx<=1&&cy===2)return 'flag';if(cy===12&&cx>0)return 'dmarble';if(cy===11&&cx>0)return 'flag';if(cx===2&&cy>=1&&cy<=11)return 'flag';if(cx===3&&cy===5)return 'flag';if(cx===4&&cy===5)return 'flag';
+ if(cx>=5&&cx<=12&&cy>=3&&cy<=9)return (cx===8||cx===9)&&(cy===5||cy===6)?'table':'flag';if((cx===8||cx===9)&&cy===10)return 'flag';if(cx===13&&cy===4)return 'flag';if(cx>=14&&cx<=16&&cy>=3&&cy<=8)return (cx===14||cx===16)&&cy===3?'chest':'planks';return 'stone'})}
+function unitsSewer(){const face=(t,a)=>{t.ang=a;return t};
+ slab(2,68,80,1);slab(2,212,64,1);
+ container(8,5,[{k:'sspear',n:2,ammo:4,res:0}]);container(14,3,[{k:'grenade',n:3}]);container(16,3,[{k:'musket',n:2,ammo:12,res:12}]);
+ face(token('Ash',null,'cmd',40,30,false,'blunder'),Math.PI/2);
+ face(token('Sgt. Vell','Havenport','guard',108,82,true),0);face(token('Dace','Havenport','rifle',108,110),0);face(token('Orrin','Havenport','rifle',136,150),-Math.PI/2);
+ face(token('Gull','Reapers','home',180,82,false,'pistol'),Math.PI);face(token('Rask','Reapers','rifle',180,110),Math.PI);face(token('Bones','Reapers','civ',196,58,false,'pistol'),Math.PI);face(token('Skiff','Reapers','home',244,100,false,'pistol'),Math.PI)}

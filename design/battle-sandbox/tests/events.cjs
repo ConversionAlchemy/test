@@ -3,7 +3,7 @@ const {chromium}=require(process.env.PW||'playwright'),fs=require('fs'),path=req
 (async()=>{const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'),i=html.lastIndexOf('})();'),f=path.join(__dirname,'.events.html');fs.writeFileSync(f,html.slice(0,i)+'window.__T=x=>eval(x);\n'+html.slice(i));
  const b=await chromium.launch(),p=await b.newPage({viewport:{width:1400,height:900}});const errs=[];p.on('pageerror',x=>errs.push(x.message));await p.goto('file://'+f);await p.waitForTimeout(1500);
  const T=s=>p.evaluate(s=>window.__T(s),s);
- for(const m of ['bank','council','alley','stock','vault','range','road','circuit']){const r=await T(`(()=>{goMap('${m}');mute=true;
+ for(const m of ['bank','council','alley','stock','vault','range','road','circuit','docks','tavern','sewer']){const r=await T(`(()=>{goMap('${m}');mute=true;
   for(const n of[1,2,3,4]){hitParts(60,60,n,1,0);hitFx(60,60,n,1,0);chipC(n,0)}for(const c in CLS)heatTint(rgb(120,110,100),c,.5,3,4);
   const ds=bodies.filter(o=>o.type==='slab');for(const d of ds.slice(0,4)){explode(d.x+6,d.y+6,.8);for(const q of [...d.set.values()].slice(0,4))damagePixel(Math.round(d.x)+q[8],Math.round(d.y)+q[9],99,1,0)}
   for(let i=0;i<16;i++){const x=40+Math.random()*(W-80),y=40+Math.random()*(H-80);heatMark(x,y,10,.95);carve(x,y,4,3,1,0)}
