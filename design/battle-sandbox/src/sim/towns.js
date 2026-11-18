@@ -141,11 +141,11 @@ function unitsTavern(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;ret
  face(token('Capt. Hale','Havenport','home',110,84,false,'pistol'),dn);face(token('Nell','Havenport','rifle',168,104),dn);face(token('Tobin','Havenport','civ',52,126,false,null),0);face(token('Mara','Havenport','civ',180,70,false,null),dn);
  face(token('Gull','Reapers','home',116,142,false,'pistol'),up);face(token('Bones','Reapers','rifle',150,142,false,'pistol'),up);face(token('Teague','Reapers','shock',84,140,false,'spear'),0);
  face(token('Rask','Reapers','guard',60,192),0);face(token('Skiff','Reapers','cmd',14,188,false,'pistol'),0);face(token('Brine','Reapers','home',240,192,false,'spear'),Math.PI);face(token('Old Mags',null,'civ',200,192,false,null),up).look='Merchant'}
-function buildSewer(){paintAll((cx,cy)=>{if(cx<=1&&cy===2)return 'flag';if(cy===12&&cx>0)return 'dmarble';if(cy===11&&cx>0)return 'flag';if(cx===2&&cy>=1&&cy<=11)return 'flag';if(cx===3&&cy===5)return 'flag';if(cx===4&&cy===5)return 'flag';
- if(cx>=5&&cx<=12&&cy>=3&&cy<=9)return (cx===8||cx===9)&&(cy===5||cy===6)?'table':'flag';if((cx===8||cx===9)&&cy===10)return 'flag';if(cx===13&&cy===4)return 'flag';if(cx>=14&&cx<=16&&cy>=3&&cy<=8)return (cx===14||cx===16)&&cy===3?'chest':'planks';return 'stone'})}
+function buildSewer(){const h=(x,y)=>((x*73856093^y*19349663)>>>0)%7,fl=(x,y)=>'stone.grey.slabs~'+(h(x,y)<3?1:2);paintAll((cx,cy)=>{if(cx<=1&&cy===2)return fl(cx,cy);if(cy===12&&cx>0)return 'water';if(cy===11&&cx>0)return fl(cx,cy);if(cx===2&&cy>=1&&cy<=11)return fl(cx,cy);if(cx===3&&cy===5)return fl(cx,cy);if(cx===4&&cy===5)return fl(cx,cy);
+ if(cx>=5&&cx<=12&&cy>=3&&cy<=9)return (cx===8||cx===9)&&(cy===5||cy===6)?'table~2':fl(cx,cy);if((cx===8||cx===9)&&cy===10)return fl(cx,cy);if(cx===13&&cy===4)return fl(cx,cy);if(cx>=14&&cx<=16&&cy>=3&&cy<=8)return (cx===14||cx===16)&&cy===3?'chest~2':'wood.pine.planks~'+(h(cx,cy)<3?1:2);return 'stone.grey.block.w~'+(h(cx,cy)<2?1:2)})}
 function unitsSewer(){const face=(t,a)=>{t.ang=a;return t};
  slab(2,68,80,1);slab(2,212,64,1);
  container(8,5,[{k:'sspear',n:2,ammo:4,res:0}]);container(14,3,[{k:'grenade',n:3}]);container(16,3,[{k:'musket',n:2,ammo:12,res:12}]);
- face(token('Ash',null,'cmd',40,30,false,'blunder'),Math.PI/2);
+ face(token('Ash','Portsbridge','cmd',40,30,false,'blunder'),Math.PI/2);
  face(token('Sgt. Vell','Havenport','guard',108,82,true),0);face(token('Dace','Havenport','rifle',108,110),0);face(token('Orrin','Havenport','rifle',136,150),-Math.PI/2);
  face(token('Gull','Reapers','home',180,82,false,'pistol'),Math.PI);face(token('Rask','Reapers','rifle',180,110),Math.PI);face(token('Bones','Reapers','civ',196,58,false,'pistol'),Math.PI);face(token('Skiff','Reapers','home',244,100,false,'pistol'),Math.PI)}

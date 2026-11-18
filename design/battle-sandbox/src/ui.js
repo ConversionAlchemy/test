@@ -187,7 +187,11 @@ function chiselPt(X,Y){const pts=[[X,Y]],b=PNT.mir&&PNT.box;if(b&&X>=b[0]&&X<b[2
  for(const[px,py]of pts)for(let v=0;v<PNT.size;v++)for(let u=0;u<PNT.size;u++){const x=px+u,y=py+v;if(x>=0&&y>=0&&x<W&&y<H)chSet(y*W+x)}}
 function chiselLine(x,y){const p=PNT.last||[x,y],n=Math.max(1,Math.ceil(Math.hypot(x-p[0],y-p[1])*2));for(let i=0;i<=n;i++)chiselPt(Math.floor(p[0]+(x-p[0])*i/n),Math.floor(p[1]+(y-p[1])*i/n));PNT.last=[x,y];ds0Need=true;solDirty=true}
 function chApply(){const a=CHM[curMap];if(!a||a.length!==N)return;const m=CHB[curMap]=new Map();for(let j=0;j<N;j++)if(a[j]){if(sol[j]||OBJ[j])a[j]=0;else m.set(j,floor[j])}for(const j of m.keys())chShade(j)}
-{const b0=build;build=function(){b0();if(curMap==='vault'&&!CHM.vault)vaultRose();else chApply()}}
+// sewer floor cracks, cut with the chisel
+function sewerCracks(){delete CHB.sewer;const keep=PNT.size;PNT.size=1;let r=7;const R=()=>(r=(r*16807)%2147483647)/2147483647;
+ for(let n=0;n<70;n++){let x=R()*W,y=R()*H,a=R()*6.28;const L=6+R()*30;for(let i=0;i<L;i++){a+=(R()-.5)*.9;x+=Math.cos(a);y+=Math.sin(a);const j=(y|0)*W+(x|0);if(x<0||y<0||x>=W||y>=H||sol[j]||OBJ[j])break;chiselPt(x|0,y|0);if(R()<.04){const b=a+(R()<.5?1:-1)*(.6+R()*.6);let bx=x,by=y;for(let k=0;k<4+R()*8;k++){bx+=Math.cos(b);by+=Math.sin(b);const q=(by|0)*W+(bx|0);if(bx<0||by<0||bx>=W||by>=H||sol[q]||OBJ[q])break;chiselPt(bx|0,by|0)}}}}
+ PNT.size=keep}
+{const b0=build;build=function(){b0();if(curMap==='vault'&&!CHM.vault)vaultRose();else if(curMap==='sewer'&&!CHM.sewer)sewerCracks();else chApply()}}
 // the Aurum hall's floor star, cut with the chisel: one quarter drawn inside a 6 by 5 tile mirror box
 function vaultRose(){delete CHB.vault;const keep={...PNT};Object.assign(PNT,{mir:true,mx:true,my:true,size:1,box:[192,368,288,448]});const R=40;
  for(let Y=368;Y<408;Y++)for(let X=192;X<240;X++){const dx=X-239.5,dy=Y-407.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3);if(r<3||r>=st*.55&&r<st-.8||r>R*.82+.7&&r<R-.7)chiselPt(X,Y)}

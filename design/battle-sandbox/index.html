@@ -1567,12 +1567,12 @@ function unitsTavern(){const up=-Math.PI/2,dn=Math.PI/2,face=(t,a)=>{t.ang=a;ret
  face(token('Capt. Hale','Havenport','home',110,84,false,'pistol'),dn);face(token('Nell','Havenport','rifle',168,104),dn);face(token('Tobin','Havenport','civ',52,126,false,null),0);face(token('Mara','Havenport','civ',180,70,false,null),dn);
  face(token('Gull','Reapers','home',116,142,false,'pistol'),up);face(token('Bones','Reapers','rifle',150,142,false,'pistol'),up);face(token('Teague','Reapers','shock',84,140,false,'spear'),0);
  face(token('Rask','Reapers','guard',60,192),0);face(token('Skiff','Reapers','cmd',14,188,false,'pistol'),0);face(token('Brine','Reapers','home',240,192,false,'spear'),Math.PI);face(token('Old Mags',null,'civ',200,192,false,null),up).look='Merchant'}
-function buildSewer(){paintAll((cx,cy)=>{if(cx<=1&&cy===2)return 'flag';if(cy===12&&cx>0)return 'dmarble';if(cy===11&&cx>0)return 'flag';if(cx===2&&cy>=1&&cy<=11)return 'flag';if(cx===3&&cy===5)return 'flag';if(cx===4&&cy===5)return 'flag';
- if(cx>=5&&cx<=12&&cy>=3&&cy<=9)return (cx===8||cx===9)&&(cy===5||cy===6)?'table':'flag';if((cx===8||cx===9)&&cy===10)return 'flag';if(cx===13&&cy===4)return 'flag';if(cx>=14&&cx<=16&&cy>=3&&cy<=8)return (cx===14||cx===16)&&cy===3?'chest':'planks';return 'stone'})}
+function buildSewer(){const h=(x,y)=>((x*73856093^y*19349663)>>>0)%7,fl=(x,y)=>'stone.grey.slabs~'+(h(x,y)<3?1:2);paintAll((cx,cy)=>{if(cx<=1&&cy===2)return fl(cx,cy);if(cy===12&&cx>0)return 'water';if(cy===11&&cx>0)return fl(cx,cy);if(cx===2&&cy>=1&&cy<=11)return fl(cx,cy);if(cx===3&&cy===5)return fl(cx,cy);if(cx===4&&cy===5)return fl(cx,cy);
+ if(cx>=5&&cx<=12&&cy>=3&&cy<=9)return (cx===8||cx===9)&&(cy===5||cy===6)?'table~2':fl(cx,cy);if((cx===8||cx===9)&&cy===10)return fl(cx,cy);if(cx===13&&cy===4)return fl(cx,cy);if(cx>=14&&cx<=16&&cy>=3&&cy<=8)return (cx===14||cx===16)&&cy===3?'chest~2':'wood.pine.planks~'+(h(cx,cy)<3?1:2);return 'stone.grey.block.w~'+(h(cx,cy)<2?1:2)})}
 function unitsSewer(){const face=(t,a)=>{t.ang=a;return t};
  slab(2,68,80,1);slab(2,212,64,1);
  container(8,5,[{k:'sspear',n:2,ammo:4,res:0}]);container(14,3,[{k:'grenade',n:3}]);container(16,3,[{k:'musket',n:2,ammo:12,res:12}]);
- face(token('Ash',null,'cmd',40,30,false,'blunder'),Math.PI/2);
+ face(token('Ash','Portsbridge','cmd',40,30,false,'blunder'),Math.PI/2);
  face(token('Sgt. Vell','Havenport','guard',108,82,true),0);face(token('Dace','Havenport','rifle',108,110),0);face(token('Orrin','Havenport','rifle',136,150),-Math.PI/2);
  face(token('Gull','Reapers','home',180,82,false,'pistol'),Math.PI);face(token('Rask','Reapers','rifle',180,110),Math.PI);face(token('Bones','Reapers','civ',196,58,false,'pistol'),Math.PI);face(token('Skiff','Reapers','home',244,100,false,'pistol'),Math.PI)}
 // units and nations: sprites, tokens, kits, weapons, slabs and doors
@@ -2514,7 +2514,7 @@ function fireTick(){for(const b of [...bodies]){if((b.type!=='token'&&b.type!=='
   let v=0,ka=0,kc=0;for(let k=0;k<9;k++){const a=k*.785,r=k===8?0:8,X=Math.round(b.x+Math.cos(a)*r),Y=Math.round(b.y+Math.sin(a)*r);if(X<0||Y<0||X>=W||Y>=H)continue;const q=(Y>>1)*BW+(X>>1),f=Math.max(TF[q],FX.fire[q]);if(k===8)kc=f;else if(f>v){v=f;ka=a}}
   if(kc>.3){ignite(b,ka,.5,1.5);b.fw=Math.min(3.15,b.fw+.03);b.fd=Math.min(8.3,b.fd+.03)}else if(v>.3)ignite(b,ka,.45,1.5);v=Math.max(v,kc);
   if(v>.3){b.burn=Math.min(1.5,(b.burn||0)+v*.12);if(Math.random()<.04)uMark(b,'soot',b.x+Math.cos(ka)*5,b.y+Math.sin(ka)*5,3.5,.3)}
-  if(!(b.burn>0))continue;if(curMap==='sewer'&&map[b.y/T|0]&&map[b.y/T|0][b.x/T|0]===modK('dmarble')){b.burn=0;b.fa=undefined;dab(SF,b.x,b.y,.8,4);sfx('sizzle');continue}b.burn=Math.max(0,b.burn-.012);if(!b.burn){b.fa=undefined;continue}if(Math.random()<b.burn*.3)dab(SF,b.x,b.y-3,.25,3);
+  if(!(b.burn>0))continue;if(isWat((map[b.y/T|0]||[])[b.x/T|0])){b.burn=0;b.fa=undefined;dab(SF,b.x,b.y,.8,4);sfx('sizzle');continue}b.burn=Math.max(0,b.burn-.012);if(!b.burn){b.fa=undefined;continue}if(Math.random()<b.burn*.3)dab(SF,b.x,b.y-3,.25,3);
   const u=UNITS[b.unit]||UNITS.civ,bx=Math.round(b.x),by=Math.round(b.y);let hit=false;
   for(let n=0;n<Math.ceil(b.burn*3);n++){let p=null;for(let t=0;t<8&&!p;t++){const c=b.px[(Math.random()*b.px.length)|0];if(c&&inZone(b,c)&&Math.hypot(c[8],c[9])>4.4&&(!b.set.has(K(c[0]+1,c[1]))||!b.set.has(K(c[0]-1,c[1]))||!b.set.has(K(c[0],c[1]+1))||!b.set.has(K(c[0],c[1]-1))))p=c}if(!p)continue;
    if(p[7]==='a'&&p[4]===3){p[5]=Math.min(1.6,p[5]+b.burn*.09/Math.max(1,u.arm*.8));if(p[5]>1.15&&Math.random()<.25){if(hitPix(b,bx+p[0],by+p[1],99)===2){hit=true;spark(bx+p[0],by+p[1],rgb(255,190,90),0,0,1.2,8)}}
@@ -2524,7 +2524,7 @@ function fireTick(){for(const b of [...bodies]){if((b.type!=='token'&&b.type!=='
 // AI: one side follows orders its leader rolls each playthrough
 let aiOn=false,aiMe=null,lastSide=null;
 // AI reads the map itself (rooms, doors, cover) and acts on what each unit sees, hears and remembers
-const teamOf=b=>b.status==='captured'||b.neutral?'Neutral':b.nat?guildOf(b)||SIDE[b.nat]||b.nat:'Neutral',aiUnit=b=>b.type==='token'&&aiOn&&(self.BFON?!b.direct&&!sel.has(b):aiMe&&(teamOf(b)!==aiMe||b.auto&&!b.direct));
+const ALLY={sewer:[['Havenport','Marshmen']]},allyG=t=>(ALLY[curMap]||[]).find(g=>g.includes(t)),baseTeam=b=>guildOf(b)||SIDE[b.nat]||b.nat,teamOf=b=>b.status==='captured'||b.neutral?'Neutral':b.nat?(g=>g?g[0]:baseTeam(b))(allyG(baseTeam(b))):'Neutral',aiUnit=b=>b.type==='token'&&aiOn&&(self.BFON?!b.direct&&!sel.has(b):aiMe&&(teamOf(b)!==aiMe||b.auto&&!b.direct));
 function aiSetup(){for(const b of bodies)b.ai=null;GS={};NZ=[];RINGS=[];ROOMS=null;SEEN.fill(-1e9);if(!aiOn)return;
  if(!aiMe){const t=[...sel].find(o=>o.type==='token');aiMe=t?teamOf(t):lastSide||teamOf(bodies.find(o=>o.type==='token'&&o.nat)||{})}aiRooms()}
 const aiOpen=(cx,cy)=>{if(cx<0||cy<0||cx>=CW||cy>=CH||map[cy][cx]==='sky')return false;const j=(cy*T+8)*W+cx*T+8;return !sol[j]&&!OBJ[j]};
@@ -2814,6 +2814,8 @@ function fogTick(){const FT=fogTeam();if(VIS.length!==NB){VIS=new Uint8Array(NB)
  // soft edge: blur the view mask a few cells; while only moving units change it, every other frame
  if(!same){if(VF.length!==NB){VF=new Float32Array(NB);VT=new Float32Array(NB)}for(let q=0;q<NB;q++)VF[q]=VD[q];blurMask(VF);if(fSel){for(let q=0;q<NB;q++)VSF[q]=VS[q]?1:0;blurMask(VSF)}}
  for(const o of bodies)if(o.type==='token')o.fogH=relOf(FT,teamOf(o))!=='self'&&relOf(FT,teamOf(o))!=='ally'&&o.status!=='dead'&&(!VIS[(Math.round(o.y)>>1)*BW+(Math.round(o.x)>>1)]||!me.some(b=>Math.hypot(o.x-b.x,o.y-b.y)<FOVR*.88&&losClear(b.x,b.y,o.x,o.y,!!b.crouch,!!o.crouch)))}
+
+function allyToggle(a,o){const G=ALLY[curMap]||(ALLY[curMap]=[]),ga=allyG(a),go=allyG(o);if(go)go.splice(go.indexOf(o),1);if(!(ga&&ga===go)){if(ga)ga.push(o);else G.push([a,o])}ALLY[curMap]=G.filter(g=>g.length>1)}
 // sight and fog, the update loop, mouse and keys, menus, the unit panel
 // your side's sight, Door Kickers style: all round, stopped dead by walls and closed doors, full bright to about half range then fading to black
 const FOVR=320;let VD=new Float32Array(1);
@@ -2956,7 +2958,8 @@ function openMenu(b,e){if(b.type==='token'&&sel.has(b)&&[...sel].filter(o=>o.typ
  const it=(t,on,f,keep)=>{const bt=document.createElement('button');bt.textContent=t;if(on)bt.classList.add('on');bt.onclick=()=>{f(bt);if(!keep)closeMenu()};menu.appendChild(bt);return bt};
  if(b.type==='token'){if(b.tether&&!b.tether.broken)it('Untether',0,()=>{b.tether=null;sfx('flick')});if(b.status==='captured')it('Free',0,()=>b.status='free');else if(b.status!=='dead')it('Capture',0,()=>{b.status='captured';b.held=null;b.inv=[null,null,null,null,null,null];b.si=-1});if(b.status!=='dead')it('Kill',0,()=>{b.status='dead';if(b.held)dropHeld(b)});it('Restore health',0,()=>restore(b));it('Refill ammo',0,()=>{rearm(b);sfx('reload')});it('Delete inventory',0,()=>{b.inv=[null,null,null,null,null,null];b.held=null;b.si=-1;b.hc=null;lastHud='';sfx('flick')});it('Duplicate',0,()=>{const c=dupUnit(b);sel.clear();sel.add(c)});
   it('Rename',0,bt=>{const i=document.createElement('input');i.value=b.name;bt.replaceWith(i);i.focus();i.select();i.onkeydown=ev=>{if(ev.key==='Enter'){b.name=i.value||b.name;b.lab.textContent=b.name;closeMenu()}}},true);
-  if(b.held)it('Drop weapon',0,()=>dropHeld(b))}
+  if(b.held)it('Drop weapon',0,()=>dropHeld(b));
+  if(b.nat){const me=baseTeam(b),ts=[...new Set(bodies.filter(o=>o.type==='token'&&o.nat&&o.status!=='dead').map(baseTeam))].filter(t=>t!==me);for(const t of ts)it('Ally · '+t,allyG(me)&&allyG(me)===allyG(t),()=>{allyToggle(me,t);lastHud='';sfx('flick')})}}
  if(b.hidden&&b.inv){it('Delete inventory',0,()=>{b.inv=b.inv.map(()=>null);lastHud='';sfx('flick')});$('sm').appendChild(menu);return}
  if((b.kind==='grenade'||b.kind==='bomb')&&!b.fuse)it('Pull pin',0,()=>{b.fuse=150;sfx('pin')});
  if(b.type==='slab'&&!b.free&&!b.fallen){const lv=b.pair?[b,b.pair]:[b];if(hcl(b.mat).lock)it('Locked',b.locked,()=>{for(const q of lv)q.locked=!b.locked;sfx('lock')});const s=document.createElement('select');for(const n of ['',...Object.keys(NAT)]){const o=document.createElement('option');o.value=n;o.textContent=n?n+' keys':'Auto keys';if((b.keys||'')===n)o.selected=true;s.appendChild(o)}s.onchange=()=>{for(const q of lv)q.keys=s.value||undefined;closeMenu()};menu.appendChild(s)}
@@ -4110,7 +4113,7 @@ function gPack(h,bins){const j=new TextEncoder().encode(JSON.stringify({...h,L:b
 function gUnpack(o){const n=new DataView(o.buffer,o.byteOffset).getUint32(0),h=JSON.parse(new TextDecoder().decode(o.subarray(4,4+n)));let p=4+n;const bins=h.L.map(l=>{const b=o.subarray(p,p+l);p+=l;return b});return{h,bins}}
 async function gameSnap(){saveMap();const cur=curMap,sel0=[...sel],c0={...cam},sg={...SIGNS},own={...OWN},maps={};
  for(const m in STATE){const q=STATE[m];maps[m]={...q,a:null,FX:null,DS0:null}}
- const g=gEnc({maps,PEND,SIGNS,cur,uid,tick,sel:sel0,reg:window.REGION?REGION.get():null}),D={};
+ const g=gEnc({maps,PEND,SIGNS,ALLY,cur,uid,tick,sel:sel0,reg:window.REGION?REGION.get():null}),D={};
  try{for(const m in STATE){const b=gBase(m,STATE[m]),c=gArr(STATE[m]);D[m]={};for(const k in c)D[m][k]=gDiff(c[k],k==='DS0'?b.DS:b[k],g.bins)}}
  finally{curMap=cur;Object.assign(OWN,own);for(const k in SIGNS)delete SIGNS[k];Object.assign(SIGNS,sg);loadMap(cur);for(const b of sel0)sel.add(b);cam=c0;camInit=false;drawSigns()}
  return gz(gPack({v:1,root:g.root,T:g.T,D},g.bins),true)}
@@ -4118,7 +4121,7 @@ async function gameLoad(u){const{h,bins}=gUnpack(await gz(u,false)),r=gDec(h.roo
  for(const m in G.maps){const q=G.maps[m],b=gBase(m,q),d=h.D[m]||{};q.DS0=gUndiff(d.DS0,b.DS.slice(),bins);q.a={};q.FX={};
   for(const k of GSK)q.a[k]=gUndiff(d[k],b[k],bins)||b[k];for(const k in b)if(k.startsWith('FX.'))q.FX[k.slice(3)]=gUndiff(d[k],b[k],bins)||b[k]}
  for(const b of r.labs){mkLabel(b);b.lab.remove()}
- for(const k in STATE)delete STATE[k];Object.assign(STATE,G.maps);for(const k in PEND)delete PEND[k];Object.assign(PEND,G.PEND||{});for(const k in SIGNS)delete SIGNS[k];Object.assign(SIGNS,G.SIGNS||{});
+ for(const k in STATE)delete STATE[k];Object.assign(STATE,G.maps);for(const k in PEND)delete PEND[k];Object.assign(PEND,G.PEND||{});for(const k in SIGNS)delete SIGNS[k];Object.assign(SIGNS,G.SIGNS||{});if(G.ALLY){for(const k in ALLY)delete ALLY[k];Object.assign(ALLY,G.ALLY)}
  uid=Math.max(uid,G.uid||0);tick=G.tick||tick;curMap=G.cur;sel.clear();hover=null;openCrate=null;hoverC=null;drag=null;loadMap(curMap);for(const b of G.sel||[])if(bodies.includes(b))sel.add(b);
  if(G.reg&&window.REGION)REGION.set(G.reg);if(typeof aiSetup==='function')aiSetup();const ms=$('msel');if(ms)ms.value=curMap;$('sm').querySelector('header span').textContent=TITLE[curMap]||'';drawSigns();setPlay(false);lastHud=''}
 
@@ -4334,7 +4337,11 @@ function chiselPt(X,Y){const pts=[[X,Y]],b=PNT.mir&&PNT.box;if(b&&X>=b[0]&&X<b[2
  for(const[px,py]of pts)for(let v=0;v<PNT.size;v++)for(let u=0;u<PNT.size;u++){const x=px+u,y=py+v;if(x>=0&&y>=0&&x<W&&y<H)chSet(y*W+x)}}
 function chiselLine(x,y){const p=PNT.last||[x,y],n=Math.max(1,Math.ceil(Math.hypot(x-p[0],y-p[1])*2));for(let i=0;i<=n;i++)chiselPt(Math.floor(p[0]+(x-p[0])*i/n),Math.floor(p[1]+(y-p[1])*i/n));PNT.last=[x,y];ds0Need=true;solDirty=true}
 function chApply(){const a=CHM[curMap];if(!a||a.length!==N)return;const m=CHB[curMap]=new Map();for(let j=0;j<N;j++)if(a[j]){if(sol[j]||OBJ[j])a[j]=0;else m.set(j,floor[j])}for(const j of m.keys())chShade(j)}
-{const b0=build;build=function(){b0();if(curMap==='vault'&&!CHM.vault)vaultRose();else chApply()}}
+// sewer floor cracks, cut with the chisel
+function sewerCracks(){delete CHB.sewer;const keep=PNT.size;PNT.size=1;let r=7;const R=()=>(r=(r*16807)%2147483647)/2147483647;
+ for(let n=0;n<70;n++){let x=R()*W,y=R()*H,a=R()*6.28;const L=6+R()*30;for(let i=0;i<L;i++){a+=(R()-.5)*.9;x+=Math.cos(a);y+=Math.sin(a);const j=(y|0)*W+(x|0);if(x<0||y<0||x>=W||y>=H||sol[j]||OBJ[j])break;chiselPt(x|0,y|0);if(R()<.04){const b=a+(R()<.5?1:-1)*(.6+R()*.6);let bx=x,by=y;for(let k=0;k<4+R()*8;k++){bx+=Math.cos(b);by+=Math.sin(b);const q=(by|0)*W+(bx|0);if(bx<0||by<0||bx>=W||by>=H||sol[q]||OBJ[q])break;chiselPt(bx|0,by|0)}}}}
+ PNT.size=keep}
+{const b0=build;build=function(){b0();if(curMap==='vault'&&!CHM.vault)vaultRose();else if(curMap==='sewer'&&!CHM.sewer)sewerCracks();else chApply()}}
 // the Aurum hall's floor star, cut with the chisel: one quarter drawn inside a 6 by 5 tile mirror box
 function vaultRose(){delete CHB.vault;const keep={...PNT};Object.assign(PNT,{mir:true,mx:true,my:true,size:1,box:[192,368,288,448]});const R=40;
  for(let Y=368;Y<408;Y++)for(let X=192;X<240;X++){const dx=X-239.5,dy=Y-407.5,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx),st=R*.42+R*.36*Math.pow(Math.abs(Math.cos(4*a)),3);if(r<3||r>=st*.55&&r<st-.8||r>R*.82+.7&&r<R-.7)chiselPt(X,Y)}

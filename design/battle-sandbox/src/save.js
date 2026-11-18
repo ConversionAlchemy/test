@@ -37,7 +37,7 @@ function gPack(h,bins){const j=new TextEncoder().encode(JSON.stringify({...h,L:b
 function gUnpack(o){const n=new DataView(o.buffer,o.byteOffset).getUint32(0),h=JSON.parse(new TextDecoder().decode(o.subarray(4,4+n)));let p=4+n;const bins=h.L.map(l=>{const b=o.subarray(p,p+l);p+=l;return b});return{h,bins}}
 async function gameSnap(){saveMap();const cur=curMap,sel0=[...sel],c0={...cam},sg={...SIGNS},own={...OWN},maps={};
  for(const m in STATE){const q=STATE[m];maps[m]={...q,a:null,FX:null,DS0:null}}
- const g=gEnc({maps,PEND,SIGNS,cur,uid,tick,sel:sel0,reg:window.REGION?REGION.get():null}),D={};
+ const g=gEnc({maps,PEND,SIGNS,ALLY,cur,uid,tick,sel:sel0,reg:window.REGION?REGION.get():null}),D={};
  try{for(const m in STATE){const b=gBase(m,STATE[m]),c=gArr(STATE[m]);D[m]={};for(const k in c)D[m][k]=gDiff(c[k],k==='DS0'?b.DS:b[k],g.bins)}}
  finally{curMap=cur;Object.assign(OWN,own);for(const k in SIGNS)delete SIGNS[k];Object.assign(SIGNS,sg);loadMap(cur);for(const b of sel0)sel.add(b);cam=c0;camInit=false;drawSigns()}
  return gz(gPack({v:1,root:g.root,T:g.T,D},g.bins),true)}
@@ -45,7 +45,7 @@ async function gameLoad(u){const{h,bins}=gUnpack(await gz(u,false)),r=gDec(h.roo
  for(const m in G.maps){const q=G.maps[m],b=gBase(m,q),d=h.D[m]||{};q.DS0=gUndiff(d.DS0,b.DS.slice(),bins);q.a={};q.FX={};
   for(const k of GSK)q.a[k]=gUndiff(d[k],b[k],bins)||b[k];for(const k in b)if(k.startsWith('FX.'))q.FX[k.slice(3)]=gUndiff(d[k],b[k],bins)||b[k]}
  for(const b of r.labs){mkLabel(b);b.lab.remove()}
- for(const k in STATE)delete STATE[k];Object.assign(STATE,G.maps);for(const k in PEND)delete PEND[k];Object.assign(PEND,G.PEND||{});for(const k in SIGNS)delete SIGNS[k];Object.assign(SIGNS,G.SIGNS||{});
+ for(const k in STATE)delete STATE[k];Object.assign(STATE,G.maps);for(const k in PEND)delete PEND[k];Object.assign(PEND,G.PEND||{});for(const k in SIGNS)delete SIGNS[k];Object.assign(SIGNS,G.SIGNS||{});if(G.ALLY){for(const k in ALLY)delete ALLY[k];Object.assign(ALLY,G.ALLY)}
  uid=Math.max(uid,G.uid||0);tick=G.tick||tick;curMap=G.cur;sel.clear();hover=null;openCrate=null;hoverC=null;drag=null;loadMap(curMap);for(const b of G.sel||[])if(bodies.includes(b))sel.add(b);
  if(G.reg&&window.REGION)REGION.set(G.reg);if(typeof aiSetup==='function')aiSetup();const ms=$('msel');if(ms)ms.value=curMap;$('sm').querySelector('header span').textContent=TITLE[curMap]||'';drawSigns();setPlay(false);lastHud=''}
 
