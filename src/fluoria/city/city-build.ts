@@ -403,21 +403,19 @@ export function renderBuildings(
     g.fill();
   }
   g.globalCompositeOperation = "source-over";
-  // ponds: a clean watercolour shape on their cell, edged in ink like everything else
-  for (let i = 0; i < cells.p.length; i++) {
-    if (city.kind[i] !== "pond") continue;
-    const P = sqPoly(i);
-    g.fillStyle = css(faded ? [176, 206, 216] : [150, 194, 210]);
-    pathOf(g, P);
-    g.fill();
-    g.strokeStyle = "rgb(84,72,60)";
-    g.lineWidth = Math.max(lw * 2, 0.7);
-    g.stroke();
-  }
   // the town wall: a stone band with round towers, open at each gate
   const stone: C3 = faded ? [196, 190, 180] : [160, 152, 142];
   const drawWalls = () => {
-    const open = (p: P2) => city.gates.some(gt => Math.hypot(gt.p[0] - p[0], gt.p[1] - p[1]) < 2.4);
+    // the wall stops at the side of any main road through it
+    const mains = city.roads.filter(r => r.type === "main").map(r => r.pts);
+    const segD = (p: P2, a: P2, b: P2) => {
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+      return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+    };
+    const open = (p: P2) => mains.some(m => m.some((a, k) => k > 0 && segD(p, m[k - 1], a) < 3.4));
+    const gateEnds: { p: P2; q: P2 }[] = [];
     const runs: P2[][] = [];
     for (const w of city.walls) {
       let run: P2[] = [];
@@ -428,9 +426,17 @@ export function renderBuildings(
         for (let t = 0; t <= steps; t++) {
           const p: P2 = [a[0] + ((b[0] - a[0]) * t) / steps, a[1] + ((b[1] - a[1]) * t) / steps];
           if (open(p)) {
-            if (run.length > 1) runs.push(run);
+            if (run.length > 1) {
+              runs.push(run);
+              gateEnds.push({ p: run[run.length - 1], q: run[run.length - 2] });
+            }
             run = [];
-          } else run.push(p);
+          } else {
+            const back: P2 = [a[0] + ((b[0] - a[0]) * (t - 1)) / steps, a[1] + ((b[1] - a[1]) * (t - 1)) / steps];
+            const on: P2 = [a[0] + ((b[0] - a[0]) * (t + 1)) / steps, a[1] + ((b[1] - a[1]) * (t + 1)) / steps];
+            if (!run.length && (k > 0 || t > 0) && open(back)) gateEnds.push({ p, q: on });
+            run.push(p);
+          }
         }
       }
       if (run.length > 1) runs.push(run);
@@ -472,18 +478,16 @@ export function renderBuildings(
       g.fillRect(-1.3, -1.3, 2.6, 2.6);
       g.restore();
     }
-    for (const gt of city.gates) {
-      const ang = Math.atan2(gt.b[1] - gt.a[1], gt.b[0] - gt.a[0]);
-      for (const [tx, ty] of [gt.a, gt.b]) {
-        g.save();
-        g.translate(tx, ty);
-        g.rotate(ang);
-        g.fillStyle = css(sh(dark, 0.75));
-        g.fillRect(-1.8, -1.8, 3.6, 3.6);
-        g.fillStyle = css(dark);
-        g.fillRect(-1.3, -1.3, 2.6, 2.6);
-        g.restore();
-      }
+    // gate towers: the same square turrets, darker, at the wall's ends beside the road
+    for (const { p, q } of gateEnds) {
+      g.save();
+      g.translate(p[0], p[1]);
+      g.rotate(Math.atan2(p[1] - q[1], p[0] - q[0]));
+      g.fillStyle = css(sh(dark, 0.75));
+      g.fillRect(-1.9, -1.9, 3.8, 3.8);
+      g.fillStyle = css(dark);
+      g.fillRect(-1.3, -1.3, 2.6, 2.6);
+      g.restore();
     }
   };
   drawWalls();
@@ -528,6 +532,17 @@ export function renderBuildings(
   deck(2.4, wood);
   g.lineCap = "square";
   g.lineJoin = "miter";
+  // ponds: a clean watercolour shape on their cell, laid like a square, over the shadows
+  for (let i = 0; i < cells.p.length; i++) {
+    if (city.kind[i] !== "pond") continue;
+    const P = sqPoly(i);
+    g.fillStyle = css(faded ? [176, 206, 216] : [150, 194, 210]);
+    pathOf(g, P);
+    g.fill();
+    g.strokeStyle = "rgb(84,72,60)";
+    g.lineWidth = Math.max(lw * 2, 0.7);
+    g.stroke();
+  }
   drawWalls();
   hard(body);
   if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.3 : 0.5);

@@ -889,11 +889,11 @@ export function buildCity(
   const block = new Int32Array(n).fill(-1);
   {
     const SIZE: Record<string, [number, number]> = {
-      centre: [1, 2],
-      wealthy: [1, 2],
-      docks: [1, 2],
-      old: [1, 3],
-      shanty: [2, 4]
+      centre: [1, 1],
+      wealthy: [1, 1],
+      docks: [1, 1],
+      old: [1, 1],
+      shanty: [1, 1]
     };
     const joinable = (i: number) => {
       const k = kind[i];

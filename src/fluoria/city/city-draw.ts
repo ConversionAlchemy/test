@@ -1029,9 +1029,9 @@ export function paint(city: City): Painted {
       case "docks":
       case "shanty":
       case "old":
-        return wash(x, y, k === "old" ? [224, 222, 210] : [222, 218, 208]);
+        return wash(x, y, k === "old" ? [212, 209, 196] : [208, 204, 193]);
       default:
-        return washOf(k, ci, x, y, 0.2) ?? wash(x, y, [222, 218, 208]);
+        return washOf(k, ci, x, y, 0.2) ?? wash(x, y, [208, 204, 193]);
     }
   };
   for (let y = 0; y < H; y++)
