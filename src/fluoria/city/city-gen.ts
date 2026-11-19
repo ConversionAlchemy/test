@@ -47,6 +47,7 @@ export interface Building {
   addr: string;
   district?: number;
   landmark?: boolean;
+  trade?: boolean; // fronts a main road or square: a shop, inn or workshop
   cells?: number[]; // a landmark's cells: it stands on all of them
   owner?: number;
   key?: string;
@@ -706,6 +707,33 @@ export function buildCity(
   // the walled town: the shanty grows outside it
   const townish0 = (c: number) => use[c] === "town";
   const mainEdges = new Set<string>();
+  // the wall's edges carry no road. A road leaves the town at a wall corner it reaches from inside, straight on
+  // across the field beyond to that field's far corner: that crossing is the gate, and the new edge a road like any
+  const rimCell = (c: number) => c >= n || (!townish0(c) && !isWater[c]);
+  const isRimV = (v: number) =>
+    !!vertices.c[v] && vertices.c[v].some((c: number) => c < n && townish0(c)) && vertices.c[v].some(rimCell);
+  const isRimE = (a: number, b: number) => {
+    const cs = vertices.c[a].filter((c: number) => vertices.c[b].includes(c));
+    return cs.some((c: number) => c < n && townish0(c)) && cs.some(rimCell);
+  };
+  const stubs = new Map<number, number[]>();
+  const stubKeys = new Set<string>();
+  for (let v = 0; v < vertices.p.length; v++) {
+    if (!isRimV(v)) continue;
+    const inward = (vertices.v[v] ?? []).some((w: number) => {
+      const cs = vertices.c[v].filter((c: number) => vertices.c[w]?.includes(c));
+      return cs.length >= 2 && cs.every((c: number) => c < n && townish0(c));
+    });
+    const o = vertices.c[v].find((c: number) => c < n && !townish0(c) && !isWater[c]);
+    if (!inward || o === undefined) continue;
+    for (const u of cells.v[o] as number[]) {
+      if (u === v || (vertices.v[v] ?? []).includes(u) || vertices.c[u].some((c: number) => c < n && townish0(c)))
+        continue;
+      if (vertices.c[u].every((c: number) => c >= n || isWater[c])) continue;
+      stubs.set(v, [...(stubs.get(v) ?? []), u]);
+      stubs.set(u, [...(stubs.get(u) ?? []), v]);
+    }
+  }
   const edgePath = (route: number[], maxTurn = 80, wide = false, global = false): number[] | null => {
     const corridor = new Set<number>();
     for (const c of route) {
@@ -735,19 +763,13 @@ export function buildCity(
         end = cur.k;
         break;
       }
-      for (const nv of vertices.v[cur.v] ?? []) {
+      for (const nv of [...(vertices.v[cur.v] ?? []), ...(stubs.get(cur.v) ?? [])]) {
+        const stub = !(vertices.v[cur.v] ?? []).includes(nv);
         if ((!global && !corridor.has(nv)) || nv === cur.pv) continue;
         if (!vertices.c[nv] || vertices.c[nv].every((c: number) => c >= n || isWater[c])) continue;
-        // a rim edge is the wall: a road may take one, and that edge becomes its gate; it costs, so roads take few
-        const cs = vertices.c[cur.v].filter((c: number) => vertices.c[nv].includes(c));
-        if (cs.some((c: number) => c < n && isWater[c])) continue;
-        const rim =
-          cs.some((c: number) => c < n && townish0(c)) &&
-          cs.some((c: number) => c >= n || (!townish0(c) && !isWater[c]));
-        // a road only takes a wall edge on its way out from inside, never to skirt the town
-        if (rim && cur.pv >= 0) {
-          const ps = vertices.c[cur.pv].filter((c: number) => vertices.c[cur.v].includes(c));
-          if (!ps.every((c: number) => c < n && townish0(c))) continue;
+        if (!stub) {
+          const cs = vertices.c[cur.v].filter((c: number) => vertices.c[nv].includes(c));
+          if (cs.some((c: number) => c < n && isWater[c]) || isRimE(cur.v, nv)) continue;
         }
         let turn = 0;
         if (cur.pv >= 0) {
@@ -757,7 +779,8 @@ export function buildCity(
         }
         // a road already laid is cheap to share, so main roads merge rather than run side by side
         const shared = mainEdges.has(cur.v < nv ? `${cur.v}|${nv}` : `${nv}|${cur.v}`) ? 0.65 : 1;
-        const c = cur.c + dist(vertices.p[cur.v], vertices.p[nv]) * (1 + 3 * (turn / 90) ** 2) * shared * (rim ? 6 : 1);
+        const c =
+          cur.c + dist(vertices.p[cur.v], vertices.p[nv]) * (1 + 3 * (turn / 90) ** 2) * shared * (stub ? 1.4 : 1);
         const k = `${nv}|${cur.v}`;
         if (c < (best.get(k) ?? Infinity)) {
           best.set(k, c);
@@ -773,11 +796,14 @@ export function buildCity(
   };
   const onEdges = (type: Road["type"], key: string, name: string | undefined, route: number[]): Road => {
     // never through a cell's middle: widen the corridor and allow sharper turns before giving up
-    const vs = edgePath(route) ?? edgePath(route, 80, false, true) ?? edgePath(route, 125, false, true);
+    const vs = edgePath(route, 80, false, true) ?? edgePath(route, 125, false, true);
     const ek = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
     if (!vs) return { type, key, name, cells: route, pts: lineOf(route) };
     const edges = vs.slice(1).map((v, i) => [vs[i], v] as [number, number]);
-    for (const [a, b] of edges) mainEdges.add(a < b ? `${a}|${b}` : `${b}|${a}`);
+    for (const [a, b] of edges) {
+      mainEdges.add(a < b ? `${a}|${b}` : `${b}|${a}`);
+      if (!(vertices.v[a] ?? []).includes(b)) stubKeys.add(a < b ? `${a}|${b}` : `${b}|${a}`);
+    }
     return {
       type,
       key,
@@ -1088,6 +1114,126 @@ export function buildCity(
       });
     }
   }
+  // a lane that ends at nothing (the wall, a back yard) is taken back to its last junction; one that ends at the
+  // water, a square, the pond, the park or a landmark has somewhere to go
+  const deadEnd = (v: number) =>
+    !vertices.c[v].some(
+      (c: number) =>
+        c < n && (isWater[c] || kind[c] === "square" || kind[c] === "pond" || kind[c] === "park" || isLandmark[c])
+    );
+  const degOf = () => {
+    const d = new Map<number, number>();
+    for (const r of roads)
+      for (const [a, b] of r.edges ?? []) d.set(a, (d.get(a) ?? 0) + 1), d.set(b, (d.get(b) ?? 0) + 1);
+    return d;
+  };
+  const onlyFront = (a: number, b: number) => {
+    const fronts = new Map<number, number>();
+    for (const r of roads)
+      for (const [x, y] of r.edges ?? [])
+        for (const c of vertices.c[x].filter((c: number) => vertices.c[y].includes(c)))
+          fronts.set(c, (fronts.get(c) ?? 0) + 1);
+    return vertices.c[a]
+      .filter((c: number) => vertices.c[b].includes(c))
+      .some((c: number) => c < n && townish0(c) && (fronts.get(c) ?? 0) <= 1);
+  };
+  for (let changed = true; changed; ) {
+    changed = false;
+    const d = degOf();
+    for (const r of roads) {
+      if (r.type === "main" || r.type === "pier" || !r.edges) continue;
+      // but a cell's only frontage stays: a dead-end drive is better than no way in
+      const keep = r.edges.filter(
+        ([a, b]) => !(((d.get(a) === 1 && deadEnd(a)) || (d.get(b) === 1 && deadEnd(b))) && !onlyFront(a, b))
+      );
+      if (keep.length !== r.edges.length) {
+        r.edges = keep;
+        r.ekeys = keep.map(([a, b]) => edgeKey(a, b));
+        r.pts = keep.length ? [vertices.p[keep[0][0]] as P2, ...keep.map(([, b]) => vertices.p[b] as P2)] : [];
+        changed = true;
+      }
+    }
+  }
+  for (let k = roads.length - 1; k >= 0; k--) if (roads[k].edges && !roads[k].edges?.length) roads.splice(k, 1);
+  // every road joins the network: a part cut off is joined by its cheapest way along cell edges (or through a gate)
+  {
+    const adj = new Map<number, Set<number>>();
+    const link = (a: number, b: number) => {
+      if (!adj.has(a)) adj.set(a, new Set());
+      if (!adj.has(b)) adj.set(b, new Set());
+      adj.get(a)?.add(b);
+      adj.get(b)?.add(a);
+    };
+    for (const r of roads) for (const [a, b] of r.edges ?? []) link(a, b);
+    const comp = (start: number) => {
+      const seen = new Set([start]);
+      const q = [start];
+      for (let h = 0; h < q.length; h++) for (const w of adj.get(q[h]) ?? []) if (!seen.has(w)) seen.add(w), q.push(w);
+      return seen;
+    };
+    const main0 = roads.find(r => r.type === "main" && r.edges?.length)?.edges?.[0][0];
+    if (main0 !== undefined) {
+      let net = comp(main0);
+      for (let guard = 0; guard < 40; guard++) {
+        const loose = [...adj.keys()].find(v => !net.has(v));
+        if (loose === undefined) break;
+        const part = comp(loose);
+        // Dijkstra from the cut-off part to the network over cell edges and gate crossings
+        const best = new Map<number, number>();
+        const prev = new Map<number, number>();
+        const open: [number, number][] = [];
+        for (const v of part) {
+          best.set(v, 0);
+          open.push([0, v]);
+        }
+        let hit = -1;
+        while (open.length) {
+          let bi = 0;
+          for (let i = 1; i < open.length; i++) if (open[i][0] < open[bi][0]) bi = i;
+          const [c, v] = open.splice(bi, 1)[0];
+          if (c > (best.get(v) ?? Infinity)) continue;
+          if (net.has(v)) {
+            hit = v;
+            break;
+          }
+          for (const w of [...(vertices.v[v] ?? []), ...(stubs.get(v) ?? [])]) {
+            if (!vertices.c[w]) continue;
+            const stub = !(vertices.v[v] ?? []).includes(w);
+            if (!stub) {
+              const cs = vertices.c[v].filter((x: number) => vertices.c[w].includes(x));
+              if (cs.length < 2 || cs.some((x: number) => x >= n || isWater[x]) || isRimE(v, w)) continue;
+            }
+            const nc = c + dist(vertices.p[v], vertices.p[w]) * (stub ? 1.4 : 1);
+            if (nc < (best.get(w) ?? Infinity)) {
+              best.set(w, nc);
+              prev.set(w, v);
+              open.push([nc, w]);
+            }
+          }
+        }
+        if (hit < 0) {
+          for (const v of part) net.add(v);
+          continue;
+        }
+        const path = [hit];
+        while (prev.has(path[0])) path.unshift(prev.get(path[0]) as number);
+        const edges = path.slice(1).map((v, i) => [path[i], v] as [number, number]);
+        for (const [a, b] of edges) {
+          link(a, b);
+          if (!(vertices.v[a] ?? []).includes(b)) stubKeys.add(edgeKey(a, b));
+        }
+        const key = `c:${edgeKey(path[0], path[path.length - 1])}`;
+        roads.push({
+          type: "street",
+          key,
+          edges,
+          ekeys: edges.map(([a, b]) => edgeKey(a, b)),
+          pts: path.map(v => vertices.p[v] as P2)
+        });
+        net = comp(main0);
+      }
+    }
+  }
   // streets bend gently: each corner along a street eases toward its neighbours, carrying the cells with it.
   // Junctions, the shore and the town's edge stay put
   {
@@ -1189,14 +1335,8 @@ export function buildCity(
     });
     if (chain.length < 4) continue;
     // the seafront stays open: break the wall wherever it touches water
-    // and wherever a main road passes along it: that edge is the gate
     let run: P2[] = [];
-    for (const [k, v] of chain.entries()) {
-      const pv = chain[k - 1];
-      if (pv !== undefined && mainEdges.has(pv < v ? `${pv}|${v}` : `${v}|${pv}`)) {
-        if (run.length > 1) walls.push(run);
-        run = [];
-      }
+    for (const v of chain) {
       if (vertices.c[v].some(c => isWater[c])) {
         if (run.length > 1) walls.push(run);
         run = [];
@@ -1206,41 +1346,30 @@ export function buildCity(
   }
   // gates: where a main road crosses the wall; the crossed edge's two ends carry its towers
   const gates: Gate[] = [];
-  const onWall = (v: number) =>
-    vertices.c[v].some((c: number) => townSet.has(c)) &&
-    vertices.c[v].some((c: number) => c < n && !townSet.has(c) && !isWater[c]);
-  const wallEdge = (a: number, b: number) => {
-    const cs = vertices.c[a].filter((c: number) => vertices.c[b].includes(c));
-    return cs.some((c: number) => townSet.has(c)) && cs.some((c: number) => c >= n || (!townSet.has(c) && !isWater[c]));
-  };
-  for (const r of roads) {
-    if (r.type !== "main") continue;
-    const base = (r.name ?? "Town").replace(/ (Road|Street|Lane|Way)$/, "");
-    const gk = `g:${r.key}`;
-    // every wall edge a main road takes is a gate
-    const rims = (r.edges ?? []).filter(([a, b]) => onWall(a) && onWall(b) && wallEdge(a, b));
-    for (const [k, e] of rims.entries()) {
-      const [a, b] = e.map(v => vertices.p[v] as P2);
-      const p: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      if (gates.some(g => dist(g.p, p) < 1)) continue;
-      gates.push({ p, a, b, road: r.key, name: named(`${gk}${k ? `:${k}` : ""}`, `${base} Gate`) as string });
-    }
-    if (rims.length) continue;
-    if (!r.cells) continue;
-    for (let k = 1; k < r.cells.length; k++) {
-      const [p, q] = [r.cells[k - 1], r.cells[k]];
-      if (townSet.has(p) === townSet.has(q) || isWater[p] || isWater[q]) continue;
-      const shv = cells.v[p].filter(v => cells.v[q].includes(v));
-      if (shv.length < 2) continue;
+  // a gate wherever a road crosses the wall: the wall corner its crossing starts from
+  for (const r of roads)
+    for (const [a, b] of r.edges ?? []) {
+      if (!stubKeys.has(edgeKey(a, b))) continue;
+      const v = isRimV(a) ? a : b;
+      const u = v === a ? b : a;
+      const p = vertices.p[v] as P2;
+      if (gates.some(g => dist(g.p, p) < 2)) continue;
+      const q = vertices.p[u] as P2;
+      const L = dist(p, q) || 1;
+      const nx = -(q[1] - p[1]) / L;
+      const ny = (q[0] - p[0]) / L;
+      const o = vertices.c[u].find((c: number) => c < n && district[c] >= 0);
+      const base = (r.name ?? (o !== undefined ? DIST.find(D => D.id === district[o])?.name : undefined) ?? "Postern")
+        .replace(/^The /, "")
+        .replace(/ (Road|Street|Lane|Way)$/, "");
       gates.push({
-        p: mid(p, q),
-        a: vertices.p[shv[0]],
-        b: vertices.p[shv[1]],
+        p,
+        a: [p[0] + nx * 3, p[1] + ny * 3],
+        b: [p[0] - nx * 3, p[1] - ny * 3],
         road: r.key,
-        name: named(gk, `${base} Gate`) as string
+        name: named(`g:${r.key}:${v}`, `${base} Gate`) as string
       });
     }
-  }
   // towers at the gates and at the wall's turns, kept apart
   // turrets where the wall turns by more than 20 degrees, clear of the gates
   const towers: P2[] = [];

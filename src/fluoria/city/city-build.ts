@@ -79,7 +79,7 @@ function inside(poly: P2[], x: number, y: number) {
   return r;
 }
 
-function inset(poly: P2[], d: number): P2[] {
+function inset(poly: P2[], d: number, per?: number[]): P2[] {
   const n = poly.length;
   if (n < 3) return poly;
   let area = 0;
@@ -93,8 +93,10 @@ function inset(poly: P2[], d: number): P2[] {
     const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
     const nx = (-(b[1] - a[1]) / L) * sgn;
     const ny = ((b[0] - a[0]) / L) * sgn;
-    return { a: [a[0] + nx * d, a[1] + ny * d] as P2, dx: (b[0] - a[0]) / L, dy: (b[1] - a[1]) / L };
+    const o = per?.[k] ?? d;
+    return { a: [a[0] + nx * o, a[1] + ny * o] as P2, dx: (b[0] - a[0]) / L, dy: (b[1] - a[1]) / L };
   });
+  const lim = Math.max(d, ...(per ?? [0])) * 3;
   return poly.map((p, k) => {
     const l1 = lines[(k + n - 1) % n];
     const l2 = lines[k];
@@ -102,7 +104,7 @@ function inset(poly: P2[], d: number): P2[] {
     if (Math.abs(den) < 1e-3) return l2.a;
     const t = ((l2.a[0] - l1.a[0]) * l2.dy - (l2.a[1] - l1.a[1]) * l2.dx) / den;
     const q: P2 = [l1.a[0] + l1.dx * t, l1.a[1] + l1.dy * t];
-    return Math.hypot(q[0] - p[0], q[1] - p[1]) > d * 3 ? l2.a : q;
+    return Math.hypot(q[0] - p[0], q[1] - p[1]) > lim ? l2.a : q;
   });
 }
 
@@ -179,15 +181,17 @@ export function renderBuildings(
           : [74, 50, 38]
         : ink && style === "map"
           ? sh(hex(ink), 0.92)
-          : k === "shanty"
-            ? [204, 146, 120]
-            : k === "wealthy" || k === "centre"
-              ? [176, 82, 58]
-              : k === "docks"
-                ? [174, 110, 78]
-                : (b.district ?? -1) < 0
-                  ? [200, 124, 88]
-                  : [194, 100, 68];
+          : b.trade
+            ? [204, 112, 70]
+            : k === "shanty"
+              ? [204, 146, 120]
+              : k === "wealthy" || k === "centre"
+                ? [176, 82, 58]
+                : k === "docks"
+                  ? [174, 110, 78]
+                  : (b.district ?? -1) < 0
+                    ? [200, 124, 88]
+                    : [194, 100, 68];
       // the reference map: the town faded back so the marked places stand out
       const f = style === "map" && !(ink || b.landmark) ? 0.42 : 0;
       const cc = mix(c, PAPER, f);
@@ -407,14 +411,17 @@ export function renderBuildings(
   const stone: C3 = faded ? [196, 190, 180] : [160, 152, 142];
   const drawWalls = () => {
     // the wall stops at the side of any main road through it
-    const mains = city.roads.filter(r => r.type === "main").map(r => r.pts);
+    const mains = city.roads.filter(r => r.type !== "pier").map(r => r.pts);
     const segD = (p: P2, a: P2, b: P2) => {
       const dx = b[0] - a[0];
       const dy = b[1] - a[1];
       const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
       return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
     };
-    const open = (p: P2) => mains.some(m => m.some((a, k) => k > 0 && segD(p, m[k - 1], a) < 3.4));
+    // open only where a road crosses: within the road's width of each gate
+    const open = (p: P2) =>
+      city.gates.some(gt => Math.hypot(gt.p[0] - p[0], gt.p[1] - p[1]) < 3.2) &&
+      mains.some(m => m.some((a, k) => k > 0 && segD(p, m[k - 1], a) < 3.4));
     const gateEnds: { p: P2; q: P2 }[] = [];
     const runs: P2[][] = [];
     for (const w of city.walls) {
@@ -535,7 +542,19 @@ export function renderBuildings(
   // ponds: a clean watercolour shape on their cell, laid like a square, over the shadows
   for (let i = 0; i < cells.p.length; i++) {
     if (city.kind[i] !== "pond") continue;
-    const P = sqPoly(i);
+    // the water sits back from the streets round it, by each street's half-width, as a block does
+    let P = sqPoly(i);
+    if (P.length > 2) {
+      const vs = cells.v[i] as number[];
+      const keys = new Map<string, number>();
+      for (const r of city.roads)
+        if (r.edges) for (const [a, b] of r.edges) keys.set(a < b ? `${a}|${b}` : `${b}|${a}`, (W2[r.type] ?? 1) + 0.9);
+      const off = vs.map((v, e) => {
+        const w = vs[(e + 1) % vs.length];
+        return keys.get(v < w ? `${v}|${w}` : `${w}|${v}`) ?? 1.2;
+      });
+      P = inset(P, 0, off);
+    }
     g.fillStyle = css(faded ? [176, 206, 216] : [150, 194, 210]);
     pathOf(g, P);
     g.fill();
