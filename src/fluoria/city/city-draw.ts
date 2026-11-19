@@ -380,7 +380,7 @@ export function furnish(city: City): void {
   };
   const LOT_KINDS = new Set(["centre", "old", "docks", "wealthy", "shanty"]);
   const lotCell = (i: number) => i < n && city.home[i] === 1 && !landCell[i] && LOT_KINDS.has(kind[i] as string);
-  const HALF: Record<string, number> = { main: 2.3, street: 1.6, lane: 1.1, path: 1, track: 1.1 };
+  const HALF: Record<string, number> = { main: 2.3, street: 1.6, lane: 1.1, path: 1, track: 1.1, wall: 2 };
   const ek = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
   const edgeType = new Map<string, string>();
   const RANK: Record<string, number> = { main: 4, street: 3, lane: 2, track: 1, path: 1 };
@@ -389,6 +389,7 @@ export function furnish(city: City): void {
       const k = ek(a, b);
       if ((RANK[r.type] ?? 0) > (RANK[edgeType.get(k) ?? ""] ?? 0)) edgeType.set(k, r.type);
     }
+  for (const k of city.wallEdges ?? []) if (!edgeType.has(k)) edgeType.set(k, "wall");
   // a polygon pulled in by its own amount on each side (positive inward for area2 > 0)
   const offsetBy = (P: P2[], off: number[]): P2[] => {
     const m = P.length;
@@ -471,7 +472,7 @@ export function furnish(city: City): void {
     const ok = o !== undefined && o < n;
     if (ok && kind[o] === "square") return { off: (t ? HALF[t] : 0) + 0.35, face: "square" };
     if (t) return { off: HALF[t] + 0.35, face: t };
-    if (!ok || use[o] === "water") return { off: 1, face: "quay" };
+    if (!ok || use[o] === "water") return { off: 1.7, face: "quay" };
     return { off: 0.6, face: "lane" };
   };
   for (let i = 0; i < n; i++) {
@@ -730,6 +731,23 @@ export function furnish(city: City): void {
       }
     }
   }
+  // a town cell left with no house is an open place: a yard, a small place or, when large, a square of its own
+  {
+    const built = new Set<number>();
+    for (const b of B) for (const c of b.cells ?? [b.cell]) built.add(c);
+    const take = { yard: 0, opening: 0, square: 0 };
+    for (let i = 0; i < n; i++) {
+      if (!city.home[i] || built.has(i) || !(use[i] === "town" || use[i] === "shanty")) continue;
+      if (kind[i] === "square" || kind[i] === "park" || kind[i] === "pond") continue;
+      if (city.landmarks.some(l => l.cells.includes(i))) continue;
+      const P = (cells.v[i] as number[]).map(v => vertices.p[v] as P2);
+      const A = Math.abs(area2(P)) / 2;
+      const size = A < 450 ? "yard" : A < 1100 ? "opening" : "square";
+      const list = city.spare[size];
+      kind[i] = "square";
+      city.places[i] = list[take[size]++ % list.length];
+    }
+  }
   // notables
   const nb = (type: string, name: string, f: (b: Building) => boolean) => {
     const L = B.filter(b => !b.name && !b.landmark && f(b));
@@ -762,6 +780,50 @@ export function furnish(city: City): void {
   for (const b of B) {
     const o = city.edits.owners?.[b.key ?? ""];
     if (o !== undefined) b.owner = o < 0 ? undefined : o;
+  }
+  // everyone the region cell holds, shared out by floor space and how crowded each kind of building is
+  {
+    const DENS: Record<string, number> = {
+      Residence: 1,
+      Townhouse: 0.9,
+      Mansion: 0.5,
+      Shop: 0.6,
+      Workshop: 0.5,
+      Warehouse: 0.06,
+      Shed: 0.3,
+      Chandlery: 0.4,
+      Hut: 1.7,
+      Shack: 1.7,
+      Cottage: 1.1,
+      Tavern: 0.5,
+      Guardhouse: 0.4,
+      Chapel: 0.1,
+      "Guild hall": 0.2,
+      Office: 0.2,
+      Fort: 0.35
+    };
+    const WEALTHY: Record<number, number> = { 1: 1.3, 2: 1, 3: 1, 4: 0.85, 5: 0.6 };
+    const w = B.map(b => {
+      const A = Math.abs(area2(b.poly)) / 2;
+      const d = DENS[b.type] ?? (b.landmark ? 0.08 : 0.5);
+      const wl = city.districts.find(D => D.id === b.district)?.wealth ?? 2;
+      return A * d * (WEALTHY[wl] ?? 1);
+    });
+    const sum = w.reduce((a, b) => a + b, 0) || 1;
+    const total = city.population || Math.round(sum * 0.45);
+    const raw = w.map(x => (x / sum) * total);
+    const caps = raw.map(Math.floor);
+    let left = total - caps.reduce((a, b) => a + b, 0);
+    const order = raw.map((r, k) => [r - Math.floor(r), k]).sort((a, b) => b[0] - a[0]);
+    for (const [, k] of order) {
+      if (left <= 0) break;
+      caps[k]++;
+      left--;
+    }
+    B.forEach((b, k) => {
+      b.cap = caps[k];
+    });
+    if (!city.population) city.population = total;
   }
   city.buildings = B;
 

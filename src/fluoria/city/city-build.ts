@@ -27,7 +27,7 @@ const css = (c: C3) => `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`;
 export type Style = "terrain" | "map" | "districts" | "factions";
 
 /** A landmark's footprint: the outline of its cells, pulled in off the streets */
-function landmarkShape(city: City, b: Building): P2[] {
+export function landmarkShape(city: City, b: Building): P2[] {
   const { cells, vertices } = city.pack;
   const set = new Set(b.cells ?? [b.cell]);
   const i = [...set].find(c => cells.c[c].some((j: number) => !set.has(j)));
@@ -336,6 +336,48 @@ export function renderBuildings(
       pathOf(g, inset(poly, lw * 0.6));
       g.stroke();
     }
+  // no cast shadows: each roof is shaded on its own lower-right side, inside its outline, as a thin hatched band
+  if (style === "terrain" || style === "map") {
+    const d = s >= 3 ? 1.1 : 0.7;
+    const ink = style === "terrain" ? "rgba(40,20,10,0.42)" : "rgba(40,20,10,0.26)";
+    for (const b of city.buildings) {
+      const poly = shapes.get(b.id) as P2[];
+      if (poly.length < 3) continue;
+      g.save();
+      pathOf(g, poly);
+      g.clip();
+      // the band: the roof less itself moved up and left
+      g.beginPath();
+      for (const P of [poly, poly.map(p => [p[0] - d, p[1] - d] as P2)])
+        for (const [k, p] of P.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
+      g.clip("evenodd");
+      g.strokeStyle = ink;
+      if (s >= 3) {
+        // hatching on the diagonal, the engraver's way
+        let x0 = Infinity;
+        let x1 = -Infinity;
+        let y0 = Infinity;
+        let y1 = -Infinity;
+        for (const [x, y] of poly) {
+          x0 = Math.min(x0, x);
+          x1 = Math.max(x1, x);
+          y0 = Math.min(y0, y);
+          y1 = Math.max(y1, y);
+        }
+        g.lineWidth = Math.max(px, 0.18);
+        g.beginPath();
+        for (let t = x0 + y0 - 2; t < x1 + y1 + 2; t += 0.75) {
+          g.moveTo(t - y0 + 2, y0 - 2);
+          g.lineTo(t - y1 - 2, y1 + 2);
+        }
+        g.stroke();
+      } else {
+        g.fillStyle = ink;
+        g.fillRect(0, 0, city.W, city.H);
+      }
+      g.restore();
+    }
+  }
   // streets, squares and walls in vector: what strays onto a street is cut away, the walls and buildings cast
   // their shadow, then the streets are laid on top, filled and edged in thin ink
   const { vertices, cells } = city.pack;
@@ -422,9 +464,9 @@ export function renderBuildings(
       return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
     };
     // open only where a road crosses: within the road's width of each gate
-    const open = (p: P2) =>
-      city.gates.some(gt => Math.hypot(gt.p[0] - p[0], gt.p[1] - p[1]) < 3.2) &&
-      mains.some(m => m.some((a, k) => k > 0 && segD(p, m[k - 1], a) < 3.4));
+    void mains;
+    void segD;
+    const open = (p: P2) => city.gates.some(gt => Math.hypot(gt.p[0] - p[0], gt.p[1] - p[1]) < gt.r);
     const gateEnds: { p: P2; q: P2 }[] = [];
     const runs: P2[][] = [];
     for (const w of city.walls) {
@@ -500,17 +542,8 @@ export function renderBuildings(
       g.restore();
     }
   };
-  drawWalls();
   hard(body);
-  // shadows to the lower right, cast by buildings and walls before the streets go down
-  const off = style === "terrain" ? 1 : 0.9;
-  gs.setTransform(1, 0, 0, 1, 0, 0);
-  gs.drawImage(body, off * s, off * s);
-  gs.globalCompositeOperation = "source-in";
-  gs.fillStyle = "#000";
-  gs.fillRect(0, 0, shadow.width, shadow.height);
-  gs.globalCompositeOperation = "source-over";
-  hard(shadow);
+  void gs;
   // field hedges: thin, crisp, in the drawing's own scale, under the buildings
   if (style !== "districts" && style !== "factions") {
     g.strokeStyle = style !== "terrain" ? "rgb(150,156,112)" : "rgb(112,122,72)";
@@ -523,6 +556,36 @@ export function renderBuildings(
     g.stroke();
   }
 
+  // piers: timber decks with square-cut ends
+  const piers = city.roads.filter(r => r.type === "pier");
+  const deck = (w: number, col: C3) => {
+    g.lineCap = "butt";
+    g.lineJoin = "miter";
+    g.strokeStyle = css(col);
+    g.lineWidth = w;
+    for (const r of piers) {
+      g.beginPath();
+      for (const [k, p] of r.pts.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
+      g.stroke();
+    }
+    // where one deck meets another, fill the corner so no water shows through the joint
+    g.fillStyle = css(col);
+    for (const r of piers)
+      for (const p of [r.pts[0], r.pts[r.pts.length - 1]])
+        if (piers.some(o => o !== r && o.pts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.6))) {
+          g.beginPath();
+          g.arc(p[0], p[1], w / 2, 0, Math.PI * 2);
+          g.fill();
+        }
+  };
+  const wood: C3 = faded ? [196, 172, 136] : [168, 132, 90];
+  deck(2.4 + lw * 2, sh(wood, 0.55));
+  deck(2.4, wood);
+  g.lineCap = "square";
+  g.lineJoin = "miter";
+  // roads over the decks: a road always wins
+  g.lineCap = "square";
+  g.lineJoin = "miter";
   g.strokeStyle = g.fillStyle = "rgb(84,72,60)";
   strokeRoads(Math.max(lw * 2, 0.7));
   g.lineWidth = lw * 2;
@@ -570,31 +633,8 @@ export function renderBuildings(
       }
     }
   }
-  // piers: timber decks with square-cut ends
-  const piers = city.roads.filter(r => r.type === "pier");
-  const deck = (w: number, col: C3) => {
-    g.lineCap = "butt";
-    g.lineJoin = "miter";
-    g.strokeStyle = css(col);
-    g.lineWidth = w;
-    for (const r of piers) {
-      g.beginPath();
-      for (const [k, p] of r.pts.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
-      g.stroke();
-    }
-    // where one deck meets another, fill the corner so no water shows through the joint
-    g.fillStyle = css(col);
-    for (const r of piers)
-      for (const p of [r.pts[0], r.pts[r.pts.length - 1]])
-        if (piers.some(o => o !== r && o.pts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.6))) {
-          g.beginPath();
-          g.arc(p[0], p[1], w / 2, 0, Math.PI * 2);
-          g.fill();
-        }
-  };
-  const wood: C3 = faded ? [196, 172, 136] : [168, 132, 90];
-  deck(2.4 + lw * 2, sh(wood, 0.55));
-  deck(2.4, wood);
+  // the walls over the lanes that end at them, open only at the gates
+  drawWalls();
   g.lineCap = "square";
   g.lineJoin = "miter";
   // ponds: a clean watercolour shape on their cell, laid like a square, over the shadows

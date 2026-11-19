@@ -207,14 +207,14 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       if (patch.length >= 2) add(`f${i}`, city.factions[f].name, mean(patch), "fac");
     }
     const sq = city.squareCell;
-    add("sq", city.edits.names?.["q:sq"] ?? "Coin Square", cells.p[sq], "square");
+    add("sq", city.edits.names?.["q:sq"] ?? city.places[sq] ?? "Square", cells.p[sq], "square");
     for (let i = 0; i < cells.p.length; i++) {
       if (i === sq) continue;
       const k = city.kind[i];
-      const nm = city.edits.names?.[`q:${i}`];
-      if (k === "park") add(`p${i}`, nm ?? "Ledger Gardens", cells.p[i], "square");
-      if (k === "pond") add(`w${i}`, nm ?? "Mint Pond", cells.p[i], "square");
-      if (k === "square") add(`m${i}`, nm ?? "Fish Market", cells.p[i], "square");
+      const nm = city.edits.names?.[`q:${i}`] ?? city.places[i];
+      if (k === "park") add(`p${i}`, nm ?? "Gardens", cells.p[i], "square");
+      if (k === "pond") add(`w${i}`, nm ?? "Pond", cells.p[i], "square");
+      if (k === "square") add(`m${i}`, nm ?? "Market", cells.p[i], "square");
     }
     for (const b of city.buildings)
       if (b.name) {
@@ -319,9 +319,6 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     ctx.drawImage(world, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     if (detail) {
       ctx.drawImage(detail.ground, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
-      ctx.globalAlpha = style === "terrain" ? 0.6 : style === "map" ? 0 : 0.25;
-      ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
-      ctx.globalAlpha = 1;
       ctx.drawImage(detail.body, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     }
     placeMarks();
@@ -436,7 +433,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       b.landmark ? 0 : ["Guardhouse", "Guild hall", "Chapel", "Tavern", "Office"].indexOf(b.type) + 1 || 9;
     const auto = city.buildings.filter(b => b.name && !favs.includes(b)).sort((a, b) => rank(a) - rank(b));
     keyed = [...favs, ...auto].slice(0, 12).map((b, k) => ({ n: k + 1, b, c: centreOf(b) }));
-    keyEl.innerHTML = `<h3>${esc(burg)}</h3><ol>${keyed.map(e => `<li data-n="${e.n}"><i>${e.n}</i><span>${esc(e.b.name ?? e.b.type)}</span></li>`).join("")}</ol>`;
+    keyEl.innerHTML = `<h3>${esc(burg)}</h3><p class="pop">${city.population.toLocaleString()} souls</p><ol>${keyed.map(e => `<li data-n="${e.n}"><i>${e.n}</i><span>${esc(e.b.name ?? e.b.type)}</span></li>`).join("")}</ol>`;
     for (const li of keyEl.querySelectorAll<HTMLLIElement>("li"))
       li.onclick = () => {
         const e = keyed[+(li.dataset.n as string) - 1];
@@ -521,7 +518,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
         key: b.key ?? "",
         label: b.name ?? b.type,
         d: b.landmark ? outline(new Set(b.cells)) : `M${b.poly.map(q => q.join(",")).join("L")}Z`,
-        html: `<b>${b.name ?? b.type}</b><i>${b.name ? `${b.type} · ` : ""}${b.addr}</i>${D ? `<i>${D}</i>` : ""}${b.enter ? "<s>Enter</s>" : ""}`
+        html: `<b>${b.name ?? b.type}</b><i>${b.name ? `${b.type} · ` : ""}${b.addr}</i>${D ? `<i>${D}</i>` : ""}<i>${(b.cap ?? 0).toLocaleString()} ${b.cap === 1 ? "person" : "people"}</i>${b.enter ? "<s>Enter</s>" : ""}`
       };
     }
     const r = roadNear(p.x + 0.5, p.y + 0.5);
@@ -670,6 +667,72 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     if (!d.moved && d.button === 0) click(e);
   });
 
+  // ---- any label renamed in place: double-click it, type, Enter
+  const renameLabel = (id: string, v: string) => {
+    edits.names = edits.names ?? {};
+    const N = edits.names;
+    const head = id[0];
+    if (id === "sq") N["q:sq"] = v;
+    else if (head === "d") N[`d:${id.slice(1)}`] = v;
+    else if (head === "p" || head === "w" || head === "m") N[`q:${id.slice(1)}`] = v;
+    else if (head === "f") N[`f:${city.faction[+id.slice(1)]}`] = v;
+    else if (head === "g") {
+      const g = city.gates.find(q => `g${q.road}` === id);
+      if (g) N[g.key] = v;
+    } else if (head === "r") {
+      const r = city.roads[+id.slice(1).split("_")[0]];
+      if (r) N[r.key] = v;
+    } else if (head === "b") {
+      const b = city.buildings.find(q => `b${q.id}` === id);
+      if (!b) return;
+      if (b.landmark) {
+        edits.landmarks = edits.landmarks ?? city.landmarks.map(l => ({ ...l }));
+        const L = edits.landmarks.find(l => `l:${l.id}` === b.key);
+        if (L) L.name = v;
+      } else N[b.key ?? ""] = v;
+    }
+    commit();
+  };
+  stage.addEventListener("dblclick", e => {
+    for (const [id, t] of els) {
+      if (t.style.display === "none") continue;
+      const r = t.getBoundingClientRect();
+      if (
+        !r.width ||
+        e.clientX < r.left - 3 ||
+        e.clientX > r.right + 3 ||
+        e.clientY < r.top - 3 ||
+        e.clientY > r.bottom + 3
+      )
+        continue;
+      const s = stage.getBoundingClientRect();
+      const box = document.createElement("input");
+      box.className = "cvEdit";
+      box.value = t.textContent ?? "";
+      box.style.left = `${r.left - s.left + r.width / 2}px`;
+      box.style.top = `${r.top - s.top + r.height / 2}px`;
+      stage.appendChild(box);
+      box.focus();
+      box.select();
+      let done = false;
+      const close = (ok: boolean) => {
+        if (done) return;
+        done = true;
+        const v = box.value.trim();
+        box.remove();
+        if (ok && v && v !== t.textContent) renameLabel(id, v);
+      };
+      box.onkeydown = ev => {
+        ev.stopPropagation();
+        if (ev.key === "Enter") close(true);
+        if (ev.key === "Escape") close(false);
+      };
+      box.onblur = () => close(true);
+      box.onpointerdown = ev => ev.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+  });
   const commit = () => {
     save();
     const keep = view;
@@ -901,7 +964,11 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       };
     const onEnter = (id: string, fn: (v: string) => void) => {
       const i = pane.querySelector(`#${id}`) as HTMLInputElement | null;
-      if (i) i.onkeydown = ev => ev.key === "Enter" && i.value.trim() && fn(i.value.trim());
+      // a handler that returns false cancels the key, so this one returns nothing
+      if (i)
+        i.onkeydown = ev => {
+          if (ev.key === "Enter" && i.value.trim()) fn(i.value.trim());
+        };
     };
     onEnter("cvName", v => {
       if (!selected) return;

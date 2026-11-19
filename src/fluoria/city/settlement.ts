@@ -185,7 +185,7 @@ export function regionOf(world: World, b: WorldBurg): { region: Region; spec: Sp
     region: {
       cells: world.cells,
       routes,
-      burgs: [{ n: b.n, x: b.x, y: b.y, port: b.port, walls: b.walls }],
+      burgs: [{ n: b.n, x: b.x, y: b.y, port: b.port, walls: b.walls, pop: b.pop }],
       lore
     },
     spec: {

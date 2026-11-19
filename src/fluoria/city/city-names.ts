@@ -227,9 +227,30 @@ export function namer(lore: Lore | undefined, seed: number) {
           return k ? pick([`${w} End`, `${w}gate`, `${w} Cross`]) : pick(["Old Town", `${w}gate`, `Old ${w}`]);
       }
     },
+    place: (kind: string): string => {
+      const w = short();
+      switch (kind) {
+        case "square":
+          return pick([`${w} Square`, "Market Square", `${w} Market`]);
+        case "market":
+          return pick(["Fish Market", "Corn Market", "Hay Market", "Horse Fair", "Cloth Market", "Butter Cross"]);
+        case "park":
+          return pick([`${w} Gardens`, `${w} Green`, `${w} Park`]);
+        case "pond":
+          return pick([`${w} Pond`, `${w} Pool`, `${w} Mere`]);
+        case "yard":
+          return pick([`${w} Yard`, `${w} Close`, `${w}'s Court`]);
+        case "opening":
+          return pick([`${w} Place`, `${w} Cross`, `${w} Plain`]);
+        default:
+          return `${w} Square`;
+      }
+    },
     hall: (burg: string, size: string) =>
       lore?.capital ? `${lore.state?.n ?? burg} Palace` : size === "city" ? `${burg} Guildhall` : `${burg} Moot Hall`,
-    keep: (size: string) => (size === "city" ? "The Citadel" : `${short()} Keep`),
+    // a fort is named by its size: one cell a fort, two a castle, three or more a citadel
+    keep: (cells: number) =>
+      cells >= 3 ? "The Citadel" : cells === 2 ? `${short()} Castle` : pick([`${short()} Fort`, `Fort ${short()}`]),
     chapel: () => (god ? `Chapel of ${god}` : `St ${short()}'s Chapel`),
     temple: () => (god ? `Temple of ${god}` : faith ? `${faith.n} Temple` : `St ${short()}'s Church`),
     guild: [craft, sea, house] as const,

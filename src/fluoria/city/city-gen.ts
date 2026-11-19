@@ -2,7 +2,7 @@
 // path, outline and label code runs on it. Cells are seeded on a loose grid in planned districts and at random elsewhere;
 // main roads run cell to cell through the centres, streets and lanes along cell edges
 import { calculateVoronoi } from "@/generators/voronoi";
-import { connectVertices, findPath } from "@/utils/pathUtils";
+import { findPath } from "@/utils/pathUtils";
 import { type Lore, namer } from "./city-names";
 
 export type P2 = [number, number];
@@ -19,7 +19,7 @@ export interface Region {
   cells: RegionCell[];
   rivers?: { pts?: P2[]; p?: P2[] }[];
   routes: { g: string; n?: string; pts: P2[] }[];
-  burgs: { n: string; x: number; y: number; port?: number; walls?: number }[];
+  burgs: { n: string; x: number; y: number; port?: number; walls?: number; pop?: number }[];
   lore?: Lore;
 }
 
@@ -52,6 +52,7 @@ export interface Building {
   trade?: boolean; // fronts a main road or square: a shop, inn or workshop
   cells?: number[]; // a landmark's cells: it stands on all of them
   owner?: number;
+  cap?: number; // how many live or work here
   key?: string;
   enter?: string;
 }
@@ -66,6 +67,8 @@ export interface Landmark {
 }
 export interface Gate {
   p: P2;
+  r: number; // the opening's half-width
+  key: string; // its name's key in the edits
   a: P2; // the wall edge's ends, where its towers stand
   b: P2;
   name: string;
@@ -129,6 +132,7 @@ export interface City {
   districts: District[];
   roads: Road[];
   walls: P2[][];
+  wallEdges: string[];
   towers: P2[];
   gates: Gate[];
   landmarks: Landmark[];
@@ -143,6 +147,9 @@ export interface City {
   ang: Float32Array;
   yards: P2[][]; // closed yards, grassed
   notables?: Record<string, string>; // names for the town's notable buildings
+  population: number; // everyone the region cell holds, town and country; 0 when unknown
+  places: Record<number, string>; // names of squares, greens, ponds and open places, by cell
+  spare: { yard: string[]; opening: string[]; square: string[] }; // names for places found empty when built
 }
 
 const rngOf = (seed: number) => {
@@ -737,7 +744,7 @@ export function buildCity(
           landmarks.push({
             id: 3,
             cells: fc,
-            name: NM?.keep(S.size) ?? "The Keep",
+            name: NM?.keep(fc.length) ?? "The Keep",
             type: "Fort",
             roof: "slate"
           });
@@ -755,8 +762,30 @@ export function buildCity(
         }
       ];
   }
+  // a landmark is one joined building: its cells are kept to the largest joined group on town ground
+  const joined = (cs: number[]) => {
+    const set = new Set(cs);
+    let best: number[] = [];
+    const seen = new Set<number>();
+    for (const c of cs) {
+      if (seen.has(c)) continue;
+      const g = [c];
+      seen.add(c);
+      for (let k = 0; k < g.length; k++)
+        for (const j of cells.c[g[k]])
+          if (set.has(j) && !seen.has(j)) {
+            seen.add(j);
+            g.push(j);
+          }
+      if (g.length > best.length) best = g;
+    }
+    return best;
+  };
   landmarks = landmarks
-    .map(l => ({ ...l, cells: l.cells.filter(i => i >= 0 && i < n && use[i] === "town") }))
+    .map(l => ({
+      ...l,
+      cells: joined(l.cells.filter(i => i >= 0 && i < n && use[i] === "town" && kind[i] !== "square"))
+    }))
     .filter(l => l.cells.length);
   const isLandmark = new Uint8Array(n);
   for (const l of landmarks) for (const i of l.cells) isLandmark[i] = 1;
@@ -1003,6 +1032,66 @@ export function buildCity(
     }
   }
 
+  // ---- walls stand on the cells' own edges: where the town meets open dry land (never the shanty's outside, never
+  // the water), and round each fort's cells. An edge a main road already runs on stays a road
+  const wallKeys = new Set<string>();
+  const wallVtx = new Map<number, number>(); // corner -> -1 the town wall, else the fort's landmark id
+  const wallAdj = new Map<number, number[]>();
+  const fortCell = new Map<number, number>();
+  for (const l of landmarks) if (l.type === "Fort") for (const c of l.cells) fortCell.set(c, l.id);
+  const walls: P2[][] = [];
+  {
+    const townSet = new Set(town);
+    const pairs: [number, number, number][] = [];
+    for (let i = 0; i < n; i++) {
+      const fort = fortCell.get(i);
+      if (!townSet.has(i) && fort === undefined) continue;
+      const vs = cells.v[i] as number[];
+      for (let e = 0; e < vs.length; e++) {
+        const a = vs[e];
+        const b = vs[(e + 1) % vs.length];
+        const k = edgeKey(a, b);
+        if (wallKeys.has(k) || mainEdges.has(k) || dist(vertices.p[a], vertices.p[b]) < 0.5) continue;
+        const o = sharedCells(a, b).find(c => c !== i);
+        if (o === undefined) continue;
+        let tag: number | null = null;
+        if (fort !== undefined && fortCell.get(o) !== fort) tag = fort;
+        else if ((!S || S.walled) && townSet.has(i) && o < n && !urban(o) && !isWater[o]) tag = -1;
+        if (tag === null) continue;
+        wallKeys.add(k);
+        pairs.push([a, b, tag]);
+      }
+    }
+    for (const [a, b, tag] of pairs) {
+      for (const [u, v] of [
+        [a, b],
+        [b, a]
+      ]) {
+        wallAdj.set(u, [...(wallAdj.get(u) ?? []), v]);
+        if (!wallVtx.has(u) || tag >= 0) wallVtx.set(u, tag);
+      }
+    }
+    // the edges as unbroken runs, closed rings included
+    const used = new Set<string>();
+    const starts = [...wallAdj.keys()].sort(
+      (a, b) => ((wallAdj.get(a)?.length ?? 0) === 2 ? 1 : 0) - ((wallAdj.get(b)?.length ?? 0) === 2 ? 1 : 0)
+    );
+    for (const s0 of starts)
+      for (const n0 of wallAdj.get(s0) ?? []) {
+        if (used.has(edgeKey(s0, n0))) continue;
+        const ch = [s0, n0];
+        used.add(edgeKey(s0, n0));
+        for (let cur = n0; wallAdj.get(cur)?.length === 2; ) {
+          const nx = (wallAdj.get(cur) as number[]).find(x => !used.has(edgeKey(cur, x)));
+          if (nx === undefined) break;
+          used.add(edgeKey(cur, nx));
+          ch.push(nx);
+          cur = nx;
+        }
+        walls.push(ch.map(v => vertices.p[v] as P2));
+      }
+  }
+
   // every urban cell is its own block
   const block = new Int32Array(n).fill(-1);
   for (let i = 0; i < n; i++) if (urban(i)) block[i] = i;
@@ -1021,7 +1110,7 @@ export function buildCity(
         const a = vs[e];
         const b = vs[(e + 1) % vs.length];
         const k = edgeKey(a, b);
-        if (seen.has(k) || mainEdges.has(k) || erased.has(`e:${k}`)) continue;
+        if (seen.has(k) || mainEdges.has(k) || wallKeys.has(k) || erased.has(`e:${k}`)) continue;
         seen.add(k);
         if (!landEdge(a, b) || dist(vertices.p[a], vertices.p[b]) < 1) continue;
         const [c1, c2] = sharedCells(a, b);
@@ -1161,37 +1250,10 @@ export function buildCity(
       });
     }
   }
-  // streets bend gently: each corner along a street eases toward its neighbours, carrying the cells with it.
-  // Junctions, the shore and the town's edge stay put; cells move with their corners, so roads stay on edges
-  {
-    const nb = new Map<number, Set<number>>();
-    for (const r of roads)
-      if (r.edges)
-        for (const [a, b] of r.edges) {
-          if (!nb.has(a)) nb.set(a, new Set());
-          if (!nb.has(b)) nb.set(b, new Set());
-          nb.get(a)?.add(b);
-          nb.get(b)?.add(a);
-        }
-    const free = [...nb.keys()].filter(
-      v =>
-        nb.get(v)?.size === 2 &&
-        vertices.c[v].every((c: number) => c < n && !isWater[c] && !isLandmark[c] && kind[c] !== "square") &&
-        (vertices.c[v].every(urban) || !vertices.c[v].some(urban))
-    );
-    for (let it = 0; it < 8; it++)
-      for (const v of free) {
-        const [a, b] = [...(nb.get(v) as Set<number>)];
-        const p = vertices.p[v];
-        const q = [(vertices.p[a][0] + vertices.p[b][0]) / 2, (vertices.p[a][1] + vertices.p[b][1]) / 2];
-        p[0] += (q[0] - p[0]) * 0.5;
-        p[1] += (q[1] - p[1]) * 0.5;
-      }
-  }
-  // piers: a boardwalk along every dock edge that meets the water, spurs out from it
+  // a quay along every town edge that meets the water, squares included; piers spur out from the docks
   const pierSegs: [P2, P2][] = [];
-  for (const i of town) {
-    if (kind[i] !== "docks") continue;
+  for (const i of [...Array(n).keys()].filter(urban)) {
+    if (isLandmark[i]) continue;
     for (const j of cells.c[i]) {
       if (!isWater[j]) continue;
       const sh = cells.v[i].filter(v => cells.v[j].includes(v));
@@ -1211,7 +1273,7 @@ export function buildCity(
         ny = -ny;
       }
       // short piers, spaced, each only where its whole length is open water clear of the others
-      for (let t = 5 + R() * 3; t < L - 4; t += 10 + R() * 6) {
+      for (let t = 5 + R() * 3; kind[i] === "docks" && t < L - 4; t += 10 + R() * 6) {
         const st: P2 = [a[0] + tx * t, a[1] + ty * t];
         const len = 6 + R() * 6;
         const en: P2 = [st[0] + nx * len, st[1] + ny * len];
@@ -1242,138 +1304,73 @@ export function buildCity(
     }
   }
 
-  // ---- walls. The urban edge is a street; the wall stands just outside it, so roads leave town along ordinary
-  // cell edges and cross the wall at a single point, the gate. No wall faces the water or the shanty's outside
-  const urbanSet = new Set([...Array(n).keys()].filter(urban));
-  const townSet = new Set(town);
-  const walls: P2[][] = [];
-  const WALL_OFF = 3.6;
-  if (!S || S.walled) {
-    const checked = new Uint8Array(n);
-    for (const i of urbanSet) {
-      if (checked[i] || !cells.c[i].some(j => !urbanSet.has(j))) continue;
-      const start = cells.v[i].find(v => vertices.c[v].some(c => !urbanSet.has(c)));
-      if (start === undefined) continue;
-      const chain: number[] = connectVertices({
-        vertices,
-        startingVertex: start,
-        ofSameType: c => urbanSet.has(c),
-        addToChecked: c => {
-          checked[c] = 1;
-        },
-        closeRing: false
-      });
-      const m = chain.length;
-      if (m < 4) continue;
-      const P = chain.map(v => vertices.p[v] as P2);
-      let A = 0;
-      for (let k = 0; k < m; k++) A += P[k][0] * P[(k + 1) % m][1] - P[(k + 1) % m][0] * P[k][1];
-      // each corner pushed straight outward, along the bisector of its two sides' outward normals, far enough that
-      // the wall clears every side of the edge (never folding back over the street at a notch)
-      const sgn = A > 0 ? -1 : 1;
-      const nrm = (a: P2, b: P2): P2 => {
-        const L = dist(a, b) || 1;
-        return [(-(b[1] - a[1]) / L) * sgn, ((b[0] - a[0]) / L) * sgn];
-      };
-      const segD = (p: P2, a: P2, b: P2) => {
-        const dx = b[0] - a[0];
-        const dy = b[1] - a[1];
-        const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
-        return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
-      };
-      const O = P.map((p, k) => {
-        const n1 = nrm(P[(k + m - 1) % m], p);
-        const n2 = nrm(p, P[(k + 1) % m]);
-        let bx = n1[0] + n2[0];
-        let by = n1[1] + n2[1];
-        const L = Math.hypot(bx, by) || 1;
-        bx /= L;
-        by /= L;
-        for (let d = WALL_OFF; d <= WALL_OFF * 3; d += 0.4) {
-          const q: P2 = [p[0] + bx * d, p[1] + by * d];
-          let clear = true;
-          for (let s2 = 0; s2 < m && clear; s2++) if (segD(q, P[s2], P[(s2 + 1) % m]) < WALL_OFF * 0.92) clear = false;
-          if (clear) return q;
-        }
-        return [p[0] + bx * WALL_OFF * 3, p[1] + by * WALL_OFF * 3] as P2;
-      });
-      // a side is walled where the town (not the shanty) meets dry land
-      const walled = chain.map((v, k) => {
-        const cs = sharedCells(v, chain[(k + 1) % m]);
-        return cs.some(c => townSet.has(c)) && cs.some(c => !urbanSet.has(c) && (c >= n || !isWater[c]));
-      });
-      const s0 = walled.findIndex(w => !w);
-      const rot = Math.max(s0, 0);
-      let run: P2[] = [];
-      for (let q = 0; q <= m; q++) {
-        const k = (rot + q) % m;
-        if (walled[k] && q < m) {
-          if (!run.length) run.push(O[k]);
-          run.push(O[(k + 1) % m]);
-        } else if (run.length > 1) {
-          walls.push(run);
-          run = [];
-        } else run = [];
-      }
-      if (run.length > 1) walls.push(run);
-    }
-  }
-  // a fort stands in its own wall, a step inside its streets
-  for (const l of landmarks) {
-    if (l.type !== "Fort") continue;
-    const set = new Set(l.cells);
-    const i0 = l.cells.find(c => cells.c[c].some(j => !set.has(j)));
-    const st = i0 === undefined ? undefined : cells.v[i0].find(v => vertices.c[v].some(c => !set.has(c)));
-    if (st === undefined) continue;
-    const P = connectVertices({ vertices, startingVertex: st, ofSameType: c => set.has(c), closeRing: false }).map(
-      v => vertices.p[v] as P2
-    );
-    const cx = P.reduce((q, p) => q + p[0], 0) / P.length;
-    const cy = P.reduce((q, p) => q + p[1], 0) / P.length;
-    const loop = P.map(([x, y]) => {
-      const L = Math.hypot(x - cx, y - cy) || 1;
-      return [x - ((x - cx) / L) * 3.2, y - ((y - cy) / L) * 3.2] as P2;
-    }).filter((p, k, a) => dist(p, a[(k + a.length - 1) % a.length]) > 2);
-    if (loop.length > 2) walls.push([...loop, loop[0], loop[1]]);
-  }
-  // gates: wherever a road crosses the wall
+  // gates: wherever a road leaves town through the wall, at the cell corner it passes; a fort's on its way in
   const gates: Gate[] = [];
-  const cross = (p: P2, q: P2, a: P2, b: P2): P2 | null => {
-    const d = (q[0] - p[0]) * (b[1] - a[1]) - (q[1] - p[1]) * (b[0] - a[0]);
-    if (Math.abs(d) < 1e-9) return null;
-    const t = ((a[0] - p[0]) * (b[1] - a[1]) - (a[1] - p[1]) * (b[0] - a[0])) / d;
-    const u = ((a[0] - p[0]) * (q[1] - p[1]) - (a[1] - p[1]) * (q[0] - p[0])) / d;
-    return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t] : null;
-  };
-  for (const r of roads)
-    for (const [a, b] of r.edges ?? [])
-      for (const w of walls)
-        for (let k = 0; k < w.length - 1; k++) {
-          const p = cross(vertices.p[a] as P2, vertices.p[b] as P2, w[k], w[k + 1]);
-          if (!p || gates.some(g => dist(g.p, p) < 9)) continue;
-          const [ux, uy] = [w[k + 1][0] - w[k][0], w[k + 1][1] - w[k][1]];
-          const L = Math.hypot(ux, uy) || 1;
-          const base = (r.name ?? "Postern").replace(/^The /, "").replace(/ (Road|Street|Lane|Way)$/, "");
+  {
+    const HALF_W: Record<string, number> = { main: 2.3, street: 1.6, lane: 1.1, track: 1.1, path: 1 };
+    const fortGate = new Set<number>();
+    for (const r of roads) {
+      if (r.type === "pier" || !r.edges) continue;
+      for (const [a, b] of r.edges) {
+        if (wallKeys.has(edgeKey(a, b))) continue;
+        for (const v of [a, b]) {
+          const f = wallVtx.get(v);
+          if (f === undefined) continue;
+          const out = sharedCells(a, b);
+          if (f < 0) {
+            // the town wall: only roads running on out of town
+            if (!(r.type === "main" || r.type === "track" || r.type === "path")) continue;
+            if (!out.some(c => c >= n || !urban(c))) continue;
+          } else {
+            // a fort: one gate, for a street or main road coming to it from outside
+            if (fortGate.has(f) || !(r.type === "main" || r.type === "street")) continue;
+            if (out.every(c => fortCell.get(c) === f)) continue;
+            fortGate.add(f);
+          }
+          const p = vertices.p[v] as P2;
+          if (gates.some(g => dist(g.p, p) < 6)) continue;
+          const nb = (wallAdj.get(v) ?? []).map(w => vertices.p[w] as P2);
+          const r0 = (HALF_W[r.type] ?? 1.2) + 1.2;
+          const along = (q: P2): P2 => {
+            const L = dist(p, q) || 1;
+            return [p[0] + ((q[0] - p[0]) / L) * r0, p[1] + ((q[1] - p[1]) / L) * r0];
+          };
+          const base = (r.name ?? (f >= 0 ? "Keep" : "Postern"))
+            .replace(/^The /, "")
+            .replace(/ (Road|Street|Lane|Way)$/, "");
           gates.push({
             p,
-            a: [p[0] - (ux / L) * 3, p[1] - (uy / L) * 3],
-            b: [p[0] + (ux / L) * 3, p[1] + (uy / L) * 3],
+            a: nb[0] ? along(nb[0]) : p,
+            b: nb[1] ? along(nb[1]) : p,
+            r: r0,
+            key: `g:${r.key}:${v}`,
             road: r.key,
-            name: named(`g:${r.key}:${a}`, `${base} Gate`) as string
+            name: named(`g:${r.key}:${v}`, f >= 0 ? `${base} Gate` : `${base} Gate`) as string
           });
         }
-  // towers at the gates and at the wall's turns, kept apart
-  // turrets where the wall turns by more than 20 degrees, clear of the gates
+      }
+    }
+  }
+  // turrets where the wall turns, clear of the gates
   const towers: P2[] = [];
   for (const w of walls)
     for (let k = 1; k < w.length - 1; k++) {
       const [a, p, b] = [w[k - 1], w[k], w[k + 1]];
       const d = Math.atan2(b[1] - p[1], b[0] - p[0]) - Math.atan2(p[1] - a[1], p[0] - a[0]);
       if (Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) < 0.6) continue;
-      if (gates.some(g => dist(g.p, p) < 8) || towers.some(t => dist(t, p) < 12)) continue;
+      if (gates.some(g => dist(g.p, p) < 7) || towers.some(t => dist(t, p) < 10)) continue;
       towers.push(p);
     }
 
+  // names for the open places
+  const places: Record<number, string> = {};
+  for (let i = 0; i < n; i++) {
+    const k = kind[i];
+    if (i === squareCell) places[i] = NM ? NM.place("square") : "Coin Square";
+    else if (k === "square") places[i] = NM ? NM.place("market") : "Fish Market";
+    else if (k === "park") places[i] = NM ? NM.place("park") : "Ledger Gardens";
+    else if (k === "pond") places[i] = NM ? NM.place("pond") : "Mint Pond";
+  }
   // who holds each cell: the Aurum the centre and the hill, guilds their quarters, the crew the Rookery, the Watch the gates
   const faction = new Int16Array(n).fill(-1);
   for (let i = 0; i < n; i++) {
@@ -1409,13 +1406,24 @@ export function buildCity(
     districts: DIST,
     roads,
     walls,
+    wallEdges: [...wallKeys],
     towers,
     gates,
     landmarks,
     farms,
     block,
-    factions: NM ? NM.factions(burgName, S?.size ?? "city") : FACTIONS,
+    factions: (NM ? NM.factions(burgName, S?.size ?? "city") : FACTIONS).map(f => ({
+      ...f,
+      name: named(`f:${f.id}`, f.name) as string
+    })),
     notables: NM?.notables(),
+    places,
+    population: B.pop ? Math.round(B.pop * 1000) : 0,
+    spare: {
+      yard: Array.from({ length: 12 }, () => NM?.place("yard") ?? "Tallow Yard"),
+      opening: Array.from({ length: 8 }, () => NM?.place("opening") ?? "Cooper's Place"),
+      square: Array.from({ length: 6 }, () => NM?.place("big") ?? "Lantern Square")
+    },
     faction,
     edits: ed,
     buildings: [],
