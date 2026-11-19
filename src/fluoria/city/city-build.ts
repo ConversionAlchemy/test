@@ -326,7 +326,7 @@ export function renderBuildings(
   // streets, squares and walls in vector: what strays onto a street is cut away, the walls and buildings cast
   // their shadow, then the streets are laid on top, filled and edged in thin ink
   const { vertices, cells } = city.pack;
-  const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8, pier: 1.2 };
+  const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
   const townish = (c: number) => c < city.use.length && (city.use[c] === "town" || city.use[c] === "shanty");
   const atWall = (v: number) =>
     city.walls.length > 0 &&
@@ -437,6 +437,24 @@ export function renderBuildings(
     pathOf(g, sqPoly(i));
     g.fill();
   }
+  // piers: timber decks with square-cut ends
+  const piers = city.roads.filter(r => r.type === "pier");
+  const deck = (w: number, col: C3) => {
+    g.lineCap = "butt";
+    g.lineJoin = "miter";
+    g.strokeStyle = css(col);
+    g.lineWidth = w;
+    for (const r of piers) {
+      g.beginPath();
+      for (const [k, p] of r.pts.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
+      g.stroke();
+    }
+  };
+  const wood: C3 = faded ? [196, 172, 136] : [168, 132, 90];
+  deck(2.4 + lw * 2, sh(wood, 0.55));
+  deck(2.4, wood);
+  g.lineCap = "round";
+  g.lineJoin = "round";
   drawWalls();
   hard(body);
   if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.3 : 0.5);
