@@ -3,7 +3,7 @@
 import { connectVertices, findPath } from "@/utils/pathUtils";
 import { snap, type View, zoomAround } from "../camera";
 import { type MapLabel, placeLabels } from "../labels";
-import { renderBuildings, type Style } from "./city-build";
+import { renderBuildings, renderGround, type Style } from "./city-build";
 import { DIST_COL, furnish, mapTile, type Painted, paint, terrainTile } from "./city-draw";
 import { buildCity, type City, type Edits, type Kind, type P2, type Region, type Road } from "./city-gen";
 
@@ -102,7 +102,13 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
   let painted: Painted;
   let style: Style = "terrain";
   let curFaction = 0;
-  let detail: { s: number; style: Style; body: HTMLCanvasElement; shadow: HTMLCanvasElement } | null = null;
+  let detail: {
+    s: number;
+    style: Style;
+    body: HTMLCanvasElement;
+    shadow: HTMLCanvasElement;
+    ground: HTMLCanvasElement;
+  } | null = null;
   let detailTimer = 0;
   const groundOf = () =>
     style === "terrain"
@@ -118,7 +124,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     if (detail && detail.s === s && detail.style === style) return;
     const make = () => {
       const r = renderBuildings(city, style, s);
-      detail = { s, style, ...r };
+      detail = { s, style, ...r, ground: renderGround(city, painted, style, s) };
       draw();
     };
     if (now || !detail || detail.style !== style) make();
@@ -312,6 +318,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.drawImage(world, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     if (detail) {
+      ctx.drawImage(detail.ground, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
       ctx.globalAlpha = style === "terrain" ? 0.6 : style === "map" ? 0 : 0.25;
       ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
       ctx.globalAlpha = 1;

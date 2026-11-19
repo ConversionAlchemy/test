@@ -87,6 +87,10 @@ export interface Painted {
   factions: ImageData;
   CID: Int32Array;
   BID: Int32Array;
+  /** Flat ground colour per home land cell and view, drawn as vector shapes */
+  cellCol: Record<"terrain" | "map" | "districts" | "factions", (C3 | null)[]>;
+  /** Woods dots, drawn again over the vector ground */
+  dots: P2[];
 }
 
 /** The road plan as pixel grids: 1 track/path, 2 lane, 3 street, 4 main, 5 wall, 6 pier, 7 square, 8 bridge, 9 gate */
@@ -1113,6 +1117,31 @@ export function paint(city: City): Painted {
       }
       if (ink) for (let i = 0; i < 3; i++) Pl[k + i] = Pl[k + i] * 0.3 + INK[i] * 0.7;
     }
+  // each home land cell's mean ground colour, away from roads and the shore ink
+  const sum = new Float64Array(nC * 4);
+  for (let j = 0; j < N; j++) {
+    const ci = CID[j];
+    if (ci < 0 || water(j) || RD[j] || home[ci] !== 1) continue;
+    let shore = false;
+    for (let q = 0; q < 8; q += 2) if (water(j + N4[q] + N4[q + 1] * W)) shore = true;
+    if (shore) continue;
+    for (let i = 0; i < 3; i++) sum[ci * 4 + i] += Pl[j * 4 + i];
+    sum[ci * 4 + 3]++;
+  }
+  const terrainCol: (C3 | null)[] = [];
+  for (let i = 0; i < nC; i++) {
+    const n = sum[i * 4 + 3];
+    terrainCol[i] = n ? [sum[i * 4] / n, sum[i * 4 + 1] / n, sum[i * 4 + 2] / n] : null;
+  }
+  const mapCol = terrainCol.map(c => (c ? mix(c, PAPER, 0.4) : null));
+  const washed = (of: (ci: number) => number, col: (v: number) => C3 | null, t: number) =>
+    mapCol.map((c, i) => {
+      if (!c) return null;
+      const v = of(i);
+      const w = col(v);
+      return w ? mix(c, w, t) : c;
+    });
+  const dots: P2[] = [];
   // trees as small inked dots, woods dotted all over
   const dot = (x: number, y: number) => {
     for (const [u, v] of [
@@ -1134,7 +1163,10 @@ export function paint(city: City): Painted {
     for (let x = 2; x < W - 2; x += 5) {
       const X = x + Math.floor(hash(x, y) * 3);
       const Y = y + Math.floor(hash(y, x) * 3);
-      if (kindAt(Y * W + X) === "woods" && !RD[Y * W + X]) dot(X, Y);
+      if (kindAt(Y * W + X) === "woods" && !RD[Y * W + X]) {
+        dot(X, Y);
+        dots.push([X, Y]);
+      }
     }
   // the reference map: the plan faded back toward the paper
   const faded = new ImageData(new Uint8ClampedArray(Pl), W, H);
@@ -1201,5 +1233,19 @@ export function paint(city: City): Painted {
     for (const D of [districts.data, factions.data, Pl, faded.data])
       for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - tt) + cm[i] * tt;
   }
-  return { terrain: plan, map: faded, districts, factions, CID, BID };
+  const cellCol = {
+    terrain: terrainCol,
+    map: mapCol,
+    districts: washed(
+      ci => city.district[ci],
+      v => (v >= 0 ? hex(DIST_COL[v % DIST_COL.length]) : null),
+      0.22
+    ),
+    factions: washed(
+      ci => city.faction[ci],
+      v => (v >= 0 ? mix(hex(city.factions[v]?.col ?? "#888888"), PAPER, 0.35) : null),
+      0.3
+    )
+  };
+  return { terrain: plan, map: faded, districts, factions, CID, BID, cellCol, dots };
 }

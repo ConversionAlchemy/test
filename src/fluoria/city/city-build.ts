@@ -1,6 +1,7 @@
 // Buildings drawn as shapes, then snapped back to hard pixels at the zoom they are seen at: neat edges at every distance,
 // still the pixel look. Far out a terrace reads as one block; close in every house has its own outline
 import { connectVertices } from "@/utils/pathUtils";
+import type { Painted } from "./city-draw";
 import { DIST_COL, hedgeEdges, TYPE_INK } from "./city-draw";
 import type { Building, City, P2 } from "./city-gen";
 
@@ -13,6 +14,11 @@ const hex = (h: string): C3 => [
 ];
 const PAPER: C3 = [246, 241, 228];
 const mix = (a: C3, b: C3, t: number): C3 => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t
+];
+const mix3 = (a: C3, b: C3, t: number): C3 => [
   a[0] + (b[0] - a[0]) * t,
   a[1] + (b[1] - a[1]) * t,
   a[2] + (b[2] - a[2]) * t
@@ -564,4 +570,97 @@ export function renderBuildings(
   hard(body);
   if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.3 : 0.5);
   return { body, shadow };
+}
+
+/** The home ground as vector cells over the raster, so every cell edge stays sharp at any zoom */
+export function renderGround(city: City, painted: Painted, style: Style, s: number): HTMLCanvasElement {
+  const cv = document.createElement("canvas");
+  cv.width = Math.ceil(city.W * s);
+  cv.height = Math.ceil(city.H * s);
+  const g = cv.getContext("2d") as CanvasRenderingContext2D;
+  g.scale(s, s);
+  const { cells, vertices } = city.pack;
+  const col = painted.cellCol[style];
+  const n = cells.p.length;
+  const poly = (i: number) => cells.v[i].map((v: number) => vertices.p[v] as P2);
+  const land = (i: number) => i < n && !!col[i];
+  g.lineJoin = "round";
+  for (let i = 0; i < n; i++) {
+    const c = col[i];
+    if (!c) continue;
+    pathOf(g, poly(i));
+    g.fillStyle = g.strokeStyle = css(c);
+    g.lineWidth = 0.6;
+    g.fill();
+    g.stroke();
+  }
+  speckle(cv, s, 0.45);
+  // edges drawn inside each cell only: district or faction rims, the shore, the city's edge band
+  const of = style === "districts" ? city.district : style === "factions" ? city.faction : null;
+  const PAPER: C3 = [246, 241, 228];
+  const rimCol = (v: number): C3 | null =>
+    v < 0
+      ? null
+      : style === "districts"
+        ? sh(hex(DIST_COL[v % DIST_COL.length]), 0.75)
+        : sh(mix3(hex(city.factions[v]?.col ?? "#888888"), PAPER, 0.35), 0.75);
+  for (let i = 0; i < n; i++) {
+    if (!col[i]) continue;
+    const vs = cells.v[i] as number[];
+    const edges: { a: P2; b: P2; k: "rim" | "shore" | "edge" }[] = [];
+    for (const [e, v] of vs.entries()) {
+      const w = vs[(e + 1) % vs.length];
+      const o = (cells.c[i] as number[]).find(j => j !== i && cells.v[j]?.includes(v) && cells.v[j].includes(w));
+      const a = vertices.p[v] as P2;
+      const b = vertices.p[w] as P2;
+      if (o === undefined || o >= n || city.home[o] !== 1) edges.push({ a, b, k: "edge" });
+      else if (city.use[o] === "water") edges.push({ a, b, k: "shore" });
+      else if (of && land(o) && of[o] !== of[i]) edges.push({ a, b, k: "rim" });
+    }
+    if (!edges.length) continue;
+    g.save();
+    pathOf(g, poly(i));
+    g.clip();
+    g.lineCap = "round";
+    const stroke = (k: string, c: C3, w: number, a: number) => {
+      g.strokeStyle = css(c);
+      g.globalAlpha = a;
+      g.lineWidth = w;
+      g.beginPath();
+      for (const e of edges)
+        if (e.k === k) {
+          g.moveTo(e.a[0], e.a[1]);
+          g.lineTo(e.b[0], e.b[1]);
+        }
+      g.stroke();
+    };
+    const rc = of ? rimCol(of[i]) : null;
+    if (rc) stroke("rim", rc, 2, 0.55);
+    stroke("shore", [92, 80, 68], 2, 0.7);
+    for (const w of [18, 14, 10, 6]) stroke("edge", [170, 110, 90], w, 0.07);
+    stroke("edge", [26, 22, 18], 4.4, 0.88);
+    g.restore();
+  }
+  // woods, dotted again over the flat cells
+  const fade = style === "terrain" ? 0.55 : 0.33;
+  for (const [x, y] of painted.dots) {
+    const ci = painted.CID[y * city.W + x];
+    if (ci < 0 || !col[ci]) continue;
+    g.globalAlpha = fade;
+    g.fillStyle = "rgb(118,150,80)";
+    g.fillRect(x, y, 2, 2);
+    g.fillStyle = "rgb(96,120,66)";
+    g.fillRect(x + 1, y + 1, 1, 1);
+  }
+  for (const [x, y] of city.trees) {
+    const ci = painted.CID[(y | 0) * city.W + (x | 0)];
+    if (ci < 0 || !col[ci]) continue;
+    g.globalAlpha = fade;
+    g.fillStyle = "rgb(118,150,80)";
+    g.fillRect(x, y, 2, 2);
+    g.fillStyle = "rgb(96,120,66)";
+    g.fillRect(x + 1, y + 1, 1, 1);
+  }
+  g.globalAlpha = 1;
+  return cv;
 }
