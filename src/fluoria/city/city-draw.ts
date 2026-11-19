@@ -510,9 +510,11 @@ export function furnish(city: City): void {
     const wealth = city.districts.find(d => d.id === district[i])?.wealth ?? 2;
     const spec = WEALTH[wealth];
     const docks = k === "docks";
-    const build = (pl: P2[], face: string, front?: [P2, P2]) => {
+    const build = (pl: P2[], face: string, front?: [P2, P2], as?: string) => {
       let h = pl;
-      if (spec.set && !front) {
+      if (as) {
+        // drawn to measure by the caller
+      } else if (spec.set && !front) {
         // a corner house stands in the middle of its garden
         const cx = pl.reduce((q, p) => q + p[0], 0) / pl.length;
         const cy = pl.reduce((q, p) => q + p[1], 0) / pl.length;
@@ -531,7 +533,8 @@ export function furnish(city: City): void {
       const cl = pixelsOf(h);
       if (!cl.length) return;
       const shop = (face === "main" || face === "square") && wealth >= 2;
-      const type = shop ? pick(COMMERCE) : face === "quay" && docks ? "Warehouse" : weighted(MIX[k])[0];
+      const type =
+        as && as !== "lot" ? as : shop ? pick(COMMERCE) : face === "quay" && docks ? "Warehouse" : weighted(MIX[k])[0];
       const at: P2 = [h.reduce((q, p) => q + p[0], 0) / h.length, h.reduce((q, p) => q + p[1], 0) / h.length];
       place(
         {
@@ -563,7 +566,7 @@ export function furnish(city: City): void {
         Q,
         Q.map(() => d)
       );
-      if (sameWay(Q, J) && area2(J) / 2 > spec.w * spec.w * 2) {
+      if (sameWay(Q, J) && area2(J) / 2 > spec.w * spec.w * (spec.set ? 0.4 : 2)) {
         I = J;
         break;
       }
@@ -597,7 +600,8 @@ export function furnish(city: City): void {
         let pc = keepSide(Q, [a[0] + u[0] * (s0 + c * w), a[1] + u[1] * (s0 + c * w)], u);
         pc = keepSide(pc, [a[0] + u[0] * (s0 + (c + 1) * w), a[1] + u[1] * (s0 + (c + 1) * w)], [-u[0], -u[1]]);
         for (const half of [keepSide(pc, mid, nv), keepSide(pc, mid, [-nv[0], -nv[1]])])
-          if (half.length && shapeOk(half, 6, 35, 150)) build(half, sides[bi].face);
+          if (half.length && shapeOk(half, 6, 35, 150))
+            build(half, sides[bi].face, undefined, spec.set ? "lot" : undefined);
       }
       continue;
     }
@@ -640,8 +644,56 @@ export function furnish(city: City): void {
       if (!spec.set && shapeOk(ring, 6, 35, 150) && span <= Math.max(dd * 2.2, spec.w * 2.5)) build(ring, face);
       else open = true;
     }
+    // the rich: plots of mixed width, the house hard on the street with its garden behind; now and then two plots
+    // are one great house
+    if (spec.set)
+      for (let e = 0; e < m; e++) {
+        // the whole street side is frontage; a house already at the corner keeps it
+        const s0 = 0.3;
+        const s1 = dist(Q[e], Q[(e + 1) % m]) - 0.3;
+        const plots: [number, number][] = [];
+        for (let t = s0; t < s1 - spec.w * 0.4; ) {
+          let w = spec.w * (0.75 + R() * 0.6);
+          if (s1 - (t + w) < spec.w * 0.5) w = s1 - t;
+          plots.push([t, t + w]);
+          t += w;
+        }
+        for (let c = 0; c < plots.length; c++) {
+          let [t0, t1] = plots[c];
+          let great = false;
+          if (c + 1 < plots.length && R() < 0.28) {
+            t1 = plots[++c][1];
+            great = true;
+          }
+          const L = t1 - t0;
+          const hw = L * (great ? 0.8 + R() * 0.15 : 0.66 + R() * 0.26);
+          const a0 = t0 + (L - hw) * R();
+          const f0 = on(e, a0);
+          const f1 = on(e, a0 + hw);
+          const nv: P2 = [-sideAt[e].u[1], sideAt[e].u[0]];
+          // deep enough to read as a great house, never past the middle of the plot
+          let hd = Math.min(inr * 0.75, great ? 8 + R() * 4 : 6 + R() * 4);
+          for (let tries = 0; tries < 3 && hd >= 3.5; tries++, hd *= 0.75) {
+            const house: P2[] = [
+              f0,
+              f1,
+              [f1[0] + nv[0] * hd, f1[1] + nv[1] * hd],
+              [f0[0] + nv[0] * hd, f0[1] + nv[1] * hd]
+            ];
+            if (
+              !shapeOk(house, 4, 35, 150) ||
+              !house.every(q => inPoly(Q, q[0], q[1]) || dist(q, f0) < 0.1 || dist(q, f1) < 0.1)
+            )
+              continue;
+            // clear of the houses already standing
+            if (pixelsOf(house).length < (Math.abs(area2(house)) / 2) * 0.85) continue;
+            build(house, sides[e].face, [f0, f1], great ? "Mansion" : "lot");
+            break;
+          }
+        }
+      }
     for (let e = 0; e < m; e++) {
-      if (short[e]) continue;
+      if (short[e] || spec.set) continue;
       const { s0, s1 } = sideAt[e];
       const count = Math.max(1, Math.round((s1 - s0) / spec.w));
       const w = (s1 - s0) / count;

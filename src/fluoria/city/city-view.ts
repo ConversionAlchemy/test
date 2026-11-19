@@ -6,6 +6,7 @@ import { type MapLabel, placeLabels } from "../labels";
 import { renderBuildings, renderGround, type Style } from "./city-build";
 import { DIST_COL, furnish, mapTile, type Painted, paint, terrainTile } from "./city-draw";
 import { buildCity, type City, type Edits, type Kind, type P2, type Region, type Road, type Spec } from "./city-gen";
+import { renderPlan } from "./city-plan";
 
 const KIND_NAME: Record<string, string> = {
   centre: "City centre",
@@ -124,8 +125,14 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     const s = scaleFor();
     if (detail && detail.s === s && detail.style === style) return;
     const make = () => {
-      const r = renderBuildings(city, style, s);
-      detail = { s, style, ...r, ground: renderGround(city, painted, style, s) };
+      if (style === "terrain" || style === "map") {
+        const blank = document.createElement("canvas");
+        blank.width = blank.height = 1;
+        detail = { s, style, body: blank, shadow: blank, ground: renderPlan(city, style, Math.min(s, 4)) };
+      } else {
+        const r = renderBuildings(city, style, s);
+        detail = { s, style, ...r, ground: renderGround(city, painted, style, s) };
+      }
       draw();
     };
     if (now || !detail || detail.style !== style) make();
@@ -383,7 +390,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       const px = labelSize(l);
       t.style.display = "";
       t.setAttribute("font-size", `${px}`);
-      t.setAttribute("stroke-width", `${px * 0.24}`);
+      t.setAttribute("stroke-width", `${px * (style === "terrain" || style === "map" ? 0.38 : 0.24)}`);
       if (l.road) {
         const win = roadWindow(l, width(l) / view.zoom + 8);
         const p = defs.querySelector(`#lp${CSS.escape(l.id)}`) as SVGPathElement;
@@ -440,6 +447,8 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     }
     return [b.poly.reduce((a, p) => a + p[0], 0) / b.poly.length, b.poly.reduce((a, p) => a + p[1], 0) / b.poly.length];
   };
+  // the key folds under the city's name, as the region map's own menu does
+  let keyOpen = false;
   const renderKey = () => {
     const favs = (edits.favs ?? [])
       .map(k => city.buildings.find(b => b.key === k))
@@ -448,7 +457,11 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       b.landmark ? 0 : ["Guardhouse", "Guild hall", "Chapel", "Tavern", "Office"].indexOf(b.type) + 1 || 9;
     const auto = city.buildings.filter(b => b.name && !favs.includes(b)).sort((a, b) => rank(a) - rank(b));
     keyed = [...favs, ...auto].slice(0, 12).map((b, k) => ({ n: k + 1, b, c: centreOf(b) }));
-    keyEl.innerHTML = `<h3>${esc(burg)}</h3><p class="pop">${city.population.toLocaleString()} souls</p><ol>${keyed.map(e => `<li data-n="${e.n}"><i>${e.n}</i><span>${esc(e.b.name ?? e.b.type)}</span></li>`).join("")}</ol>`;
+    keyEl.innerHTML = `<button class="kh" type="button"><b>${keyOpen ? "▼" : "▶"}</b><h3>${esc(burg)}</h3></button><div class="kb"${keyOpen ? "" : " hidden"}><p class="pop">${city.population.toLocaleString()} souls</p><ol>${keyed.map(e => `<li data-n="${e.n}"><i>${e.n}</i><span>${esc(e.b.name ?? e.b.type)}</span></li>`).join("")}</ol></div>`;
+    (keyEl.querySelector(".kh") as HTMLButtonElement).onclick = () => {
+      keyOpen = !keyOpen;
+      renderKey();
+    };
     for (const li of keyEl.querySelectorAll<HTMLLIElement>("li"))
       li.onclick = () => {
         const e = keyed[+(li.dataset.n as string) - 1];
@@ -612,6 +625,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
   const stroke = new Set<number>();
   stage.addEventListener("contextmenu", e => e.preventDefault());
   stage.addEventListener("pointerdown", e => {
+    if ((e.target as HTMLElement).closest(".cvKey")) return;
     const strokeTool =
       (tool === "paint" || tool === "district" || tool === "landmark" || tool === "faction") && e.button === 0;
     drag = { x: e.clientX, y: e.clientY, v: view, moved: false, stroke: strokeTool, button: e.button };

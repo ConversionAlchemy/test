@@ -1442,12 +1442,17 @@ export function buildCity(
       if (use[i] === "town" && cells.v[i].some(v => dist(vertices.p[v], g.p) < 14) && kind[i] !== "square")
         faction[i] = 1;
   for (const [k, v] of Object.entries(ed.factionCells ?? {})) if (+k >= 0 && +k < n) faction[+k] = v;
+  // a coastal town keeps one ring of its own water, so its quays and piers stand inside the map
+  const coast = homeMask.slice();
+  for (let i = 0; i < n; i++)
+    if (!homeMask[i] && use[i] === "water" && cells.c[i].some(j => j < n && homeMask[j] && use[j] !== "water"))
+      coast[i] = 1;
 
   return {
     W,
     H,
     pack,
-    home: homeMask,
+    home: coast,
     use,
     kind,
     district,
