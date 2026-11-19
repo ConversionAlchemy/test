@@ -158,7 +158,7 @@ export function renderBuildings(
   gs.scale(s, s);
   const px = 1 / s;
   const lw = Math.max(1, s * 0.45) * px;
-  const joined = s < 4 || style === "plan";
+  const joined = s < 4 || style === "plan" || style === "map";
   const shapes = new Map<number, P2[]>();
   for (const b of city.buildings) shapes.set(b.id, b.landmark ? landmarkShape(city, b) : b.poly);
 
@@ -168,9 +168,25 @@ export function renderBuildings(
       const r = ROOF[b.roof] ?? ROOF.clay;
       return { pal: [r[1], r[1], sh(r[2], 0.7)], flat: !b.landmark };
     }
-    if (style === "plan") {
-      const c: C3 = b.landmark ? (b.type === "Bank" ? [196, 150, 60] : [62, 56, 52]) : [196, 100, 68];
-      return { pal: [c, c, [84, 50, 38]], flat: true };
+    if (style === "plan" || style === "map") {
+      // one red, shaded by who lives there: deep in the rich quarters, faded in the shanty
+      const k = city.kind[b.cell] ?? "";
+      const c: C3 = b.landmark
+        ? b.type === "Bank"
+          ? [196, 150, 60]
+          : [62, 56, 52]
+        : ink && style === "map"
+          ? hex(ink)
+          : k === "shanty"
+            ? [204, 146, 120]
+            : k === "wealthy" || k === "centre"
+              ? [176, 82, 58]
+              : k === "docks"
+                ? [174, 110, 78]
+                : (b.district ?? -1) < 0
+                  ? [200, 124, 88]
+                  : [194, 100, 68];
+      return { pal: [c, c, sh(c, 0.45)], flat: true };
     }
     if (style === "factions") {
       const f = b.owner !== undefined ? city.factions[b.owner] : undefined;

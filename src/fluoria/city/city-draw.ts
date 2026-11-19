@@ -71,8 +71,8 @@ const ROOFS: Record<string, string[]> = {
   wealthy: ["slate", "slate", "clay"],
   old: ["clay", "clay", "clay", "slate", "slate"],
   docks: ["slate", "slate", "timber", "clay"],
-  shanty: ["thatch", "timber", "thatch", "clay"],
-  farm: ["thatch", "thatch", "clay"]
+  shanty: ["timber", "clay", "timber", "slate"],
+  farm: ["clay", "clay", "slate", "timber"]
 };
 export const TYPE_INK: Record<string, string> = {
   Bank: "#d6ac3c",
@@ -221,6 +221,8 @@ export function furnish(city: City): void {
       for (let x = Math.floor(a); x <= e; x++) {
         if (!inPoly(poly, x + 0.5, y + 0.5)) continue;
         const j = y * W + x;
+        // never over a road; loose only about the cell's edge and neighbours
+        if (RD[j] && RD[j] !== 5) return null;
         if (CID[j] !== cid || RD[j] || OCC[j]) {
           if (strict) return null;
           continue;
@@ -379,8 +381,13 @@ export function furnish(city: City): void {
         const d = tr[2] + R() * (tr[3] - tr[2]);
         const fl = Math.min(f, L - t);
         if (fl < 3.5) break;
-        const pl = rect([a[0] + tx * t + nX * set, a[1] + ty * t + nY * set], tx, ty, nX, nY, fl, d);
-        const cl = free(pl, i, false);
+        // set back off the street until clear of it
+        let pl = rect([a[0] + tx * t + nX * set, a[1] + ty * t + nY * set], tx, ty, nX, nY, fl, d);
+        let cl = free(pl, i, false);
+        for (let back = 1; !cl && back <= 3; back++) {
+          pl = rect([a[0] + tx * t + nX * (set + back), a[1] + ty * t + nY * (set + back)], tx, ty, nX, nY, fl, d);
+          cl = free(pl, i, false);
+        }
         if (!cl || cl.length < fl * d * 0.6) {
           t += 1;
           continue;
@@ -814,6 +821,35 @@ export function paint(city: City): Painted {
   };
   const kindAt = (j: number) => (CID[j] >= 0 ? (kind[CID[j]] ?? use[CID[j]]) : "water");
   const WOD = bfs(j => kindAt(j) !== "woods");
+  // each field its own flat wash, a shade apart from the same ground next door, as on a hand-coloured plan
+  const nC = city.pack.cells.p.length;
+  const shade = new Int8Array(nC);
+  for (let i = 0; i < nC; i++) {
+    const taken = new Set<number>();
+    for (const o of city.pack.cells.c[i]) if (o < i && use[o] === use[i]) taken.add(shade[o]);
+    const opts = [-2, -1, 0, 1, 2].filter(v => !taken.has(v));
+    shade[i] = opts.length ? opts[(i * 7) % opts.length] : 0;
+  }
+  const OLIVE: C3 = [150, 156, 92];
+  const FIELDS: Record<string, C3> = {
+    grass: [178, 200, 112],
+    pasture: [196, 210, 122],
+    wheat: [222, 210, 136],
+    tilled: [212, 190, 146],
+    wealthy: [170, 200, 108],
+    park: [160, 196, 100],
+    woods: [140, 178, 92]
+  };
+  const grain = (x: number, y: number) => {
+    const g = hash(x, y);
+    return (g < 0.07 ? 0.97 : g > 0.95 ? 1.025 : 1) * (0.985 + vnoise(x + 41, y, 38) * 0.03);
+  };
+  const washOf = (k: string, ci: number, x: number, y: number, olive: number): C3 | null => {
+    const c = FIELDS[k];
+    if (!c) return null;
+    const base = sh(mix(c, OLIVE, olive), 1 + shade[ci] * 0.03);
+    return sh(base, grain(x, y));
+  };
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const j = y * W + x;
@@ -834,6 +870,12 @@ export function paint(city: City): Painted {
         m = d <= 1 ? MAPC.shore : MAPC.water;
       } else {
         t = terrainTile(k, x, y, city.ang[ci]);
+        const wsh = k !== "woods" && k !== "park" && k !== "wealthy" ? washOf(k, ci, x, y, 0.55) : null;
+        if (wsh) {
+          const tex = (groundPixel("plains", x, y)[1] - 136) / 136;
+          t = sh(wsh, 1 + tex * 0.35);
+          if (k === "wheat" || k === "tilled") t = sh(t, stripe(x, y, city.ang[ci], 4) < 2 ? 1.025 : 0.985);
+        }
         m = mapTile(k, x, y);
         // woods meet other ground with an edge in the map view and a shadow on the terrain
         if (k === "woods") {
@@ -959,9 +1001,94 @@ export function paint(city: City): Painted {
         put(T, Y * W + X, c);
       }
   }
+  // the plan: a hand-drawn town plan in ink and watercolour, after the 1830 plan of Dublin
+  const plan = new ImageData(W, H);
+  const Pl = plan.data;
+  const PAPER: C3 = [246, 241, 228];
+  const INK: C3 = [92, 80, 68];
+  const wash = (x: number, y: number, c: C3): C3 => sh(c, grain(x, y));
+  const planOf = (j: number, x: number, y: number): C3 => {
+    if (water(j)) return wash(x, y, WD[j] <= 2 ? [128, 176, 196] : [150, 194, 210]);
+    const ci = CID[j];
+    const k = kindAt(j);
+    const r = RD[j];
+    if (r === 5) return [120, 108, 96];
+    if (r === 9) return [150, 136, 120];
+    if (r === 6 || r === 8) return [170, 146, 112];
+    if (r) return PAPER;
+    switch (k) {
+      case "centre":
+      case "square":
+      case "docks":
+      case "shanty":
+      case "old":
+        return wash(x, y, k === "old" ? [224, 222, 210] : [222, 218, 208]);
+      default:
+        return washOf(k, ci, x, y, 0.2) ?? wash(x, y, [222, 218, 208]);
+    }
+  };
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const j = y * W + x;
+      put(Pl, j, planOf(j, x, y));
+    }
+  // ink: the shore, street edges, field hedges; watercolour pooling a little darker along each wash's edge
+  for (let y = 1; y < H - 1; y++)
+    for (let x = 1; x < W - 1; x++) {
+      const j = y * W + x;
+      const k = j * 4;
+      const r = RD[j];
+      const wt = water(j);
+      let ink = false;
+      let pool = false;
+      for (let q = 0; q < 8; q += 2) {
+        const o = j + N4[q] + N4[q + 1] * W;
+        if (!wt && water(o)) ink = true;
+        if (!r && RD[o] && RD[o] !== 5 && !wt) ink = true;
+        if (!r && !RD[o] && CID[o] !== CID[j] && !water(o)) pool = true;
+      }
+      if (ink) for (let i = 0; i < 3; i++) Pl[k + i] = Pl[k + i] * 0.3 + INK[i] * 0.7;
+      else if (pool) {
+        const o = j + (CID[j + 1] !== CID[j] ? 1 : CID[j - 1] !== CID[j] ? -1 : CID[j + W] !== CID[j] ? W : -W);
+        for (let i = 0; i < 3; i++) Pl[k + i] = Pl[k + i] * 0.6 + Pl[o * 4 + i] * 0.4;
+      }
+    }
+  for (const [a, b] of hedgeEdges(city)) {
+    const L = dist(a, b);
+    for (let t = 0; t <= L; t += 0.5) {
+      const X = Math.round(a[0] + ((b[0] - a[0]) * t) / L);
+      const Y = Math.round(a[1] + ((b[1] - a[1]) * t) / L);
+      if (X < 0 || Y < 0 || X >= W || Y >= H || RD[Y * W + X]) continue;
+      const q = (Y * W + X) * 4;
+      for (let i = 0; i < 3; i++) Pl[q + i] = Pl[q + i] * 0.62 + INK[i] * 0.38;
+    }
+  }
+  // trees as small inked dots, woods dotted all over
+  const dot = (x: number, y: number) => {
+    for (const [u, v] of [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1]
+    ]) {
+      const X = x + u;
+      const Y = y + v;
+      if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+      const q = (Y * W + X) * 4;
+      const c: C3 = u + v === 2 ? [96, 120, 66] : [118, 150, 80];
+      for (let i = 0; i < 3; i++) Pl[q + i] = Pl[q + i] * 0.45 + c[i] * 0.55;
+    }
+  };
+  for (const [tx, ty] of city.trees) dot(tx, ty);
+  for (let y = 2; y < H - 2; y += 5)
+    for (let x = 2; x < W - 2; x += 5) {
+      const X = x + Math.floor(hash(x, y) * 3);
+      const Y = y + Math.floor(hash(y, x) * 3);
+      if (kindAt(Y * W + X) === "woods" && !RD[Y * W + X]) dot(X, Y);
+    }
   // the district and faction views: the plain map with each area washed in its colour and edged where it ends
-  const districts = new ImageData(new Uint8ClampedArray(Mp), W, H);
-  const factions = new ImageData(new Uint8ClampedArray(Mp), W, H);
+  const districts = new ImageData(new Uint8ClampedArray(Pl), W, H);
+  const factions = new ImageData(new Uint8ClampedArray(Pl), W, H);
   const area = (D: Uint8ClampedArray, of: (ci: number) => number, col: (v: number) => C3 | null, wash: number) => {
     for (let j = 0; j < N; j++) {
       const ci = CID[j];
@@ -997,102 +1124,6 @@ export function paint(city: City): Painted {
     v => (v >= 0 ? hex(city.factions[v]?.col ?? "#888888") : null),
     0.42
   );
-  // the plan: a hand-drawn town plan in ink and watercolour, after the 1830 plan of Dublin
-  const plan = new ImageData(W, H);
-  const Pl = plan.data;
-  const PAPER: C3 = [246, 241, 228];
-  const INK: C3 = [92, 80, 68];
-  const FIELD: C3[] = [
-    [196, 216, 120],
-    [178, 206, 104],
-    [214, 222, 134],
-    [160, 196, 98],
-    [204, 212, 112]
-  ];
-  const wash = (x: number, y: number, c: C3, amt = 0.07): C3 => sh(c, 1 - amt / 2 + vnoise(x + 41, y, 11) * amt);
-  const planOf = (j: number, x: number, y: number): C3 => {
-    if (water(j)) return wash(x, y, WD[j] <= 2 ? [128, 180, 210] : [156, 200, 226], 0.06);
-    const ci = CID[j];
-    const k = kindAt(j);
-    const r = RD[j];
-    if (r === 5) return [120, 108, 96];
-    if (r === 9) return [150, 136, 120];
-    if (r === 6 || r === 8) return [170, 146, 112];
-    if (r) return PAPER;
-    switch (k) {
-      case "centre":
-      case "square":
-      case "docks":
-      case "shanty":
-      case "old":
-        return wash(x, y, k === "old" ? [224, 224, 214] : [222, 220, 214], 0.05);
-      case "wealthy":
-      case "park":
-        return wash(x, y, [176, 210, 120]);
-      case "woods":
-        return wash(x, y, [146, 186, 96]);
-      case "grass":
-        return wash(x, y, mix(FIELD[1], FIELD[2], tone(x, y)));
-      default:
-        return wash(x, y, FIELD[(ci * 7 + (k === "wheat" ? 2 : k === "tilled" ? 4 : 0)) % FIELD.length]);
-    }
-  };
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const j = y * W + x;
-      put(Pl, j, planOf(j, x, y));
-    }
-  // ink: the shore, street edges, field hedges; watercolour pooling a little darker along each wash's edge
-  for (let y = 1; y < H - 1; y++)
-    for (let x = 1; x < W - 1; x++) {
-      const j = y * W + x;
-      const k = j * 4;
-      const r = RD[j];
-      const wt = water(j);
-      let ink = false;
-      let pool = false;
-      for (let q = 0; q < 8; q += 2) {
-        const o = j + N4[q] + N4[q + 1] * W;
-        if (!wt && water(o)) ink = true;
-        if (!r && RD[o] && RD[o] !== 5 && !wt) ink = true;
-        if (!r && !RD[o] && CID[o] !== CID[j] && kindAt(o) !== kindAt(j)) pool = true;
-      }
-      if (ink) for (let i = 0; i < 3; i++) Pl[k + i] = Pl[k + i] * 0.3 + INK[i] * 0.7;
-      else if (pool) for (let i = 0; i < 3; i++) Pl[k + i] *= 0.9;
-    }
-  for (const [a, b] of hedgeEdges(city)) {
-    const L = dist(a, b);
-    for (let t = 0; t <= L; t += 0.5) {
-      const X = Math.round(a[0] + ((b[0] - a[0]) * t) / L);
-      const Y = Math.round(a[1] + ((b[1] - a[1]) * t) / L);
-      if (X < 0 || Y < 0 || X >= W || Y >= H || RD[Y * W + X]) continue;
-      const q = (Y * W + X) * 4;
-      for (let i = 0; i < 3; i++) Pl[q + i] = Pl[q + i] * 0.5 + INK[i] * 0.5;
-    }
-  }
-  // trees as small inked dots, woods dotted all over
-  const dot = (x: number, y: number) => {
-    for (const [u, v] of [
-      [0, 0],
-      [1, 0],
-      [0, 1],
-      [1, 1]
-    ]) {
-      const X = x + u;
-      const Y = y + v;
-      if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
-      const q = (Y * W + X) * 4;
-      const c: C3 = u + v === 2 ? [70, 96, 50] : [96, 136, 66];
-      for (let i = 0; i < 3; i++) Pl[q + i] = c[i];
-    }
-  };
-  for (const [tx, ty] of city.trees) dot(tx, ty);
-  for (let y = 2; y < H - 2; y += 5)
-    for (let x = 2; x < W - 2; x += 5) {
-      const X = x + Math.floor(hash(x, y) * 3);
-      const Y = y + Math.floor(hash(y, x) * 3);
-      if (kindAt(Y * W + X) === "woods" && !RD[Y * W + X]) dot(X, Y);
-    }
   // outside the home cell: terrain darkens, the map pales, both deepening toward the view's edge
   const fadeTo = hex("#d6cdb6");
   for (let j = 0; j < N; j++) {
@@ -1120,5 +1151,5 @@ export function paint(city: City): Painted {
     for (const D of [Mp, districts.data, factions.data, Pl])
       for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - tt) + cm[i] * tt;
   }
-  return { terrain, map, districts, factions, plan, CID, BID };
+  return { terrain, map: plan, districts, factions, plan, CID, BID };
 }

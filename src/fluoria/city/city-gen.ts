@@ -424,8 +424,8 @@ export function buildCity(
       v = Math.imul(v ^ (v >>> 13), 1274126177);
       return ((v ^ (v >>> 16)) >>> 0) / 4294967296;
     };
-    const fx = x / 110;
-    const fy = y / 110;
+    const fx = x / 60;
+    const fy = y / 60;
     const ix = Math.floor(fx);
     const iy = Math.floor(fy);
     const sx = (fx - ix) ** 2 * (3 - 2 * (fx - ix));
@@ -447,7 +447,8 @@ export function buildCity(
       continue;
     }
     // woods only where the region has forest; ploughed patches are crops, the rest meadow
-    if (forest[i] && dT(i) > TR * 1.6 && clump(pts[i]) > 0.58) {
+    // copses, not a forest: only the peaks of the noise, on forest ground, away from town
+    if (forest[i] && dT(i) > TR * 1.8 && clump(pts[i]) > 0.76) {
       use[i] = "woods";
       continue;
     }

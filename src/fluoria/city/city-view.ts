@@ -56,7 +56,7 @@ const TIERS: Record<string, { min: number; px: number; rank: number; cls: string
 type Label = MapLabel & { tier: string; road?: P2[] };
 
 const PANEL = `
-<div class="zone"><div class="tabs" data-g="style"><button data-v="terrain">Terrain</button><button data-v="map">Map</button><button data-v="districts">Districts</button><button data-v="factions">Factions</button><button data-v="plan">Plan</button></div></div>
+<div class="zone"><div class="tabs" data-g="style"><button data-v="terrain">Terrain</button><button data-v="map">Map</button><button data-v="districts">Districts</button><button data-v="factions">Factions</button></div></div>
 <div class="zone"><div class="g4" data-g="tool">
 <button data-v="inspect">Inspect</button><button data-v="paint">Paint</button><button data-v="district">District</button><button data-v="faction">Faction</button>
 <button data-v="landmark">Landmark</button><button data-v="road">Road</button><button data-v="erase">Erase</button></div></div>
@@ -306,7 +306,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.drawImage(world, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     if (detail) {
-      ctx.globalAlpha = style === "terrain" ? 0.55 : style === "plan" ? 0 : 0.25;
+      ctx.globalAlpha = style === "terrain" ? 0.55 : style === "map" ? 0 : 0.25;
       ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
       ctx.globalAlpha = 1;
       ctx.drawImage(detail.body, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
