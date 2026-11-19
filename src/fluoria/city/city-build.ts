@@ -528,6 +528,40 @@ export function renderBuildings(
     pathOf(g, sqPoly(i));
     g.fill();
   }
+  // bridges: where a road crosses water, a stone deck between two parapets
+  {
+    const wetEdge = (a: number, b: number) =>
+      (vertices.c[a] as number[])
+        .filter(c => (vertices.c[b] as number[]).includes(c))
+        .every(c => city.use[c] === "water");
+    g.lineCap = "butt";
+    for (const r of city.roads) {
+      const w = W2[r.type];
+      if (!w || r.type === "track" || r.type === "path") continue;
+      for (const [a, b] of r.edges ?? []) {
+        if (!wetEdge(a, b)) continue;
+        const p = vertices.p[a] as P2;
+        const q = vertices.p[b] as P2;
+        const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+        const nx = (-(q[1] - p[1]) / L) * (w + 0.5);
+        const ny = ((q[0] - p[0]) / L) * (w + 0.5);
+        g.strokeStyle = css(faded ? [226, 220, 206] : [214, 205, 188]);
+        g.lineWidth = w * 2 + 0.6;
+        g.beginPath();
+        g.moveTo(p[0], p[1]);
+        g.lineTo(q[0], q[1]);
+        g.stroke();
+        g.strokeStyle = css(faded ? [140, 130, 118] : [104, 94, 84]);
+        g.lineWidth = Math.max(lw * 2, 0.8);
+        g.beginPath();
+        for (const sgn of [1, -1]) {
+          g.moveTo(p[0] + nx * sgn, p[1] + ny * sgn);
+          g.lineTo(q[0] + nx * sgn, q[1] + ny * sgn);
+        }
+        g.stroke();
+      }
+    }
+  }
   // piers: timber decks with square-cut ends
   const piers = city.roads.filter(r => r.type === "pier");
   const deck = (w: number, col: C3) => {
@@ -540,6 +574,15 @@ export function renderBuildings(
       for (const [k, p] of r.pts.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
       g.stroke();
     }
+    // where one deck meets another, fill the corner so no water shows through the joint
+    g.fillStyle = css(col);
+    for (const r of piers)
+      for (const p of [r.pts[0], r.pts[r.pts.length - 1]])
+        if (piers.some(o => o !== r && o.pts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.6))) {
+          g.beginPath();
+          g.arc(p[0], p[1], w / 2, 0, Math.PI * 2);
+          g.fill();
+        }
   };
   const wood: C3 = faded ? [196, 172, 136] : [168, 132, 90];
   deck(2.4 + lw * 2, sh(wood, 0.55));
@@ -610,14 +653,16 @@ export function renderGround(city: City, painted: Painted, style: Style, s: numb
   for (let i = 0; i < n; i++) {
     if (!col[i]) continue;
     const vs = cells.v[i] as number[];
-    const edges: { a: P2; b: P2; k: "rim" | "shore" | "edge" }[] = [];
+    const edges: { a: P2; b: P2; k: "rim" | "shore" | "shallow" | "edge" }[] = [];
     for (const [e, v] of vs.entries()) {
       const w = vs[(e + 1) % vs.length];
       const o = (cells.c[i] as number[]).find(j => j !== i && cells.v[j]?.includes(v) && cells.v[j].includes(w));
       const a = vertices.p[v] as P2;
       const b = vertices.p[w] as P2;
+      const wet = city.use[i] === "water";
       if (o === undefined || o >= n || city.home[o] !== 1) edges.push({ a, b, k: "edge" });
-      else if (city.use[o] === "water") edges.push({ a, b, k: "shore" });
+      else if (wet && city.use[o] !== "water") edges.push({ a, b, k: "shallow" });
+      else if (!wet && city.use[o] === "water") edges.push({ a, b, k: "shore" });
       else if (of && land(o) && of[o] !== of[i]) edges.push({ a, b, k: "rim" });
     }
     if (!edges.length) continue;
@@ -639,6 +684,7 @@ export function renderGround(city: City, painted: Painted, style: Style, s: numb
     };
     const rc = of ? rimCol(of[i]) : null;
     if (rc) stroke("rim", rc, 2, 0.55);
+    stroke("shallow", style === "terrain" ? [128, 176, 196] : [158, 190, 200], 4.4, 1);
     stroke("shore", [92, 80, 68], 2, 0.7);
     for (const w of [18, 14, 10, 6]) stroke("edge", [170, 110, 90], w, 0.07);
     stroke("edge", [26, 22, 18], 4.4, 0.88);

@@ -1082,12 +1082,11 @@ export function paint(city: City): Painted {
   const planOf = (j: number, x: number, y: number): C3 => {
     const r = RD[j];
     // piers and bridges stand over the water in every view
-    if (r === 6 || r === 8) return [170, 146, 112];
     if (water(j)) return wash(x, y, WD[j] <= 2 ? [128, 176, 196] : [150, 194, 210]);
     const ci = CID[j];
     const k = kindAt(j);
     if (r === 9) return [150, 136, 120];
-    if (r && r !== 5) return wash(x, y, PAPER);
+    if (r && r !== 5 && r !== 6) return wash(x, y, PAPER);
     // the richest quarters, and villages, keep their gardens green
     if (k === "old" && (city.districts.find(d => d.id === city.district[ci])?.wealth ?? 0) >= 5)
       return washOf("wealthy", ci, x, y, 0.2) as C3;
@@ -1134,7 +1133,12 @@ export function paint(city: City): Painted {
   const terrainCol: (C3 | null)[] = [];
   for (let i = 0; i < nC; i++) {
     const n = sum[i * 4 + 3];
-    terrainCol[i] = n ? [sum[i * 4] / n, sum[i * 4 + 1] / n, sum[i * 4 + 2] / n] : null;
+    terrainCol[i] =
+      use[i] === "water" && home[i] === 1
+        ? [150, 194, 210]
+        : n
+          ? [sum[i * 4] / n, sum[i * 4 + 1] / n, sum[i * 4 + 2] / n]
+          : null;
   }
   const mapCol = terrainCol.map(c => (c ? mix(c, PAPER, 0.4) : null));
   const washed = (of: (ci: number) => number, col: (v: number) => C3 | null, t: number) =>

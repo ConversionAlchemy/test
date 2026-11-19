@@ -450,6 +450,26 @@ export function buildCity(
     else if (rivers.some(l => polyDist([x, y], l) < 9)) isWater[i] = river[i] = 1;
     ang[i] = seedAng[i] ?? R() * Math.PI;
   }
+  // every cell the river's line passes through is water too, so a river never breaks into ponds
+  for (const l of rivers)
+    for (let k = 1; k < l.length; k++) {
+      const L = dist(l[k - 1], l[k]);
+      for (let t = 0; t <= L; t += 2) {
+        const x = l[k - 1][0] + ((l[k][0] - l[k - 1][0]) * t) / (L || 1);
+        const y = l[k - 1][1] + ((l[k][1] - l[k - 1][1]) * t) / (L || 1);
+        if (x < 0 || y < 0 || x > W || y > H) continue;
+        let bi = -1;
+        let bd = Infinity;
+        for (let i = 0; i < n; i++) {
+          const d = (pts[i][0] - x) ** 2 + (pts[i][1] - y) ** 2;
+          if (d < bd) {
+            bd = d;
+            bi = i;
+          }
+        }
+        if (bi >= 0 && !isWater[bi]) isWater[bi] = river[bi] = 1;
+      }
+    }
   const h = Uint8Array.from({ length: n }, (_, i) => (isWater[i] ? 10 : 30));
   const f = Uint16Array.from({ length: n }, (_, i) => (isWater[i] ? 2 : 1));
   const pack: any = {
