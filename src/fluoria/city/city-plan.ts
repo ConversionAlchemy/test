@@ -191,7 +191,7 @@ const ROOFS: Record<string, Tex> = {
   roof: hatchRoof("#e2aab8", "#bf7f91", "#efc7d1"),
   r3: hatchRoof("#d996aa", "#b0677f", "#e8b5c4"),
   r4: hatchRoof("#cc7f98", "#9c4e69", "#de9fb3"),
-  shop: hatchRoof("#e39a8c", "#bb6a5c", "#efbcb1"),
+  shop: hatchRoof("#ddd4c2", "#b3a88f", "#e9e2d4"),
   ware: hatchRoof("#cdbfb0", "#a49482", "#ddd2c6"),
   lm: hatchRoof("#6b4128", "#3a2214", "#52311f"),
   lmg: hatchRoof("#5c6066", "#34373b", "#484b50")
@@ -201,12 +201,16 @@ const TIER: Record<string, string> = {
   Shack: "r1",
   Shed: "ware",
   Cottage: "r2",
-  Residence: "roof",
+  House: "roof",
   Townhouse: "r3",
   Mansion: "r4",
-  "Guild hall": "r4",
-  "Counting house": "r4",
-  Office: "r3",
+  "Counting house": "shop",
+  Office: "shop",
+  Workshop: "shop",
+  Inn: "shop",
+  Tavern: "shop",
+  Chandlery: "shop",
+  "Guild hall": "shop",
   Chapel: "r4",
   Guardhouse: "r3"
 };
@@ -217,9 +221,9 @@ const roofOf = (b: Building): string =>
     ? GREY.test(b.type)
       ? "lmg"
       : "lm"
-    : b.type === "Warehouse" || b.type === "Shed" || b.type === "Chandlery"
+    : b.type === "Warehouse" || b.type === "Shed" || b.type === "Granary"
       ? "ware"
-      : b.trade || b.type === "Shop" || b.type === "Inn" || b.type === "Tavern"
+      : b.trade || b.type === "Shop"
         ? "shop"
         : (TIER[b.type] ?? "roof");
 

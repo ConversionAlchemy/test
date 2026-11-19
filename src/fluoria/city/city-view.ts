@@ -12,7 +12,7 @@ const KIND_NAME: Record<string, string> = {
   centre: "City centre",
   wealthy: "Wealthy quarter",
   old: "Old town",
-  docks: "Docks",
+  docks: "Stores",
   shanty: "Shanty town",
   square: "Square",
   park: "Park",
@@ -21,7 +21,8 @@ const KIND_NAME: Record<string, string> = {
   wheat: "Wheat",
   tilled: "Ploughed field",
   pasture: "Pasture",
-  water: "Water"
+  water: "Water",
+  grass: "Meadow"
 };
 const PAINTS = [
   "centre",
@@ -575,6 +576,19 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     return best;
   };
   const roadPath = (r: Road) => `M${r.pts.map(p => p.join(",")).join("L")}`;
+  // every tooltip set out like an address, one line to a comma; who holds it last, in their colour
+  const addr = (lines: (string | false | undefined)[], holder?: number, extra = "") => {
+    const F = holder !== undefined && holder >= 0 ? city.factions[holder] : undefined;
+    const L = lines.filter(Boolean) as string[];
+    if (F) L.push(`<span style="color:${F.col}">${esc(F.name)}</span>`);
+    return `<div class="addr">${L.map((l, k) => (k ? l : `<b>${l}</b>`)).join(",<br>")}</div>${extra}`;
+  };
+  const placeName = (i: number) =>
+    i === city.squareCell
+      ? (city.edits.names?.["q:sq"] ?? city.places[i])
+      : (city.edits.names?.[`q:${i}`] ?? city.places[i]);
+  const fieldOf = (i: number) => city.fields.find(f => f.cells.includes(i));
+  const distName = (i: number) => city.districts.find(d => d.id === city.district[i])?.name;
   const describe = (e: PointerEvent) => {
     const p = at(e);
     if (!p) return null;
@@ -589,7 +603,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
           key: b.key ?? "",
           label: b.name ?? b.type,
           d: b.landmark ? outline(new Set(b.cells)) : `M${b.poly.map(q => q.join(",")).join("L")}Z`,
-          html: `<b>${F ? F.name : "Unclaimed"}</b><i>${b.name ?? b.type}</i>`
+          html: addr([esc(F ? F.name : "Unclaimed"), esc(b.name ?? b.type)])
         };
       if (!F) return null;
       return {
@@ -598,7 +612,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
         label: F.name,
         d: outline(new Set(city.faction.reduce<number[]>((a, v, i) => (v === f ? a.concat(i) : a), []))),
         cell: p.ci,
-        html: `<b>${F.name}</b><i>${F.kind}</i>`
+        html: addr([esc(F.name), esc(F.kind)])
       };
     }
     if (p.bid && !(style === "districts" && tool === "inspect")) {
@@ -609,17 +623,16 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
         key: b.key ?? "",
         label: b.name ?? b.type,
         d: b.landmark ? outline(new Set(b.cells)) : `M${b.poly.map(q => q.join(",")).join("L")}Z`,
-        html: (() => {
-          // set out like an address: name and its Sols, street, quarter, then who holds it in their colour
-          const F = b.owner !== undefined ? city.factions[b.owner] : undefined;
-          const lines = [
-            `<b>${esc(b.name ?? b.type)} (${(b.cap ?? 0).toLocaleString()})</b>`,
-            /^\d+ /.test(b.addr ?? "") ? esc(b.addr) : "",
-            esc(D),
-            F ? `<span style="color:${F.col}">${esc(F.name)}</span>` : ""
-          ].filter(Boolean);
-          return `<div class="addr">${lines.join(",<br>")}</div>${b.enter ? "<s>Enter</s>" : ""}`;
-        })()
+        html: addr(
+          [
+            `${esc(b.name ?? b.type)}${b.cap ? ` (${b.cap.toLocaleString()})` : ""}`,
+            b.name && b.type,
+            /^\d+ /.test(b.addr ?? "") && esc(b.addr),
+            esc(D)
+          ],
+          b.owner,
+          b.enter ? "<s>Enter</s>" : ""
+        )
       };
     }
     const r = roadNear(p.x + 0.5, p.y + 0.5);
@@ -631,14 +644,18 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
           key: `g:${g.road}`,
           label: g.name,
           d: `M${g.a.join(",")}L${g.b.join(",")}`,
-          html: `<b>${g.name}</b><i>Gate</i>`
+          html: addr([esc(g.name), "Gate", distName(p.ci) && esc(distName(p.ci) as string)], city.faction[p.ci])
         };
       return {
         kind: "road",
         key: r.key,
         label: r.name ?? RNAME[r.type],
         d: roadPath(r),
-        html: `<b>${r.name ?? RNAME[r.type]}</b><i>${RNAME[r.type]}</i>`
+        html: addr([
+          esc(r.name ?? RNAME[r.type]),
+          r.name && ({ main: "Main road", track: "Track", pier: "Pier" }[r.type as string] ?? RNAME[r.type]),
+          distName(p.ci) && esc(distName(p.ci) as string)
+        ])
       };
     }
     // the whole district lights up from its name, or in the districts view; elsewhere the cell, inside its district's edge
@@ -654,7 +671,16 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
         key: `d:${named.id}`,
         label: named.name,
         d: outline(new Set(named.cells)),
-        html: `<b>${named.name}</b>`
+        html: addr(
+          [
+            esc(named.name),
+            `${city.buildings
+              .filter(b => b.district === named.id)
+              .reduce((a, b) => a + (b.cap ?? 0), 0)
+              .toLocaleString()} Sols`
+          ],
+          city.faction[named.cells[0]]
+        )
       };
     if (p.ci >= 0 && city.district[p.ci] >= 0) {
       const D = city.districts.find(d => d.id === city.district[p.ci]);
@@ -666,7 +692,14 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
           d: cellPath(p.ci),
           d2: outline(new Set(D.cells)),
           cell: p.ci,
-          html: `<b>${KIND_NAME[city.kind[p.ci] ?? ""] ?? "Ground"}</b><i>${D.name}</i>`
+          html: addr(
+            [
+              esc(placeName(p.ci) ?? KIND_NAME[city.kind[p.ci] ?? ""] ?? "Ground"),
+              placeName(p.ci) && KIND_NAME[city.kind[p.ci] ?? ""],
+              esc(D.name)
+            ],
+            city.faction[p.ci]
+          )
         };
       if (D)
         return {
@@ -675,7 +708,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
           label: D.name,
           d: outline(new Set(D.cells)),
           cell: p.ci,
-          html: `<b>${D.name}</b><i>${KIND_NAME[city.kind[p.ci] ?? ""] ?? ""}</i>`
+          html: addr([esc(D.name), KIND_NAME[city.kind[p.ci] ?? ""]], city.faction[p.ci])
         };
     }
     if (p.ci >= 0 && city.home[p.ci])
@@ -684,7 +717,10 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
         key: `c:${p.ci}`,
         label: KIND_NAME[city.use[p.ci]] ?? city.use[p.ci],
         d: `M${cells.v[p.ci].map((v: number) => city.pack.vertices.p[v].join(",")).join("L")}Z`,
-        html: `<b>${KIND_NAME[city.use[p.ci]] ?? city.use[p.ci]}</b>`
+        html: addr([
+          esc(fieldOf(p.ci)?.name ?? KIND_NAME[city.use[p.ci]] ?? city.use[p.ci]),
+          fieldOf(p.ci) && (KIND_NAME[city.use[p.ci]] ?? city.use[p.ci])
+        ])
       };
     return null;
   };

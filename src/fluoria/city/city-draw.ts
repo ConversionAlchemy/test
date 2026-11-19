@@ -41,21 +41,27 @@ const MIX: Record<string, [string, string, number][]> = {
     ["Townhouse", "shop", 2]
   ],
   old: [
-    ["Residence", "house", 8],
+    ["House", "house", 8],
     ["Workshop", "shop", 2],
     ["Shop", "shop", 2],
-    ["Residence", "house", 4]
+    ["House", "house", 4]
   ],
   docks: [
     ["Warehouse", "store", 4],
     ["Shed", "shop", 3],
     ["Chandlery", "shop", 1],
-    ["Residence", "house", 2]
+    ["House", "house", 2]
+  ],
+  stores: [
+    ["Warehouse", "store", 6],
+    ["Granary", "store", 2],
+    ["Shed", "shop", 2],
+    ["House", "house", 1]
   ],
   shanty: [
     ["Hut", "hut", 3],
     ["Shack", "hut", 2],
-    ["Residence", "house", 1]
+    ["House", "house", 1]
   ]
 };
 const ROOFS: Record<string, string[]> = {
@@ -540,7 +546,13 @@ export function furnish(city: City): void {
       if (!cl.length) return;
       const shop = (face === "main" || face === "square") && wealth >= 2;
       const type =
-        as && as !== "lot" ? as : shop ? pick(COMMERCE) : face === "quay" && docks ? "Warehouse" : weighted(MIX[k])[0];
+        as && as !== "lot"
+          ? as
+          : shop
+            ? pick(COMMERCE)
+            : face === "quay" && docks
+              ? "Warehouse"
+              : weighted(MIX[docks && !city.port ? "stores" : k])[0];
       const at: P2 = [h.reduce((q, p) => q + p[0], 0) / h.length, h.reduce((q, p) => q + p[1], 0) / h.length];
       place(
         {
@@ -806,6 +818,48 @@ export function furnish(city: City): void {
       city.places[i] = list[take[size]++ % list.length];
     }
   }
+  // the town's trade in proportion to its size: a hamlet keeps a shop or two, a city a high street and its stores;
+  // shops gather toward the square, stores toward their quarter, and the rest are homes
+  {
+    const SHOP = new Set(["Shop", "Workshop", "Inn", "Tavern", "Counting house", "Office", "Chandlery"]);
+    const STORE = new Set(["Warehouse", "Granary", "Shed"]);
+    const pop = city.population;
+    const [shopT, storeT] =
+      pop && pop < 300 ? [0.06, 0] : pop && pop < 2000 ? [0.12, 0.03] : pop && pop < 6000 ? [0.18, 0.05] : [0.24, 0.07];
+    const L = B.filter(b => !b.landmark && !b.name && (use[b.cell] === "town" || use[b.cell] === "shanty"));
+    const sq = cells.p[city.squareCell] as P2;
+    const at = (b: Building): P2 => [
+      b.poly.reduce((q, p) => q + p[0], 0) / b.poly.length,
+      b.poly.reduce((q, p) => q + p[1], 0) / b.poly.length
+    ];
+    const near = (b: Building) => dist(at(b), sq);
+    const homes = () => L.filter(b => b.type === "House" || b.type === "Townhouse");
+    const shops = L.filter(b => SHOP.has(b.type));
+    const wantShops = Math.round(L.length * shopT);
+    if (shops.length > wantShops)
+      for (const b of shops.sort((a, c) => near(c) - near(a)).slice(0, shops.length - wantShops)) {
+        b.type = kind[b.cell] === "wealthy" ? "Townhouse" : "House";
+        b.trade = false;
+      }
+    else
+      for (const b of homes()
+        .filter(b => kind[b.cell] !== "wealthy")
+        .sort((a, c) => near(a) - near(c))
+        .slice(0, wantShops - shops.length)) {
+        b.type = R() < 0.6 ? "Shop" : R() < 0.6 ? "Workshop" : "Inn";
+        b.trade = true;
+      }
+    const stores = L.filter(b => STORE.has(b.type));
+    const wantStores = Math.max(pop && pop < 300 ? 0 : 1, Math.round(L.length * storeT));
+    const quarter = L.filter(b => kind[b.cell] === "docks").map(at);
+    const toQuarter = (b: Building) => (quarter.length ? Math.min(...quarter.map(q => dist(q, at(b)))) : -near(b));
+    if (stores.length < wantStores)
+      for (const b of homes()
+        .filter(b => kind[b.cell] !== "wealthy")
+        .sort((a, c) => toQuarter(a) - toQuarter(c))
+        .slice(0, wantStores - stores.length))
+        b.type = R() < 0.75 ? "Warehouse" : "Granary";
+  }
   // notables
   const nb = (type: string, name: string, f: (b: Building) => boolean) => {
     const L = B.filter(b => !b.name && !b.landmark && f(b));
@@ -817,10 +871,10 @@ export function furnish(city: City): void {
   const gate0 = city.gates[0]?.p;
   const N = city.notables ?? {};
   nb("Guardhouse", N.watch ?? "The Watch House", b => !!gate0 && dist(b.poly[0], gate0) < 40 && b.type !== "Hut");
-  nb("Guardhouse", N.harbourWatch ?? "Harbour Watch", b => kind[b.cell] === "docks");
+  if (city.port) nb("Guardhouse", N.harbourWatch ?? "Harbour Watch", b => kind[b.cell] === "docks");
   nb("Chapel", N.chapel ?? "Chapel of the Ledger", b => kind[b.cell] === "wealthy");
   const dockTavern = N.dockTavern ?? "The Gilded Anchor";
-  nb("Tavern", dockTavern, b => kind[b.cell] === "docks" && b.type !== "Warehouse");
+  if (city.port) nb("Tavern", dockTavern, b => kind[b.cell] === "docks" && b.type !== "Warehouse");
   nb("Tavern", N.tavern1 ?? "The Brass Scale", b => kind[b.cell] === "old");
   nb("Tavern", N.tavern2 ?? "The Sleeping Clerk", b => kind[b.cell] === "old");
   nb("Guild hall", N.guildHall ?? "Hall of the Weigh-Masters", b => kind[b.cell] === "centre");
@@ -830,7 +884,7 @@ export function furnish(city: City): void {
   for (const b of B) if (b.type === "Guardhouse") b.owner = 1;
   for (const b of B) if (b.landmark && b.type === "Bank") b.owner = 0;
   {
-    const quiet = B.filter(b => !b.name && kind[b.cell] === "old" && b.type === "Residence");
+    const quiet = B.filter(b => !b.name && kind[b.cell] === "old" && b.type === "House");
     if (quiet.length) quiet[Math.floor(R() * quiet.length)].owner = 6;
     const tav = B.find(b => b.name === dockTavern);
     if (tav) tav.owner = 5;
@@ -841,29 +895,29 @@ export function furnish(city: City): void {
   }
   // everyone the region cell holds, shared out by floor space and how crowded each kind of building is
   {
+    // trade and stores house no one; landmarks and forts keep their own households and garrisons
     const DENS: Record<string, number> = {
-      Residence: 1,
+      House: 1,
       Townhouse: 0.9,
       Mansion: 0.5,
-      Shop: 0.6,
-      Workshop: 0.5,
-      Warehouse: 0.06,
-      Shed: 0.3,
-      Chandlery: 0.4,
       Hut: 1.7,
       Shack: 1.7,
       Cottage: 1.1,
-      Tavern: 0.5,
+      Farmhouse: 0.8,
       Guardhouse: 0.4,
       Chapel: 0.1,
-      "Guild hall": 0.2,
-      Office: 0.2,
       Fort: 0.35
     };
     const WEALTHY: Record<number, number> = { 1: 1.3, 2: 1, 3: 1, 4: 0.85, 5: 0.6 };
     const w = B.map(b => {
-      const A = Math.abs(area2(b.poly)) / 2;
-      const d = DENS[b.type] ?? (b.landmark ? 0.08 : 0.5);
+      // a landmark's floor is its whole set of cells
+      const A = b.landmark
+        ? (b.cells ?? [b.cell]).reduce(
+            (q, c) => q + Math.abs(area2((cells.v[c] as number[]).map(v => vertices.p[v] as P2))) / 2,
+            0
+          )
+        : Math.abs(area2(b.poly)) / 2;
+      const d = DENS[b.type] ?? (b.landmark ? 0.25 : 0);
       const wl = city.districts.find(D => D.id === b.district)?.wealth ?? 2;
       return A * d * (WEALTHY[wl] ?? 1);
     });

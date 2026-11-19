@@ -221,6 +221,15 @@ export function namer(lore: Lore | undefined, seed: number) {
           return pick([`${w} Hill`, "The Heights", `${w} Rise`, `${w} Green`]);
         case "docks":
           return pick([`${w} Quay`, "Waterside", "The Strand", `${w} Wharf`]);
+        case "stores":
+          return pick([
+            "The Stores",
+            "Warehouse Row",
+            "The Bonded Yards",
+            `${w} Granaries`,
+            "Cart Yards",
+            `${w} Stores`
+          ]);
         case "shanty":
           return pick(SLUM);
         default:

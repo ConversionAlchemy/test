@@ -153,6 +153,7 @@ export interface City {
   borders: { a: P2; b: P2; out: P2; state: string; col: string }[]; // where the cell meets another nation
   notables?: Record<string, string>; // names for the town's notable buildings
   population: number; // everyone the region cell holds, town and country; 0 when unknown
+  port: boolean; // its stores quarter stands on the quays
   places: Record<number, string>; // names of squares, greens, ponds and open places, by cell
   fields: { kind: string; cells: number[]; name: string; key: string }[]; // the country named: meadows, fields, woods, water
   spare: { yard: string[]; opening: string[]; square: string[] }; // names for places found empty when built
@@ -653,10 +654,31 @@ export function buildCity(
     else kind[i] = "old";
   }
   kind[squareCell] = "square";
+  // every town keeps its goods in a stores quarter: on the quays in a port, else on the town's edge by the main road
+  const port = town.some(i => kind[i] === "docks");
+  if (!port) {
+    const want = S ? { hamlet: 0, village: 1, town: 2, city: 3 }[S.size] : 2;
+    const edge = town
+      .filter(i => kind[i] === "old" && cells.c[i].some(j => j < n && use[j] !== "town"))
+      .sort((a, b) => {
+        const off = (i: number) =>
+          Math.abs(
+            ((Math.atan2(pts[i][1] - T[1], pts[i][0] - T[0]) - hillDir + Math.PI * 4) % (Math.PI * 2)) - Math.PI
+          );
+        return off(b) - off(a);
+      });
+    for (const i of edge.slice(0, want)) kind[i] = "docks";
+  }
   const DIST: District[] = [
     { id: 0, name: NM ? NM.district("centre") : "The Exchange", kind: "centre", cells: [], wealth: 4 },
     { id: 1, name: NM ? NM.district("wealthy") : "Gilt Hill", kind: "wealthy", cells: [], wealth: 5 },
-    { id: 2, name: NM ? NM.district("docks") : "Bankside", kind: "docks", cells: [], wealth: 3 },
+    {
+      id: 2,
+      name: NM ? NM.district(port ? "docks" : "stores") : port ? "Bankside" : "The Stores",
+      kind: "docks",
+      cells: [],
+      wealth: 3
+    },
     {
       id: 3,
       name: S && !big ? burgName : NM ? NM.district("old", 0) : "Old Town",
@@ -1514,6 +1536,7 @@ export function buildCity(
     })),
     notables: NM?.notables(),
     places,
+    port,
     fields,
     population: B.pop ? Math.round(B.pop * 1000) : 0,
     spare: {
