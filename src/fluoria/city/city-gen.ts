@@ -960,6 +960,34 @@ export function buildCity(
       });
     }
   }
+  // streets bend gently: each corner along a street eases toward its neighbours, carrying the cells with it.
+  // Junctions, the shore and the town's edge stay put
+  {
+    const nb = new Map<number, Set<number>>();
+    for (const r of roads)
+      if (r.edges)
+        for (const [a, b] of r.edges) {
+          if (!nb.has(a)) nb.set(a, new Set());
+          if (!nb.has(b)) nb.set(b, new Set());
+          nb.get(a)?.add(b);
+          nb.get(b)?.add(a);
+        }
+    const free = [...nb.keys()].filter(
+      v =>
+        nb.get(v)?.size === 2 &&
+        vertices.c[v].every(
+          (c: number) => c < n && !isWater[c] && isTownish(c) && !isLandmark[c] && kind[c] !== "square"
+        )
+    );
+    for (let it = 0; it < 5; it++)
+      for (const v of free) {
+        const [a, b] = [...(nb.get(v) as Set<number>)];
+        const p = vertices.p[v];
+        const q = [(vertices.p[a][0] + vertices.p[b][0]) / 2, (vertices.p[a][1] + vertices.p[b][1]) / 2];
+        p[0] += (q[0] - p[0]) * 0.5;
+        p[1] += (q[1] - p[1]) * 0.5;
+      }
+  }
   // piers: a boardwalk along every dock edge that meets the water, spurs out from it
   const pierSegs: [P2, P2][] = [];
   for (const i of town) {

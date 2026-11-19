@@ -4,7 +4,7 @@ import { connectVertices, findPath } from "@/utils/pathUtils";
 import { snap, type View, zoomAround } from "../camera";
 import { type MapLabel, placeLabels } from "../labels";
 import { renderBuildings, type Style } from "./city-build";
-import { furnish, mapTile, type Painted, paint, terrainTile } from "./city-draw";
+import { DIST_COL, furnish, mapTile, type Painted, paint, terrainTile } from "./city-draw";
 import { buildCity, type City, type Edits, type Kind, type P2, type Region, type Road } from "./city-gen";
 
 const KIND_NAME: Record<string, string> = {
@@ -236,6 +236,11 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     for (const l of labels) {
       const t = document.createElementNS(NS, "text");
       t.setAttribute("class", TIERS[l.tier].cls);
+      // a territory's name in a deep shade of its own colour
+      const deep = (h: string) =>
+        `rgb(${[1, 3, 5].map(i => Math.round(Number.parseInt(h.slice(i, i + 2), 16) * 0.5)).join(",")})`;
+      if (l.tier === "dist") t.dataset.col = deep(DIST_COL[+l.id.slice(1) % DIST_COL.length]);
+      if (l.tier === "fac") t.dataset.col = deep(city.factions[city.faction[+l.id.slice(1)]]?.col ?? "#444444");
       if (l.road) {
         const p = document.createElementNS(NS, "path");
         p.id = `lp${l.id}`;
@@ -354,6 +359,10 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
       }
       seen.add(key);
       t.classList.toggle("soft", labelMode(l) === "soft");
+      t.style.fill =
+        (style === "districts" && l.tier === "dist") || (style === "factions" && l.tier === "fac")
+          ? (t.dataset.col ?? "")
+          : "";
       const px = labelSize(l);
       t.style.display = "";
       t.setAttribute("font-size", `${px}`);

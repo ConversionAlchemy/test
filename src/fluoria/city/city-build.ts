@@ -1,7 +1,7 @@
 // Buildings drawn as shapes, then snapped back to hard pixels at the zoom they are seen at: neat edges at every distance,
 // still the pixel look. Far out a terrace reads as one block; close in every house has its own outline
 import { connectVertices } from "@/utils/pathUtils";
-import { TYPE_INK } from "./city-draw";
+import { DIST_COL, TYPE_INK } from "./city-draw";
 import type { Building, City, P2 } from "./city-gen";
 
 type C3 = readonly [number, number, number];
@@ -187,30 +187,19 @@ export function renderBuildings(
       const cc = mix(c, PAPER, f);
       return { pal: [cc, cc, sh(cc, f ? 0.7 : 0.45)], flat: true };
     }
+    // the themed views: the town faded back, the theme's buildings in its colours
+    const pale: C3 = mix([196, 120, 92], PAPER, 0.5);
     if (style === "factions") {
       const f = b.owner !== undefined ? city.factions[b.owner] : undefined;
-      if (!f)
-        return {
-          pal: [
-            [214, 206, 190],
-            [214, 206, 190],
-            [150, 142, 128]
-          ],
-          flat: true
-        };
+      if (!f) return { pal: [pale, pale, sh(pale, 0.72)], flat: true };
       const c = hex(f.col);
-      return { pal: [sh(c, 0.7), sh(c, 0.7), sh(c, 0.42)], flat: true };
+      return { pal: [c, c, sh(c, 0.55)], flat: true };
     }
     if (style === "districts") {
-      if (ink) return { pal: [hex(ink), hex(ink), sh(hex(ink), 0.6)], flat: true };
-      return {
-        pal: [
-          [196, 186, 168],
-          [196, 186, 168],
-          [116, 106, 92]
-        ],
-        flat: true
-      };
+      const D = b.district ?? -1;
+      if (D < 0) return { pal: [pale, pale, sh(pale, 0.72)], flat: true };
+      const c = sh(hex(DIST_COL[D % DIST_COL.length]), 0.88);
+      return { pal: [c, c, sh(c, 0.6)], flat: true };
     }
     if (ink) return { pal: [hex(ink), hex(ink), sh(hex(ink), 0.6)], flat: true };
     return {
@@ -324,49 +313,64 @@ export function renderBuildings(
       pathOf(g, inset(poly, lw * 0.6));
       g.stroke();
     }
-  // streets and squares cut clean through anything that strays onto them, then edged in thin ink
-  if (style === "map" || style === "terrain") {
-    const { vertices, cells } = city.pack;
-    const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
-    const strokeRoads = (extra: number) => {
-      for (const r of city.roads) {
-        const w = W2[r.type];
-        if (!w) continue;
-        g.lineWidth = w * 2 + 0.6 + extra;
-        g.beginPath();
-        if (r.edges)
-          for (const [a, b] of r.edges) {
-            g.moveTo(vertices.p[a][0], vertices.p[a][1]);
-            g.lineTo(vertices.p[b][0], vertices.p[b][1]);
-          }
-        else
-          for (const [k, p] of r.pts.entries()) {
-            if (k) g.lineTo(p[0], p[1]);
-            else g.moveTo(p[0], p[1]);
-          }
-        g.stroke();
-      }
-    };
-    const squares = cells.p.map((_: P2, i: number) => i).filter((i: number) => city.kind[i] === "square");
-    const sqPoly = (i: number) => cells.v[i].map((v: number) => vertices.p[v] as P2);
-    g.lineCap = g.lineJoin = "round";
-    g.strokeStyle = g.fillStyle = "rgb(92,80,68)";
-    strokeRoads(lw * 2);
-    g.lineWidth = lw * 2;
-    for (const i of squares) {
-      pathOf(g, sqPoly(i));
+  // streets, squares and walls in vector: what strays onto a street is cut away, the walls and buildings cast
+  // their shadow, then the streets are laid on top, filled and edged in thin ink
+  const { vertices, cells } = city.pack;
+  const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
+  const strokeRoads = (extra: number) => {
+    for (const r of city.roads) {
+      const w = W2[r.type];
+      if (!w) continue;
+      g.lineWidth = w * 2 + 0.6 + extra;
+      g.beginPath();
+      if (r.edges)
+        for (const [a, b] of r.edges) {
+          g.moveTo(vertices.p[a][0], vertices.p[a][1]);
+          g.lineTo(vertices.p[b][0], vertices.p[b][1]);
+        }
+      else
+        for (const [k, p] of r.pts.entries()) {
+          if (k) g.lineTo(p[0], p[1]);
+          else g.moveTo(p[0], p[1]);
+        }
       g.stroke();
     }
-    g.globalCompositeOperation = "destination-out";
-    strokeRoads(0);
-    for (const i of squares) {
-      pathOf(g, sqPoly(i));
-      g.fill();
-    }
-    g.globalCompositeOperation = "source-over";
+  };
+  const squares = cells.p.map((_: P2, i: number) => i).filter((i: number) => city.kind[i] === "square");
+  const sqPoly = (i: number) => cells.v[i].map((v: number) => vertices.p[v] as P2);
+  const faded = style !== "terrain";
+  g.lineCap = g.lineJoin = "round";
+  g.globalCompositeOperation = "destination-out";
+  strokeRoads(lw * 2);
+  for (const i of squares) {
+    pathOf(g, sqPoly(i));
+    g.fill();
+  }
+  g.globalCompositeOperation = "source-over";
+  // the town wall: a stone band
+  const stone: C3 = faded ? [176, 166, 152] : [120, 108, 96];
+  for (const w of city.walls) {
+    g.strokeStyle = css(sh(stone, 0.7));
+    g.lineWidth = 3.2;
+    g.beginPath();
+    for (const [k, p] of w.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
+    g.stroke();
+    g.strokeStyle = css(stone);
+    g.lineWidth = 2.2;
+    g.stroke();
+  }
+  for (const [tx, ty] of city.towers) {
+    g.fillStyle = css(sh(stone, 0.7));
+    g.beginPath();
+    g.arc(tx, ty, 2.6, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = css(sh(stone, 1.08));
+    g.beginPath();
+    g.arc(tx, ty, 1.9, 0, Math.PI * 2);
+    g.fill();
   }
   hard(body);
-  // shadows to the lower right, cast by the buildings as finally drawn
+  // shadows to the lower right, cast by buildings and walls before the streets go down
   const off = style === "terrain" ? 1 : 0.9;
   gs.setTransform(1, 0, 0, 1, 0, 0);
   gs.drawImage(body, off * s, off * s);
@@ -375,6 +379,20 @@ export function renderBuildings(
   gs.fillRect(0, 0, shadow.width, shadow.height);
   gs.globalCompositeOperation = "source-over";
   hard(shadow);
+  g.strokeStyle = g.fillStyle = "rgb(84,72,60)";
+  strokeRoads(Math.max(lw * 2, 0.7));
+  g.lineWidth = lw * 2;
+  for (const i of squares) {
+    pathOf(g, sqPoly(i));
+    g.stroke();
+  }
+  g.strokeStyle = g.fillStyle = css(PAPER);
+  strokeRoads(0);
+  for (const i of squares) {
+    pathOf(g, sqPoly(i));
+    g.fill();
+  }
+  hard(body);
   if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.3 : 0.5);
   return { body, shadow };
 }
