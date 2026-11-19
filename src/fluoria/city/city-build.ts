@@ -4,6 +4,7 @@ import { connectVertices } from "@/utils/pathUtils";
 import type { Painted } from "./city-draw";
 import { DIST_COL, hedgeEdges, OPEN_LAND, TYPE_INK } from "./city-draw";
 import type { Building, City, P2 } from "./city-gen";
+import { pattern, type Tex, treeLayer } from "./city-tex";
 
 type C3 = readonly [number, number, number];
 const sh = (c: C3, f: number): C3 => [Math.min(255, c[0] * f), Math.min(255, c[1] * f), Math.min(255, c[2] * f)];
@@ -422,7 +423,7 @@ export function renderBuildings(
     for (const r of ordered) {
       const w = W2[r.type];
       if (!w) continue;
-      if (tint) g.strokeStyle = css(TINT()[r.type] ?? PAPER);
+      if (tint) g.strokeStyle = TEX ? pattern(g, TEX[r.type] ?? "lane") : css(TINT()[r.type] ?? PAPER);
       g.lineWidth = w * 2 + 0.6 + extra;
       g.beginPath();
       if (r.edges)
@@ -438,6 +439,10 @@ export function renderBuildings(
       g.stroke();
     }
   };
+  // the Terrain view lays each road in its material, pixel for pixel
+  const TEX: Record<string, Tex> | null =
+    style === "terrain" ? { main: "main", street: "street", lane: "lane", path: "track", track: "track" } : null;
+  g.imageSmoothingEnabled = false;
   const squares = cells.p.map((_: P2, i: number) => i).filter((i: number) => city.kind[i] === "square");
   const sqPoly = (i: number) => cells.v[i].map((v: number) => vertices.p[v] as P2);
   const faded = style !== "terrain";
@@ -499,7 +504,7 @@ export function renderBuildings(
       [3.2, sh(stone, 0.7)],
       [2.2, stone]
     ] as [number, C3][]) {
-      g.strokeStyle = css(col);
+      g.strokeStyle = TEX && col === stone ? pattern(g, "stone") : css(col);
       g.lineWidth = lwid;
       for (const run of runs) {
         g.beginPath();
@@ -558,10 +563,10 @@ export function renderBuildings(
 
   // piers: timber decks with square-cut ends
   const piers = city.roads.filter(r => r.type === "pier");
-  const deck = (w: number, col: C3) => {
+  const deck = (w: number, col: C3, pat?: CanvasPattern) => {
     g.lineCap = "butt";
     g.lineJoin = "miter";
-    g.strokeStyle = css(col);
+    g.strokeStyle = pat ?? css(col);
     g.lineWidth = w;
     for (const r of piers) {
       g.beginPath();
@@ -569,7 +574,7 @@ export function renderBuildings(
       g.stroke();
     }
     // where one deck meets another, fill the corner so no water shows through the joint
-    g.fillStyle = css(col);
+    g.fillStyle = pat ?? css(col);
     for (const r of piers)
       for (const p of [r.pts[0], r.pts[r.pts.length - 1]])
         if (piers.some(o => o !== r && o.pts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.6))) {
@@ -580,7 +585,7 @@ export function renderBuildings(
   };
   const wood: C3 = faded ? [196, 172, 136] : [168, 132, 90];
   deck(2.4 + lw * 2, sh(wood, 0.55));
-  deck(2.4, wood);
+  deck(2.4, wood, TEX ? pattern(g, "wood") : undefined);
   g.lineCap = "square";
   g.lineJoin = "miter";
   // roads over the decks: a road always wins
@@ -595,6 +600,7 @@ export function renderBuildings(
   }
   g.strokeStyle = g.fillStyle = css(PAPER);
   strokeRoads(0, true);
+  if (TEX) g.fillStyle = pattern(g, "main");
   for (const i of squares) {
     pathOf(g, sqPoly(i));
     g.fill();
@@ -616,7 +622,7 @@ export function renderBuildings(
         const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
         const nx = (-(q[1] - p[1]) / L) * (w + 0.5);
         const ny = ((q[0] - p[0]) / L) * (w + 0.5);
-        g.strokeStyle = css(faded ? [226, 220, 206] : [214, 205, 188]);
+        g.strokeStyle = TEX ? pattern(g, "stone") : css(faded ? [226, 220, 206] : [214, 205, 188]);
         g.lineWidth = w * 2 + 0.6;
         g.beginPath();
         g.moveTo(p[0], p[1]);
@@ -712,7 +718,47 @@ export function renderGround(city: City, painted: Painted, style: Style, s: numb
     pathOf(g, y);
     g.fill();
   }
-  speckle(cv, s, 0.45);
+  if (style === "terrain") {
+    // every cell in its own material, pixel for pixel, then lit or shaded by its slope and a touch of its own
+    g.imageSmoothingEnabled = false;
+    const wealth = (i: number) => city.districts.find(d => d.id === city.district[i])?.wealth ?? 0;
+    const texOf = (i: number): Tex => {
+      const u = city.use[i];
+      if (u === "water") return "sea";
+      if (u === "woods") return "under";
+      if (u === "grass" || u === "pasture" || u === "wheat" || u === "tilled") return u === "grass" ? "meadow" : u;
+      const k = city.kind[i];
+      if (k === "square") return "main";
+      if (k === "pond") return "sea";
+      if (k === "park" || k === "wealthy" || wealth(i) >= 5) return "garden";
+      return "yard";
+    };
+    const pats = new Map<Tex, CanvasPattern>();
+    const pat = (t: Tex) => {
+      if (!pats.has(t)) pats.set(t, pattern(g, t));
+      return pats.get(t) as CanvasPattern;
+    };
+    for (let i = 0; i < n; i++) {
+      if (!col[i]) continue;
+      pathOf(g, poly(i));
+      g.fillStyle = g.strokeStyle = pat(texOf(i));
+      g.lineWidth = 0.6;
+      g.fill();
+      g.stroke();
+      const f = shadeOf(i) * (0.97 + (((i * 2654435761) % 1000) / 1000) * 0.06);
+      if (Math.abs(f - 1) > 0.005) {
+        g.fillStyle = f < 1 ? `rgba(0,0,0,${(1 - f).toFixed(3)})` : `rgba(255,255,255,${((f - 1) * 0.8).toFixed(3)})`;
+        g.fill();
+      }
+    }
+    g.fillStyle = pat("garden");
+    for (const y of city.yards) {
+      pathOf(g, y);
+      g.fill();
+    }
+    // trees, one pixel crown each, at their true size
+    g.drawImage(treeLayer(city), 0, 0);
+  } else speckle(cv, s, 0.45);
   // contours on the cells' own edges: a line wherever the ground crosses a level, every fifth one heavier
   {
     const STEP = 1;
@@ -866,9 +912,9 @@ export function renderGround(city: City, painted: Painted, style: Style, s: numb
       g.lineTo(b.b[0], b.b[1]);
       g.stroke();
     }
-  // woods, dotted again over the flat cells
-  const fade = style === "terrain" ? 0.55 : 0.33;
-  for (const [x, y] of painted.dots) {
+  // woods, dotted again over the flat cells (the Terrain view has its trees)
+  const fade = 0.33;
+  for (const [x, y] of style === "terrain" ? [] : painted.dots) {
     const ci = painted.CID[y * city.W + x];
     if (ci < 0 || !col[ci]) continue;
     g.globalAlpha = fade;
@@ -877,7 +923,7 @@ export function renderGround(city: City, painted: Painted, style: Style, s: numb
     g.fillStyle = "rgb(96,120,66)";
     g.fillRect(x + 1, y + 1, 1, 1);
   }
-  for (const [x, y] of city.trees) {
+  for (const [x, y] of style === "terrain" ? [] : city.trees) {
     const ci = painted.CID[(y | 0) * city.W + (x | 0)];
     if (ci < 0 || !col[ci]) continue;
     g.globalAlpha = fade;
