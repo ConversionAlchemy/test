@@ -113,7 +113,7 @@ const burgsOf = (w: World) => [...w.burgs].sort((a, b) => b.pop - a.pop);
 
 const lab = document.getElementById("lab") as HTMLElement;
 const host = document.getElementById("city") as HTMLElement;
-const title = document.getElementById("title") as HTMLElement;
+const title = document.getElementById("title");
 const COMPASS: (number | null)[] = [315, 0, 45, 270, null, 90, 225, 180, 135];
 const btns = (key: string, vals: [string, string][]) =>
   vals.map(([v, l]) => `<button data-k="${key}" data-v="${v}">${l}</button>`).join("");
@@ -262,7 +262,7 @@ const go = () => {
     const w = WORLDS[wi];
     const b = burgsOf(w)[bi];
     const { region, spec } = regionOf(w, b);
-    title.textContent = b.n;
+    if (title) title.textContent = b.n;
     try {
       localStorage.removeItem(`fl-city-${b.n}`);
     } catch {
@@ -272,7 +272,7 @@ const go = () => {
     return;
   }
   const name = mode === "goldbank" ? "Goldbank" : P.name || "Ashford";
-  title.textContent = name;
+  if (title) title.textContent = name;
   if (mode === "goldbank") mountCity(host, REGION, "Goldbank");
   else {
     try {
