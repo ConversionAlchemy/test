@@ -41,6 +41,7 @@ interface Soft {
   speck?: number;
   crack?: boolean;
   vein?: string;
+  hatch2?: boolean; // cross-hatched all over, for walls
   grain?: number;
   stone?: boolean;
 }
@@ -59,6 +60,10 @@ function soft(base: string, o: Soft, s: number) {
     if (o.hatch && v < 0.44) {
       if (wr(x + y, 4) === 0) mul(1 - o.hatch);
       if (v < 0.36 && wr(x - y, 4) === 0) mul(1 - o.hatch);
+    }
+    if (o.hatch2) {
+      if (wr(x + y, 3) === 0) mul(0.84);
+      if (wr(x - y, 3) === 0) mul(0.9);
     }
     if (o.grain) mul(1 + (pv(x / 2, y / 16, s + 23, N / 2, N / 16) - 0.5) * o.grain);
     if (vein) {
@@ -137,18 +142,18 @@ export type Tex =
   | "wood"
   | "sea";
 const MAKERS: Record<Tex, () => (x: number, y: number) => C3> = {
-  meadow: () => grass(["#7f8a4c", "#89934f", "#939c56", "#9da55e", "#a8ae66"], 61, 0.09),
-  pasture: () => grass(["#93a05c", "#9caa63", "#a6b26a", "#b0ba73", "#c5c98a"], 62, 0.025, 0.008),
-  garden: () => grass(["#86954f", "#919f57", "#9ca95f", "#a7b268", "#b3bc72"], 66, 0.08),
+  meadow: () => grass(["#98a466", "#9ea96b", "#a4ae70", "#aab375", "#b0b87b"], 61, 0.035),
+  pasture: () => grass(["#a8b47a", "#adb87e", "#b2bc83", "#b7c088", "#cdd0a2"], 62, 0.015, 0.005),
+  garden: () => grass(["#9aa968", "#a0ae6d", "#a6b372", "#acb877", "#b2bd7c"], 66, 0.035),
   wheat: () => soft("#c4a95e", { amp: 0.09, dots: 0.04, hatch: 0.05 }, 3),
   tilled: () => soft("#866e4b", { amp: 0.11, dots: 0.05, hatch: 0.07, speck: 0.008 }, 5),
   yard: () => soft("#b4a789", { amp: 0.06, dots: 0.03 }, 7),
   under: () => soft("#6f7c3f", { amp: 0.12, dots: 0.04 }, 12),
-  main: () => soft("#ddd4c1", { amp: 0.045, dots: 0.02, speck: 0.006 }, 41),
-  street: () => soft("#d6ccb6", { amp: 0.045, dots: 0.012 }, 43),
-  lane: () => soft("#ccbe9e", { amp: 0.06, dots: 0.03 }, 45),
-  track: () => soft("#b5a27e", { amp: 0.08, dots: 0.035, hatch: 0.04 }, 47),
-  stone: () => soft("#948d82", { speck: 0.012, crack: true, amp: 0.09, stone: true }, 51),
+  main: () => soft("#ddd4c1", { amp: 0.03, dots: 0.004, stone: true }, 41),
+  street: () => soft("#d6ccb6", { amp: 0.03, dots: 0.004, stone: true }, 43),
+  lane: () => soft("#ccbe9e", { amp: 0.04, dots: 0.008, stone: true }, 45),
+  track: () => soft("#b5a27e", { amp: 0.05, dots: 0.01, stone: true }, 47),
+  stone: () => soft("#948d82", { amp: 0.05, dots: 0.004, hatch2: true, stone: true }, 51),
   quay: () => soft("#857e73", { speck: 0.015, crack: true, amp: 0.1, stone: true }, 53),
   wood: () => soft("#8a623e", { grain: 0.1, amp: 0.08, dots: 0.025, sc: 8 }, 55),
   sea: () => sea(11)
@@ -221,7 +226,20 @@ export function treeLayer(city: City): HTMLCanvasElement {
         if (inPoly(P, x, y)) T.push([x, y, 3.1 + th(gx, gy, 3) * 1.5, gx * 131 + gy * 7]);
       }
   }
-  for (const [k, [x, y]] of city.trees.entries()) T.push([x + 1, y + 1, 2.6 + th(k, 0, 4) * 1.2, 9000 + k]);
+  // a lone tree only where its crown and shadow clear every building
+  const near = (x: number, y: number, r: number) =>
+    city.buildings.some(b => b.poly.some(p => Math.hypot(p[0] - x, p[1] - y) < r) || inPoly(b.poly, x, y));
+  for (const [k, [x, y]] of city.trees.entries()) {
+    const r = 2.4 + th(k, 0, 4) * 1;
+    const cx = x + 1;
+    const cy = y + 1;
+    if (near(cx, cy, r * 1.4) || near(cx + r * 0.5, cy + r * 0.6, r * 1.2)) continue;
+    let hit = false;
+    for (const b of city.buildings)
+      for (let a = 0; a < 6.283 && !hit; a += 0.8)
+        if (inPoly(b.poly, cx + Math.cos(a) * r * 1.3, cy + Math.sin(a) * r * 1.3)) hit = true;
+    if (!hit) T.push([cx, cy, r, 9000 + k]);
+  }
   T.sort((a, b) => a[1] - b[1]);
   const im = new ImageData(W, H);
   const D = im.data;
