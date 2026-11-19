@@ -1,6 +1,7 @@
 // a made-up region cut round one settlement, so any kind of place can be generated and tested
 
 import type { P2, Region, Spec } from "./city-gen";
+import type { Lore, NameBase } from "./city-names";
 
 export interface Params extends Spec {
   name: string;
@@ -89,4 +90,112 @@ export function synthRegion(p: Params): Region {
     rivers.push({ pts });
   }
   return { cells, routes, rivers, burgs: [{ n: p.name, x: O[0], y: O[1] }] };
+}
+
+// ---- real maps: one Azgaar map exported whole (region-from-pack.ts), any settlement on it cut out as a region
+
+export interface World {
+  seed: string;
+  cells: { p: P2[]; c: P2; h: number; b: number; s: number; r: number; n: number[] }[];
+  routes: { g: string; n?: string; pts: P2[]; cells: number[] }[];
+  burgs: WorldBurg[];
+  states: { n: string; full?: string; form?: string; rival?: string }[];
+  cultures: { n: string; base: number }[];
+  religions: { n: string; deity?: string }[];
+  bases: NameBase[];
+}
+export interface WorldBurg {
+  i: number;
+  n: string;
+  x: number;
+  y: number;
+  cell: number;
+  pop: number; // thousands, as Azgaar counts
+  cap: number;
+  port: number;
+  walls: number;
+  citadel: number;
+  plaza: number;
+  temple: number;
+  shanty: number;
+  rank: string; // village, town, city or citadel
+  state: number;
+  culture: number;
+}
+
+/** A settlement's size from its people (Azgaar counts thousands); a capital is at least a town */
+export const sizeOf = (b: WorldBurg): Spec["size"] => {
+  const size = b.pop < 0.3 ? "hamlet" : b.pop < 2 ? "village" : b.pop < 6 ? "town" : "city";
+  return b.cap && (size === "hamlet" || size === "village") ? "town" : size;
+};
+
+export function regionOf(world: World, b: WorldBurg): { region: Region; spec: Spec } {
+  const B: P2 = [b.x, b.y];
+  const near = (p: P2, d: number) => Math.hypot(p[0] - B[0], p[1] - B[1]) < d;
+  const byCell = new Map(world.burgs.map(o => [o.cell, o]));
+  // every road through the settlement leaves it two ways (or one, where it ends here), each named for where it goes
+  const routes: Region["routes"] = [];
+  const dirs: number[] = [];
+  for (const r of world.routes) {
+    let at = r.cells.indexOf(b.cell);
+    if (at < 0) at = r.pts.findIndex(p => near(p, 3));
+    if (at < 0) continue;
+    for (const step of [1, -1]) {
+      const half: P2[] = [B];
+      let to: string | undefined;
+      for (let k = at + step; k >= 0 && k < r.pts.length; k += step) {
+        if (near(r.pts[k], 90)) half.push(r.pts[k]);
+        const o = byCell.get(r.cells[k]);
+        if (o && o.i !== b.i) {
+          to = o.n;
+          break;
+        }
+      }
+      if (half.length < 2) continue;
+      const far = half[half.length - 1];
+      const dir = Math.atan2(far[1] - B[1], far[0] - B[0]);
+      if (dirs.some(d => Math.abs(Math.atan2(Math.sin(d - dir), Math.cos(d - dir))) < 0.5)) continue;
+      dirs.push(dir);
+      routes.push({ g: r.g, n: to ? `${to} Road` : (r.n ?? "Old Road"), pts: half });
+    }
+  }
+  const cell = world.cells[b.cell];
+  const st = world.states[b.state];
+  // a rival: the nearest land held by another state
+  let rival: string | undefined;
+  let rd = Infinity;
+  for (const c of world.cells)
+    if (c.s && c.s !== b.state && c.h >= 20) {
+      const d = Math.hypot(c.c[0] - B[0], c.c[1] - B[1]);
+      if (d < rd) {
+        rd = d;
+        rival = world.states[c.s]?.n;
+      }
+    }
+  const lore: Lore = {
+    base: world.bases[world.cultures[b.culture]?.base ?? 0],
+    state: st ? { n: st.n, full: st.full, form: st.form } : undefined,
+    religion: cell?.r ? world.religions[cell.r] : undefined,
+    rival,
+    capital: !!b.cap,
+    port: !!b.port
+  };
+  const size = sizeOf(b);
+  return {
+    region: {
+      cells: world.cells,
+      routes,
+      burgs: [{ n: b.n, x: b.x, y: b.y, port: b.port, walls: b.walls }],
+      lore
+    },
+    spec: {
+      size,
+      walled: !!b.walls,
+      fort: !!b.citadel,
+      hill: !!b.cap || size === "city",
+      shanty: !!b.shanty,
+      plaza: !!b.plaza,
+      temple: !!b.temple
+    }
+  };
 }

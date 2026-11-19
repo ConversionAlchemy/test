@@ -410,7 +410,10 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     { passive: false }
   );
   const fitToScreen = () => {
-    view = clamp({ x: (stage.clientWidth - city.W * minZoom()) / 2, y: 0, zoom: minZoom() });
+    // the whole map, centred as near the town's square as the edges allow
+    const z = minZoom();
+    const [qx, qy] = city.pack.cells.p[city.squareCell] ?? [city.W / 2, city.H / 2];
+    view = clamp({ x: stage.clientWidth / 2 - qx * z, y: stage.clientHeight / 2 - qy * z, zoom: z });
     draw();
   };
 
@@ -433,7 +436,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       b.landmark ? 0 : ["Guardhouse", "Guild hall", "Chapel", "Tavern", "Office"].indexOf(b.type) + 1 || 9;
     const auto = city.buildings.filter(b => b.name && !favs.includes(b)).sort((a, b) => rank(a) - rank(b));
     keyed = [...favs, ...auto].slice(0, 12).map((b, k) => ({ n: k + 1, b, c: centreOf(b) }));
-    keyEl.innerHTML = `<h3>${esc(burg)}</h3><ol>${keyed.map(e => `<li data-n="${e.n}"><i>${e.n}.</i> ${esc(e.b.name ?? e.b.type)}</li>`).join("")}</ol>`;
+    keyEl.innerHTML = `<h3>${esc(burg)}</h3><ol>${keyed.map(e => `<li data-n="${e.n}"><i>${e.n}</i><span>${esc(e.b.name ?? e.b.type)}</span></li>`).join("")}</ol>`;
     for (const li of keyEl.querySelectorAll<HTMLLIElement>("li"))
       li.onclick = () => {
         const e = keyed[+(li.dataset.n as string) - 1];
@@ -443,10 +446,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
         ensureDetail();
       };
     marks.innerHTML = keyed
-      .map(
-        e =>
-          `<g data-n="${e.n}"><circle r="10"></circle><text text-anchor="middle" dominant-baseline="central">${e.n}</text></g>`
-      )
+      .map(e => `<g data-n="${e.n}"><circle r="8.5"></circle><text text-anchor="middle" dy="0.36em">${e.n}</text></g>`)
       .join("");
   };
   const marks = document.createElementNS(NS, "g");

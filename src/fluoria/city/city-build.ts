@@ -2,7 +2,7 @@
 // still the pixel look. Far out a terrace reads as one block; close in every house has its own outline
 import { connectVertices } from "@/utils/pathUtils";
 import type { Painted } from "./city-draw";
-import { DIST_COL, hedgeEdges, TYPE_INK } from "./city-draw";
+import { DIST_COL, hedgeEdges, OPEN_LAND, TYPE_INK } from "./city-draw";
 import type { Building, City, P2 } from "./city-gen";
 
 type C3 = readonly [number, number, number];
@@ -369,10 +369,18 @@ export function renderBuildings(
       }
     return out;
   };
-  const strokeRoads = (extra: number) => {
-    for (const r of city.roads) {
+  const RANK: Record<string, number> = { track: 0, path: 0, lane: 1, street: 2, main: 3 };
+  const ordered = [...city.roads].sort((a, b) => (RANK[a.type] ?? 0) - (RANK[b.type] ?? 0));
+  // the lesser the road, the greyer, then the dustier; slight, so the plan stays one sheet of paper
+  const TINT = (): Record<string, C3> =>
+    style !== "terrain"
+      ? { main: PAPER, street: [238, 236, 230], lane: [240, 233, 218], path: [238, 228, 208], track: [238, 228, 208] }
+      : { main: PAPER, street: [234, 231, 223], lane: [238, 228, 209], path: [232, 218, 192], track: [232, 218, 192] };
+  const strokeRoads = (extra: number, tint = false) => {
+    for (const r of ordered) {
       const w = W2[r.type];
       if (!w) continue;
+      if (tint) g.strokeStyle = css(TINT()[r.type] ?? PAPER);
       g.lineWidth = w * 2 + 0.6 + extra;
       g.beginPath();
       if (r.edges)
@@ -523,7 +531,7 @@ export function renderBuildings(
     g.stroke();
   }
   g.strokeStyle = g.fillStyle = css(PAPER);
-  strokeRoads(0);
+  strokeRoads(0, true);
   for (const i of squares) {
     pathOf(g, sqPoly(i));
     g.fill();
@@ -640,10 +648,34 @@ export function renderGround(city: City, painted: Painted, style: Style, s: numb
     g.fill();
     g.stroke();
   }
+  // closed yards are grass
+  const lawn: C3 = style === "terrain" ? [164, 194, 104] : [206, 220, 176];
+  g.fillStyle = css(lawn);
+  for (const y of city.yards) {
+    pathOf(g, y);
+    g.fill();
+  }
   speckle(cv, s, 0.45);
+  // on the plan views the fields are drawn as thin boundary lines on the paper
+  if (style !== "terrain") {
+    g.strokeStyle = "rgb(208,198,178)";
+    g.lineWidth = 0.5;
+    g.beginPath();
+    for (let i = 0; i < n; i++) {
+      if (!col[i] || !OPEN_LAND.has(city.use[i])) continue;
+      const vs = cells.v[i] as number[];
+      for (const [e, v] of vs.entries()) {
+        const w = vs[(e + 1) % vs.length];
+        const o = (cells.c[i] as number[]).find(j => j > i && cells.v[j]?.includes(v) && cells.v[j].includes(w));
+        if (o === undefined || o >= n || !col[o] || !OPEN_LAND.has(city.use[o])) continue;
+        g.moveTo(vertices.p[v][0], vertices.p[v][1]);
+        g.lineTo(vertices.p[w][0], vertices.p[w][1]);
+      }
+    }
+    g.stroke();
+  }
   // edges drawn inside each cell only: district or faction rims, the shore, the city's edge band
   const of = style === "districts" ? city.district : style === "factions" ? city.faction : null;
-  const PAPER: C3 = [246, 241, 228];
   const rimCol = (v: number): C3 | null =>
     v < 0
       ? null

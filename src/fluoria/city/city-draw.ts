@@ -181,6 +181,7 @@ export function furnish(city: City): void {
   const { W, H, pack, kind, use, district } = city;
   const { cells, vertices } = pack;
   const n = cells.p.length;
+  city.yards = [];
   let s = 977;
   const R = () => {
     s = (s * 16807) % 2147483647;
@@ -600,6 +601,7 @@ export function furnish(city: City): void {
       continue;
     }
     const inner = I;
+    let open = !!spec.set || wealth === 1;
     // each side: where the inner corners fall on it
     const sideAt = Q.map((a, e) => {
       const b = Q[(e + 1) % m];
@@ -635,6 +637,7 @@ export function furnish(city: City): void {
       for (const a of ring) for (const b of ring) span = Math.max(span, dist(a, b));
       const dd = dist(Q[e], inner[e]);
       if (!spec.set && shapeOk(ring, 6, 35, 150) && span <= Math.max(dd * 2.2, spec.w * 2.5)) build(ring, face);
+      else open = true;
     }
     for (let e = 0; e < m; e++) {
       if (short[e]) continue;
@@ -643,6 +646,7 @@ export function furnish(city: City): void {
       const w = (s1 - s0) / count;
       // the way into the yard, always the middle lot
       const gap = count >= 3 && R() < spec.gapP ? Math.floor(count / 2) : -1;
+      if (gap >= 0) open = true;
       for (let c = 0; c < count; c++) {
         if (c === gap) continue;
         const t0 = s0 + c * w;
@@ -651,6 +655,7 @@ export function furnish(city: City): void {
         build(lot, sides[e].face, [lot[0], lot[1]]);
       }
     }
+    if (!open) city.yards.push(inner);
     // the poorest pack their yards with shacks in rows, square to the cell's first side
     if (wealth === 1) {
       const u = sideAt[0].u;
@@ -734,14 +739,16 @@ export function furnish(city: City): void {
     b.name = names[b.key ?? ""] ?? name;
   };
   const gate0 = city.gates[0]?.p;
-  nb("Guardhouse", "The Watch House", b => !!gate0 && dist(b.poly[0], gate0) < 40 && b.type !== "Hut");
-  nb("Guardhouse", "Harbour Watch", b => kind[b.cell] === "docks");
-  nb("Chapel", "Chapel of the Ledger", b => kind[b.cell] === "wealthy");
-  nb("Tavern", "The Gilded Anchor", b => kind[b.cell] === "docks" && b.type !== "Warehouse");
-  nb("Tavern", "The Brass Scale", b => kind[b.cell] === "old");
-  nb("Tavern", "The Sleeping Clerk", b => kind[b.cell] === "old");
-  nb("Guild hall", "Hall of the Weigh-Masters", b => kind[b.cell] === "centre");
-  nb("Office", "Harbourmaster", b => b.type === "Warehouse");
+  const N = city.notables ?? {};
+  nb("Guardhouse", N.watch ?? "The Watch House", b => !!gate0 && dist(b.poly[0], gate0) < 40 && b.type !== "Hut");
+  nb("Guardhouse", N.harbourWatch ?? "Harbour Watch", b => kind[b.cell] === "docks");
+  nb("Chapel", N.chapel ?? "Chapel of the Ledger", b => kind[b.cell] === "wealthy");
+  const dockTavern = N.dockTavern ?? "The Gilded Anchor";
+  nb("Tavern", dockTavern, b => kind[b.cell] === "docks" && b.type !== "Warehouse");
+  nb("Tavern", N.tavern1 ?? "The Brass Scale", b => kind[b.cell] === "old");
+  nb("Tavern", N.tavern2 ?? "The Sleeping Clerk", b => kind[b.cell] === "old");
+  nb("Guild hall", N.guildHall ?? "Hall of the Weigh-Masters", b => kind[b.cell] === "centre");
+  nb("Office", N.harbourmaster ?? "Harbourmaster", b => b.type === "Warehouse");
   // who owns each building: its cell's holder, the Watch its guardhouses, the agents a quiet house in the old town
   for (const b of B) b.owner = city.faction[b.cell] >= 0 ? city.faction[b.cell] : undefined;
   for (const b of B) if (b.type === "Guardhouse") b.owner = 1;
@@ -749,7 +756,7 @@ export function furnish(city: City): void {
   {
     const quiet = B.filter(b => !b.name && kind[b.cell] === "old" && b.type === "Residence");
     if (quiet.length) quiet[Math.floor(R() * quiet.length)].owner = 6;
-    const tav = B.find(b => b.name === "The Gilded Anchor");
+    const tav = B.find(b => b.name === dockTavern);
     if (tav) tav.owner = 5;
   }
   for (const b of B) {
@@ -812,6 +819,9 @@ export function hedgeEdges(city: City): [P2, P2][] {
 }
 
 // ---- the shared city tiles: every cell kind paints from these, in either view
+/** Ground outside the town: fields, meadow and woods */
+export const OPEN_LAND = new Set(["grass", "pasture", "wheat", "tilled", "woods"]);
+const WOODS_PALE: C3 = [228, 232, 214];
 const hash = (x: number, y: number) => {
   let h = (x * 374761393 + y * 668265263) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -1140,7 +1150,9 @@ export function paint(city: City): Painted {
           ? [sum[i * 4] / n, sum[i * 4 + 1] / n, sum[i * 4 + 2] / n]
           : null;
   }
-  const mapCol = terrainCol.map(c => (c ? mix(c, PAPER, 0.4) : null));
+  const mapCol = terrainCol.map((c, i) =>
+    c ? (OPEN_LAND.has(use[i]) ? (use[i] === "woods" ? WOODS_PALE : PAPER) : mix(c, PAPER, 0.4)) : null
+  );
   const washed = (of: (ci: number) => number, col: (v: number) => C3 | null, t: number) =>
     mapCol.map((c, i) => {
       if (!c) return null;
@@ -1179,6 +1191,12 @@ export function paint(city: City): Painted {
   const faded = new ImageData(new Uint8ClampedArray(Pl), W, H);
   for (let j = 0; j < W * H; j++)
     for (let i = 0; i < 3; i++) faded.data[j * 4 + i] = faded.data[j * 4 + i] * 0.6 + PAPER[i] * 0.4;
+  // as on the old town plans, the country round the town is left as bare paper; woods a pale wash
+  for (let j = 0; j < W * H; j++) {
+    const ci = CID[j];
+    if (ci < 0 || water(j) || RD[j] || !OPEN_LAND.has(use[ci])) continue;
+    put(faded.data, j, wash(j % W, (j / W) | 0, use[ci] === "woods" ? WOODS_PALE : PAPER));
+  }
   // the district and faction views: the plain map with each area washed in its colour and edged where it ends
   const districts = new ImageData(new Uint8ClampedArray(faded.data), W, H);
   const factions = new ImageData(new Uint8ClampedArray(faded.data), W, H);
@@ -1219,6 +1237,7 @@ export function paint(city: City): Painted {
   );
   // outside the home cell: terrain darkens, the map pales, both deepening toward the view's edge
   const fadeTo = hex("#d6cdb6");
+  const MARGIN: C3 = [236, 231, 218];
   for (let j = 0; j < N; j++) {
     if (!HD[j]) continue;
     const x = j % W;
@@ -1226,8 +1245,10 @@ export function paint(city: City): Painted {
     const ed = Math.min(x, y, W - 1 - x, H - 1 - y);
     const t = Math.min(0.78, 0.3 + HD[j] / 260 + Math.max(0, (24 - ed) / 24) * 0.35);
     const k = j * 4;
-    for (const D of [districts.data, factions.data, Pl, faded.data])
-      for (let i = 0; i < 3; i++) D[k + i] = (D[k + i] * (1 - t * 0.7) + fadeTo[i] * t * 0.7) * 0.8;
+    for (let i = 0; i < 3; i++) Pl[k + i] = (Pl[k + i] * (1 - t * 0.7) + fadeTo[i] * t * 0.7) * 0.8;
+    // the plan views just pale out toward the margin
+    for (const D of [districts.data, factions.data, faded.data])
+      for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - t * 0.6) + MARGIN[i] * t * 0.6;
   }
   // the city's own edge: a soft band inside, a thin line on it
   const HI = bfs(j => CID[j] < 0 || home[CID[j]] !== 1);

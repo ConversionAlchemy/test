@@ -3,6 +3,7 @@
 // main roads run cell to cell through the centres, streets and lanes along cell edges
 import { calculateVoronoi } from "@/generators/voronoi";
 import { connectVertices, findPath } from "@/utils/pathUtils";
+import { type Lore, namer } from "./city-names";
 
 export type P2 = [number, number];
 export type Kind = "centre" | "wealthy" | "old" | "docks" | "shanty" | "square" | "park" | "pond";
@@ -17,8 +18,9 @@ export interface RegionCell {
 export interface Region {
   cells: RegionCell[];
   rivers?: { pts?: P2[]; p?: P2[] }[];
-  routes: { g: string; pts: P2[] }[];
+  routes: { g: string; n?: string; pts: P2[] }[];
   burgs: { n: string; x: number; y: number; port?: number; walls?: number }[];
+  lore?: Lore;
 }
 
 export interface District {
@@ -111,6 +113,8 @@ export interface Spec {
   fort: boolean;
   hill: boolean;
   shanty: boolean;
+  plaza?: boolean;
+  temple?: boolean;
 }
 export const TOWN_KINDS: Kind[] = ["centre", "wealthy", "old", "docks", "shanty", "square", "park", "pond"];
 
@@ -137,6 +141,8 @@ export interface City {
   trees: [number, number, number][];
   squareCell: number;
   ang: Float32Array;
+  yards: P2[][]; // closed yards, grassed
+  notables?: Record<string, string>; // names for the town's notable buildings
 }
 
 const rngOf = (seed: number) => {
@@ -227,6 +233,8 @@ export function buildCity(
   const H = Math.ceil((y1 - y0 + 2 * M) * U);
   const toP = ([rx, ry]: P2): P2 => [(rx - ox) * U, (ry - oy) * U];
   const R = rngOf(ed.seed ?? Math.round(B.x * 31 + B.y * 977));
+  // names in the culture's voice wherever the region says who lives here
+  const NM = S || region.lore ? namer(region.lore, ed.seed ?? Math.round(B.x * 31 + B.y * 977)) : null;
   const RC = region.cells
     .filter(c => {
       // any cell whose box overlaps the view, however large the cell
@@ -251,7 +259,9 @@ export function buildCity(
     return !!r?.water;
   };
   let shore: P2 | null = null;
-  for (let d = 4; d < 400 && !shore; d += 3)
+  // only water near the settlement's own cell pulls the town toward it
+  const reach = Math.max(...homeP.map(p => dist(p, C))) * 1.15;
+  for (let d = 4; d < reach && !shore; d += 3)
     for (let a = 0; a < 6.28 && !shore; a += 0.2) {
       const p: P2 = [C[0] + Math.cos(a) * d, C[1] + Math.sin(a) * d];
       if (waterAt(p[0], p[1])) shore = p;
@@ -276,7 +286,23 @@ export function buildCity(
     return [shore[0] + (C[0] - shore[0]) * k, shore[1] + (C[1] - shore[1]) * k];
   })();
   const seaDir = shore ? Math.atan2(shore[1] - T[1], shore[0] - T[0]) : 0;
-  const hillDir = seaDir + Math.PI * 0.75; // away from the water, to one side
+  // the rich side: up the slope where the land rises, else away from the water, to one side
+  const hillDir = (() => {
+    if (S) {
+      const hh = homeR.h;
+      let gx = 0;
+      let gy = 0;
+      for (const r of RC) {
+        if (r.water || r.home) continue;
+        const [x, y] = toP(r.rc.c);
+        const d = Math.hypot(x - C[0], y - C[1]) || 1;
+        gx += ((r.rc.h - hh) * (x - C[0])) / d / d;
+        gy += ((r.rc.h - hh) * (y - C[1])) / d / d;
+      }
+      if (Math.hypot(gx, gy) > 0.004) return Math.atan2(gy, gx);
+    }
+    return seaDir + Math.PI * 0.75;
+  })();
 
   // where the town is planned: the centre, the hill and the waterfront take a loose grid; the rest is organic
   const coastD = (x: number, y: number) => {
@@ -312,7 +338,7 @@ export function buildCity(
     const far = r.pts.map(toP).sort((a, b) => dist(b, C) - dist(a, C))[0];
     outDirs.push(Math.atan2(far[1] - T[1], far[0] - T[0]));
   }
-  for (const nb of region.burgs) {
+  for (const nb of S ? [] : region.burgs) {
     if (nb.n === burgName || outDirs.length >= 3) continue;
     const p = toP([nb.x, nb.y]);
     if (dist(p, C) > 900) continue;
@@ -536,6 +562,23 @@ export function buildCity(
     use[i] = !meadow(i) && kindOfSeed[i] === 2 ? (r < 0.4 ? "wheat" : r < 0.7 ? "tilled" : "pasture") : "grass";
   }
   let town = [...Array(n).keys()].filter(i => use[i] === "town");
+  // a town squeezed by the shore grows along the dry land of its cell, nearest first, until it is its size
+  if (S) {
+    const want = { hamlet: 3, village: 12, town: 30, city: 60 }[S.size];
+    if (town.length < want) {
+      const room = [...Array(n).keys()]
+        .filter(i => homeMask[i] && !isWater[i] && use[i] !== "town")
+        .sort((a, b) => dT(a) - dT(b));
+      for (const i of room.slice(0, want - town.length)) use[i] = "town";
+      town = [...Array(n).keys()].filter(i => use[i] === "town");
+    }
+  }
+  // a cramped site (a spit, an islet) still gets a few houses: the dry cells nearest the town's place
+  if (town.length < 3) {
+    const dry = [...Array(n).keys()].filter(i => !isWater[i] && use[i] !== "town").sort((a, b) => dT(a) - dT(b));
+    for (const i of dry.slice(0, 3 - town.length)) use[i] = "town";
+    town = [...Array(n).keys()].filter(i => use[i] === "town");
+  }
 
   // districts, by place: the centre round the square, the planned hill, the waterfront, two old quarters
   const kind: (Kind | null)[] = new Array(n).fill(null);
@@ -556,12 +599,18 @@ export function buildCity(
   }
   kind[squareCell] = "square";
   const DIST: District[] = [
-    { id: 0, name: S ? "Market Quarter" : "The Exchange", kind: "centre", cells: [], wealth: 4 },
-    { id: 1, name: S ? "The Heights" : "Gilt Hill", kind: "wealthy", cells: [], wealth: 5 },
-    { id: 2, name: S ? "Waterside" : "Bankside", kind: "docks", cells: [], wealth: 3 },
-    { id: 3, name: S && !big ? burgName : "Old Town", kind: "old", cells: [], wealth: S && !big ? 5 : 2 },
-    { id: 4, name: S ? "Northgate" : "Saltgate", kind: "old", cells: [], wealth: 2 },
-    { id: 5, name: S ? "The Warren" : "The Rookery", kind: "shanty", cells: [], wealth: 1 }
+    { id: 0, name: NM ? NM.district("centre") : "The Exchange", kind: "centre", cells: [], wealth: 4 },
+    { id: 1, name: NM ? NM.district("wealthy") : "Gilt Hill", kind: "wealthy", cells: [], wealth: 5 },
+    { id: 2, name: NM ? NM.district("docks") : "Bankside", kind: "docks", cells: [], wealth: 3 },
+    {
+      id: 3,
+      name: S && !big ? burgName : NM ? NM.district("old", 0) : "Old Town",
+      kind: "old",
+      cells: [],
+      wealth: S && !big ? 5 : 2
+    },
+    { id: 4, name: NM ? NM.district("old", 1) : "Saltgate", kind: "old", cells: [], wealth: 2 },
+    { id: 5, name: NM ? NM.district("shanty") : "The Rookery", kind: "shanty", cells: [], wealth: 1 }
   ];
   for (const i of town) {
     const k = kind[i];
@@ -585,7 +634,7 @@ export function buildCity(
       if (pond !== undefined) kind[pond] = "pond";
     }
     const old = town.filter(i => kind[i] === "old" && cells.c[i].every(j => use[j] === "town"));
-    if (old.length && (!S || S.size === "city")) kind[old[Math.floor(old.length / 2)]] = "square";
+    if (old.length && (!S || (S.plaza && big))) kind[old[Math.floor(old.length / 2)]] = "square";
   }
   // the shanty: farmland just outside the town, on the side away from the hill
   {
@@ -650,10 +699,25 @@ export function buildCity(
       )[0];
     if (S) {
       if (c !== undefined && big)
-        landmarks.push({ id: 1, cells: [c], name: `${burgName} Hall`, type: "Hall", roof: "slate" });
+        landmarks.push({
+          id: 1,
+          cells: [c],
+          name: NM?.hall(burgName, S.size) ?? `${burgName} Hall`,
+          type: "Hall",
+          roof: "slate"
+        });
       const ch = cells.c[squareCell].find(j => use[j] === "town" && kind[j] !== "square" && j !== c);
       if (!big && ch !== undefined)
-        landmarks.push({ id: 2, cells: [ch], name: "The Chapel", type: "Chapel", roof: "slate" });
+        landmarks.push({ id: 2, cells: [ch], name: NM?.chapel() ?? "The Chapel", type: "Chapel", roof: "slate" });
+      // a temple on the square's far side, or in the old town
+      if (S.temple && big) {
+        const taken = new Set(landmarks.flatMap(l => l.cells));
+        const tc =
+          cells.c[squareCell].find(j => use[j] === "town" && kind[j] !== "square" && !taken.has(j)) ??
+          town.find(j => kind[j] === "old" && !taken.has(j));
+        if (tc !== undefined)
+          landmarks.push({ id: 4, cells: [tc], name: NM?.temple() ?? "The Temple", type: "Temple", roof: "slate" });
+      }
       if (S.fort) {
         // the fort holds the town's edge on the high side, away from the water
         const along = (i: number) => (pts[i][0] - T[0]) * Math.cos(hillDir) + (pts[i][1] - T[1]) * Math.sin(hillDir);
@@ -673,7 +737,7 @@ export function buildCity(
           landmarks.push({
             id: 3,
             cells: fc,
-            name: S.size === "city" ? "The Citadel" : "The Keep",
+            name: NM?.keep(S.size) ?? "The Keep",
             type: "Fort",
             roof: "slate"
           });
@@ -719,7 +783,7 @@ export function buildCity(
 
   // the turn rule: from the cell we came from, a main road may go on or bend a step, never double back
   const prevOf = new Int32Array(n).fill(-1);
-  const mainRoute = (from: number, to: number) => {
+  const mainRoute = (from: number, to: number, strict = true) => {
     const goal = pts[to];
     prevOf.fill(-1);
     const path = findPath(
@@ -736,7 +800,7 @@ export function buildCity(
         if (p >= 0) {
           const d1 = Math.atan2(pts[cur][1] - pts[p][1], pts[cur][0] - pts[p][0]);
           const tr = 1 - Math.cos(d0 - d1);
-          turn = tr > 1.1 ? Infinity : tr * 2.5;
+          turn = tr > 1.1 && strict ? Infinity : tr * 2.5;
         }
         if (prevOf[next] < 0) prevOf[next] = cur;
         const base = river[next]
@@ -762,7 +826,10 @@ export function buildCity(
     (vertices.c[a] ?? []).filter((c: number) => (vertices.c[b] ?? []).includes(c));
   const landEdge = (a: number, b: number, bridge = false) => {
     const cs = sharedCells(a, b);
-    return cs.length >= 2 && cs.every((c: number) => c < n && (!isWater[c] || (bridge && river[c])));
+    if (cs.length < 2) return false;
+    if (cs.every((c: number) => c < n && (!isWater[c] || (bridge && river[c])))) return true;
+    // a main road may run along the shore where the land is one cell wide
+    return bridge && cs.some((c: number) => c < n && !isWater[c]);
   };
   const mainEdges = new Set<string>();
   const edgePath = (starts: number[], goal: Set<number>, maxTurn: number, bridge = false): number[] | null => {
@@ -854,6 +921,9 @@ export function buildCity(
     for (let s = 0; s < 900; s += 6) {
       p = [T[0] + Math.cos(dir) * s, T[1] + Math.sin(dir) * s];
       if (p[0] < 6 || p[1] < 6 || p[0] > W - 6 || p[1] > H - 6) break;
+      // the road ends at the shore rather than leaping a strait
+      const here = nearestCell(p, () => true);
+      if (here >= 0 && isWater[here] && !river[here] && s > TR * 1.1 && last >= 0) break;
       const c = nearestCell(p, i => !isWater[i]);
       if (c >= 0 && !isWater[c]) last = c;
     }
@@ -862,9 +932,13 @@ export function buildCity(
   const routes = region.routes.filter(r => r.pts.some(([x, y]) => Math.hypot(x - B.x, y - B.y) < 1.5));
   for (const r of routes) {
     const far = r.pts.map(toP).sort((a, b) => dist(b, C) - dist(a, C))[0];
-    exits.push({ cell: edgeCell(Math.atan2(far[1] - T[1], far[0] - T[0])), name: S ? r.g : "Carnival Road", out: far });
+    exits.push({
+      cell: edgeCell(Math.atan2(far[1] - T[1], far[0] - T[0])),
+      name: S ? (r.n ?? r.g) : "Carnival Road",
+      out: far
+    });
   }
-  for (const nb of region.burgs) {
+  for (const nb of S ? [] : region.burgs) {
     if (nb.n === burgName || exits.length >= 3 || exits.some(e => e.name.startsWith(nb.n))) continue;
     const p = toP([nb.x, nb.y]);
     if (dist(p, C) > 900) continue;
@@ -875,7 +949,7 @@ export function buildCity(
   }
   for (const e of exits) {
     if (e.cell < 0 || erased.has(`m:${e.name}`)) continue;
-    const route = mainRoute(squareCell, e.cell);
+    const route = mainRoute(squareCell, e.cell) ?? mainRoute(squareCell, e.cell, false);
     if (!route) continue;
     for (const c of route) onMain[c] = 1;
     pushRoad(onEdges("main", `m:${e.name}`, named(`m:${e.name}`, e.name), route));
@@ -888,7 +962,7 @@ export function buildCity(
       const route = erased.has("m:Bankside") ? null : mainRoute(squareCell, far);
       if (route) {
         for (const c of route) onMain[c] = 1;
-        pushRoad(onEdges("main", "m:Bankside", named("m:Bankside", S ? "Quay Street" : "Bankside"), route));
+        pushRoad(onEdges("main", "m:Bankside", named("m:Bankside", NM ? "Quay Street" : "Bankside"), route));
       }
     }
   }
@@ -1023,6 +1097,17 @@ export function buildCity(
     });
     const used = new Uint8Array(streetEdges.length);
     let sn = 0;
+    const streetNames = new Set<string>();
+    const uniqueStreet = () => {
+      for (let k = 0; k < 8; k++) {
+        const nm = NM?.street() as string;
+        if (!streetNames.has(nm)) {
+          streetNames.add(nm);
+          return nm;
+        }
+      }
+      return NM?.street() as string;
+    };
     for (let k = 0; k < streetEdges.length; k++) {
       if (used[k]) continue;
       const chain = [k];
@@ -1069,7 +1154,10 @@ export function buildCity(
         edges,
         ekeys,
         pts: linePts,
-        name: named(skey, type === "street" && len > 45 ? STREETS[sn++ % STREETS.length] : undefined)
+        name: named(
+          skey,
+          type === "street" && len > 45 ? (NM ? uniqueStreet() : STREETS[sn++ % STREETS.length]) : undefined
+        )
       });
     }
   }
@@ -1300,7 +1388,9 @@ export function buildCity(
             ? 5
             : district[i] === 4
               ? 2
-              : 4;
+              : S && !big
+                ? 0
+                : 4;
   }
   for (const g of gates)
     for (let i = 0; i < n; i++)
@@ -1324,12 +1414,14 @@ export function buildCity(
     landmarks,
     farms,
     block,
-    factions: FACTIONS,
+    factions: NM ? NM.factions(burgName, S?.size ?? "city") : FACTIONS,
+    notables: NM?.notables(),
     faction,
     edits: ed,
     buildings: [],
     trees: [],
     squareCell,
-    ang
+    ang,
+    yards: []
   };
 }
