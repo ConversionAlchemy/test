@@ -509,8 +509,8 @@ export function furnish(city: City): void {
     const A = Math.abs(area2(P)) / 2;
     return A >= minSide * minSide * 1.2 && A >= 0.45 * (ax.u1 - ax.u0) * (ax.v1 - ax.v0);
   };
-  // blocks are groups of cells: neighbours of one block with no road between them merge into one shape,
-  // and every side is pulled in by what lies beyond it, so fronts sit flush along the street
+  // plots are cells: every side is pulled in by what lies beyond it, so fronts sit flush along the street
+  // and neighbours of one block share a party wall
   const LOT_KINDS = new Set(["centre", "old", "docks", "wealthy", "shanty"]);
   const lotCell = (i: number) => i < n && city.home[i] === 1 && !landCell[i] && LOT_KINDS.has(kind[i] as string);
   const HALF: Record<string, number> = { main: 2.3, street: 1.7, lane: 1.3, path: 1, track: 1.1 };
@@ -519,29 +519,11 @@ export function furnish(city: City): void {
   for (const r of city.roads)
     if (r.edges && HALF[r.type])
       for (const [a, b] of r.edges) edgeHalf.set(ek(a, b), Math.max(edgeHalf.get(ek(a, b)) ?? 0, HALF[r.type]));
-  const shared = (i: number, j: number) => cells.v[i].filter((v: number) => cells.v[j].includes(v));
-  const parent = new Int32Array(n).map((_, i) => i);
-  const root = (i: number): number => {
-    while (parent[i] !== i) i = parent[i];
-    return i;
-  };
-  for (let i = 0; i < n; i++) {
-    if (!lotCell(i)) continue;
-    for (const j of cells.c[i]) {
-      if (j <= i || !lotCell(j) || city.block[j] !== city.block[i]) continue;
-      const sv = shared(i, j);
-      if (sv.length < 2 || edgeHalf.has(ek(sv[0], sv[1]))) continue;
-      parent[root(j)] = root(i);
-    }
-  }
   const groups = new Map<number, number[]>();
-  for (let i = 0; i < n; i++)
-    if (lotCell(i)) {
-      const r = root(i);
-      groups.set(r, [...(groups.get(r) ?? []), i]);
-    }
+  // each cell is its own plot, so lot lines never cross a cell edge
+  for (let i = 0; i < n; i++) if (lotCell(i)) groups.set(i, [i]);
   const WEALTH: Record<number, { area: number; minSide: number; build: number; inner: number }> = {
-    1: { area: 22, minSide: 2.5, build: 0.8, inner: 0.25 },
+    1: { area: 18, minSide: 2.5, build: 0.9, inner: 0.75 },
     2: { area: 50, minSide: 3, build: 0.98, inner: 0.3 },
     3: { area: 70, minSide: 3.5, build: 0.98, inner: 0.4 },
     4: { area: 90, minSide: 4, build: 1, inner: 1 },
@@ -570,7 +552,8 @@ export function furnish(city: City): void {
     if (use[o] === "water" || kind[o] === "pond") return 1;
     if (!(use[o] === "town" || use[o] === "shanty")) return city.walls.length ? 3 : 1;
     if (kind[o] === "square" || kind[o] === "park" || landCell[o]) return 0.6;
-    return 0.4;
+    // the next cell of the same block: a shared party wall, no gap
+    return city.block[o] === city.block[[...set][0]] ? 0.02 : 0.4;
   };
   const offsetBy = (P: P2[], off: number[]): P2[] => {
     const m = P.length;
@@ -694,8 +677,8 @@ export function furnish(city: City): void {
       }
       return [P];
     };
-    const lots = (wealth === 4 ? lotsOf(Q, spec.area, spec.minSide) : streetLots(Q)).flatMap(l =>
-      frontOf(l) || wealth !== 4 ? [l] : lotsOf(l, spec.area, spec.minSide)
+    const lots = (wealth === 4 || wealth === 1 ? lotsOf(Q, spec.area, spec.minSide) : streetLots(Q)).flatMap(l =>
+      frontOf(l) || (wealth !== 4 && wealth !== 1) ? [l] : lotsOf(l, spec.area, spec.minSide)
     );
     for (const lot of lots) {
       const fe = frontOf(lot);

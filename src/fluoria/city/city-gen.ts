@@ -1166,10 +1166,11 @@ export function buildCity(
   }
 
   // walls: the town's outline from the map's own vertex walk; gates where main roads cross it
-  const townSet = new Set(town);
+  // the wall rings every urban cell, the shanty too, so it always runs along cell edges at the town's rim
+  const townSet = new Set([...Array(n).keys()].filter(i => isTownish(i)));
   const walls: P2[][] = [];
   const checked = new Uint8Array(n);
-  for (const i of town) {
+  for (const i of townSet) {
     if (checked[i] || !cells.c[i].some(j => !townSet.has(j))) continue;
     const start = cells.v[i].find(v => vertices.c[v].some(c => !townSet.has(c)));
     if (start === undefined) continue;

@@ -326,7 +326,7 @@ export function renderBuildings(
   // streets, squares and walls in vector: what strays onto a street is cut away, the walls and buildings cast
   // their shadow, then the streets are laid on top, filled and edged in thin ink
   const { vertices, cells } = city.pack;
-  const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
+  const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8, pier: 1.2 };
   const townish = (c: number) => c < city.use.length && (city.use[c] === "town" || city.use[c] === "shanty");
   const atWall = (v: number) =>
     city.walls.length > 0 &&
