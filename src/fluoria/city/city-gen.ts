@@ -703,6 +703,8 @@ export function buildCity(
   };
   // a main road's cells give its corridor; the road itself runs along their edges, corner to corner,
   // paying for every turn so it keeps its line
+  // the walled town: the shanty grows outside it
+  const townish0 = (c: number) => use[c] === "town";
   const edgePath = (route: number[], maxTurn = 80, wide = false): number[] | null => {
     const corridor = new Set<number>();
     for (const c of route) {
@@ -735,6 +737,13 @@ export function buildCity(
       for (const nv of vertices.v[cur.v] ?? []) {
         if (!corridor.has(nv) || nv === cur.pv) continue;
         if (vertices.c[nv].every((c: number) => c >= n || isWater[c])) continue;
+        // never along the town's rim: that edge is the wall; a road only crosses it, at a corner
+        const cs = vertices.c[cur.v].filter((c: number) => vertices.c[nv].includes(c));
+        if (
+          cs.some((c: number) => c < n && townish0(c)) &&
+          cs.some((c: number) => c >= n || (!townish0(c) && !isWater[c]))
+        )
+          continue;
         let turn = 0;
         if (cur.pv >= 0) {
           const d = ang(cur.v, nv) - ang(cur.pv, cur.v);
@@ -755,14 +764,14 @@ export function buildCity(
     for (let k: string | null = end; k; k = back.get(k) ?? null) out.unshift(+k.split("|")[0]);
     return out.length > 1 ? out : null;
   };
-  const mainOnEdges = (key: string, name: string | undefined, route: number[]) => {
+  const onEdges = (type: Road["type"], key: string, name: string | undefined, route: number[]): Road => {
     // never through a cell's middle: widen the corridor and allow sharper turns before giving up
     const vs = edgePath(route) ?? edgePath(route, 80, true) ?? edgePath(route, 125, true);
     const ek = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
-    if (!vs) return { type: "main" as const, key, name, cells: route, pts: lineOf(route) };
+    if (!vs) return { type, key, name, cells: route, pts: lineOf(route) };
     const edges = vs.slice(1).map((v, i) => [vs[i], v] as [number, number]);
     return {
-      type: "main" as const,
+      type,
       key,
       name,
       cells: route,
@@ -817,7 +826,7 @@ export function buildCity(
     const route = mainRoute(squareCell, e.cell);
     if (!route) continue;
     for (const c of route) onMain[c] = 1;
-    roads.push(mainOnEdges(`m:${e.name}`, named(`m:${e.name}`, e.name), route));
+    roads.push(onEdges("main", `m:${e.name}`, named(`m:${e.name}`, e.name), route));
   }
   // the dock road: from the square to the waterfront
   {
@@ -827,7 +836,7 @@ export function buildCity(
       const route = erased.has("m:Bankside") ? null : mainRoute(squareCell, far);
       if (route) {
         for (const c of route) onMain[c] = 1;
-        roads.push(mainOnEdges("m:Bankside", named("m:Bankside", "Bankside"), route));
+        roads.push(onEdges("main", "m:Bankside", named("m:Bankside", "Bankside"), route));
       }
     }
   }
@@ -836,7 +845,7 @@ export function buildCity(
     const route = r.cells.filter(i => i >= 0 && i < n);
     if (route.length < 2) continue;
     if (r.type === "main") for (const c of route) onMain[c] = 1;
-    roads.push({ type: r.type, key: `u:${k}`, name: named(`u:${k}`, r.name), cells: route, pts: lineOf(route) });
+    roads.push(onEdges(r.type, `u:${k}`, named(`u:${k}`, r.name), route));
   }
   // farms and hamlets: a few field cells off the main roads, each reached by a track branching off the nearest road
   const farms: Farm[] = [];
@@ -864,8 +873,7 @@ export function buildCity(
       farms.push({ cell: i, houses: R() < 0.25 ? 3 + Math.floor(R() * 3) : 1 });
       for (const c of route) onTrack[c] = 1;
       onTrack[route[route.length - 1]] = 0;
-      if (!erased.has(`t:${i}`))
-        roads.push({ type: "track", key: `t:${i}`, cells: route.reverse(), pts: lineOf(route) });
+      if (!erased.has(`t:${i}`)) roads.push(onEdges("track", `t:${i}`, undefined, route.reverse()));
     }
   }
 
@@ -914,7 +922,8 @@ export function buildCity(
   for (let i = 0; i < n; i++) {
     if (!isTownish(i)) continue;
     for (const j of cells.c[i]) {
-      if (j >= n || !isTownish(j)) continue;
+      // no street along the wall: the town and the shanty meet only at the gates
+      if (j >= n || !isTownish(j) || use[i] !== use[j]) continue;
       const sh = cells.v[i].filter(v => cells.v[j].includes(v));
       if (sh.length < 2) continue;
       const k = edgeKey(sh[0], sh[1]);
@@ -926,25 +935,18 @@ export function buildCity(
       const ks = [ki, kj];
       const shanty = ks.includes("shanty");
       const plannedE = ks.every(x => x === "centre" || x === "docks" || x === "square" || x === "wealthy");
-      // inside a block only the odd passage; between blocks nearly always a street
-      const same = block[i] >= 0 && block[i] === block[j];
-      const p = same
-        ? 0.06
-        : shanty
-          ? 0.5
-          : ks.includes("wealthy") && !ks.includes("old")
-            ? 0.7
-            : plannedE
-              ? 0.97
-              : 0.85;
+      // every edge between town cells is a road, so every cell has a street on each side to build along;
+      // only stubs too short to read are left out
+      const same = district[i] === district[j] && !plannedE;
       const sq = ks.includes("square");
-      if ((sq && !same) || R() < p) {
+      const open = (x: Kind | null) => x === "pond" || x === "park";
+      if (dist(vertices.p[sh[0]], vertices.p[sh[1]]) >= 3.5 && !open(ki) && !open(kj)) {
         streetEdges.push({
           a: sh[0],
           b: sh[1],
           c1: i,
           c2: j,
-          type: shanty ? "path" : same ? "lane" : plannedE || sq ? "street" : "lane"
+          type: shanty ? "lane" : same ? "lane" : plannedE || sq ? "street" : "lane"
         });
         hasRoad[i] = 1;
         hasRoad[j] = 1;
@@ -973,7 +975,10 @@ export function buildCity(
       bump(e.b, 1);
     }
     const anchored = (v: number) =>
-      vertices.c[v].some((c: number) => c >= n || isWater[c] || !isTownish(c) || kind[c] === "square");
+      vertices.c[v].some(
+        (c: number) =>
+          c >= n || isWater[c] || !isTownish(c) || kind[c] === "square" || kind[c] === "park" || kind[c] === "pond"
+      );
     const has = new Set(streetEdges.map(e => edgeKey(e.a, e.b)));
     for (const r of roads) if (r.type === "main" && r.edges) for (const [a, b] of r.edges) has.add(edgeKey(a, b));
     const loose0 = (v: number) => deg.get(v) === 1 && !anchored(v);
@@ -1170,8 +1175,8 @@ export function buildCity(
   }
 
   // walls: the town's outline from the map's own vertex walk; gates where main roads cross it
-  // the wall rings every urban cell, the shanty too, so it always runs along cell edges at the town's rim
-  const townSet = new Set([...Array(n).keys()].filter(i => isTownish(i)));
+  // the wall rings the town cells along their outer edges; the shanty lies outside it
+  const townSet = new Set(town);
   const walls: P2[][] = [];
   const checked = new Uint8Array(n);
   for (const i of townSet) {
@@ -1243,12 +1248,14 @@ export function buildCity(
     }
   }
   // towers at the gates and at the wall's turns, kept apart
+  // turrets where the wall turns by more than 20 degrees, clear of the gates
   const towers: P2[] = [];
-  for (const g of gates) towers.push(g.a, g.b);
   for (const w of walls)
-    for (let k = 0; k < w.length - 1; k++) {
-      const p = w[k];
-      if (towers.some(t => dist(t, p) < 22)) continue;
+    for (let k = 1; k < w.length - 1; k++) {
+      const [a, p, b] = [w[k - 1], w[k], w[k + 1]];
+      const d = Math.atan2(b[1] - p[1], b[0] - p[0]) - Math.atan2(p[1] - a[1], p[0] - a[0]);
+      if (Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) < 0.6) continue;
+      if (gates.some(g => dist(g.p, p) < 8) || towers.some(t => dist(t, p) < 12)) continue;
       towers.push(p);
     }
 

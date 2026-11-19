@@ -326,8 +326,8 @@ export function renderBuildings(
   // streets, squares and walls in vector: what strays onto a street is cut away, the walls and buildings cast
   // their shadow, then the streets are laid on top, filled and edged in thin ink
   const { vertices, cells } = city.pack;
-  const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
-  const townish = (c: number) => c < city.use.length && (city.use[c] === "town" || city.use[c] === "shanty");
+  const W2: Record<string, number> = { main: 2, street: 1.3, lane: 0.8, path: 0.7, track: 0.8 };
+  const townish = (c: number) => c < city.use.length && city.use[c] === "town";
   const atWall = (v: number) =>
     city.walls.length > 0 &&
     vertices.c[v].some(townish) &&
@@ -370,7 +370,7 @@ export function renderBuildings(
   }
   g.globalCompositeOperation = "source-over";
   // the town wall: a stone band with round towers, open at each gate
-  const stone: C3 = faded ? [176, 166, 152] : [120, 108, 96];
+  const stone: C3 = faded ? [196, 190, 180] : [160, 152, 142];
   const drawWalls = () => {
     const open = (p: P2) => city.gates.some(gt => Math.hypot(gt.p[0] - p[0], gt.p[1] - p[1]) < 3.4);
     const runs: P2[][] = [];
@@ -402,16 +402,25 @@ export function renderBuildings(
         g.stroke();
       }
     }
+    // turrets: small squares at the turns; gate towers: large and dark, either side of each gate
+    const dark: C3 = faded ? [150, 140, 128] : [96, 86, 76];
     for (const [tx, ty] of city.towers) {
-      g.fillStyle = css(sh(stone, 0.7));
-      g.beginPath();
-      g.arc(tx, ty, 2.6, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = css(sh(stone, 1.08));
-      g.beginPath();
-      g.arc(tx, ty, 1.9, 0, Math.PI * 2);
-      g.fill();
+      g.fillStyle = css(sh(stone, 0.72));
+      g.fillRect(tx - 1.9, ty - 1.9, 3.8, 3.8);
+      g.fillStyle = css(sh(stone, 1.06));
+      g.fillRect(tx - 1.3, ty - 1.3, 2.6, 2.6);
     }
+    for (const gt of city.gates)
+      for (const [tx, ty] of [gt.a, gt.b]) {
+        g.fillStyle = css(sh(dark, 0.75));
+        g.beginPath();
+        g.arc(tx, ty, 3, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = css(dark);
+        g.beginPath();
+        g.arc(tx, ty, 2.3, 0, Math.PI * 2);
+        g.fill();
+      }
   };
   drawWalls();
   hard(body);
