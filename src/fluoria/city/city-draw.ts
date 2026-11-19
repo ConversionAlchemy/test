@@ -431,13 +431,40 @@ export function furnish(city: City): void {
         }
     }
   }
-  // the shanty: huts packed against each other at odd angles
+  // the shanty: rows of huts shouldering each path, then a scatter filling the yards behind
+  for (const r of city.roads)
+    for (let k = 0; k < r.pts.length - 1; k++) {
+      const [a0, a1] = [r.pts[k], r.pts[k + 1]];
+      const L = dist(a0, a1);
+      if (L < 3) continue;
+      const tx = (a1[0] - a0[0]) / L;
+      const ty = (a1[1] - a0[1]) / L;
+      for (const side of [1, -1])
+        for (const row of [0, 1]) {
+          const off = (WIDTH[r.type] ?? 1) + 1.2 + row * 5.5;
+          for (let t = R() * 2; t < L - 2; ) {
+            const f = 2.6 + R() * 2.2;
+            const d = 3.4 + R() * 1.6;
+            const o: P2 = [a0[0] + tx * t - ty * off * side, a0[1] + ty * t + tx * off * side];
+            const i = CID[Math.round(o[1]) * W + Math.round(o[0])];
+            t += f + (R() < 0.2 ? 1.5 : 0.4);
+            if (i === undefined || i < 0 || kind[i] !== "shanty" || (row && R() < 0.35)) continue;
+            const pl = rect(o, tx, ty, -ty * side, tx * side, f, d);
+            const cl = free(pl, i);
+            if (cl)
+              place(
+                { cell: i, poly: pl, type: "Hut", roof: pick(ROOFS.shanty), addr: dname(i), district: district[i] },
+                cl
+              );
+          }
+        }
+    }
   for (let i = 0; i < n; i++)
     if (kind[i] === "shanty")
       for (let y = 0; y < H; y += 3)
         for (let x = 0; x < W; x += 3) {
           const j = y * W + x;
-          if (CID[j] !== i || OCC[j] || RD[j] || R() < 0.15) continue;
+          if (CID[j] !== i || OCC[j] || RD[j] || R() < 0.55) continue;
           const a = R() * 0.6 - 0.3 + city.ang[i];
           const tx = Math.cos(a);
           const ty = Math.sin(a);
@@ -569,7 +596,7 @@ export function hedgeEdges(city: City): [P2, P2][] {
   const farm = (u: string) => u === "wheat" || u === "tilled" || u === "pasture";
   for (let i = 0; i < cells.p.length; i++)
     for (const j of cells.c[i]) {
-      if (j <= i || j >= cells.p.length || !farm(use[i]) || !farm(use[j])) continue;
+      if (j <= i || j >= cells.p.length || !farm(use[i]) || !farm(use[j]) || use[i] === use[j]) continue;
       const shv = cells.v[i].filter((v: number) => cells.v[j].includes(v));
       if (shv.length >= 2) out.push([vertices.p[shv[0]], vertices.p[shv[1]]]);
     }
@@ -595,11 +622,22 @@ const calm = (c: C3, t = 0.3): C3 => {
 export function terrainTile(kind: string, x: number, y: number, a: number): C3 {
   switch (kind) {
     case "wheat":
-      return calm(stripe(x, y, a) < 2 ? P.field1 : P.field2);
+      return sh(calm(stripe(x, y, a) < 2 ? P.field1 : P.field2, 0.12), 1.08);
     case "tilled":
-      return calm(stripe(x, y, a) < 2 ? P.dirt3 : sh(P.dirt3, 0.9));
+      return sh(calm(stripe(x, y, a) < 2 ? P.dirt3 : sh(P.dirt3, 0.94), 0.12), 1.08);
     case "pasture":
-      return calm(stripe(x, y, a, 6) < 1 ? P.field3 : groundPixel("plains", x, y));
+      return sh(calm(stripe(x, y, a, 6) < 1 ? P.field3 : groundPixel("plains", x, y), 0.12), 1.08);
+    case "allot": {
+      // market gardens: little plots of mixed crops between grass paths
+      const u = x * Math.cos(a) + y * Math.sin(a);
+      const v = -x * Math.sin(a) + y * Math.cos(a);
+      const pu = Math.floor(u / 7);
+      const pv = Math.floor(v / 5);
+      if (((u % 7) + 7) % 7 < 1 || ((v % 5) + 5) % 5 < 1) return sh(groundPixel("plains", x, y), 1.06);
+      const pick = (((pu * 73856093) ^ (pv * 19349663)) >>> 0) % 4;
+      const c = [P.field1, P.dirt3, P.field3, P.field2][pick];
+      return sh(calm(stripe(x, y, a + (pick & 1 ? Math.PI / 2 : 0), 2) < 1 ? sh(c, 0.92) : c, 0.12), 1.08);
+    }
     case "woods":
       return calm(groundPixel("woods", x, y), 0.15);
     case "centre":
@@ -613,7 +651,7 @@ export function terrainTile(kind: string, x: number, y: number, a: number): C3 {
     case "park":
       return groundPixel("plains", x, y);
     case "old":
-      return ditherAt(x, y) < 0.35 ? sh(P.dirt3, 1.08) : groundPixel("plains", x, y);
+      return mix(groundPixel("plains", x, y), [218, 204, 174], ditherAt(x, y) < 0.3 ? 0.7 : 0.55);
     default:
       return calm(groundPixel("plains", x, y));
   }
@@ -650,6 +688,8 @@ export function mapTile(kind: string): C3 {
       return MAPC.tilled;
     case "pasture":
       return MAPC.pasture;
+    case "allot":
+      return mix(MAPC.pasture, MAPC.tilled, 0.4);
     case "woods":
       return MAPC.woods;
     case "wealthy":
@@ -763,7 +803,9 @@ export function paint(city: City): Painted {
     D[j * 4 + 2] = c[2];
     D[j * 4 + 3] = 255;
   };
-  const kindAt = (j: number) => (CID[j] >= 0 ? (kind[CID[j]] ?? use[CID[j]]) : "water");
+  const kindAt = (j: number) =>
+    CID[j] >= 0 ? (kind[CID[j]] ?? (city.fringe[CID[j]] ? "allot" : use[CID[j]])) : "water";
+  const WOD = bfs(j => kindAt(j) === "woods");
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const j = y * W + x;
@@ -794,8 +836,8 @@ export function paint(city: City): Painted {
               break;
             }
           }
-        } else if (x > 1 && y > 1 && kindAt(j - W - 1) === "woods" && !water(j)) t = sh(t, 0.72);
-        else if (x > 2 && y > 2 && kindAt(j - 2 * W - 2) === "woods" && !water(j)) t = sh(t, 0.85);
+        } else if (WOD[j] <= 3 && ditherAt(x, y) < 0.55 - WOD[j] * 0.16) t = terrainTile("woods", x, y, 0);
+        else if (x > 1 && y > 1 && kindAt(j - W - 1) === "woods") t = sh(t, 0.8);
       }
       const r = RD[j];
       if (r) {
@@ -806,8 +848,8 @@ export function paint(city: City): Painted {
           t = inTown ? paving(x, y) : r >= 3 ? sh(P.cob3, 1.1) : sh(P.dirt3, 1.22);
           m = MAPC.road;
           if (kerb) {
-            t = sh(t, 0.76);
-            m = r >= 3 ? MAPC.roadEdge : MAPC.laneEdge;
+            t = sh(mix(t, terrainTile(k, x, y, city.ang[ci] ?? 0), 0.45), 0.9);
+            m = r >= 4 ? MAPC.roadEdge : MAPC.laneEdge;
           }
         } else if (r === 7) {
           t = slab(x, y);
@@ -835,7 +877,19 @@ export function paint(city: City): Painted {
     for (let s = 0; s <= L; s += 0.5) {
       const X = Math.round(a[0] + ((b[0] - a[0]) * s) / L);
       const Y = Math.round(a[1] + ((b[1] - a[1]) * s) / L);
-      if (X >= 0 && Y >= 0 && X < W && Y < H && !RD[Y * W + X]) put(Mp, Y * W + X, MAPC.hedge);
+      if (X >= 0 && Y >= 0 && X < W && Y < H && !RD[Y * W + X]) {
+        const q = (Y * W + X) * 4;
+        for (let i = 0; i < 3; i++) Mp[q + i] = Mp[q + i] * 0.5 + MAPC.hedge[i] * 0.5;
+      }
+    }
+  }
+  for (const [a, b] of hedgeEdges(city)) {
+    const L = dist(a, b);
+    for (let s = 0; s <= L; s += 0.7) {
+      const X = Math.round(a[0] + ((b[0] - a[0]) * s) / L);
+      const Y = Math.round(a[1] + ((b[1] - a[1]) * s) / L);
+      if (X < 0 || Y < 0 || X >= W || Y >= H || RD[Y * W + X] || ditherAt(X, Y) < 0.25) continue;
+      put(T, Y * W + X, ditherAt(X + 1, Y) < 0.5 ? WOODS[2] : WOODS[3]);
     }
   }
   // shadows to the lower right
@@ -947,6 +1001,19 @@ export function paint(city: City): Painted {
     for (let i = 0; i < 3; i++) T[k + i] = T[k + i] * (1 - tw) + 20 * tw;
     for (const D of [Mp, districts.data, factions.data])
       for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - t * 0.7) + fadeTo[i] * t * 0.7;
+  }
+  // the city's own edge: a soft band inside, a thin line on it
+  const HI = bfs(j => CID[j] < 0 || home[CID[j]] !== 1);
+  for (let j = 0; j < N; j++) {
+    const d = HI[j];
+    if (!d || d > 9) continue;
+    const k = j * 4;
+    const tt = d <= 1 ? 0.7 : 0.26 * (1 - (d - 2) / 8);
+    const ct: C3 = [70, 40, 30];
+    const cm: C3 = d <= 1 ? [140, 70, 56] : [196, 120, 96];
+    for (let i = 0; i < 3; i++) T[k + i] = T[k + i] * (1 - tt) + ct[i] * tt;
+    for (const D of [Mp, districts.data, factions.data])
+      for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - tt) + cm[i] * tt;
   }
   return { terrain, map, districts, factions, CID, BID };
 }

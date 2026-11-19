@@ -7,11 +7,6 @@ import type { Building, City, P2 } from "./city-gen";
 
 type C3 = readonly [number, number, number];
 const sh = (c: C3, f: number): C3 => [Math.min(255, c[0] * f), Math.min(255, c[1] * f), Math.min(255, c[2] * f)];
-const mix = (a: C3, b: C3, t: number): C3 => [
-  a[0] + (b[0] - a[0]) * t,
-  a[1] + (b[1] - a[1]) * t,
-  a[2] + (b[2] - a[2]) * t
-];
 const hex = (h: string): C3 => [
   Number.parseInt(h.slice(1, 3), 16),
   Number.parseInt(h.slice(3, 5), 16),
@@ -108,10 +103,12 @@ export function renderBuildings(
   const shapes = new Map<number, P2[]>();
   for (const b of city.buildings) shapes.set(b.id, b.landmark ? landmarkShape(city, b) : b.poly);
 
-  const paper: C3 = [236, 228, 208];
   const look = (b: Building): { pal: [C3, C3, C3]; flat: boolean } => {
     const ink = TYPE_INK[b.type];
-    if (style === "terrain") return { pal: ROOF[b.roof] ?? ROOF.clay, flat: false };
+    if (style === "terrain") {
+      const r = ROOF[b.roof] ?? ROOF.clay;
+      return { pal: [r[1], r[1], sh(r[2], 0.7)], flat: !b.landmark };
+    }
     if (style === "factions") {
       const f = b.owner !== undefined ? city.factions[b.owner] : undefined;
       if (!f)
@@ -124,7 +121,7 @@ export function renderBuildings(
           flat: true
         };
       const c = hex(f.col);
-      return { pal: [mix(c, paper, 0.25), mix(c, paper, 0.25), sh(c, 0.55)], flat: true };
+      return { pal: [sh(c, 0.7), sh(c, 0.7), sh(c, 0.42)], flat: true };
     }
     if (style === "districts") {
       if (ink) return { pal: [hex(ink), hex(ink), sh(hex(ink), 0.6)], flat: true };
@@ -154,7 +151,7 @@ export function renderBuildings(
     if (poly.length < 3) continue;
     pathOf(
       gs,
-      poly.map(p => [p[0] + 1.4, p[1] + 1.4] as P2)
+      poly.map(p => [p[0] + 0.9, p[1] + 0.9] as P2)
     );
     gs.fill();
   }
@@ -178,7 +175,7 @@ export function renderBuildings(
       g.fillStyle = css(pal[0]);
       pathOf(g, inner);
       g.fill();
-      if (!joined && !b.landmark && style !== "factions") {
+      if (!joined && !b.landmark && style !== "factions" && style !== "terrain") {
         g.strokeStyle = css(sh(pal[0], 0.86));
         g.lineWidth = lw;
         const [p0, p1, , p3] = inner;

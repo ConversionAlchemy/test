@@ -45,6 +45,7 @@ const RNAME: Record<string, string> = { main: "Main", street: "Street", lane: "L
 // tiers as on the region map: from which zoom a kind shows, its size, and who gives way
 const TIERS: Record<string, { min: number; px: number; rank: number; cls: string }> = {
   dist: { min: 0, px: 17, rank: 0, cls: "dist" },
+  fac: { min: 0, px: 15, rank: 0, cls: "fac" },
   land: { min: 2.6, px: 13, rank: 1, cls: "land" },
   gate: { min: 3, px: 12, rank: 2, cls: "gate" },
   main: { min: 2.8, px: 13, rank: 3, cls: "road main" },
@@ -183,6 +184,21 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
       labels.push({ id, text, x, y, priority: 100 - t.rank * 10, size: t.px, minZoom: t.min, tier, road });
     };
     for (const D of city.districts) if (D.cells.length) add(`d${D.id}`, D.name, mean(D.cells), "dist");
+    // a faction's name on each sizeable patch it holds
+    const seenF = new Uint8Array(cells.p.length);
+    for (let i = 0; i < cells.p.length; i++) {
+      const f = city.faction[i];
+      if (f < 0 || seenF[i]) continue;
+      const patch = [i];
+      seenF[i] = 1;
+      for (let k = 0; k < patch.length; k++)
+        for (const j of cells.c[patch[k]])
+          if (!seenF[j] && city.faction[j] === f) {
+            seenF[j] = 1;
+            patch.push(j);
+          }
+      if (patch.length >= 2) add(`f${i}`, city.factions[f].name, mean(patch), "fac");
+    }
     const sq = city.squareCell;
     add("sq", city.edits.names?.["q:sq"] ?? "Coin Square", cells.p[sq], "square");
     for (let i = 0; i < cells.p.length; i++) {
@@ -269,7 +285,16 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     const y = Math.min(0, Math.max(sh - city.H * z, v.y));
     return { x: Math.round(x), y: Math.round(y), zoom: z };
   };
-  const labelSize = (l: Label) => l.size * Math.max(0.85, Math.min(1.5, Math.sqrt(view.zoom / 3)));
+  // each view keeps its own labels, the way a themed map does
+  const labelMode = (l: Label): "show" | "soft" | "hide" => {
+    if (style === "districts") return l.tier === "dist" ? "show" : l.tier === "main" ? "soft" : "hide";
+    if (style === "factions") return l.tier === "fac" ? "show" : l.tier === "main" ? "soft" : "hide";
+    return l.tier === "fac" ? "hide" : "show";
+  };
+  const labelSize = (l: Label) =>
+    l.size *
+    (style === "districts" && l.tier === "dist" ? 1.25 : 1) *
+    Math.max(0.85, Math.min(1.5, Math.sqrt(view.zoom / 3)));
   const draw = () => {
     cv.width = stage.clientWidth;
     cv.height = stage.clientHeight;
@@ -278,11 +303,9 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.drawImage(world, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     if (detail) {
-      if (style === "terrain") {
-        ctx.globalAlpha = 0.3;
-        ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
-        ctx.globalAlpha = 1;
-      }
+      ctx.globalAlpha = style === "terrain" ? 0.55 : 0.25;
+      ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
+      ctx.globalAlpha = 1;
       ctx.drawImage(detail.body, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     }
     placeMarks();
@@ -297,19 +320,24 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
       mc.font = `${l.tier === "dist" ? "" : "italic "}${px}px "IM Fell English"`;
       return mc.measureText(l.text).width * (l.tier === "dist" ? 1.35 : 1.05);
     };
-    const shown = placeLabels(labels, view, { width: cv.width, height: cv.height }, l => {
-      const lb = l as Label;
-      const w = width(lb);
-      const px = labelSize(lb);
-      if (!lb.road) return { width: w, height: px };
-      const win = roadWindow(lb, w / view.zoom + 8);
-      const a = win[0];
-      const b = win[win.length - 1];
-      return {
-        width: Math.max(px, Math.abs(b[0] - a[0]) * view.zoom),
-        height: Math.max(px, Math.abs(b[1] - a[1]) * view.zoom)
-      };
-    });
+    const shown = placeLabels(
+      labels.filter(l => labelMode(l) !== "hide"),
+      view,
+      { width: cv.width, height: cv.height },
+      l => {
+        const lb = l as Label;
+        const w = width(lb);
+        const px = labelSize(lb);
+        if (!lb.road) return { width: w, height: px };
+        const win = roadWindow(lb, w / view.zoom + 8);
+        const a = win[0];
+        const b = win[win.length - 1];
+        return {
+          width: Math.max(px, Math.abs(b[0] - a[0]) * view.zoom),
+          height: Math.max(px, Math.abs(b[1] - a[1]) * view.zoom)
+        };
+      }
+    );
     const seen = new Set<string>();
     for (const l of labels) {
       const t = els.get(l.id) as SVGTextElement;
@@ -319,6 +347,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
         continue;
       }
       seen.add(key);
+      t.classList.toggle("soft", labelMode(l) === "soft");
       const px = labelSize(l);
       t.style.display = "";
       t.setAttribute("font-size", `${px}`);
@@ -441,7 +470,29 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     const p = at(e);
     if (!p) return null;
     const { cells } = city.pack;
-    if (p.bid) {
+    if (style === "factions" && tool === "inspect") {
+      const b = p.bid ? city.buildings[p.bid - 1] : null;
+      const f = b ? b.owner : p.ci >= 0 ? city.faction[p.ci] : -1;
+      const F = f !== undefined && f >= 0 ? city.factions[f] : null;
+      if (b)
+        return {
+          kind: b.landmark ? "landmark" : "building",
+          key: b.key ?? "",
+          label: b.name ?? b.type,
+          d: b.landmark ? outline(new Set(b.cells)) : `M${b.poly.map(q => q.join(",")).join("L")}Z`,
+          html: `<b>${F ? F.name : "Unclaimed"}</b><i>${b.name ?? b.type}</i>`
+        };
+      if (!F) return null;
+      return {
+        kind: "cell",
+        key: `c:${p.ci}`,
+        label: F.name,
+        d: outline(new Set(city.faction.reduce<number[]>((a, v, i) => (v === f ? a.concat(i) : a), []))),
+        cell: p.ci,
+        html: `<b>${F.name}</b><i>${F.kind}</i>`
+      };
+    }
+    if (p.bid && !(style === "districts" && tool === "inspect")) {
       const b = city.buildings[p.bid - 1];
       const D = city.districts.find(d => d.id === b.district)?.name ?? "";
       return {
@@ -453,7 +504,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
       };
     }
     const r = roadNear(p.x + 0.5, p.y + 0.5);
-    if (r && (r.name || tool !== "inspect")) {
+    if (r && (r.name || tool !== "inspect") && style !== "districts") {
       const g = city.gates.find(q => Math.hypot(q.p[0] - p.x, q.p[1] - p.y) < 5);
       if (g)
         return {

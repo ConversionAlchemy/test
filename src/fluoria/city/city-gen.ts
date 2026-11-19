@@ -118,6 +118,7 @@ export interface City {
   landmarks: Landmark[];
   farms: Farm[];
   block: Int32Array;
+  fringe: Uint8Array;
   factions: Faction[];
   faction: Int16Array;
   edits: Edits;
@@ -278,41 +279,86 @@ export function buildCity(
   const ca = Math.cos(axis);
   const sa = Math.sin(axis);
   const pts: P2[] = [];
-  const kindOfSeed: number[] = []; // 1 grid
+  const kindOfSeed: number[] = []; // 0 old town, 1 grid, 2 field strip
+  const seedAng: number[] = [];
+  // planned quarters: a loose grid, near exact in the centre so its cells are true rectangles
   for (let i = -40; i < 40; i++)
     for (let j = -40; j < 40; j++) {
-      const gx = T[0] + (i * ca - j * sa) * SP * 0.95 + (R() - 0.5) * 3;
-      const gy = T[1] + (i * sa + j * ca) * SP * 0.95 + (R() - 0.5) * 3;
+      const ux = (i * ca - j * sa) * SP * 0.95;
+      const uy = (i * sa + j * ca) * SP * 0.95;
+      const core = Math.hypot(ux, uy) < TR * 0.4;
+      const jit = core ? 0.4 : 3;
+      const gx = T[0] + ux + (R() - 0.5) * jit;
+      const gy = T[1] + uy + (R() - 0.5) * jit;
       if (gx < 2 || gy < 2 || gx > W - 2 || gy > H - 2) continue;
       if (!planned(gx, gy) || waterAt(gx, gy)) continue;
       pts.push([gx, gy]);
       kindOfSeed.push(1);
+      seedAng.push(axis);
     }
-  for (let t = 0; t < 40000; t++) {
+  const townZone = (x: number, y: number) => dist([x, y], T) < TR * 1.12;
+  // the old town: scattered seeds of mixed spacing
+  for (let t = 0; t < 30000; t++) {
     const x = R() * W;
     const y = R() * H;
-    if (planned(x, y) && !waterAt(x, y)) continue;
-    if (pts.some(p => Math.abs(p[0] - x) < SP * 0.8 && Math.abs(p[1] - y) < SP * 0.8 && dist(p, [x, y]) < SP * 0.8))
-      continue;
+    if (!townZone(x, y) || planned(x, y) || waterAt(x, y)) continue;
+    const sp = SP * (0.7 + R() * 0.55);
+    if (pts.some(p => Math.abs(p[0] - x) < sp && Math.abs(p[1] - y) < sp && dist(p, [x, y]) < sp)) continue;
     pts.push([x, y]);
     kindOfSeed.push(0);
+    seedAng.push(R() * Math.PI);
+  }
+  // farmland: patches of long strips, each patch its own direction and strip size, as Azgaar's cells vary
+  {
+    const patches: { c: P2; a: number; along: number; across: number }[] = [];
+    for (let t = 0; t < 4000; t++) {
+      const c: P2 = [R() * W, R() * H];
+      if (townZone(c[0], c[1]) || patches.some(q => dist(q.c, c) < 95)) continue;
+      patches.push({ c, a: R() * Math.PI, along: 34 + R() * 34, across: 15 + R() * 12 });
+    }
+    const near = (x: number, y: number) => {
+      let bi = -1;
+      let bd = Infinity;
+      patches.forEach((q, k) => {
+        const d = dist(q.c, [x, y]);
+        if (d < bd) {
+          bd = d;
+          bi = k;
+        }
+      });
+      return bi;
+    };
+    patches.forEach((q, k) => {
+      const ux = Math.cos(q.a);
+      const uy = Math.sin(q.a);
+      for (let i = -5; i <= 5; i++)
+        for (let j = -9; j <= 9; j++) {
+          const off = (j & 1) * q.along * 0.5 * (R() < 0.6 ? 1 : 0);
+          const x = q.c[0] + ux * (i * q.along + off) - uy * j * q.across + (R() - 0.5) * 6;
+          const y = q.c[1] + uy * (i * q.along + off) + ux * j * q.across + (R() - 0.5) * 6;
+          if (x < -10 || y < -10 || x > W + 10 || y > H + 10) continue;
+          if (townZone(x, y) || near(x, y) !== k) continue;
+          if (pts.some(p => Math.abs(p[0] - x) < 9 && Math.abs(p[1] - y) < 9)) continue;
+          pts.push([Math.max(1, Math.min(W - 1, x)), Math.max(1, Math.min(H - 1, y))]);
+          kindOfSeed.push(2);
+          seedAng.push(q.a + (R() < 0.3 ? Math.PI / 2 : 0));
+        }
+    });
   }
   const boundary: P2[] = [];
   for (let x = -SP; x <= W + SP; x += SP) boundary.push([x, -SP], [x, H + SP]);
   for (let y = 0; y <= H; y += SP) boundary.push([-SP, y], [W + SP, y]);
   let vor = calculateVoronoi(pts, boundary);
-  // relax the organic cells only, so the grid stays square
-  for (let k = 0; k < 2; k++) {
-    for (let i = 0; i < pts.length; i++) {
-      if (kindOfSeed[i]) continue;
-      const vs = vor.cells.v[i].map(v => vor.vertices.p[v]).filter(Boolean);
-      if (vs.length < 3) continue;
-      const cx = vs.reduce((s, p) => s + p[0], 0) / vs.length;
-      const cy = vs.reduce((s, p) => s + p[1], 0) / vs.length;
-      if (cx > 0 && cy > 0 && cx < W && cy < H) pts[i] = [cx, cy];
-    }
-    vor = calculateVoronoi(pts, boundary);
+  // relax the old town once; the grid and the field strips stay as laid
+  for (let i = 0; i < pts.length; i++) {
+    if (kindOfSeed[i] !== 0) continue;
+    const vs = vor.cells.v[i].map(v => vor.vertices.p[v]).filter(Boolean);
+    if (vs.length < 3) continue;
+    const cx = vs.reduce((q, p) => q + p[0], 0) / vs.length;
+    const cy = vs.reduce((q, p) => q + p[1], 0) / vs.length;
+    if (cx > 0 && cy > 0 && cx < W && cy < H) pts[i] = [cx, cy];
   }
+  vor = calculateVoronoi(pts, boundary);
   const { cells, vertices } = vor;
   const n = pts.length;
 
@@ -328,7 +374,7 @@ export function buildCity(
     homeMask[i] = r?.home ? 1 : 0;
     forest[i] = r && [5, 6, 7, 8, 9].includes(r.rc.b ?? 0) ? 1 : 0;
     if (!r || r.water || rivers.some(l => polyDist([x, y], l) < 9)) isWater[i] = 1;
-    ang[i] = R() * Math.PI;
+    ang[i] = seedAng[i] ?? R() * Math.PI;
   }
   const h = Uint8Array.from({ length: n }, (_, i) => (isWater[i] ? 10 : 30));
   const f = Uint16Array.from({ length: n }, (_, i) => (isWater[i] ? 2 : 1));
@@ -378,6 +424,7 @@ export function buildCity(
       if (wn >= 3 && R() < 0.5) use[i] = "woods";
     }
   let town = [...Array(n).keys()].filter(i => use[i] === "town");
+  const fringe = new Uint8Array(n);
 
   // districts, by place: the centre round the square, the planned hill, the waterfront, two old quarters
   const kind: (Kind | null)[] = new Array(n).fill(null);
@@ -482,7 +529,11 @@ export function buildCity(
   // landmarks: a set of cells standing as one building; the Aurum is one grid cell on the square, nearest the water
   let landmarks: Landmark[] = ed.landmarks ?? [];
   if (!ed.landmarks) {
-    const c = cells.c[squareCell].filter(j => kind[j] === "centre").sort((a, b) => coastDist(a) - coastDist(b))[0];
+    const c = cells.c[squareCell]
+      .filter(j => kind[j] === "centre")
+      .sort(
+        (a, b) => (cells.v[a].length === 4 ? 0 : 9) + coastDist(a) - (cells.v[b].length === 4 ? 0 : 9) - coastDist(b)
+      )[0];
     if (c !== undefined)
       landmarks = [
         {
@@ -500,6 +551,29 @@ export function buildCity(
     .filter(l => l.cells.length);
   const isLandmark = new Uint8Array(n);
   for (const l of landmarks) for (const i of l.cells) isLandmark[i] = 1;
+
+  // a run of the same crop is one field: it shares its furrows
+  const done = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    if (done[i] || !(use[i] === "wheat" || use[i] === "tilled" || use[i] === "pasture")) continue;
+    const q = [i];
+    done[i] = 1;
+    for (let k = 0; k < q.length; k++)
+      for (const j of cells.c[q[k]])
+        if (j < n && !done[j] && use[j] === use[i] && Math.abs(Math.cos(ang[j] - ang[i])) > 0.7) {
+          done[j] = 1;
+          ang[j] = ang[i];
+          q.push(j);
+        }
+  }
+  // fields beside the town are market gardens
+  for (let i = 0; i < n; i++)
+    if (
+      (use[i] === "wheat" || use[i] === "tilled" || use[i] === "pasture") &&
+      cells.c[i].some(j => use[j] === "town" || use[j] === "shanty") &&
+      R() < 0.6
+    )
+      fringe[i] = 1;
 
   // ---- roads
   const roads: Road[] = [];
@@ -975,6 +1049,7 @@ export function buildCity(
     landmarks,
     farms,
     block,
+    fringe,
     factions: FACTIONS,
     faction,
     edits: ed,
