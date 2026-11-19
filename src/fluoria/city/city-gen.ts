@@ -1223,10 +1223,11 @@ export function buildCity(
       const L = dist(o, q) || 1;
       const nx = -(q[1] - o[1]) / L;
       const ny = (q[0] - o[0]) / L;
+      // the gate towers stand at the wall's ends, flush with the road's sides
       gates.push({
         p,
-        a: [p[0] + nx * 3.6, p[1] + ny * 3.6],
-        b: [p[0] - nx * 3.6, p[1] - ny * 3.6],
+        a: [p[0] + nx * 4.1, p[1] + ny * 4.1],
+        b: [p[0] - nx * 4.1, p[1] - ny * 4.1],
         road: r.key,
         name: named(gk, `${base} Gate`) as string
       });

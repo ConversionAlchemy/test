@@ -383,109 +383,6 @@ export function furnish(city: City): void {
     const all = out.length + bad + road;
     return out.length >= 6 && bad <= all * slack && road <= all * 0.3 ? out : null;
   };
-  // lots: the block cut across its longer axis, again and again, until each piece is house-sized.
-  // Pieces on the street are built; pieces inside are yards
-  const lerp = (p: P2, q: P2, t: number): P2 => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
-  // split a simple polygon by an infinite line: the pieces on each side, holes and all
-  const splitBy = (P: P2[], o: P2, dir: P2): P2[][] => {
-    const n0 = P.length;
-    const sd = (p: P2) => (p[0] - o[0]) * -dir[1] + (p[1] - o[1]) * dir[0];
-    const along = (p: P2) => (p[0] - o[0]) * dir[0] + (p[1] - o[1]) * dir[1];
-    type V = { p: P2; side: number; cut: boolean; t: number; next: number; jump: number };
-    const ring: V[] = [];
-    for (let i = 0; i < n0; i++) {
-      const a = P[i];
-      const b = P[(i + 1) % n0];
-      const da = sd(a);
-      const db = sd(b);
-      ring.push({ p: a, side: Math.sign(da), cut: false, t: 0, next: -1, jump: -1 });
-      if ((da > 0 && db < 0) || (da < 0 && db > 0)) {
-        const t = da / (da - db);
-        const q: P2 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-        ring.push({ p: q, side: 0, cut: true, t: along(q), next: -1, jump: -1 });
-      }
-    }
-    const cuts = ring.map((_, i) => i).filter(i => ring[i].cut);
-    if (cuts.length < 2) return [P];
-    cuts.sort((a, b) => ring[a].t - ring[b].t);
-    for (let k = 0; k + 1 < cuts.length; k += 2) {
-      ring[cuts[k]].jump = cuts[k + 1];
-      ring[cuts[k + 1]].jump = cuts[k];
-    }
-    const m = ring.length;
-    const used = new Uint8Array(m);
-    const out: P2[][] = [];
-    for (let s = 0; s < m; s++) {
-      if (used[s] || ring[s].cut || ring[s].side === 0) continue;
-      const pc: P2[] = [];
-      let i = s;
-      for (let guard = 0; guard < m * 2; guard++) {
-        used[i] = 1;
-        pc.push(ring[i].p);
-        if (ring[i].cut && ring[i].jump >= 0 && pc.length > 1 && !ring[(i + m - 1) % m].cut) {
-          const j = ring[i].jump;
-          pc.push(ring[j].p);
-          used[j] = 1;
-          i = (j + 1) % m;
-        } else i = (i + 1) % m;
-        if (i === s) break;
-      }
-      if (pc.length >= 3 && Math.abs(area2(pc)) > 1) out.push(pc);
-    }
-    return out.length ? out : [P];
-  };
-  // a polygon's long axis: the direction of its longest side, with its extent along and across
-  const axisOf = (P: P2[]) => {
-    let lo = 0;
-    let d: P2 = [1, 0];
-    for (let i = 0; i < P.length; i++) {
-      const a = P[i];
-      const b = P[(i + 1) % P.length];
-      const L = dist(a, b);
-      if (L > lo) {
-        lo = L;
-        d = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
-      }
-    }
-    let u0 = Infinity;
-    let u1 = -Infinity;
-    let v0 = Infinity;
-    let v1 = -Infinity;
-    for (const p of P) {
-      const u = p[0] * d[0] + p[1] * d[1];
-      const v = -p[0] * d[1] + p[1] * d[0];
-      u0 = Math.min(u0, u);
-      u1 = Math.max(u1, u);
-      v0 = Math.min(v0, v);
-      v1 = Math.max(v1, v);
-    }
-    return { d, u0, u1, v0, v1 };
-  };
-  const _lotsOf = (P: P2[], target: number, minSide: number): P2[][] => {
-    const A = Math.abs(area2(P)) / 2;
-    const ax = axisOf(P);
-    const lu = ax.u1 - ax.u0;
-    const lv = ax.v1 - ax.v0;
-    if (A < target * (0.75 + R() * 0.7) || (lu < minSide * 2 && lv < minSide * 2)) return [P];
-    const across = lu >= lv;
-    const f = 0.4 + R() * 0.2;
-    const d = ax.d;
-    // the cut: square to the long axis (splitting the frontage) or along it (splitting the depth)
-    const o: P2 = across
-      ? [d[0] * (ax.u0 + lu * f) - d[1] * ax.v0, d[1] * (ax.u0 + lu * f) + d[0] * ax.v0]
-      : [d[0] * ax.u0 - d[1] * (ax.v0 + lv * f), d[1] * ax.u0 + d[0] * (ax.v0 + lv * f)];
-    const dir: P2 = across ? [-d[1], d[0]] : d;
-    const parts = splitBy(P, o, dir);
-    if (parts.length < 2) return [P];
-    return parts.flatMap(q => _lotsOf(q, target, minSide));
-  };
-  // the smallest side of a piece and whether any corner is a needle
-  const shapeOk = (P: P2[], minSide: number) => {
-    const ax = axisOf(P);
-    if (Math.min(ax.u1 - ax.u0, ax.v1 - ax.v0) < minSide) return false;
-    const A = Math.abs(area2(P)) / 2;
-    return A >= minSide * minSide * 1.2 && A >= 0.45 * (ax.u1 - ax.u0) * (ax.v1 - ax.v0);
-  };
   // plots are cells: every side is pulled in by what lies beyond it, so fronts sit flush along the street
   // and neighbours of one block share a party wall
   const LOT_KINDS = new Set(["centre", "old", "docks", "wealthy", "shanty"]);
@@ -515,36 +412,14 @@ export function furnish(city: City): void {
       return dist(q, p) > Math.max(off[e], off[(e + m - 1) % m]) * 3 ? l2.a : q;
     });
   };
-  // a house must be a clean shape: convex, few corners, no corner far from square
-  const houseOk = (P: P2[], minSide: number, maxArea: number) => {
-    if (P.length < 4 || P.length > 6 || !shapeOk(P, minSide)) return false;
-    const A = Math.abs(area2(P)) / 2;
-    if (A > maxArea) return false;
-    const sg = Math.sign(area2(P));
-    for (let e = 0; e < P.length; e++) {
-      const a = P[(e + P.length - 1) % P.length];
-      const b = P[e];
-      const c = P[(e + 1) % P.length];
-      const cr = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
-      if (Math.sign(cr) !== sg && Math.abs(cr) > 0.05) return false;
-      const u = [a[0] - b[0], a[1] - b[1]];
-      const v = [c[0] - b[0], c[1] - b[1]];
-      const lu = Math.hypot(u[0], u[1]);
-      const lv = Math.hypot(v[0], v[1]);
-      if (lu < 0.4 || lv < 0.4) continue;
-      const deg = (Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (lu * lv)))) * 180) / Math.PI;
-      if (deg < 62 || deg > 125) return false;
-    }
-    return true;
-  };
   // wealth sets the lots: frontage width, depth from the street, the gap between houses, the set-back,
   // and how often a lot is left open
   const WEALTH: Record<number, { w: [number, number]; d: number; gap: number; set: number; open: number }> = {
-    1: { w: [3, 4.2], d: 6, gap: 0, set: 0, open: 0.1 },
+    1: { w: [3, 4.2], d: 6, gap: 0, set: 0, open: 0.08 },
     2: { w: [4, 6], d: 9, gap: 0, set: 0, open: 0.05 },
     3: { w: [5, 8], d: 11, gap: 0, set: 0, open: 0.05 },
     4: { w: [6, 9], d: 14, gap: 0, set: 0, open: 0 },
-    5: { w: [8, 12], d: 10, gap: 3, set: 2, open: 0.1 }
+    5: { w: [9, 13], d: 11, gap: 3, set: 2, open: 0.25 }
   };
   // what each side gives up: a road its half-width, the wall a clear strip, the water a quay edge
   const sideOff = (i: number, va: number, vb: number) => {
@@ -559,35 +434,17 @@ export function furnish(city: City): void {
     if (kind[o] === "square" || kind[o] === "park" || landCell[o]) return 0.6;
     return 0.3;
   };
-  // keep the part of P inside the convex polygon C
-  const clipTo = (P: P2[], C: P2[]): P2[] => {
-    let out = P;
-    const sg = area2(C) > 0 ? 1 : -1;
-    for (let e = 0; e < C.length && out.length; e++) {
-      const a = C[e];
-      const b = C[(e + 1) % C.length];
-      const sd = (p: P2) => sg * ((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]));
-      const next: P2[] = [];
-      for (let k = 0; k < out.length; k++) {
-        const S = out[k];
-        const E = out[(k + 1) % out.length];
-        const ds = sd(S);
-        const de = sd(E);
-        const I = (): P2 => {
-          const t = ds / (ds - de);
-          return [S[0] + (E[0] - S[0]) * t, S[1] + (E[1] - S[1]) * t];
-        };
-        if (ds >= 0 && de >= 0) next.push(E);
-        else if (ds >= 0) next.push(I());
-        else if (de >= 0) next.push(I(), E);
-      }
-      out = next;
-    }
-    return out.length >= 3 ? out.filter((p, k) => dist(p, out[(k + 1) % out.length]) > 0.05) : [];
-  };
-  // every town cell is a plot: pulled in from each side by what lies beyond it, then lined with lots square to
-  // each street side, longest side first; a lot that would run into one already laid is made shallower or narrower,
-  // and if it still will not fit, it stays open ground
+  // every town cell is a plot, pulled in from each side by what lies beyond it. A ring one house deep runs round
+  // its inside, the yard in the middle; the ring is sliced square to each side into lots sharing their walls,
+  // and each corner is one building. The lots tile the ring exactly, so nothing overlaps and nothing gaps
+  const ringOk = (Q: P2[], I: P2[]) =>
+    area2(I) > 0 &&
+    Q.every((a, e) => {
+      const b = Q[(e + 1) % Q.length];
+      const c = I[e];
+      const d = I[(e + 1) % I.length];
+      return (b[0] - a[0]) * (d[0] - c[0]) + (b[1] - a[1]) * (d[1] - c[1]) > 0;
+    });
   for (let i = 0; i < n; i++) {
     if (!lotCell(i)) continue;
     // corners that coincide (Voronoi leaves zero-length edges) are one corner
@@ -600,77 +457,106 @@ export function furnish(city: City): void {
       P = P.reverse();
       vs.reverse();
     }
-    const off = vs.map((v, e) => sideOff(i, v, vs[(e + 1) % vs.length]));
+    let off = vs.map((v, e) => sideOff(i, v, vs[(e + 1) % vs.length]));
+    // a short side that the pull-in turns inside out is dropped, so the plot keeps its clean shape
+    for (let guard = 0; guard < 4 && !ringOk(P, offsetBy(P, off)) && P.length > 3; guard++) {
+      const Qt = offsetBy(P, off);
+      const bad = P.findIndex((a, e) => {
+        const b = P[(e + 1) % P.length];
+        const c = Qt[e];
+        const d = Qt[(e + 1) % Qt.length];
+        return (b[0] - a[0]) * (d[0] - c[0]) + (b[1] - a[1]) * (d[1] - c[1]) <= 0;
+      });
+      if (bad < 0) break;
+      P = P.filter((_, e) => e !== (bad + 1) % P.length);
+      vs.splice((bad + 1) % vs.length, 1);
+      off = vs.map((v, e) => sideOff(i, v, vs[(e + 1) % vs.length]));
+    }
     const Q = offsetBy(P, off);
-    if (area2(Q) < 30) continue;
+    if (area2(Q) < 30 || !ringOk(P, Q)) continue;
     const m = Q.length;
     const k = kind[i] as string;
     const D = city.districts.find(d => d.id === district[i]);
     const wealth = D?.wealth ?? 2;
     const spec = WEALTH[wealth];
     const docks = k === "docks";
-    const cx = Q.reduce((q, p) => q + p[0], 0) / m;
-    const cy = Q.reduce((q, p) => q + p[1], 0) / m;
-    let inr = Infinity;
-    for (let e = 0; e < m; e++) {
-      const [a, b] = [Q[e], Q[(e + 1) % m]];
-      const L = dist(a, b) || 1;
-      inr = Math.min(inr, Math.abs((b[0] - a[0]) * (a[1] - cy) - (a[0] - cx) * (b[1] - a[1])) / L);
+    const build = (h: P2[], at: P2, wide: boolean) => {
+      let pl = h;
+      if (spec.gap || spec.set) {
+        // a detached house stands back in its lot
+        const cx = h.reduce((q, p) => q + p[0], 0) / h.length;
+        const cy = h.reduce((q, p) => q + p[1], 0) / h.length;
+        pl = h.map(p => [cx + (p[0] - cx) * 0.68, cy + (p[1] - cy) * 0.68] as P2);
+      }
+      if (Math.abs(area2(pl)) / 2 < 6) return;
+      const cl = claim(pl, j => CID[j] === i, 0.5);
+      if (!cl) return;
+      const [tn] = weighted(MIX[k]);
+      place(
+        {
+          cell: i,
+          poly: pl,
+          type: wide ? (docks ? "Warehouse" : k === "centre" ? "Guild hall" : tn) : tn,
+          roof: pick(ROOFS[k]),
+          addr: addrOf(at, dname(i)),
+          district: district[i]
+        },
+        cl
+      );
+    };
+    // the ring's depth: the district's, but never so deep the yard turns inside out
+    let I: P2[] | null = null;
+    for (const f of [1, 0.8, 0.62, 0.48]) {
+      const d = spec.d * (docks ? 1.3 : 1) * f;
+      const J = offsetBy(
+        Q,
+        Q.map(() => d)
+      );
+      if (ringOk(Q, J) && area2(J) > 8) {
+        I = J;
+        break;
+      }
     }
-    // fronts: every side but the bare one against the next plot; longest first
-    const sides = Q.map((a, e) => ({ a, b: Q[(e + 1) % m], L: dist(a, Q[(e + 1) % m]), front: off[e] >= 0.5 }))
-      .filter(sd => sd.front && sd.L >= 3)
-      .sort((x, y) => y.L - x.L);
-    // never past the middle: lots from opposite sides meet back to back
-    const depthMax = Math.min(spec.d * (docks ? 1.3 : 1), inr * 0.95);
-    const laid: P2[][] = [];
-    for (const sd of sides) {
-      const ux = (sd.b[0] - sd.a[0]) / sd.L;
-      const uy = (sd.b[1] - sd.a[1]) / sd.L;
-      // inward normal (Q runs counter-clockwise in screen terms when area2 > 0)
-      const nx = -uy;
-      const ny = ux;
-      let t = 0;
-      while (t < sd.L - Math.min(spec.w[0], sd.L) * 0.6) {
-        let w = spec.w[0] + R() * (spec.w[1] - spec.w[0]);
-        if (sd.L - t - w < spec.w[0] * 0.8) w = sd.L - t;
-        w = Math.min(w, sd.L - t);
-        let placed = false;
-        if (R() >= spec.open)
-          for (const df of [1, 0.8, 0.62, 0.45]) {
-            for (const wf of [1, 0.7]) {
-              const ww = w * wf - spec.gap;
-              const dd = depthMax * df - spec.set;
-              if (ww < 2.4 || dd < 2.6) continue;
-              const o: P2 = [
-                sd.a[0] + ux * (t + spec.gap / 2) + nx * spec.set,
-                sd.a[1] + uy * (t + spec.gap / 2) + ny * spec.set
-              ];
-              const h = clipTo(rect(o, ux, uy, nx, ny, ww, dd), Q);
-              if (h.length < 4 || Math.abs(area2(h)) / 2 < ww * dd * 0.6 || !houseOk(h, 2.4, 1e9)) continue;
-              const cl = claim(h, j => CID[j] === i, 0.08);
-              if (!cl) continue;
-              const ci = i;
-              const big = ww > spec.w[1] * 1.2 || Math.abs(area2(h)) / 2 > 160;
-              const [tn] = weighted(MIX[k]);
-              place(
-                {
-                  cell: ci,
-                  poly: h,
-                  type: big ? (docks ? "Warehouse" : k === "centre" ? "Guild hall" : tn) : tn,
-                  roof: pick(ROOFS[k]),
-                  addr: addrOf(lerp(sd.a, sd.b, (t + w / 2) / sd.L), dname(ci)),
-                  district: district[ci]
-                },
-                cl
-              );
-              laid.push(h);
-              placed = true;
-              break;
-            }
-            if (placed) break;
-          }
-        t += placed ? w : Math.max(1, w * 0.5);
+    // too small for a yard: the ring closes to a light-well in the middle, and is sliced all the same
+    if (!I) {
+      const cx = Q.reduce((q, p) => q + p[0], 0) / m;
+      const cy = Q.reduce((q, p) => q + p[1], 0) / m;
+      I = Q.map(p => [cx + (p[0] - cx) * 0.1, cy + (p[1] - cy) * 0.1] as P2);
+    }
+    const ins = I;
+    // along each side the lots run between the feet of the inner corners; the corners themselves are single buildings
+    const feet = Q.map((a, e) => {
+      const b = Q[(e + 1) % m];
+      const L = dist(a, b) || 1;
+      const u: P2 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+      const proj = (p: P2) => (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1];
+      return { a, u, L, s0: proj(ins[e]), s1: proj(ins[(e + 1) % m]) };
+    });
+    const at = (e: number, s: number): P2 => [feet[e].a[0] + feet[e].u[0] * s, feet[e].a[1] + feet[e].u[1] * s];
+    for (let e = 0; e < m; e++) {
+      const f = feet[e];
+      const prev = feet[(e + m - 1) % m];
+      // the corner building: from the last foot of the side before, round the corner, to this side's first foot
+      if (R() >= spec.open) build([at((e + m - 1) % m, prev.s1), Q[e], at(e, f.s0), ins[e]], Q[e], false);
+      // the side's lots, as even as its length allows
+      const run = f.s1 - f.s0;
+      if (run < 1.5) continue;
+      const w0 = (spec.w[0] + spec.w[1]) / 2;
+      const count = Math.max(1, Math.round(run / w0));
+      const cuts = [0];
+      for (let c = 1; c < count; c++) cuts.push((c + (R() - 0.5) * 0.5) / count);
+      cuts.push(1);
+      const ip = (s: number): P2 => {
+        const t = (s - f.s0) / (run || 1);
+        return [ins[e][0] + (ins[(e + 1) % m][0] - ins[e][0]) * t, ins[e][1] + (ins[(e + 1) % m][1] - ins[e][1]) * t];
+      };
+      for (let c = 0; c < count; c++) {
+        // the odd double lot makes a hall or warehouse
+        const wide = c < count - 1 && R() < 0.08;
+        const s0 = f.s0 + run * cuts[c];
+        const s1 = f.s0 + run * cuts[wide ? c + 2 : c + 1];
+        if (R() >= spec.open) build([at(e, s0), at(e, s1), ip(s1), ip(s0)], at(e, (s0 + s1) / 2), wide);
+        if (wide) c++;
       }
     }
   }
@@ -702,6 +588,8 @@ export function furnish(city: City): void {
           const o: P2 = [a[0] + nx * 3.2, a[1] + ny * 3.2];
           const pl =
             sg > 0 ? rect(o, tx, ty, nx, ny, w, d) : rect([o[0] + tx * w, o[1] + ty * w], -tx, -ty, nx, ny, w, d);
+          // clear of the town wall
+          if (city.walls.some(wl => wl.some(q => pl.some(p => dist(p, q) < 7)))) continue;
           const cl = claim(
             pl,
             j => CID[j] >= 0 && city.home[CID[j]] === 1 && use[CID[j]] !== "water" && use[CID[j]] !== "town",

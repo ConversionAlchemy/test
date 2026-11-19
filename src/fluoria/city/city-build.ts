@@ -372,7 +372,7 @@ export function renderBuildings(
   // the town wall: a stone band with round towers, open at each gate
   const stone: C3 = faded ? [196, 190, 180] : [160, 152, 142];
   const drawWalls = () => {
-    const open = (p: P2) => city.gates.some(gt => Math.hypot(gt.p[0] - p[0], gt.p[1] - p[1]) < 3.4);
+    const open = (p: P2) => city.gates.some(gt => Math.hypot(gt.p[0] - p[0], gt.p[1] - p[1]) < 2.4);
     const runs: P2[][] = [];
     for (const w of city.walls) {
       let run: P2[] = [];
@@ -410,17 +410,19 @@ export function renderBuildings(
       g.fillStyle = css(sh(stone, 1.06));
       g.fillRect(tx - 1.3, ty - 1.3, 2.6, 2.6);
     }
-    for (const gt of city.gates)
+    for (const gt of city.gates) {
+      const ang = Math.atan2(gt.b[1] - gt.a[1], gt.b[0] - gt.a[0]);
       for (const [tx, ty] of [gt.a, gt.b]) {
+        g.save();
+        g.translate(tx, ty);
+        g.rotate(ang);
         g.fillStyle = css(sh(dark, 0.75));
-        g.beginPath();
-        g.arc(tx, ty, 3, 0, Math.PI * 2);
-        g.fill();
+        g.fillRect(-1.8, -1.8, 3.6, 3.6);
         g.fillStyle = css(dark);
-        g.beginPath();
-        g.arc(tx, ty, 2.3, 0, Math.PI * 2);
-        g.fill();
+        g.fillRect(-1.3, -1.3, 2.6, 2.6);
+        g.restore();
       }
+    }
   };
   drawWalls();
   hard(body);
