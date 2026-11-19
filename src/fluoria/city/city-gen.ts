@@ -6,7 +6,7 @@ import { connectVertices, findPath } from "@/utils/pathUtils";
 
 export type P2 = [number, number];
 export type Kind = "centre" | "wealthy" | "old" | "docks" | "shanty" | "square" | "park" | "pond";
-export type Use = "town" | "water" | "wheat" | "tilled" | "pasture" | "woods" | "shanty";
+export type Use = "town" | "water" | "wheat" | "tilled" | "pasture" | "grass" | "woods" | "shanty";
 
 export interface RegionCell {
   p: P2[];
@@ -118,7 +118,6 @@ export interface City {
   landmarks: Landmark[];
   farms: Farm[];
   block: Int32Array;
-  fringe: Uint8Array;
   factions: Faction[];
   faction: Int16Array;
   edits: Edits;
@@ -279,7 +278,7 @@ export function buildCity(
   const ca = Math.cos(axis);
   const sa = Math.sin(axis);
   const pts: P2[] = [];
-  const kindOfSeed: number[] = []; // 0 old town, 1 grid, 2 field strip
+  const kindOfSeed: number[] = []; // 0 old town, 1 grid, 2 field strip, 3 meadow
   const seedAng: number[] = [];
   // planned quarters: a loose grid, near exact in the centre so its cells are true rectangles
   for (let i = -40; i < 40; i++)
@@ -287,7 +286,7 @@ export function buildCity(
       const ux = (i * ca - j * sa) * SP * 0.95;
       const uy = (i * sa + j * ca) * SP * 0.95;
       const core = Math.hypot(ux, uy) < TR * 0.4;
-      const jit = core ? 0.4 : 3;
+      const jit = core ? 0 : 3;
       const gx = T[0] + ux + (R() - 0.5) * jit;
       const gy = T[1] + uy + (R() - 0.5) * jit;
       if (gx < 2 || gy < 2 || gx > W - 2 || gy > H - 2) continue;
@@ -310,11 +309,13 @@ export function buildCity(
   }
   // farmland: patches of long strips, each patch its own direction and strip size, as Azgaar's cells vary
   {
-    const patches: { c: P2; a: number; along: number; across: number }[] = [];
+    // only some patches are ploughed, most near the town; the rest is open meadow in larger, looser cells
+    const patches: { c: P2; a: number; along: number; across: number; farmed: boolean }[] = [];
     for (let t = 0; t < 4000; t++) {
       const c: P2 = [R() * W, R() * H];
       if (townZone(c[0], c[1]) || patches.some(q => dist(q.c, c) < 95)) continue;
-      patches.push({ c, a: R() * Math.PI, along: 34 + R() * 34, across: 15 + R() * 12 });
+      const far = Math.min(1, Math.max(0, (dist(c, T) - TR * 1.3) / (TR * 2.5)));
+      patches.push({ c, a: R() * Math.PI, along: 34 + R() * 34, across: 15 + R() * 12, farmed: R() < 0.7 - far * 0.5 });
     }
     const near = (x: number, y: number) => {
       let bi = -1;
@@ -328,7 +329,19 @@ export function buildCity(
       });
       return bi;
     };
+    for (let t = 0; t < 20000; t++) {
+      const x = R() * W;
+      const y = R() * H;
+      const k = near(x, y);
+      if (k < 0 || patches[k].farmed || townZone(x, y)) continue;
+      const sp = 26 + R() * 22;
+      if (pts.some(p => Math.abs(p[0] - x) < sp && Math.abs(p[1] - y) < sp && dist(p, [x, y]) < sp)) continue;
+      pts.push([x, y]);
+      kindOfSeed.push(3);
+      seedAng.push(R() * Math.PI);
+    }
     patches.forEach((q, k) => {
+      if (!q.farmed) return;
       const ux = Math.cos(q.a);
       const uy = Math.sin(q.a);
       for (let i = -5; i <= 5; i++)
@@ -368,6 +381,7 @@ export function buildCity(
   const ang = new Float32Array(n);
   const isWater = new Uint8Array(n);
   const forest = new Uint8Array(n);
+  const meadow = (i: number) => kindOfSeed[i] === 3;
   for (let i = 0; i < n; i++) {
     const [x, y] = pts[i];
     const r = regionAt(x, y);
@@ -403,6 +417,26 @@ export function buildCity(
     }
     return d;
   };
+  // woods grow in large clumps on forest ground, not everywhere it is forest
+  const clump = ([x, y]: P2) => {
+    const h = (a: number, b: number) => {
+      let v = (a * 374761393 + b * 668265263 + seedN * 97) | 0;
+      v = Math.imul(v ^ (v >>> 13), 1274126177);
+      return ((v ^ (v >>> 16)) >>> 0) / 4294967296;
+    };
+    const fx = x / 110;
+    const fy = y / 110;
+    const ix = Math.floor(fx);
+    const iy = Math.floor(fy);
+    const sx = (fx - ix) ** 2 * (3 - 2 * (fx - ix));
+    const sy = (fy - iy) ** 2 * (3 - 2 * (fy - iy));
+    const a = h(ix, iy);
+    const b = h(ix + 1, iy);
+    const c = h(ix, iy + 1);
+    const d = h(ix + 1, iy + 1);
+    return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+  };
+  const seedN = Math.floor(R() * 1e6);
   for (let i = 0; i < n; i++) {
     if (isWater[i]) {
       use[i] = "water";
@@ -412,19 +446,15 @@ export function buildCity(
       use[i] = "town";
       continue;
     }
-    // farmland opens round a town; real woods only on forest ground, further out
-    const far = Math.min(1, Math.max(0, (dT(i) - TR * 1.5) / (TR * 1.5)));
-    const woodsP = forest[i] ? 0.06 + far * 0.4 : 0.02;
-    const r = R();
-    use[i] = r < woodsP ? "woods" : r < woodsP + 0.3 ? "wheat" : r < woodsP + 0.52 ? "tilled" : "pasture";
-  }
-  for (let i = 0; i < n; i++)
-    if (use[i] !== "town" && use[i] !== "water" && use[i] !== "woods" && dT(i) > TR * 1.6) {
-      const wn = cells.c[i].filter(j => use[j] === "woods").length;
-      if (wn >= 3 && R() < 0.5) use[i] = "woods";
+    // woods only where the region has forest; ploughed patches are crops, the rest meadow
+    if (forest[i] && dT(i) > TR * 1.6 && clump(pts[i]) > 0.58) {
+      use[i] = "woods";
+      continue;
     }
+    const r = R();
+    use[i] = !meadow(i) && kindOfSeed[i] === 2 ? (r < 0.4 ? "wheat" : r < 0.7 ? "tilled" : "pasture") : "grass";
+  }
   let town = [...Array(n).keys()].filter(i => use[i] === "town");
-  const fringe = new Uint8Array(n);
 
   // districts, by place: the centre round the square, the planned hill, the waterfront, two old quarters
   const kind: (Kind | null)[] = new Array(n).fill(null);
@@ -566,14 +596,6 @@ export function buildCity(
           q.push(j);
         }
   }
-  // fields beside the town are market gardens
-  for (let i = 0; i < n; i++)
-    if (
-      (use[i] === "wheat" || use[i] === "tilled" || use[i] === "pasture") &&
-      cells.c[i].some(j => use[j] === "town" || use[j] === "shanty") &&
-      R() < 0.6
-    )
-      fringe[i] = 1;
 
   // ---- roads
   const roads: Road[] = [];
@@ -725,7 +747,7 @@ export function buildCity(
     const onTrack = new Uint8Array(n);
     const fieldy = (i: number) => use[i] === "wheat" || use[i] === "tilled" || use[i] === "pasture";
     const cand = [...Array(n).keys()].filter(
-      i => fieldy(i) && !onMain[i] && !cells.c[i].some(j => use[j] === "town" || onMain[j]) && R() < 0.14
+      i => fieldy(i) && homeMask[i] && !onMain[i] && !cells.c[i].some(j => use[j] === "town" || onMain[j]) && R() < 0.14
     );
     for (const i of cand) {
       if (farms.some(f => dist(pts[f.cell], pts[i]) < 60) || erased.has(`f:${i}`)) continue;
@@ -733,7 +755,11 @@ export function buildCity(
         i,
         id => onMain[id] === 1 || onTrack[id] === 1,
         (_cur, next) =>
-          isWater[next] || use[next] === "town" || use[next] === "shanty" ? Infinity : use[next] === "woods" ? 3 : 1,
+          isWater[next] || !homeMask[next] || use[next] === "town" || use[next] === "shanty"
+            ? Infinity
+            : use[next] === "woods"
+              ? 3
+              : 1,
         pack
       );
       if (!path || path.length > 9) continue;
@@ -1049,7 +1075,6 @@ export function buildCity(
     landmarks,
     farms,
     block,
-    fringe,
     factions: FACTIONS,
     faction,
     edits: ed,

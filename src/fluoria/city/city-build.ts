@@ -21,7 +21,7 @@ const ROOF: Record<string, [C3, C3, C3]> = {
   stone: [P.stone3, P.stone, P.stone2],
   timber: [P.wood, P.wood2, sh(P.wood2, 0.72)]
 };
-export type Style = "terrain" | "map" | "districts" | "factions";
+export type Style = "terrain" | "map" | "districts" | "factions" | "plan";
 
 /** A landmark's footprint: the outline of its cells, pulled in off the streets */
 export function landmarkShape(city: City, b: Building): P2[] {
@@ -36,7 +36,44 @@ export function landmarkShape(city: City, b: Building): P2[] {
   poly = poly.filter(
     (p, k) => Math.hypot(p[0] - poly[(k + 1) % poly.length][0], p[1] - poly[(k + 1) % poly.length][1]) > 0.8
   );
-  return inset(poly, 3);
+  poly = inset(poly, 3);
+  return b.type === "Bank" ? squareIn(poly, city.ang[b.cell]) : poly;
+}
+
+// the largest square on the town grid that fits the plot: the Aurum is built square whatever its cell
+function squareIn(poly: P2[], a: number): P2[] {
+  const cx = poly.reduce((s, p) => s + p[0], 0) / poly.length;
+  const cy = poly.reduce((s, p) => s + p[1], 0) / poly.length;
+  const ux = Math.cos(a);
+  const uy = Math.sin(a);
+  const at = (h: number, dx: number, dy: number): P2[] =>
+    [
+      [-1, -1],
+      [1, -1],
+      [1, 1],
+      [-1, 1]
+    ].map(([i, j]) => [cx + dx + (ux * i - uy * j) * h, cy + dy + (uy * i + ux * j) * h] as P2);
+  const fits = (q: P2[]) => q.every(p => inside(poly, p[0], p[1]));
+  let best: P2[] = at(2, 0, 0);
+  let bh = 0;
+  for (let dx = -6; dx <= 6; dx += 2)
+    for (let dy = -6; dy <= 6; dy += 2)
+      for (let h = bh + 0.5; h < 40; h += 0.5) {
+        const q = at(h, dx, dy);
+        if (!fits(q)) break;
+        best = q;
+        bh = h;
+      }
+  return best;
+}
+function inside(poly: P2[], x: number, y: number) {
+  let r = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) r = !r;
+  }
+  return r;
 }
 
 function inset(poly: P2[], d: number): P2[] {
@@ -82,6 +119,28 @@ const hard = (cv: HTMLCanvasElement) => {
   g.putImageData(im, 0, 0);
 };
 
+// a faint grain on the roofs, a few world pixels apart whatever the zoom
+const speckle = (cv: HTMLCanvasElement, s: number) => {
+  const g = cv.getContext("2d") as CanvasRenderingContext2D;
+  const im = g.getImageData(0, 0, cv.width, cv.height);
+  const d = im.data;
+  const W = cv.width;
+  for (let y = 1; y < cv.height - 1; y++)
+    for (let x = 1; x < W - 1; x++) {
+      const k = (y * W + x) * 4;
+      if (!d[k + 3] || !d[k + 7] || !d[k - 1] || !d[k + W * 4 + 3] || !d[k - W * 4 + 3]) continue;
+      const wx = Math.floor(x / s);
+      const wy = Math.floor(y / s);
+      let h = (wx * 374761393 + wy * 668265263) | 0;
+      h = Math.imul(h ^ (h >>> 13), 1274126177);
+      const r = ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+      const f = r < 0.07 ? 1.07 : r > 0.94 ? 0.95 : 0;
+      if (!f) continue;
+      for (let i = 0; i < 3; i++) d[k + i] = Math.min(255, d[k + i] * f);
+    }
+  g.putImageData(im, 0, 0);
+};
+
 export function renderBuildings(
   city: City,
   style: Style,
@@ -99,7 +158,7 @@ export function renderBuildings(
   gs.scale(s, s);
   const px = 1 / s;
   const lw = Math.max(1, s * 0.45) * px;
-  const joined = s < 4;
+  const joined = s < 4 || style === "plan";
   const shapes = new Map<number, P2[]>();
   for (const b of city.buildings) shapes.set(b.id, b.landmark ? landmarkShape(city, b) : b.poly);
 
@@ -108,6 +167,10 @@ export function renderBuildings(
     if (style === "terrain") {
       const r = ROOF[b.roof] ?? ROOF.clay;
       return { pal: [r[1], r[1], sh(r[2], 0.7)], flat: !b.landmark };
+    }
+    if (style === "plan") {
+      const c: C3 = b.landmark ? (b.type === "Bank" ? [196, 150, 60] : [62, 56, 52]) : [196, 100, 68];
+      return { pal: [c, c, [84, 50, 38]], flat: true };
     }
     if (style === "factions") {
       const f = b.owner !== undefined ? city.factions[b.owner] : undefined;
@@ -249,5 +312,6 @@ export function renderBuildings(
   }
   hard(body);
   hard(shadow);
+  if (style === "terrain") speckle(body, s);
   return { body, shadow };
 }

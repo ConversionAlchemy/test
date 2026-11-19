@@ -56,7 +56,7 @@ const TIERS: Record<string, { min: number; px: number; rank: number; cls: string
 type Label = MapLabel & { tier: string; road?: P2[] };
 
 const PANEL = `
-<div class="zone"><div class="tabs" data-g="style"><button data-v="terrain">Terrain</button><button data-v="map">Map</button><button data-v="districts">Districts</button><button data-v="factions">Factions</button></div></div>
+<div class="zone"><div class="tabs" data-g="style"><button data-v="terrain">Terrain</button><button data-v="map">Map</button><button data-v="districts">Districts</button><button data-v="factions">Factions</button><button data-v="plan">Plan</button></div></div>
 <div class="zone"><div class="g4" data-g="tool">
 <button data-v="inspect">Inspect</button><button data-v="paint">Paint</button><button data-v="district">District</button><button data-v="faction">Faction</button>
 <button data-v="landmark">Landmark</button><button data-v="road">Road</button><button data-v="erase">Erase</button></div></div>
@@ -80,7 +80,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     }
   };
 
-  root.innerHTML = `<div class="cvStage"><canvas class="cvMap"></canvas><svg class="cvOver"><g><path class="sel"></path><path class="hl"></path></g></svg><svg class="cvLab"><defs></defs></svg><div class="cvTip"></div><div class="cvKey"></div></div><aside class="cvSide">${PANEL}</aside>`;
+  root.innerHTML = `<div class="cvStage"><canvas class="cvMap"></canvas><svg class="cvOver"><g><path class="sel"></path><path class="hl"></path><path class="hl2"></path></g></svg><svg class="cvLab"><defs></defs></svg><div class="cvTip"></div><div class="cvKey"></div></div><aside class="cvSide">${PANEL}</aside>`;
   const stage = root.querySelector(".cvStage") as HTMLDivElement;
   const side = root.querySelector(".cvSide") as HTMLElement;
   const pane = side.querySelector("[data-pane]") as HTMLDivElement;
@@ -90,6 +90,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
   const defs = lab.querySelector("defs") as SVGDefsElement;
   const tip = stage.querySelector(".cvTip") as HTMLDivElement;
   const hl = over.querySelector(".hl") as SVGPathElement;
+  const hl2 = over.querySelector(".hl2") as SVGPathElement;
   const selP = over.querySelector(".sel") as SVGPathElement;
   const ctx = cv.getContext("2d") as CanvasRenderingContext2D;
   const NS = "http://www.w3.org/2000/svg";
@@ -110,7 +111,9 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
         ? painted.map
         : style === "districts"
           ? painted.districts
-          : painted.factions;
+          : style === "plan"
+            ? painted.plan
+            : painted.factions;
   const scaleFor = () => Math.max(1, Math.min(5, Math.ceil(view.zoom - 0.15)));
   const ensureDetail = (now = false) => {
     const s = scaleFor();
@@ -303,7 +306,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.drawImage(world, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     if (detail) {
-      ctx.globalAlpha = style === "terrain" ? 0.55 : 0.25;
+      ctx.globalAlpha = style === "terrain" ? 0.55 : style === "plan" ? 0 : 0.25;
       ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
       ctx.globalAlpha = 1;
       ctx.drawImage(detail.body, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
@@ -433,6 +436,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
   marks.setAttribute("class", "marks");
   lab.appendChild(marks);
   const placeMarks = () => {
+    marks.style.display = style === "map" || style === "plan" ? "" : "none";
     for (const g of marks.querySelectorAll<SVGGElement>("g")) {
       const e = keyed[+(g.dataset.n as string) - 1];
       if (!e) continue;
@@ -522,8 +526,33 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
         html: `<b>${r.name ?? RNAME[r.type]}</b><i>${RNAME[r.type]}</i>`
       };
     }
+    // the whole district lights up from its name, or in the districts view; elsewhere the cell, inside its district's edge
+    const named = city.districts.find(D => {
+      const t = els.get(`d${D.id}`);
+      if (!t || t.style.display === "none") return false;
+      const b = t.getBoundingClientRect();
+      return e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom;
+    });
+    if (named && tool === "inspect")
+      return {
+        kind: "district",
+        key: `d:${named.id}`,
+        label: named.name,
+        d: outline(new Set(named.cells)),
+        html: `<b>${named.name}</b>`
+      };
     if (p.ci >= 0 && city.district[p.ci] >= 0) {
       const D = city.districts.find(d => d.id === city.district[p.ci]);
+      if (D && style !== "districts")
+        return {
+          kind: "cell",
+          key: `c:${p.ci}`,
+          label: D.name,
+          d: cellPath(p.ci),
+          d2: outline(new Set(D.cells)),
+          cell: p.ci,
+          html: `<b>${KIND_NAME[city.kind[p.ci] ?? ""] ?? "Ground"}</b><i>${D.name}</i>`
+        };
       if (D)
         return {
           kind: "district",
@@ -582,11 +611,13 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     const d = describe(e);
     if (!d) {
       hl.setAttribute("d", "");
+      hl2.setAttribute("d", "");
       tip.style.display = "none";
       return;
     }
     hl.setAttribute("d", d.d ?? "");
     hl.setAttribute("class", `hl ${d.kind}`);
+    hl2.setAttribute("d", (d as { d2?: string }).d2 ?? "");
     tip.innerHTML = d.html;
     tip.style.display = "block";
     const r = stage.getBoundingClientRect();
@@ -596,6 +627,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
   stage.addEventListener("pointerleave", () => {
     tip.style.display = "none";
     hl.setAttribute("d", "");
+    hl2.setAttribute("d", "");
   });
   stage.addEventListener("pointerup", e => {
     const d = drag;
