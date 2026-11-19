@@ -47,6 +47,7 @@ export interface Building {
   district?: number;
   landmark?: boolean;
   cells?: number[]; // a landmark's cells: it stands on all of them
+  owner?: number;
   key?: string;
   enter?: string;
 }
@@ -66,6 +67,21 @@ export interface Gate {
   name: string;
   road: string;
 }
+export interface Faction {
+  id: number;
+  name: string;
+  kind: string; // Rulers, Law, Guild, Underworld, Outsiders
+  col: string;
+}
+export const FACTIONS: Faction[] = [
+  { id: 0, name: "The Aurum", kind: "Rulers", col: "#c99a2e" },
+  { id: 1, name: "City Watch", kind: "Law", col: "#b0453c" },
+  { id: 2, name: "Weigh-Masters' Guild", kind: "Guild", col: "#4a78ad" },
+  { id: 3, name: "Dockers' Guild", kind: "Guild", col: "#3a8a84" },
+  { id: 4, name: "Chandlers' Guild", kind: "Guild", col: "#c27536" },
+  { id: 5, name: "Rookery Crew", kind: "Underworld", col: "#6d4a80" },
+  { id: 6, name: "Imperial Agents", kind: "Outsiders", col: "#2e3d66" }
+];
 export interface Farm {
   cell: number;
   houses: number;
@@ -80,6 +96,9 @@ export interface Edits {
   roads?: { type: Road["type"]; cells: number[]; name?: string }[];
   erase?: string[];
   names?: Record<string, string>;
+  factionCells?: Record<number, number>;
+  owners?: Record<string, number>;
+  favs?: string[];
 }
 export const TOWN_KINDS: Kind[] = ["centre", "wealthy", "old", "docks", "shanty", "square", "park", "pond"];
 
@@ -98,6 +117,9 @@ export interface City {
   gates: Gate[];
   landmarks: Landmark[];
   farms: Farm[];
+  block: Int32Array;
+  factions: Faction[];
+  faction: Int16Array;
   edits: Edits;
   buildings: Building[];
   trees: [number, number, number][];
@@ -299,10 +321,12 @@ export function buildCity(
   const use: Use[] = new Array(n);
   const ang = new Float32Array(n);
   const isWater = new Uint8Array(n);
+  const forest = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
     const [x, y] = pts[i];
     const r = regionAt(x, y);
     homeMask[i] = r?.home ? 1 : 0;
+    forest[i] = r && [5, 6, 7, 8, 9].includes(r.rc.b ?? 0) ? 1 : 0;
     if (!r || r.water || rivers.some(l => polyDist([x, y], l) < 9)) isWater[i] = 1;
     ang[i] = R() * Math.PI;
   }
@@ -342,13 +366,16 @@ export function buildCity(
       use[i] = "town";
       continue;
     }
+    // farmland opens round a town; real woods only on forest ground, further out
+    const far = Math.min(1, Math.max(0, (dT(i) - TR * 1.5) / (TR * 1.5)));
+    const woodsP = forest[i] ? 0.06 + far * 0.4 : 0.02;
     const r = R();
-    use[i] = r < 0.2 ? "woods" : r < 0.45 ? "wheat" : r < 0.65 ? "tilled" : "pasture";
+    use[i] = r < woodsP ? "woods" : r < woodsP + 0.3 ? "wheat" : r < woodsP + 0.52 ? "tilled" : "pasture";
   }
   for (let i = 0; i < n; i++)
-    if (use[i] !== "town" && use[i] !== "water" && use[i] !== "woods") {
+    if (use[i] !== "town" && use[i] !== "water" && use[i] !== "woods" && dT(i) > TR * 1.6) {
       const wn = cells.c[i].filter(j => use[j] === "woods").length;
-      if (wn >= 3 && R() < 0.4) use[i] = "woods";
+      if (wn >= 3 && R() < 0.5) use[i] = "woods";
     }
   let town = [...Array(n).keys()].filter(i => use[i] === "town");
 
@@ -645,6 +672,41 @@ export function buildCity(
     }
   }
 
+  // blocks: neighbouring cells of one district join into a larger block that only roads round its outside
+  const block = new Int32Array(n).fill(-1);
+  {
+    const SIZE: Record<string, [number, number]> = {
+      centre: [2, 4],
+      wealthy: [2, 4],
+      docks: [2, 3],
+      old: [3, 5],
+      shanty: [3, 6]
+    };
+    const joinable = (i: number) => {
+      const k = kind[i];
+      return (use[i] === "town" || use[i] === "shanty") && !!k && k in SIZE && !isLandmark[i];
+    };
+    let id = 0;
+    for (const i of [...Array(n).keys()].sort((a, b) => dT(a) - dT(b))) {
+      if (!joinable(i) || block[i] >= 0) continue;
+      const [lo, hi] = SIZE[kind[i] as string];
+      const want = lo + Math.floor(R() * (hi - lo + 1));
+      const members = [i];
+      block[i] = id;
+      while (members.length < want) {
+        const cand = members
+          .flatMap(m => cells.c[m])
+          .filter(j => j < n && block[j] < 0 && joinable(j) && kind[j] === kind[i] && district[j] === district[i]);
+        if (!cand.length) break;
+        const j = cand[Math.floor(R() * cand.length)];
+        block[j] = id;
+        members.push(j);
+      }
+      id++;
+    }
+    for (let i = 0; i < n; i++) if (block[i] < 0 && (use[i] === "town" || use[i] === "shanty")) block[i] = id++;
+  }
+
   // streets and lanes along the cell edges: most edges in planned districts, half in the old town, few in the shanty
   const edgeKey = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
   const edgeSeen = new Set<string>();
@@ -667,15 +729,25 @@ export function buildCity(
       const ks = [ki, kj];
       const shanty = ks.includes("shanty");
       const plannedE = ks.every(x => x === "centre" || x === "docks" || x === "square" || x === "wealthy");
-      const p = shanty ? 0.45 : ks.includes("wealthy") && !ks.includes("old") ? 0.55 : plannedE ? 0.9 : 0.55;
+      // inside a block only the odd passage; between blocks nearly always a street
+      const same = block[i] >= 0 && block[i] === block[j];
+      const p = same
+        ? 0.06
+        : shanty
+          ? 0.5
+          : ks.includes("wealthy") && !ks.includes("old")
+            ? 0.7
+            : plannedE
+              ? 0.97
+              : 0.85;
       const sq = ks.includes("square");
-      if (sq || R() < p) {
+      if ((sq && !same) || R() < p) {
         streetEdges.push({
           a: sh[0],
           b: sh[1],
           c1: i,
           c2: j,
-          type: shanty ? "path" : plannedE || sq ? "street" : "lane"
+          type: shanty ? "path" : same ? "lane" : plannedE || sq ? "street" : "lane"
         });
         hasRoad[i] = 1;
         hasRoad[j] = 1;
@@ -755,6 +827,7 @@ export function buildCity(
     }
   }
   // piers: a boardwalk along every dock edge that meets the water, spurs out from it
+  const pierSegs: [P2, P2][] = [];
   for (const i of town) {
     if (kind[i] !== "docks") continue;
     for (const j of cells.c[i]) {
@@ -767,28 +840,41 @@ export function buildCity(
       if (erased.has(pk)) continue;
       roads.push({ type: "pier", key: pk, edges: [[sh[0], sh[1]]], pts: [a, b] });
       const L = dist(a, b);
-      const nx = -(b[1] - a[1]) / L;
-      const ny = (b[0] - a[0]) / L;
-      const sgn = isWater[nearestCell([(a[0] + b[0]) / 2 + nx * 6, (a[1] + b[1]) / 2 + ny * 6], () => true)] ? 1 : -1;
-      for (let t = 4 + R() * 4; t < L - 3; t += 8 + R() * 9) {
-        const s: P2 = [a[0] + ((b[0] - a[0]) * t) / L, a[1] + ((b[1] - a[1]) * t) / L];
-        const len = 8 + R() * 16;
-        const e: P2 = [s[0] + nx * sgn * len, s[1] + ny * sgn * len];
-        roads.push({ type: "pier", key: pk, pts: [s, e] });
-        const r = R();
-        if (r < 0.35) {
-          const w = 4 + R() * 5;
-          const tx = (b[0] - a[0]) / L;
-          const ty = (b[1] - a[1]) / L;
-          const lSide = r < 0.2 ? -1 : 0;
-          roads.push({
-            type: "pier",
-            key: pk,
-            pts: [
-              [e[0] + tx * w * lSide, e[1] + ty * w * lSide],
-              [e[0] + tx * w, e[1] + ty * w]
-            ]
-          });
+      const tx = (b[0] - a[0]) / L;
+      const ty = (b[1] - a[1]) / L;
+      let nx = -ty;
+      let ny = tx;
+      if (!isWater[nearestCell([(a[0] + b[0]) / 2 + nx * 6, (a[1] + b[1]) / 2 + ny * 6], () => true)]) {
+        nx = -nx;
+        ny = -ny;
+      }
+      // short piers, spaced, each only where its whole length is open water clear of the others
+      for (let t = 5 + R() * 3; t < L - 4; t += 10 + R() * 6) {
+        const st: P2 = [a[0] + tx * t, a[1] + ty * t];
+        const len = 6 + R() * 6;
+        const en: P2 = [st[0] + nx * len, st[1] + ny * len];
+        let clear = true;
+        for (let q = 2; q <= len + 3 && clear; q += 1.5) {
+          const pt: P2 = [st[0] + nx * q, st[1] + ny * q];
+          if (!isWater[nearestCell(pt, () => true)]) clear = false;
+          for (const sg of pierSegs) if (segDist(pt, sg[0], sg[1]) < 5) clear = false;
+        }
+        if (!clear) continue;
+        pierSegs.push([st, en]);
+        roads.push({ type: "pier", key: pk, pts: [st, en] });
+        if (R() < 0.3) {
+          const w = 3 + R() * 2;
+          const head: [P2, P2] = [
+            [en[0] - tx * w, en[1] - ty * w],
+            [en[0] + tx * w, en[1] + ty * w]
+          ];
+          if (
+            !pierSegs.some(sg => segDist(head[0], sg[0], sg[1]) < 4 && sg[1] !== en) &&
+            !pierSegs.some(sg => segDist(head[1], sg[0], sg[1]) < 4 && sg[1] !== en)
+          ) {
+            pierSegs.push(head);
+            roads.push({ type: "pier", key: pk, pts: head });
+          }
         }
       }
     }
@@ -851,6 +937,28 @@ export function buildCity(
       towers.push(p);
     }
 
+  // who holds each cell: the Aurum the centre and the hill, guilds their quarters, the crew the Rookery, the Watch the gates
+  const faction = new Int16Array(n).fill(-1);
+  for (let i = 0; i < n; i++) {
+    const kd = kind[i];
+    if (!kd) continue;
+    faction[i] =
+      kd === "centre" || kd === "square" || kd === "wealthy" || kd === "park" || kd === "pond"
+        ? 0
+        : kd === "docks"
+          ? 3
+          : kd === "shanty"
+            ? 5
+            : district[i] === 4
+              ? 2
+              : 4;
+  }
+  for (const g of gates)
+    for (let i = 0; i < n; i++)
+      if (use[i] === "town" && cells.v[i].some(v => dist(vertices.p[v], g.p) < 14) && kind[i] !== "square")
+        faction[i] = 1;
+  for (const [k, v] of Object.entries(ed.factionCells ?? {})) if (+k >= 0 && +k < n) faction[+k] = v;
+
   return {
     W,
     H,
@@ -866,6 +974,9 @@ export function buildCity(
     gates,
     landmarks,
     farms,
+    block,
+    factions: FACTIONS,
+    faction,
     edits: ed,
     buildings: [],
     trees: [],

@@ -66,7 +66,7 @@ const ROOFS: Record<string, string[]> = {
   centre: ["slate", "slate", "stone", "clay"],
   wealthy: ["slate", "slate", "clay"],
   old: ["clay", "clay", "clay", "slate", "slate"],
-  docks: ["timber", "timber", "slate", "clay"],
+  docks: ["slate", "slate", "timber", "clay"],
   shanty: ["thatch", "timber", "thatch", "clay"],
   farm: ["thatch", "thatch", "clay"]
 };
@@ -82,9 +82,12 @@ export const TYPE_INK: Record<string, string> = {
   Landmark: "#8a6aa8"
 };
 
+export const DIST_COL = ["#d9a441", "#8e7cc3", "#5f9fc0", "#c9714f", "#7fae6a", "#9a7356", "#c27fa5", "#6fa8a0"];
 export interface Painted {
   terrain: ImageData;
   map: ImageData;
+  districts: ImageData;
+  factions: ImageData;
   CID: Int32Array;
   BID: Int32Array;
 }
@@ -330,6 +333,14 @@ export function furnish(city: City): void {
       const b = q[(e + 1) % q.length];
       if (dist(a, b) < 6) continue;
       const m: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      // no front along an edge inside the block: the terrace runs on across it
+      const across = cells.c[i].find(
+        (j: number) =>
+          j < n &&
+          cells.v[j].some((v: number) => vertices.p[v] === a) &&
+          cells.v[j].some((v: number) => vertices.p[v] === b)
+      );
+      if (across !== undefined && city.block[across] === city.block[i] && !roadNear(m, 1)) continue;
       if (roadNear(m, 2) || k === "old" || k === "centre" || k === "docks") fronts.push({ a, b, set: 0 });
     }
     for (const r of city.roads)
@@ -509,13 +520,27 @@ export function furnish(city: City): void {
   nb("Tavern", "The Sleeping Clerk", b => kind[b.cell] === "old");
   nb("Guild hall", "Hall of the Weigh-Masters", b => kind[b.cell] === "centre");
   nb("Office", "Harbourmaster", b => b.type === "Warehouse");
+  // who owns each building: its cell's holder, the Watch its guardhouses, the agents a quiet house in the old town
+  for (const b of B) b.owner = city.faction[b.cell] >= 0 ? city.faction[b.cell] : undefined;
+  for (const b of B) if (b.type === "Guardhouse") b.owner = 1;
+  for (const b of B) if (b.landmark && b.type === "Bank") b.owner = 0;
+  {
+    const quiet = B.filter(b => !b.name && kind[b.cell] === "old" && b.type === "Residence");
+    if (quiet.length) quiet[Math.floor(R() * quiet.length)].owner = 6;
+    const tav = B.find(b => b.name === "The Gilded Anchor");
+    if (tav) tav.owner = 5;
+  }
+  for (const b of B) {
+    const o = city.edits.owners?.[b.key ?? ""];
+    if (o !== undefined) b.owner = o < 0 ? undefined : o;
+  }
   city.buildings = B;
 
   // single trees: gardens, the park and along hedges; woods are ground, not trees
   const T: [number, number, number][] = [];
   for (let i = 0; i < n; i++) {
     const k = kind[i];
-    const dens = k === "park" ? 0.75 : k === "wealthy" ? 0.22 : k === "old" ? 0.03 : 0;
+    const dens = k === "park" ? 0.75 : k === "wealthy" ? 0.2 : 0;
     if (!dens) continue;
     for (let y = 0; y < H; y += 5)
       for (let x = 0; x < W; x += 5) {
@@ -530,8 +555,8 @@ export function furnish(city: City): void {
   for (const [a, b] of hedgeEdges(city)) {
     const L = dist(a, b);
     for (let t = 3; t < L - 2; t += 5 + R() * 7)
-      if (R() < 0.55)
-        T.push([Math.round(a[0] + ((b[0] - a[0]) * t) / L), Math.round(a[1] + ((b[1] - a[1]) * t) / L), 2]);
+      if (R() < 0.5)
+        T.push([Math.round(a[0] + ((b[0] - a[0]) * t) / L), Math.round(a[1] + ((b[1] - a[1]) * t) / L), 1]);
   }
   city.trees = T;
 }
@@ -559,12 +584,8 @@ const slab = (x: number, y: number): C3 => {
   return ditherAt(x, y) < 0.2 ? sh(P.stone3, 1.04) : P.stone3;
 };
 const paving = (x: number, y: number): C3 => (ditherAt(x, y) < 0.3 ? sh(P.cob3, 1.12) : sh(P.cob3, 1.2));
-const plank = (x: number, y: number): C3 => {
-  const bd = Math.floor(y / 3);
-  if (y % 3 === 0) return P.wood2;
-  if ((x + bd * 7) % 11 === 0) return P.wood2;
-  return bd & 1 ? P.wood : sh(P.wood, 1.12);
-};
+const quay: C3 = [176, 150, 112];
+const quay2: C3 = [166, 141, 104];
 const stripe = (x: number, y: number, a: number, every = 4) =>
   (((x * Math.cos(a) + y * Math.sin(a)) % every) + every) % every;
 const calm = (c: C3, t = 0.3): C3 => {
@@ -585,7 +606,7 @@ export function terrainTile(kind: string, x: number, y: number, a: number): C3 {
     case "square":
       return slab(x, y);
     case "docks":
-      return plank(x, y);
+      return ditherAt(x, y) < 0.25 ? quay2 : quay;
     case "shanty":
       return ditherAt(x, y) < 0.5 ? P.dirt3 : P.dirt;
     case "wealthy":
@@ -618,7 +639,8 @@ const MAPC = {
   houseEdge: hex("#7c4630"),
   wall: hex("#5a5046"),
   gate: hex("#c9a46a"),
-  pier: hex("#b89670")
+  pier: hex("#9c7a52"),
+  quay: hex("#eadcbc")
 };
 export function mapTile(kind: string): C3 {
   switch (kind) {
@@ -635,9 +657,10 @@ export function mapTile(kind: string): C3 {
       return MAPC.green;
     case "square":
       return MAPC.road;
+    case "docks":
+      return MAPC.quay;
     case "centre":
     case "old":
-    case "docks":
     case "shanty":
       return MAPC.block;
     default:
@@ -793,7 +816,7 @@ export function paint(city: City): Painted {
           t = ditherAt(x, y) < 0.5 ? sh(P.dirt3, 1.25) : sh(P.dirt3, 1.15);
           m = kerb ? MAPC.laneEdge : MAPC.track;
         } else if (r === 6 || r === 8) {
-          t = plank(x, y);
+          t = kerb || (x + y) % 4 === 0 ? P.wood2 : P.wood;
           m = MAPC.pier;
         } else if (r === 5) {
           t = P.stone;
@@ -816,7 +839,7 @@ export function paint(city: City): Painted {
     }
   }
   // shadows to the lower right
-  const castsShadow = (j: number) => BID[j] > 0 || RD[j] === 5;
+  const castsShadow = (j: number) => RD[j] === 5;
   for (let y = H - 1; y >= 0; y--)
     for (let x = W - 1; x >= 0; x--) {
       const j = y * W + x;
@@ -833,102 +856,6 @@ export function paint(city: City): Painted {
         }
       }
     }
-  // roofs lit from the upper left: a ridge along a block's length, a hip on a landmark of any shape
-  const ROOF: Record<string, [C3, C3, C3]> = {
-    slate: [P.slate3, P.slate, P.slate2],
-    clay: [P.clay3, P.clay, P.clay2],
-    thatch: [P.thatch3, P.thatch, P.thatch2],
-    gold: [P.gold, P.gold2, sh(P.gold2, 0.7)],
-    stone: [P.stone3, P.stone, P.stone2],
-    timber: [sh(P.wood, 1.3), P.wood, P.wood2]
-  };
-  for (const b of city.buildings) {
-    const pal = ROOF[b.roof] ?? ROOF.clay;
-    const ink = TYPE_INK[b.type];
-    const mapFill = ink ? hex(ink) : MAPC.house;
-    const mapEdge = ink ? sh(hex(ink), 0.6) : MAPC.houseEdge;
-    const paintPx = (j: number, c: C3) => {
-      const x = j % W;
-      const y = (j / W) | 0;
-      let outer = false;
-      let inner = false;
-      for (let q = 0; q < 8; q += 2) {
-        const X = x + N4[q];
-        const Y = y + N4[q + 1];
-        const o = X < 0 || Y < 0 || X >= W || Y >= H ? 0 : BID[Y * W + X];
-        if (!o) outer = true;
-        else if (o !== b.id) inner = true;
-      }
-      put(T, j, outer || inner ? pal[2] : c);
-      // the map view joins a terrace into one block: a thin line between houses, a dark edge only round the block
-      put(Mp, j, outer ? mapEdge : inner && !ink ? MAPC.houseLine : mapFill);
-    };
-    if (b.landmark) {
-      const px = landPx.get(b.id) ?? [];
-      const set = new Set(px);
-      const D = new Map<number, number>();
-      for (const j of px) {
-        let d = 0;
-        for (let r = 1; r < 12; r++) {
-          const x = j % W;
-          const y = (j / W) | 0;
-          let hit = false;
-          for (let v = -r; v <= r && !hit; v++)
-            for (let u = -r; u <= r && !hit; u++)
-              if (Math.max(Math.abs(u), Math.abs(v)) === r && !set.has((y + v) * W + x + u)) hit = true;
-          if (hit) break;
-          d = r;
-        }
-        D.set(j, d);
-      }
-      for (const j of px) {
-        const d = D.get(j) ?? 0;
-        const up = Math.min(D.get(j - W) ?? -1, D.get(j - 1) ?? -1);
-        const dn = Math.min(D.get(j + W) ?? -1, D.get(j + 1) ?? -1);
-        // a hip roof: the slopes facing up and left catch the light, the ridge runs where both sides meet
-        let c = up < dn ? pal[0] : up > dn ? pal[1] : d > 0 ? sh(pal[0], 1.06) : pal[1];
-        if (b.roof === "gold" && ditherAt(j % W, (j / W) | 0) > 0.88) c = pal[0];
-        paintPx(j, c);
-      }
-      continue;
-    }
-    const p = b.poly;
-    const ux = p[1][0] - p[0][0];
-    const uy = p[1][1] - p[0][1];
-    const vx = p[3][0] - p[0][0];
-    const vy = p[3][1] - p[0][1];
-    const lu = Math.hypot(ux, uy);
-    const lv = Math.hypot(vx, vy);
-    let a = Infinity;
-    let bb = Infinity;
-    let e = -Infinity;
-    let f = -Infinity;
-    for (const [x, y] of p) {
-      a = Math.min(a, x);
-      bb = Math.min(bb, y);
-      e = Math.max(e, x);
-      f = Math.max(f, y);
-    }
-    for (let y = Math.max(0, Math.floor(bb)); y <= Math.min(H - 1, f); y++)
-      for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++) {
-        const j = y * W + x;
-        if (BID[j] !== b.id) continue;
-        const px = x + 0.5 - p[0][0];
-        const py = y + 0.5 - p[0][1];
-        const u = (px * ux + py * uy) / lu;
-        const v = (px * vx + py * vy) / lv;
-        const along = lu >= lv;
-        const tt = along ? v / lv : u / lu;
-        const nX = along ? vx : ux;
-        const nY = along ? vy : uy;
-        const lit = tt < 0.5 === nX + nY > 0;
-        let c = lit ? pal[0] : pal[1];
-        if (!lit && ditherAt(x, y) > 0.8) c = pal[2];
-        if (b.roof === "timber" && Math.floor(along ? u : v) % 3 === 0) c = pal[2];
-        if (Math.abs(tt - 0.5) < 0.5 / (along ? lv : lu) + 0.04) c = sh(pal[0], 1.06);
-        paintPx(j, c);
-      }
-  }
   // towers
   for (const [tx, ty] of city.towers)
     for (let v = -3; v <= 3; v++)
@@ -969,6 +896,44 @@ export function paint(city: City): Painted {
         put(T, Y * W + X, c);
       }
   }
+  // the district and faction views: the plain map with each area washed in its colour and edged where it ends
+  const districts = new ImageData(new Uint8ClampedArray(Mp), W, H);
+  const factions = new ImageData(new Uint8ClampedArray(Mp), W, H);
+  const area = (D: Uint8ClampedArray, of: (ci: number) => number, col: (v: number) => C3 | null, wash: number) => {
+    for (let j = 0; j < N; j++) {
+      const ci = CID[j];
+      if (ci < 0 || water(j)) continue;
+      const v = of(ci);
+      const c = col(v);
+      if (!c) continue;
+      const x = j % W;
+      const y = (j / W) | 0;
+      let rim = false;
+      for (let q = 0; q < 8; q += 2) {
+        const X = x + N4[q];
+        const Y = y + N4[q + 1];
+        if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+        const o = CID[Y * W + X];
+        if (o < 0 || of(o) !== v) rim = true;
+      }
+      const k = j * 4;
+      const t = rim ? 0.85 : RD[j] && RD[j] !== 5 ? wash * 0.35 : wash;
+      const cc = rim ? sh(c, 0.7) : c;
+      for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - t) + cc[i] * t;
+    }
+  };
+  area(
+    districts.data,
+    ci => city.district[ci],
+    v => (v >= 0 ? hex(DIST_COL[v % DIST_COL.length]) : null),
+    0.38
+  );
+  area(
+    factions.data,
+    ci => city.faction[ci],
+    v => (v >= 0 ? hex(city.factions[v]?.col ?? "#888888") : null),
+    0.42
+  );
   // outside the home cell: terrain darkens, the map pales, both deepening toward the view's edge
   const fadeTo = hex("#d6cdb6");
   for (let j = 0; j < N; j++) {
@@ -980,7 +945,8 @@ export function paint(city: City): Painted {
     const k = j * 4;
     const tw = t * (water(j) ? 0.45 : 1);
     for (let i = 0; i < 3; i++) T[k + i] = T[k + i] * (1 - tw) + 20 * tw;
-    for (let i = 0; i < 3; i++) Mp[k + i] = Mp[k + i] * (1 - t * 0.7) + fadeTo[i] * t * 0.7;
+    for (const D of [Mp, districts.data, factions.data])
+      for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - t * 0.7) + fadeTo[i] * t * 0.7;
   }
-  return { terrain, map, CID, BID };
+  return { terrain, map, districts, factions, CID, BID };
 }
