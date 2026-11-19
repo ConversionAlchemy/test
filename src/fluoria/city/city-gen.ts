@@ -703,9 +703,12 @@ export function buildCity(
   };
   // a main road's cells give its corridor; the road itself runs along their edges, corner to corner,
   // paying for every turn so it keeps its line
-  const edgePath = (route: number[]): number[] | null => {
+  const edgePath = (route: number[], maxTurn = 80, wide = false): number[] | null => {
     const corridor = new Set<number>();
-    for (const c of route) for (const v of cells.v[c]) corridor.add(v);
+    for (const c of route) {
+      for (const v of cells.v[c]) corridor.add(v);
+      if (wide) for (const j of cells.c[c]) if (j < n) for (const v of cells.v[j]) corridor.add(v);
+    }
     const goal = new Set<number>(cells.v[route[route.length - 1]]);
     const ang = (a: number, b: number) =>
       Math.atan2(vertices.p[b][1] - vertices.p[a][1], vertices.p[b][0] - vertices.p[a][0]);
@@ -736,7 +739,7 @@ export function buildCity(
         if (cur.pv >= 0) {
           const d = ang(cur.v, nv) - ang(cur.pv, cur.v);
           turn = Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * (180 / Math.PI);
-          if (turn > 80) continue;
+          if (turn > maxTurn) continue;
         }
         const c = cur.c + dist(vertices.p[cur.v], vertices.p[nv]) * (1 + 3 * (turn / 90) ** 2);
         const k = `${nv}|${cur.v}`;
@@ -753,7 +756,8 @@ export function buildCity(
     return out.length > 1 ? out : null;
   };
   const mainOnEdges = (key: string, name: string | undefined, route: number[]) => {
-    const vs = edgePath(route);
+    // never through a cell's middle: widen the corridor and allow sharper turns before giving up
+    const vs = edgePath(route) ?? edgePath(route, 80, true) ?? edgePath(route, 125, true);
     const ek = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
     if (!vs) return { type: "main" as const, key, name, cells: route, pts: lineOf(route) };
     const edges = vs.slice(1).map((v, i) => [vs[i], v] as [number, number]);
