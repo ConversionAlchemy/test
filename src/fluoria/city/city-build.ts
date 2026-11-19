@@ -33,8 +33,14 @@ export function landmarkShape(city: City, b: Building): P2[] {
   poly = poly.filter(
     (p, k) => Math.hypot(p[0] - poly[(k + 1) % poly.length][0], p[1] - poly[(k + 1) % poly.length][1]) > 0.8
   );
-  poly = inset(poly, 3);
-  return b.type === "Bank" ? squareIn(poly, city.ang[b.cell]) : poly;
+  // drop corners that lie on a straight side, so a square cell stays four corners
+  poly = poly.filter((p, k) => {
+    const a = poly[(k + poly.length - 1) % poly.length];
+    const c = poly[(k + 1) % poly.length];
+    return Math.abs((p[0] - a[0]) * (c[1] - p[1]) - (p[1] - a[1]) * (c[0] - p[0])) > 0.5;
+  });
+  poly = inset(poly, 2);
+  return b.type === "Bank" && poly.length !== 4 ? squareIn(poly, city.ang[b.cell]) : poly;
 }
 
 // the largest square on the town grid that fits the plot: the Aurum is built square whatever its cell
@@ -317,6 +323,11 @@ export function renderBuildings(
   // their shadow, then the streets are laid on top, filled and edged in thin ink
   const { vertices, cells } = city.pack;
   const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
+  const townish = (c: number) => c < city.use.length && (city.use[c] === "town" || city.use[c] === "shanty");
+  const atWall = (v: number) =>
+    city.walls.length > 0 &&
+    vertices.c[v].some(townish) &&
+    vertices.c[v].some((c: number) => c < city.use.length && !townish(c) && city.use[c] !== "water");
   const strokeRoads = (extra: number) => {
     for (const r of city.roads) {
       const w = W2[r.type];
@@ -325,8 +336,15 @@ export function renderBuildings(
       g.beginPath();
       if (r.edges)
         for (const [a, b] of r.edges) {
-          g.moveTo(vertices.p[a][0], vertices.p[a][1]);
-          g.lineTo(vertices.p[b][0], vertices.p[b][1]);
+          // a street that runs up to the wall stops short of it; only main roads pass, at their gates
+          let p = vertices.p[a] as P2;
+          let q = vertices.p[b] as P2;
+          const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+          const cut = Math.min(2.6, L * 0.45);
+          if (r.type !== "main" && atWall(a)) p = [p[0] + ((q[0] - p[0]) / L) * cut, p[1] + ((q[1] - p[1]) / L) * cut];
+          if (r.type !== "main" && atWall(b)) q = [q[0] + ((p[0] - q[0]) / L) * cut, q[1] + ((p[1] - q[1]) / L) * cut];
+          g.moveTo(p[0], p[1]);
+          g.lineTo(q[0], q[1]);
         }
       else
         for (const [k, p] of r.pts.entries()) {
@@ -347,28 +365,51 @@ export function renderBuildings(
     g.fill();
   }
   g.globalCompositeOperation = "source-over";
-  // the town wall: a stone band
+  // the town wall: a stone band with round towers, open at each gate
   const stone: C3 = faded ? [176, 166, 152] : [120, 108, 96];
-  for (const w of city.walls) {
-    g.strokeStyle = css(sh(stone, 0.7));
-    g.lineWidth = 3.2;
-    g.beginPath();
-    for (const [k, p] of w.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
-    g.stroke();
-    g.strokeStyle = css(stone);
-    g.lineWidth = 2.2;
-    g.stroke();
-  }
-  for (const [tx, ty] of city.towers) {
-    g.fillStyle = css(sh(stone, 0.7));
-    g.beginPath();
-    g.arc(tx, ty, 2.6, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = css(sh(stone, 1.08));
-    g.beginPath();
-    g.arc(tx, ty, 1.9, 0, Math.PI * 2);
-    g.fill();
-  }
+  const drawWalls = () => {
+    const open = (p: P2) => city.gates.some(gt => Math.hypot(gt.p[0] - p[0], gt.p[1] - p[1]) < 3.4);
+    const runs: P2[][] = [];
+    for (const w of city.walls) {
+      let run: P2[] = [];
+      for (let k = 0; k < w.length - 1; k++) {
+        const [a, b] = [w[k], w[k + 1]];
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const steps = Math.max(1, Math.ceil(L / 0.5));
+        for (let t = 0; t <= steps; t++) {
+          const p: P2 = [a[0] + ((b[0] - a[0]) * t) / steps, a[1] + ((b[1] - a[1]) * t) / steps];
+          if (open(p)) {
+            if (run.length > 1) runs.push(run);
+            run = [];
+          } else run.push(p);
+        }
+      }
+      if (run.length > 1) runs.push(run);
+    }
+    for (const [lwid, col] of [
+      [3.2, sh(stone, 0.7)],
+      [2.2, stone]
+    ] as [number, C3][]) {
+      g.strokeStyle = css(col);
+      g.lineWidth = lwid;
+      for (const run of runs) {
+        g.beginPath();
+        for (const [k, p] of run.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
+        g.stroke();
+      }
+    }
+    for (const [tx, ty] of city.towers) {
+      g.fillStyle = css(sh(stone, 0.7));
+      g.beginPath();
+      g.arc(tx, ty, 2.6, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = css(sh(stone, 1.08));
+      g.beginPath();
+      g.arc(tx, ty, 1.9, 0, Math.PI * 2);
+      g.fill();
+    }
+  };
+  drawWalls();
   hard(body);
   // shadows to the lower right, cast by buildings and walls before the streets go down
   const off = style === "terrain" ? 1 : 0.9;
@@ -392,6 +433,7 @@ export function renderBuildings(
     pathOf(g, sqPoly(i));
     g.fill();
   }
+  drawWalls();
   hard(body);
   if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.3 : 0.5);
   return { body, shadow };

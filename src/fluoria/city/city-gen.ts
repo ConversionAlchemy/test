@@ -26,6 +26,7 @@ export interface District {
   name: string;
   kind: Kind;
   cells: number[];
+  wealth: number; // 1 the poorest to 5 the richest; sets lot size and how much is built
 }
 export interface Road {
   type: "main" | "street" | "lane" | "pier" | "path" | "track";
@@ -100,6 +101,7 @@ export interface Edits {
   owners?: Record<string, number>;
   favs?: string[];
   colors?: Record<string, string>;
+  wealth?: Record<number, number>;
 }
 export const TOWN_KINDS: Kind[] = ["centre", "wealthy", "old", "docks", "shanty", "square", "park", "pond"];
 
@@ -509,12 +511,12 @@ export function buildCity(
   }
   kind[squareCell] = "square";
   const DIST: District[] = [
-    { id: 0, name: "The Exchange", kind: "centre", cells: [] },
-    { id: 1, name: "Gilt Hill", kind: "wealthy", cells: [] },
-    { id: 2, name: "Bankside", kind: "docks", cells: [] },
-    { id: 3, name: "Old Town", kind: "old", cells: [] },
-    { id: 4, name: "Saltgate", kind: "old", cells: [] },
-    { id: 5, name: "The Rookery", kind: "shanty", cells: [] }
+    { id: 0, name: "The Exchange", kind: "centre", cells: [], wealth: 4 },
+    { id: 1, name: "Gilt Hill", kind: "wealthy", cells: [], wealth: 5 },
+    { id: 2, name: "Bankside", kind: "docks", cells: [], wealth: 3 },
+    { id: 3, name: "Old Town", kind: "old", cells: [], wealth: 2 },
+    { id: 4, name: "Saltgate", kind: "old", cells: [], wealth: 2 },
+    { id: 5, name: "The Rookery", kind: "shanty", cells: [], wealth: 1 }
   ];
   for (const i of town) {
     const k = kind[i];
@@ -552,7 +554,10 @@ export function buildCity(
       district[i] = 5;
     }
   }
-  for (const d of ed.newDistricts ?? []) DIST.push({ id: d.id, name: d.name, kind: d.kind, cells: [] });
+  const KIND_WEALTH: Record<string, number> = { shanty: 1, old: 2, docks: 3, centre: 4, wealthy: 5 };
+  for (const d of ed.newDistricts ?? [])
+    DIST.push({ id: d.id, name: d.name, kind: d.kind, cells: [], wealth: KIND_WEALTH[d.kind] ?? 2 });
+  for (const D of DIST) D.wealth = Math.max(1, Math.min(5, ed.wealth?.[D.id] ?? D.wealth));
   for (const D of DIST) D.name = named(`d:${D.id}`, D.name) as string;
   // the DM's painted cells and districts, over the generated ones
   const DEF: Record<string, number> = {
@@ -696,6 +701,72 @@ export function buildCity(
     );
     return path ? (path[0] === from ? path : [from, ...path]) : null;
   };
+  // a main road's cells give its corridor; the road itself runs along their edges, corner to corner,
+  // paying for every turn so it keeps its line
+  const edgePath = (route: number[]): number[] | null => {
+    const corridor = new Set<number>();
+    for (const c of route) for (const v of cells.v[c]) corridor.add(v);
+    const goal = new Set<number>(cells.v[route[route.length - 1]]);
+    const ang = (a: number, b: number) =>
+      Math.atan2(vertices.p[b][1] - vertices.p[a][1], vertices.p[b][0] - vertices.p[a][0]);
+    // states are (vertex, the vertex before it)
+    const best = new Map<string, number>();
+    const back = new Map<string, string | null>();
+    const open: { k: string; v: number; pv: number; c: number }[] = [];
+    for (const v of cells.v[route[0]]) {
+      const k = `${v}|-1`;
+      best.set(k, 0);
+      back.set(k, null);
+      open.push({ k, v, pv: -1, c: 0 });
+    }
+    let end: string | null = null;
+    while (open.length) {
+      let bi = 0;
+      for (let i = 1; i < open.length; i++) if (open[i].c < open[bi].c) bi = i;
+      const cur = open.splice(bi, 1)[0];
+      if (cur.c > (best.get(cur.k) ?? Infinity)) continue;
+      if (goal.has(cur.v) && cur.pv >= 0) {
+        end = cur.k;
+        break;
+      }
+      for (const nv of vertices.v[cur.v] ?? []) {
+        if (!corridor.has(nv) || nv === cur.pv) continue;
+        if (vertices.c[nv].every((c: number) => c >= n || isWater[c])) continue;
+        let turn = 0;
+        if (cur.pv >= 0) {
+          const d = ang(cur.v, nv) - ang(cur.pv, cur.v);
+          turn = Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * (180 / Math.PI);
+          if (turn > 80) continue;
+        }
+        const c = cur.c + dist(vertices.p[cur.v], vertices.p[nv]) * (1 + 3 * (turn / 90) ** 2);
+        const k = `${nv}|${cur.v}`;
+        if (c < (best.get(k) ?? Infinity)) {
+          best.set(k, c);
+          back.set(k, cur.k);
+          open.push({ k, v: nv, pv: cur.v, c });
+        }
+      }
+    }
+    if (!end) return null;
+    const out: number[] = [];
+    for (let k: string | null = end; k; k = back.get(k) ?? null) out.unshift(+k.split("|")[0]);
+    return out.length > 1 ? out : null;
+  };
+  const mainOnEdges = (key: string, name: string | undefined, route: number[]) => {
+    const vs = edgePath(route);
+    const ek = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+    if (!vs) return { type: "main" as const, key, name, cells: route, pts: lineOf(route) };
+    const edges = vs.slice(1).map((v, i) => [vs[i], v] as [number, number]);
+    return {
+      type: "main" as const,
+      key,
+      name,
+      cells: route,
+      edges,
+      ekeys: edges.map(([a, b]) => ek(a, b)),
+      pts: vs.map(v => vertices.p[v] as P2)
+    };
+  };
   // exits: where the region's roads leave the cell, plus a road toward the nearest neighbouring settlement
   const exits: { cell: number; name: string; out: P2 }[] = [];
   const nearestCell = (p: P2, ok: (i: number) => boolean) => {
@@ -742,13 +813,7 @@ export function buildCity(
     const route = mainRoute(squareCell, e.cell);
     if (!route) continue;
     for (const c of route) onMain[c] = 1;
-    roads.push({
-      type: "main",
-      key: `m:${e.name}`,
-      name: named(`m:${e.name}`, e.name),
-      cells: route,
-      pts: lineOf(route)
-    });
+    roads.push(mainOnEdges(`m:${e.name}`, named(`m:${e.name}`, e.name), route));
   }
   // the dock road: from the square to the waterfront
   {
@@ -758,13 +823,7 @@ export function buildCity(
       const route = erased.has("m:Bankside") ? null : mainRoute(squareCell, far);
       if (route) {
         for (const c of route) onMain[c] = 1;
-        roads.push({
-          type: "main",
-          key: "m:Bankside",
-          name: named("m:Bankside", "Bankside"),
-          cells: route,
-          pts: lineOf(route)
-        });
+        roads.push(mainOnEdges("m:Bankside", named("m:Bankside", "Bankside"), route));
       }
     }
   }
@@ -975,11 +1034,10 @@ export function buildCity(
     const free = [...nb.keys()].filter(
       v =>
         nb.get(v)?.size === 2 &&
-        vertices.c[v].every(
-          (c: number) => c < n && !isWater[c] && isTownish(c) && !isLandmark[c] && kind[c] !== "square"
-        )
+        vertices.c[v].every((c: number) => c < n && !isWater[c] && !isLandmark[c] && kind[c] !== "square") &&
+        (vertices.c[v].every((c: number) => isTownish(c)) || vertices.c[v].every((c: number) => !isTownish(c)))
     );
-    for (let it = 0; it < 5; it++)
+    for (let it = 0; it < 8; it++)
       for (const v of free) {
         const [a, b] = [...(nb.get(v) as Set<number>)];
         const p = vertices.p[v];
@@ -1072,23 +1130,48 @@ export function buildCity(
   }
   // gates: where a main road crosses the wall; the crossed edge's two ends carry its towers
   const gates: Gate[] = [];
-  for (const r of roads)
-    if ((r.type === "main" || r.type === "street") && r.cells)
-      for (let k = 1; k < r.cells.length; k++) {
-        const [p, q] = [r.cells[k - 1], r.cells[k]];
-        if (townSet.has(p) === townSet.has(q) || isWater[p] || isWater[q]) continue;
-        const shv = cells.v[p].filter(v => cells.v[q].includes(v));
-        if (shv.length < 2) continue;
-        const base = (r.name ?? "Town").replace(/ (Road|Street|Lane|Way)$/, "");
-        const gk = `g:${r.key}`;
-        gates.push({
-          p: mid(p, q),
-          a: vertices.p[shv[0]],
-          b: vertices.p[shv[1]],
-          road: r.key,
-          name: named(gk, `${base} Gate`) as string
-        });
-      }
+  const onWall = (v: number) =>
+    vertices.c[v].some((c: number) => townSet.has(c)) &&
+    vertices.c[v].some((c: number) => c < n && !townSet.has(c) && !isWater[c]);
+  for (const r of roads) {
+    if (r.type !== "main") continue;
+    const base = (r.name ?? "Town").replace(/ (Road|Street|Lane|Way)$/, "");
+    const gk = `g:${r.key}`;
+    if (r.edges) {
+      // the road crosses the wall at a corner it shares with it
+      const vs = [r.edges[0][0], ...r.edges.map(e => e[1])];
+      const k = vs.findIndex((v, i) => i > 0 && onWall(v));
+      if (k < 0) continue;
+      const p = vertices.p[vs[k]] as P2;
+      const q = vertices.p[vs[Math.min(vs.length - 1, k + 1)]] as P2;
+      const o = vertices.p[vs[k - 1]] as P2;
+      const L = dist(o, q) || 1;
+      const nx = -(q[1] - o[1]) / L;
+      const ny = (q[0] - o[0]) / L;
+      gates.push({
+        p,
+        a: [p[0] + nx * 3.6, p[1] + ny * 3.6],
+        b: [p[0] - nx * 3.6, p[1] - ny * 3.6],
+        road: r.key,
+        name: named(gk, `${base} Gate`) as string
+      });
+      continue;
+    }
+    if (!r.cells) continue;
+    for (let k = 1; k < r.cells.length; k++) {
+      const [p, q] = [r.cells[k - 1], r.cells[k]];
+      if (townSet.has(p) === townSet.has(q) || isWater[p] || isWater[q]) continue;
+      const shv = cells.v[p].filter(v => cells.v[q].includes(v));
+      if (shv.length < 2) continue;
+      gates.push({
+        p: mid(p, q),
+        a: vertices.p[shv[0]],
+        b: vertices.p[shv[1]],
+        road: r.key,
+        name: named(gk, `${base} Gate`) as string
+      });
+    }
+  }
   // towers at the gates and at the wall's turns, kept apart
   const towers: P2[] = [];
   for (const g of gates) towers.push(g.a, g.b);
