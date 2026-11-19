@@ -108,6 +108,7 @@ export interface Edits {
   factionCells?: Record<number, number>;
   owners?: Record<string, number>;
   favs?: string[];
+  keyOrder?: string[]; // the key's order, as the GM dragged it
   colors?: Record<string, string>;
   wealth?: Record<number, number>;
 }
@@ -153,6 +154,7 @@ export interface City {
   notables?: Record<string, string>; // names for the town's notable buildings
   population: number; // everyone the region cell holds, town and country; 0 when unknown
   places: Record<number, string>; // names of squares, greens, ponds and open places, by cell
+  fields: { kind: string; cells: number[]; name: string; key: string }[]; // the country named: meadows, fields, woods, water
   spare: { yard: string[]; opening: string[]; square: string[] }; // names for places found empty when built
 }
 
@@ -591,12 +593,15 @@ export function buildCity(
     return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
   };
   const seedN = Math.floor(R() * 1e6);
+  // the ring of the home cell that meets other land stays open country, so a marker can always land on it;
+  // only the shore may be built to its edge
+  const rim = (i: number) => !!homeMask[i] && cells.c[i].some(j => j < n && !homeMask[j] && !isWater[j]);
   for (let i = 0; i < n; i++) {
     if (isWater[i]) {
       use[i] = "water";
       continue;
     }
-    if (homeMask[i] && dT(i) < TR) {
+    if (homeMask[i] && dT(i) < TR && !rim(i)) {
       use[i] = "town";
       continue;
     }
@@ -615,7 +620,7 @@ export function buildCity(
     const want = { hamlet: 3, village: 12, town: 30, city: 60 }[S.size];
     if (town.length < want) {
       const room = [...Array(n).keys()]
-        .filter(i => homeMask[i] && !isWater[i] && use[i] !== "town")
+        .filter(i => homeMask[i] && !isWater[i] && use[i] !== "town" && !rim(i))
         .sort((a, b) => dT(a) - dT(b));
       for (const i of room.slice(0, want - town.length)) use[i] = "town";
       town = [...Array(n).keys()].filter(i => use[i] === "town");
@@ -623,7 +628,9 @@ export function buildCity(
   }
   // a cramped site (a spit, an islet) still gets a few houses: the dry cells nearest the town's place
   if (town.length < 3) {
-    const dry = [...Array(n).keys()].filter(i => !isWater[i] && use[i] !== "town").sort((a, b) => dT(a) - dT(b));
+    const dry = [...Array(n).keys()]
+      .filter(i => !isWater[i] && use[i] !== "town")
+      .sort((a, b) => +rim(a) - +rim(b) || dT(a) - dT(b));
     for (const i of dry.slice(0, 3 - town.length)) use[i] = "town";
     town = [...Array(n).keys()].filter(i => use[i] === "town");
   }
@@ -688,7 +695,10 @@ export function buildCity(
   {
     const away: P2 = [T[0] - Math.cos(hillDir) * TR, T[1] - Math.sin(hillDir) * TR];
     const out = [...Array(n).keys()]
-      .filter(i => homeMask[i] && use[i] !== "town" && use[i] !== "water" && cells.c[i].some(j => use[j] === "town"))
+      .filter(
+        i =>
+          homeMask[i] && !rim(i) && use[i] !== "town" && use[i] !== "water" && cells.c[i].some(j => use[j] === "town")
+      )
       .sort((a, b) => dist(pts[a], away) - dist(pts[b], away));
     for (const i of out.slice(0, S ? (S.shanty ? (S.size === "city" ? 4 : 2) : 0) : 4)) {
       use[i] = "shanty";
@@ -716,6 +726,7 @@ export function buildCity(
     const i = +k;
     if (i < 0 || i >= n) continue;
     if ((TOWN_KINDS as string[]).includes(v)) {
+      if (rim(i)) continue;
       use[i] = v === "shanty" ? "shanty" : "town";
       kind[i] = v as Kind;
       if (district[i] < 0) {
@@ -1419,6 +1430,38 @@ export function buildCity(
     else if (k === "park") places[i] = NM ? NM.place("park") : "Ledger Gardens";
     else if (k === "pond") places[i] = NM ? NM.place("pond") : "Mint Pond";
   }
+  // the country named as the old plans named it: each run of one ground, and the water
+  const fields: City["fields"] = [];
+  {
+    const FB: Record<string, string[]> = {
+      grass: ["Long Meadow", "Hay Meadow", "The Commons", "Lamb Close"],
+      pasture: ["Cow Leaze", "Horse Close"],
+      wheat: ["Mill Field", "North Field", "Barley Croft"],
+      tilled: ["Plough Land", "Furrow Field", "Ridge Acre"],
+      woods: ["Hart Wood", "Rook Copse", "Ash Holt"],
+      water: ["The Gold Sound"]
+    };
+    const seen = new Uint8Array(n);
+    const inHome = (i: number) =>
+      !!homeMask[i] || (use[i] === "water" && cells.c[i].some(j => j < n && homeMask[j] && use[j] !== "water"));
+    for (let i = 0; i < n; i++) {
+      const u = use[i];
+      if (seen[i] || !inHome(i) || !FB[u]) continue;
+      const run = [i];
+      seen[i] = 1;
+      for (let k = 0; k < run.length; k++)
+        for (const j of cells.c[run[k]])
+          if (j < n && !seen[j] && inHome(j) && use[j] === u) {
+            seen[j] = 1;
+            run.push(j);
+          }
+      const key = `c:${Math.min(...run)}`;
+      const base = NM
+        ? NM.place(u === "water" ? "sea" : u)
+        : FB[u][fields.filter(f => f.kind === u).length % FB[u].length];
+      fields.push({ kind: u, cells: run, name: named(key, base) as string, key });
+    }
+  }
   // who holds each cell: the Aurum the centre and the hill, guilds their quarters, the crew the Rookery, the Watch the gates
   const faction = new Int16Array(n).fill(-1);
   for (let i = 0; i < n; i++) {
@@ -1471,6 +1514,7 @@ export function buildCity(
     })),
     notables: NM?.notables(),
     places,
+    fields,
     population: B.pop ? Math.round(B.pop * 1000) : 0,
     spare: {
       yard: Array.from({ length: 12 }, () => NM?.place("yard") ?? "Tallow Yard"),

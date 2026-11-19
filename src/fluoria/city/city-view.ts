@@ -53,7 +53,9 @@ const TIERS: Record<string, { min: number; px: number; rank: number; cls: string
   main: { min: 2.8, px: 13, rank: 3, cls: "road main" },
   square: { min: 3.2, px: 12, rank: 4, cls: "land" },
   street: { min: 4.2, px: 11.5, rank: 5, cls: "road" },
-  bld: { min: 5.5, px: 11, rank: 6, cls: "bld" }
+  bld: { min: 5.5, px: 11, rank: 6, cls: "bld" },
+  sea: { min: 0, px: 17, rank: 1, cls: "sea" },
+  field: { min: 1.4, px: 12, rank: 5, cls: "field" }
 };
 type Label = MapLabel & { tier: string; road?: P2[] };
 
@@ -82,18 +84,23 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     }
   };
 
-  root.innerHTML = `<div class="cvStage"><canvas class="cvMap"></canvas><svg class="cvOver"><g><path class="sel"></path><path class="hl"></path><path class="hl2"></path></g></svg><svg class="cvLab"><defs></defs></svg><div class="cvTip"></div><div class="cvKey"></div></div><aside class="cvSide">${PANEL}</aside>`;
+  root.innerHTML = `<div class="cvStage"><canvas class="cvMap"></canvas><svg class="cvOver"><g><path class="sel"></path><path class="hl"></path><path class="hl2"></path><path class="pick"></path></g></svg><svg class="cvLab"><defs></defs></svg><div class="cvTip"></div><div class="cvKey"></div></div><aside class="cvSide">${PANEL}</aside>`;
   const stage = root.querySelector(".cvStage") as HTMLDivElement;
   const side = root.querySelector(".cvSide") as HTMLElement;
   const pane = side.querySelector("[data-pane]") as HTMLDivElement;
   const cv = stage.querySelector(".cvMap") as HTMLCanvasElement;
   const over = stage.querySelector(".cvOver") as SVGSVGElement;
   const lab = stage.querySelector(".cvLab") as SVGSVGElement;
+  // house numbers: real lettering on every lot, laid in world units so each sits on its own roof
+  const nums = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  nums.setAttribute("class", "nums");
+  lab.appendChild(nums);
   const defs = lab.querySelector("defs") as SVGDefsElement;
   const tip = stage.querySelector(".cvTip") as HTMLDivElement;
   const hl = over.querySelector(".hl") as SVGPathElement;
   const hl2 = over.querySelector(".hl2") as SVGPathElement;
   const selP = over.querySelector(".sel") as SVGPathElement;
+  const pickP = over.querySelector(".pick") as SVGPathElement;
   const ctx = cv.getContext("2d") as CanvasRenderingContext2D;
   const NS = "http://www.w3.org/2000/svg";
   const world = document.createElement("canvas");
@@ -240,7 +247,20 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
           : [b.poly.reduce((s, p) => s + p[0], 0) / 4, b.poly.reduce((s, p) => s + p[1], 0) / 4];
         add(`b${b.id}`, b.name, [c[0], c[1]], b.landmark ? "land" : "bld");
       }
+    nums.innerHTML = city.buildings
+      .filter(b => !b.landmark && /^\d+ /.test(b.addr ?? "") && b.poly.length > 2)
+      .map(b => {
+        const x = b.poly.reduce((a, p) => a + p[0], 0) / b.poly.length;
+        const y = b.poly.reduce((a, p) => a + p[1], 0) / b.poly.length;
+        return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}">${b.addr.split(" ")[0]}</text>`;
+      })
+      .join("");
     for (const g of city.gates) add(`g${g.road}`, g.name, [g.p[0], g.p[1] - 7], "gate");
+    // the country: each meadow, field and wood by name, the water by its own
+    for (const f of city.fields) {
+      if (f.kind === "water" && f.cells.length < 4) continue;
+      add(`c${f.key.slice(2)}`, f.name, mean(f.cells), f.kind === "water" ? "sea" : "field");
+    }
     city.roads.forEach((r, k) => {
       if (!r.name || r.pts.length < 2) return;
       const tier = r.type === "main" ? "main" : "street";
@@ -325,7 +345,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     if (style === "factions") return l.tier === "fac" ? "show" : l.tier === "main" ? "soft" : "hide";
     if (l.tier === "fac") return "hide";
     // the picture keeps to the big names; the reference map names everything
-    if (style === "terrain") return l.tier === "street" || l.tier === "bld" ? "hide" : "show";
+    if (style === "terrain") return l.tier === "bld" ? "hide" : "show";
     return "show";
   };
   const labelSize = (l: Label) =>
@@ -456,20 +476,59 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     const rank = (b: (typeof city.buildings)[number]) =>
       b.landmark ? 0 : ["Guardhouse", "Guild hall", "Chapel", "Tavern", "Office"].indexOf(b.type) + 1 || 9;
     const auto = city.buildings.filter(b => b.name && !favs.includes(b)).sort((a, b) => rank(a) - rank(b));
-    keyed = [...favs, ...auto].slice(0, 12).map((b, k) => ({ n: k + 1, b, c: centreOf(b) }));
+    const order = edits.keyOrder ?? [];
+    const at = (b: (typeof city.buildings)[number]) => {
+      const k = order.indexOf(b.key ?? "");
+      return k < 0 ? 1e6 : k;
+    };
+    keyed = [...favs, ...auto]
+      .map((b, k) => ({ b, k }))
+      .sort((p, q) => at(p.b) - at(q.b) || p.k - q.k)
+      .slice(0, 12)
+      .map(({ b }, k) => ({ n: k + 1, b, c: centreOf(b) }));
     keyEl.innerHTML = `<button class="kh" type="button"><b>${keyOpen ? "▼" : "▶"}</b><h3>${esc(burg)}</h3></button><div class="kb"${keyOpen ? "" : " hidden"}><p class="pop">${city.population.toLocaleString()} souls</p><ol>${keyed.map(e => `<li data-n="${e.n}"><i>${e.n}</i><span>${esc(e.b.name ?? e.b.type)}</span></li>`).join("")}</ol></div>`;
     (keyEl.querySelector(".kh") as HTMLButtonElement).onclick = () => {
       keyOpen = !keyOpen;
       renderKey();
     };
-    for (const li of keyEl.querySelectorAll<HTMLLIElement>("li"))
+    for (const li of keyEl.querySelectorAll<HTMLLIElement>("li")) {
       li.onclick = () => {
         const e = keyed[+(li.dataset.n as string) - 1];
         const z = Math.max(view.zoom, 4);
         view = clamp({ zoom: z, x: stage.clientWidth / 2 - e.c[0] * z, y: stage.clientHeight / 2 - e.c[1] * z });
+        // the place picked from the key stays lit until the map is clicked
+        pickP.setAttribute(
+          "d",
+          e.b.landmark ? outline(new Set(e.b.cells ?? [e.b.cell])) : `M${e.b.poly.map(p => p.join(",")).join("L")}Z`
+        );
         draw();
         ensureDetail();
       };
+      // the GM drags a place up or down the key to renumber it
+      li.draggable = true;
+      li.ondragstart = ev => {
+        ev.dataTransfer?.setData("text/plain", li.dataset.n as string);
+        li.classList.add("drag");
+      };
+      li.ondragend = () => li.classList.remove("drag");
+      li.ondragover = ev => {
+        ev.preventDefault();
+        li.classList.add("over");
+      };
+      li.ondragleave = () => li.classList.remove("over");
+      li.ondrop = ev => {
+        ev.preventDefault();
+        const from = +(ev.dataTransfer?.getData("text/plain") ?? 0) - 1;
+        const to = +(li.dataset.n as string) - 1;
+        if (from < 0 || from === to) return renderKey();
+        const L = keyed.map(e => e.b);
+        const [m] = L.splice(from, 1);
+        L.splice(to, 0, m);
+        edits.keyOrder = L.map(b => b.key ?? "").filter(Boolean);
+        save();
+        renderKey();
+      };
+    }
     marks.innerHTML = keyed
       .map(e => `<g data-n="${e.n}"><circle r="8.5"></circle><text text-anchor="middle" dy="0.36em">${e.n}</text></g>`)
       .join("");
@@ -478,6 +537,8 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
   marks.setAttribute("class", "marks");
   lab.appendChild(marks);
   const placeMarks = () => {
+    nums.style.display = view.zoom >= 3.5 && (style === "terrain" || style === "map") ? "" : "none";
+    nums.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.zoom})`);
     marks.style.display = style === "map" ? "" : "none";
     for (const g of marks.querySelectorAll<SVGGElement>("g")) {
       const e = keyed[+(g.dataset.n as string) - 1];
@@ -626,6 +687,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
   stage.addEventListener("contextmenu", e => e.preventDefault());
   stage.addEventListener("pointerdown", e => {
     if ((e.target as HTMLElement).closest(".cvKey")) return;
+    pickP.setAttribute("d", "");
     const strokeTool =
       (tool === "paint" || tool === "district" || tool === "landmark" || tool === "faction") && e.button === 0;
     drag = { x: e.clientX, y: e.clientY, v: view, moved: false, stroke: strokeTool, button: e.button };
@@ -642,6 +704,12 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     selP.setAttribute("d", [...stroke].map(cellPath).join(""));
   };
   stage.addEventListener("pointermove", e => {
+    if (!drag && (e.target as HTMLElement).closest(".cvKey")) {
+      tip.style.display = "none";
+      hl.setAttribute("d", "");
+      hl2.setAttribute("d", "");
+      return;
+    }
     if (drag) {
       if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 3) drag.moved = true;
       if (drag.stroke) addStroke(e);
@@ -705,6 +773,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     else if (head === "d") N[`d:${id.slice(1)}`] = v;
     else if (head === "p" || head === "w" || head === "m") N[`q:${id.slice(1)}`] = v;
     else if (head === "f") N[`f:${city.faction[+id.slice(1)]}`] = v;
+    else if (head === "c") N[`c:${id.slice(1)}`] = v;
     else if (head === "g") {
       const g = city.gates.find(q => `g${q.road}` === id);
       if (g) N[g.key] = v;

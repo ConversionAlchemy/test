@@ -242,6 +242,28 @@ export function namer(lore: Lore | undefined, seed: number) {
           return pick([`${w} Yard`, `${w} Close`, `${w}'s Court`]);
         case "opening":
           return pick([`${w} Place`, `${w} Cross`, `${w} Plain`]);
+        case "grass":
+          return pick([
+            `${w} Meadow`,
+            "Long Meadow",
+            "Hay Meadow",
+            "The Commons",
+            `${w} Field`,
+            "Lamb Close",
+            "Tenter Field"
+          ]);
+        case "pasture":
+          return pick(["Cow Leaze", "Horse Close", `${w} Leaze`, "Ox Pasture", "Sheep Walk"]);
+        case "wheat":
+          return pick(["Mill Field", "North Field", "Barley Croft", `${w} Field`, "Wheat Close"]);
+        case "tilled":
+          return pick(["Plough Land", "Furrow Field", "Ridge Acre", "Bean Field", `${w} Acre`]);
+        case "woods":
+          return pick([`${w} Wood`, "Rook Copse", "Ash Holt", "Fox Covert", `${w} Copse`, "Hart Wood"]);
+        case "sea":
+          return lore?.port
+            ? pick([`The ${w} Sound`, `${w} Bay`, `${w} Reach`, "The Narrows"])
+            : pick([`${w} Water`, `The ${w}`]);
         default:
           return `${w} Square`;
       }

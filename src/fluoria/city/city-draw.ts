@@ -245,18 +245,24 @@ export function furnish(city: City): void {
     [o[0] + tx * f + nx * d, o[1] + ty * f + ny * d],
     [o[0] + nx * d, o[1] + ny * d]
   ];
+  // the named street nearest the lot, measured to the road itself, not its corners
   const streetOf = (p: P2) => {
     let best: string | undefined;
-    let bd = 12;
-    for (const r of city.roads)
-      if (r.name)
-        for (const q of r.pts) {
-          const d = dist(p, q);
-          if (d < bd) {
-            bd = d;
-            best = r.name;
-          }
+    let bd = Infinity;
+    for (const r of city.roads) {
+      if (!r.name || r.type === "pier") continue;
+      for (let k = 1; k < r.pts.length; k++) {
+        const [a, b] = [r.pts[k - 1], r.pts[k]];
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+        const d = Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+        if (d < bd) {
+          bd = d;
+          best = r.name;
         }
+      }
+    }
     return best;
   };
   const numbers = new Map<string, number>();

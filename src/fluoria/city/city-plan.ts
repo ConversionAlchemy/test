@@ -717,21 +717,5 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
   }
   o.drawImage(A, 0, 0);
   o.drawImage(Bk, 0, 0);
-  // house numbers on the roofs, close in
-  if (s >= 4) {
-    o.save();
-    o.scale(s, s);
-    o.font = `2.1px "IM Fell English", Georgia, serif`;
-    o.textAlign = "center";
-    o.textBaseline = "middle";
-    o.fillStyle = "#3b2a1e";
-    for (const { b, P } of shapes) {
-      if (b.landmark || !b.addr) continue;
-      const num = b.addr.split(" ")[0];
-      if (!/^\d+$/.test(num)) continue;
-      o.fillText(num, P.reduce((a, q) => a + q[0], 0) / P.length, P.reduce((a, q) => a + q[1], 0) / P.length + 0.15);
-    }
-    o.restore();
-  }
   return out;
 }
