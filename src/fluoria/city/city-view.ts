@@ -292,7 +292,10 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
   const labelMode = (l: Label): "show" | "soft" | "hide" => {
     if (style === "districts") return l.tier === "dist" ? "show" : l.tier === "main" ? "soft" : "hide";
     if (style === "factions") return l.tier === "fac" ? "show" : l.tier === "main" ? "soft" : "hide";
-    return l.tier === "fac" ? "hide" : "show";
+    if (l.tier === "fac") return "hide";
+    // the picture keeps to the big names; the reference map names everything
+    if (style === "terrain") return l.tier === "street" || l.tier === "bld" ? "hide" : "show";
+    return "show";
   };
   const labelSize = (l: Label) =>
     l.size *
@@ -306,7 +309,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.drawImage(world, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     if (detail) {
-      ctx.globalAlpha = style === "terrain" ? 0.55 : style === "map" ? 0.7 : 0.25;
+      ctx.globalAlpha = style === "terrain" ? 0.7 : style === "map" ? 0 : 0.25;
       ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
       ctx.globalAlpha = 1;
       ctx.drawImage(detail.body, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
@@ -428,7 +431,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     marks.innerHTML = keyed
       .map(
         e =>
-          `<g data-n="${e.n}"><circle r="7"></circle><text text-anchor="middle" dominant-baseline="central">${e.n}</text></g>`
+          `<g data-n="${e.n}"><circle r="10"></circle><text text-anchor="middle" dominant-baseline="central">${e.n}</text></g>`
       )
       .join("");
   };

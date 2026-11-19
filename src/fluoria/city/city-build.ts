@@ -1,7 +1,6 @@
 // Buildings drawn as shapes, then snapped back to hard pixels at the zoom they are seen at: neat edges at every distance,
 // still the pixel look. Far out a terrace reads as one block; close in every house has its own outline
 import { connectVertices } from "@/utils/pathUtils";
-import { Palette as P } from "../palette";
 import { TYPE_INK } from "./city-draw";
 import type { Building, City, P2 } from "./city-gen";
 
@@ -12,15 +11,13 @@ const hex = (h: string): C3 => [
   Number.parseInt(h.slice(3, 5), 16),
   Number.parseInt(h.slice(5, 7), 16)
 ];
+const PAPER: C3 = [246, 241, 228];
+const mix = (a: C3, b: C3, t: number): C3 => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t
+];
 const css = (c: C3) => `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`;
-const ROOF: Record<string, [C3, C3, C3]> = {
-  slate: [P.slate3, P.slate, P.slate2],
-  clay: [P.clay3, P.clay, P.clay2],
-  thatch: [P.thatch3, P.thatch, P.thatch2],
-  gold: [P.gold, P.gold2, sh(P.gold2, 0.68)],
-  stone: [P.stone3, P.stone, P.stone2],
-  timber: [P.wood, P.wood2, sh(P.wood2, 0.72)]
-};
 export type Style = "terrain" | "map" | "districts" | "factions" | "plan";
 
 /** A landmark's footprint: the outline of its cells, pulled in off the streets */
@@ -158,17 +155,13 @@ export function renderBuildings(
   gs.scale(s, s);
   const px = 1 / s;
   const lw = Math.max(1, s * 0.45) * px;
-  const joined = s < 4 || style === "plan" || style === "map";
+  const joined = s < 4 || style === "plan" || style === "map" || style === "terrain";
   const shapes = new Map<number, P2[]>();
   for (const b of city.buildings) shapes.set(b.id, b.landmark ? landmarkShape(city, b) : b.poly);
 
   const look = (b: Building): { pal: [C3, C3, C3]; flat: boolean } => {
     const ink = TYPE_INK[b.type];
-    if (style === "terrain") {
-      const r = ROOF[b.roof] ?? ROOF.clay;
-      return { pal: [r[1], r[1], sh(r[2], 0.7)], flat: !b.landmark };
-    }
-    if (style === "plan" || style === "map") {
+    if (style === "plan" || style === "map" || style === "terrain") {
       // one red, shaded by who lives there: deep in the rich quarters, faded in the shanty
       const k = city.kind[b.cell] ?? "";
       const c: C3 = b.landmark
@@ -176,7 +169,7 @@ export function renderBuildings(
           ? [196, 150, 60]
           : [62, 56, 52]
         : ink && style === "map"
-          ? hex(ink)
+          ? sh(hex(ink), 0.92)
           : k === "shanty"
             ? [204, 146, 120]
             : k === "wealthy" || k === "centre"
@@ -186,7 +179,10 @@ export function renderBuildings(
                 : (b.district ?? -1) < 0
                   ? [200, 124, 88]
                   : [194, 100, 68];
-      return { pal: [c, c, sh(c, 0.45)], flat: true };
+      // the reference map: the town faded back so the marked places stand out
+      const f = style === "map" && !(ink || b.landmark) ? 0.42 : 0;
+      const cc = mix(c, PAPER, f);
+      return { pal: [cc, cc, sh(cc, f ? 0.7 : 0.45)], flat: true };
     }
     if (style === "factions") {
       const f = b.owner !== undefined ? city.factions[b.owner] : undefined;
@@ -225,7 +221,7 @@ export function renderBuildings(
   };
 
   // the map's streets and squares edged in a thin ink line at the drawing's own scale, the paper left showing between
-  if (style === "map") {
+  if (style === "map" || style === "terrain") {
     const { vertices, cells } = city.pack;
     const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
     const strokeRoads = (extra: number) => {
@@ -266,7 +262,7 @@ export function renderBuildings(
     g.globalCompositeOperation = "source-over";
   }
   // shadows to the lower right; on the map a deeper cast, as the engraved plans shade their blocks
-  const off = style === "map" ? 1.5 : 0.9;
+  const off = style === "terrain" ? 1.5 : 0.9;
   gs.fillStyle = "#000";
   for (const [, poly] of shapes) {
     if (poly.length < 3) continue;
@@ -296,7 +292,7 @@ export function renderBuildings(
       g.fillStyle = css(pal[0]);
       pathOf(g, inner);
       g.fill();
-      if (!joined && !b.landmark && style !== "factions" && style !== "terrain") {
+      if (!joined && !b.landmark && style !== "factions") {
         g.strokeStyle = css(sh(pal[0], 0.86));
         g.lineWidth = lw;
         const [p0, p1, , p3] = inner;
@@ -368,7 +364,7 @@ export function renderBuildings(
       g.stroke();
     }
   }
-  if (joined && s >= 3 && style === "map")
+  if (joined && s >= 3 && (style === "map" || style === "terrain"))
     for (const b of city.buildings) {
       const poly = shapes.get(b.id) as P2[];
       if (b.landmark || poly.length < 3) continue;
@@ -379,6 +375,6 @@ export function renderBuildings(
     }
   hard(body);
   hard(shadow);
-  if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.5 : 1);
+  if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.3 : 0.5);
   return { body, shadow };
 }
