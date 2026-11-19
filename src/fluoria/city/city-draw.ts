@@ -576,7 +576,7 @@ export function furnish(city: City): void {
   };
   // a house must be a clean shape: convex, few corners, no corner far from square
   const houseOk = (P: P2[], minSide: number, maxArea: number) => {
-    if (P.length < 3 || P.length > 7 || !shapeOk(P, minSide)) return false;
+    if (P.length < 4 || P.length > 6 || !shapeOk(P, minSide)) return false;
     const A = Math.abs(area2(P)) / 2;
     if (A > maxArea) return false;
     const sg = Math.sign(area2(P));
@@ -592,7 +592,7 @@ export function furnish(city: City): void {
       const lv = Math.hypot(v[0], v[1]);
       if (lu < 0.4 || lv < 0.4) continue;
       const deg = (Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (lu * lv)))) * 180) / Math.PI;
-      if (deg < 38 || deg > 150) return false;
+      if (deg < 62 || deg > 125) return false;
     }
     return true;
   };
@@ -759,6 +759,14 @@ export function furnish(city: City): void {
           if (!found || !houseOk(found, spec.minSide, spec.area * 3.2)) continue;
           hh = found;
         }
+        // a house lies wholly inside its plot, the cell less its streets: never across a cell edge
+        const cx = hh.reduce((q, p) => q + p[0], 0) / hh.length;
+        const cy = hh.reduce((q, p) => q + p[1], 0) / hh.length;
+        const fits = (P: P2[]) => P.every(p => inPoly(Q, p[0] + (cx - p[0]) * 0.02, p[1] + (cy - p[1]) * 0.02));
+        // a detached house that overhangs its plot is drawn smaller about its middle until it fits, or not at all
+        for (let f = 0.85; !fits(hh) && f >= 0.55 && wealth >= 5; f -= 0.1)
+          hh = hh.map(p => [cx + (p[0] - cx) * f, cy + (p[1] - cy) * f] as P2);
+        if (!fits(hh) || (wealth >= 5 && !shapeOk(hh, 3))) continue;
         const cl = claim(hh, j => set.has(CID[j]), 0.35);
         if (!cl) continue;
         const ci = CID[cl[Math.floor(cl.length / 2)]];
