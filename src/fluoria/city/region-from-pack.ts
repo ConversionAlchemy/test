@@ -28,7 +28,7 @@ export function worldFromPack(): World {
     cells: [],
     routes: [],
     burgs: [],
-    states: states.map(s => ({ n: s.name ?? "", full: s.fullName, form: s.form, rival: undefined })),
+    states: states.map(s => ({ n: s.name ?? "", full: s.fullName, form: s.form, c: s.color })),
     cultures: cultures.map(c => ({ n: c.name ?? "", base: baseOf(c.base ?? 0) })),
     religions: religions.map(r => ({ n: r.name ?? "", deity: r.deity ?? undefined })),
     bases: []

@@ -679,9 +679,26 @@ export function renderGround(city: City, painted: Painted, style: Style, s: numb
   const poly = (i: number) => cells.v[i].map((v: number) => vertices.p[v] as P2);
   const land = (i: number) => i < n && !!col[i];
   g.lineJoin = "round";
+  const H = city.height;
+  // the slope under each cell, for light and shade: lit facing the upper left
+  const shadeOf = (i: number) => {
+    if (style !== "terrain" || city.use[i] === "water") return 1;
+    let gx = 0;
+    let gy = 0;
+    for (const j of cells.c[i] as number[]) {
+      if (j >= n || city.use[j] === "water") continue;
+      const dx = cells.p[j][0] - cells.p[i][0];
+      const dy = cells.p[j][1] - cells.p[i][1];
+      const d2 = dx * dx + dy * dy || 1;
+      gx += ((H[j] - H[i]) * dx) / d2;
+      gy += ((H[j] - H[i]) * dy) / d2;
+    }
+    return Math.max(0.86, Math.min(1.12, 1 + (gx + gy) * 2.2));
+  };
   for (let i = 0; i < n; i++) {
-    const c = col[i];
-    if (!c) continue;
+    const c0 = col[i];
+    if (!c0) continue;
+    const c = sh(c0, shadeOf(i));
     pathOf(g, poly(i));
     g.fillStyle = g.strokeStyle = css(c);
     g.lineWidth = 0.6;
@@ -696,6 +713,42 @@ export function renderGround(city: City, painted: Painted, style: Style, s: numb
     g.fill();
   }
   speckle(cv, s, 0.45);
+  // contours on the cells' own edges: a line wherever the ground crosses a level, every fifth one heavier
+  {
+    const STEP = 1;
+    const lvl = (i: number) => Math.floor((H[i] - 20) / STEP);
+    const thin: [P2, P2][] = [];
+    const bold: [P2, P2][] = [];
+    for (let i = 0; i < n; i++) {
+      if (city.use[i] === "water") continue;
+      const vs = cells.v[i] as number[];
+      for (const [e, v] of vs.entries()) {
+        const w = vs[(e + 1) % vs.length];
+        const o = (cells.c[i] as number[]).find(j => j > i && cells.v[j]?.includes(v) && cells.v[j].includes(w));
+        if (o === undefined || o >= n || city.use[o] === "water") continue;
+        const [la, lb] = [lvl(i), lvl(o)];
+        if (la === lb) continue;
+        const seg: [P2, P2] = [vertices.p[v] as P2, vertices.p[w] as P2];
+        let heavy = false;
+        for (let L = Math.min(la, lb) + 1; L <= Math.max(la, lb); L++) if (L % 5 === 0) heavy = true;
+        (heavy ? bold : thin).push(seg);
+      }
+    }
+    const ink = style === "terrain" ? "rgba(60,40,22,0.38)" : "rgba(146,104,66,0.8)";
+    for (const [list, w] of [
+      [thin, 0.7],
+      [bold, 1.3]
+    ] as [[P2, P2][], number][]) {
+      g.strokeStyle = ink;
+      g.lineWidth = w;
+      g.beginPath();
+      for (const [a, b] of list) {
+        g.moveTo(a[0], a[1]);
+        g.lineTo(b[0], b[1]);
+      }
+      g.stroke();
+    }
+  }
   // on the plan views the fields are drawn as thin boundary lines on the paper
   if (style !== "terrain") {
     g.strokeStyle = "rgb(208,198,178)";
@@ -758,10 +811,61 @@ export function renderGround(city: City, painted: Painted, style: Style, s: numb
     if (rc) stroke("rim", rc, 2, 0.55);
     stroke("shallow", style === "terrain" ? [128, 176, 196] : [158, 190, 200], 4.4, 1);
     stroke("shore", [92, 80, 68], 2, 0.7);
-    for (const w of [18, 14, 10, 6]) stroke("edge", [170, 110, 90], w, 0.07);
+    // the cell's own edge band falls on its fields, never across the town
+    if (!(city.use[i] === "town" || city.use[i] === "shanty"))
+      for (const w of [18, 14, 10, 6]) stroke("edge", [170, 110, 90], w, 0.07);
     stroke("edge", [26, 22, 18], 4.4, 0.88);
     g.restore();
   }
+  // another nation's land beyond the cell's edge: a heavy line, and their side hatched in their colour
+  g.globalAlpha = 1;
+  for (const b of city.borders) {
+    const W = 11;
+    const q: P2[] = [
+      b.a,
+      b.b,
+      [b.b[0] + b.out[0] * W, b.b[1] + b.out[1] * W],
+      [b.a[0] + b.out[0] * W, b.a[1] + b.out[1] * W]
+    ];
+    g.save();
+    pathOf(g, q);
+    g.clip();
+    const c = hex(b.col);
+    g.strokeStyle = css(sh(c, 0.8));
+    g.globalAlpha = style === "terrain" ? 0.75 : 0.6;
+    g.lineWidth = 0.7;
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    for (const [x, y] of q) {
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
+    }
+    g.beginPath();
+    for (let t = x0 + y0 - 30; t < x1 + y1 + 30; t += 2.4) {
+      g.moveTo(t - y0 + 30, y0 - 30);
+      g.lineTo(t - y1 - 30, y1 + 30);
+    }
+    g.stroke();
+    g.restore();
+  }
+  g.globalAlpha = 1;
+  g.lineCap = "round";
+  for (const [w, c] of [
+    [6, "rgb(26,22,18)"],
+    [3, ""]
+  ] as [number, string][])
+    for (const b of city.borders) {
+      g.strokeStyle = c || css(hex(b.col));
+      g.lineWidth = w;
+      g.beginPath();
+      g.moveTo(b.a[0], b.a[1]);
+      g.lineTo(b.b[0], b.b[1]);
+      g.stroke();
+    }
   // woods, dotted again over the flat cells
   const fade = style === "terrain" ? 0.55 : 0.33;
   for (const [x, y] of painted.dots) {

@@ -99,7 +99,7 @@ export interface World {
   cells: { p: P2[]; c: P2; h: number; b: number; s: number; r: number; n: number[] }[];
   routes: { g: string; n?: string; pts: P2[]; cells: number[] }[];
   burgs: WorldBurg[];
-  states: { n: string; full?: string; form?: string; rival?: string }[];
+  states: { n: string; full?: string; form?: string; c?: string }[];
   cultures: { n: string; base: number }[];
   religions: { n: string; deity?: string }[];
   bases: NameBase[];
@@ -186,7 +186,8 @@ export function regionOf(world: World, b: WorldBurg): { region: Region; spec: Sp
       cells: world.cells,
       routes,
       burgs: [{ n: b.n, x: b.x, y: b.y, port: b.port, walls: b.walls, pop: b.pop }],
-      lore
+      lore,
+      states: world.states.map(s => ({ n: s.full ?? s.n, c: s.c }))
     },
     spec: {
       size,

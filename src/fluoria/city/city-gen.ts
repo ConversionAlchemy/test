@@ -14,6 +14,7 @@ export interface RegionCell {
   c: P2;
   h: number;
   b?: number;
+  s?: number; // the state that holds it
 }
 export interface Region {
   cells: RegionCell[];
@@ -21,6 +22,7 @@ export interface Region {
   routes: { g: string; n?: string; pts: P2[] }[];
   burgs: { n: string; x: number; y: number; port?: number; walls?: number; pop?: number }[];
   lore?: Lore;
+  states?: { n?: string; c?: string }[];
 }
 
 export interface District {
@@ -146,6 +148,8 @@ export interface City {
   squareCell: number;
   ang: Float32Array;
   yards: P2[][]; // closed yards, grassed
+  height: Float32Array; // ground height per cell, Azgaar's scale (20 is the shore)
+  borders: { a: P2; b: P2; out: P2; state: string; col: string }[]; // where the cell meets another nation
   notables?: Record<string, string>; // names for the town's notable buildings
   population: number; // everyone the region cell holds, town and country; 0 when unknown
   places: Record<number, string>; // names of squares, greens, ponds and open places, by cell
@@ -511,6 +515,43 @@ export function buildCity(
     features: [0, { i: 1, type: "island", land: true }, { i: 2, type: "ocean", land: false }]
   };
 
+  // ground height: the region cells' heights blended across the small cells, nearest counting most
+  const height = new Float32Array(n);
+  {
+    const src = RC.map(r => ({ p: toP(r.rc.c), h: r.rc.h }));
+    for (let i = 0; i < n; i++) {
+      let sw = 0;
+      let sh = 0;
+      for (const q of src) {
+        const d2 = (q.p[0] - pts[i][0]) ** 2 + (q.p[1] - pts[i][1]) ** 2 + 400;
+        const w = 1 / (d2 * d2);
+        sw += w;
+        sh += w * q.h;
+      }
+      height[i] = sw ? sh / sw : 30;
+    }
+  }
+  // the home cell's sides that face another nation's land
+  const borders: City["borders"] = [];
+  {
+    const near = (p: P2, q: P2) => Math.abs(p[0] - q[0]) < 0.3 && Math.abs(p[1] - q[1]) < 0.3;
+    const L = homeR.p.length;
+    for (let k = 0; k < L; k++) {
+      const a = homeR.p[k];
+      const b = homeR.p[(k + 1) % L];
+      const o = RC.find(r => !r.home && r.rc.p.some(p => near(p, a)) && r.rc.p.some(p => near(p, b)));
+      const st = o?.rc.s;
+      if (!o || o.water || !st || st === homeR.s) continue;
+      const A = toP(a);
+      const Bp = toP(b);
+      const len = dist(A, Bp) || 1;
+      let out: P2 = [-(Bp[1] - A[1]) / len, (Bp[0] - A[0]) / len];
+      const oc = toP(o.rc.c);
+      if ((oc[0] - A[0]) * out[0] + (oc[1] - A[1]) * out[1] < 0) out = [-out[0], -out[1]];
+      const S0 = region.states?.[st];
+      borders.push({ a: A, b: Bp, out, state: S0?.n ?? "", col: S0?.c ?? "#8a6a5a" });
+    }
+  }
   // uses: the town disc in the home cell, farmland and woods round it
   const dT = (i: number) => dist(pts[i], T);
   const coastDist = (i: number) => {
@@ -696,6 +737,11 @@ export function buildCity(
   for (let i = 0; i < n; i++)
     if (district[i] >= 0 && DIST.find(d => d.id === district[i])) DIST.find(d => d.id === district[i])?.cells.push(i);
 
+  // how long a side two cells share: zero where they only meet at a corner
+  const sideLen = (i: number, j: number) => {
+    const sh = (cells.v[i] as number[]).filter(v => (cells.v[j] as number[]).includes(v));
+    return sh.length >= 2 ? dist(vertices.p[sh[0]] as P2, vertices.p[sh[1]] as P2) : 0;
+  };
   // landmarks: a set of cells standing as one building; the Aurum is one grid cell on the square, nearest the water
   let landmarks: Landmark[] = ed.landmarks ?? [];
   if (!ed.landmarks) {
@@ -729,14 +775,16 @@ export function buildCity(
         // the fort holds the town's edge on the high side, away from the water
         const along = (i: number) => (pts[i][0] - T[0]) * Math.cos(hillDir) + (pts[i][1] - T[1]) * Math.sin(hillDir);
         const taken = new Set(landmarks.flatMap(l => l.cells));
-        const ok = (i: number) => use[i] === "town" && kind[i] !== "square" && !taken.has(i);
+        const ok = (i: number) =>
+          use[i] === "town" && kind[i] !== "square" && kind[i] !== "park" && kind[i] !== "pond" && !taken.has(i);
         const first = town.filter(ok).sort((a, b) => along(b) - along(a))[0];
         if (first !== undefined) {
           const fc = [first];
           const more = S.size === "city" ? 2 : S.size === "town" ? 1 : 0;
           for (let k = 0; k < more; k++) {
+            // a fort's cells join side to side, never at a corner
             const nx = fc
-              .flatMap(i => cells.c[i])
+              .flatMap(i => cells.c[i].filter(j => sideLen(i, j) >= 8))
               .filter(j => ok(j) && !fc.includes(j))
               .sort((a, b) => along(b) - along(a))[0];
             if (nx !== undefined) fc.push(nx);
@@ -773,7 +821,7 @@ export function buildCity(
       seen.add(c);
       for (let k = 0; k < g.length; k++)
         for (const j of cells.c[g[k]])
-          if (set.has(j) && !seen.has(j)) {
+          if (set.has(j) && !seen.has(j) && sideLen(g[k], j) >= 8) {
             seen.add(j);
             g.push(j);
           }
@@ -1430,6 +1478,8 @@ export function buildCity(
     trees: [],
     squareCell,
     ang,
-    yards: []
+    yards: [],
+    height,
+    borders
   };
 }

@@ -1157,8 +1157,8 @@ export function paint(city: City): Painted {
     if (water(j)) return wash(x, y, WD[j] <= 2 ? [128, 176, 196] : [150, 194, 210]);
     const ci = CID[j];
     const k = kindAt(j);
-    if (r === 9) return [150, 136, 120];
-    if (r && r !== 5 && r !== 6) return wash(x, y, PAPER);
+    // roads are drawn as lines over the ground; only the squares are paved here
+    if (r === 7) return wash(x, y, PAPER);
     // the richest quarters, and villages, keep their gardens green
     if (k === "old" && (city.districts.find(d => d.id === city.district[ci])?.wealth ?? 0) >= 5)
       return washOf("wealthy", ci, x, y, 0.2) as C3;
@@ -1280,7 +1280,7 @@ export function paint(city: City): Painted {
         if (o < 0 || of(o) !== v) rim = true;
       }
       const k = j * 4;
-      const t = rim ? 0.55 : RD[j] && RD[j] !== 5 ? 0 : wash;
+      const t = rim ? 0.55 : RD[j] === 7 ? 0 : wash;
       const cc = rim ? sh(c, 0.75) : c;
       for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - t) + cc[i] * t;
     }
@@ -1305,12 +1305,15 @@ export function paint(city: City): Painted {
     const x = j % W;
     const y = (j / W) | 0;
     const ed = Math.min(x, y, W - 1 - x, H - 1 - y);
-    const t = Math.min(0.78, 0.3 + HD[j] / 260 + Math.max(0, (24 - ed) / 24) * 0.35);
+    const t = Math.min(0.92, 0.55 + HD[j] / 220 + Math.max(0, (24 - ed) / 24) * 0.3);
     const k = j * 4;
-    for (let i = 0; i < 3; i++) Pl[k + i] = (Pl[k + i] * (1 - t * 0.7) + fadeTo[i] * t * 0.7) * 0.8;
+    // washed toward one dull grey-green and darkened, so the eye stays inside the cell
+    const lum = (Pl[k] + Pl[k + 1] + Pl[k + 2]) / 3;
+    for (let i = 0; i < 3; i++)
+      Pl[k + i] = (lum * 0.5 + Pl[k + i] * 0.5) * (1 - t * 0.45) * 0.62 + fadeTo[i] * t * 0.18;
     // the plan views just pale out toward the margin
     for (const D of [districts.data, factions.data, faded.data])
-      for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - t * 0.6) + MARGIN[i] * t * 0.6;
+      for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - t * 0.85) + MARGIN[i] * t * 0.85;
   }
   // the city's own edge: a soft band inside, a thin line on it
   const HI = bfs(j => CID[j] < 0 || home[CID[j]] !== 1);

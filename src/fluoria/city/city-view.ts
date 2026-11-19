@@ -44,6 +44,7 @@ const RNAME: Record<string, string> = { main: "Main", street: "Street", lane: "L
 
 // tiers as on the region map: from which zoom a kind shows, its size, and who gives way
 const TIERS: Record<string, { min: number; px: number; rank: number; cls: string }> = {
+  nation: { min: 0, px: 16, rank: 0, cls: "dist nation" },
   dist: { min: 0, px: 17, rank: 0, cls: "dist" },
   fac: { min: 0, px: 15, rank: 0, cls: "fac" },
   land: { min: 2.6, px: 13, rank: 1, cls: "land" },
@@ -191,6 +192,15 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       labels.push({ id, text, x, y, priority: 100 - t.rank * 10, size: t.px, minZoom: t.min, tier, road });
     };
     for (const D of city.districts) if (D.cells.length) add(`d${D.id}`, D.name, mean(D.cells), "dist");
+    // a neighbouring nation's name on its own side of the border, at its longest stretch
+    const byState = new Map<string, (typeof city.borders)[number]>();
+    for (const b of city.borders) {
+      const L = Math.hypot(b.b[0] - b.a[0], b.b[1] - b.a[1]);
+      const o = byState.get(b.state);
+      if (b.state && (!o || L > Math.hypot(o.b[0] - o.a[0], o.b[1] - o.a[1]))) byState.set(b.state, b);
+    }
+    for (const [name, b] of byState)
+      add(`n${name}`, name, [(b.a[0] + b.b[0]) / 2 + b.out[0] * 26, (b.a[1] + b.b[1]) / 2 + b.out[1] * 26], "nation");
     // a faction's name on each sizeable patch it holds
     const seenF = new Uint8Array(cells.p.length);
     for (let i = 0; i < cells.p.length; i++) {
@@ -244,6 +254,10 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       const deep = (h: string) =>
         `rgb(${[1, 3, 5].map(i => Math.round(Number.parseInt(h.slice(i, i + 2), 16) * 0.5)).join(",")})`;
       if (l.tier === "dist") t.dataset.col = deep(DIST_COL[+l.id.slice(1) % DIST_COL.length]);
+      if (l.tier === "nation") {
+        const b = city.borders.find(q => `n${q.state}` === l.id);
+        if (b) t.style.fill = deep(b.col);
+      }
       if (l.tier === "fac") t.dataset.col = deep(city.factions[city.faction[+l.id.slice(1)]]?.col ?? "#444444");
       if (l.road) {
         const p = document.createElementNS(NS, "path");
@@ -299,6 +313,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
   };
   // each view keeps its own labels, the way a themed map does
   const labelMode = (l: Label): "show" | "soft" | "hide" => {
+    if (l.tier === "nation") return "show";
     if (style === "districts") return l.tier === "dist" ? "show" : l.tier === "main" ? "soft" : "hide";
     if (style === "factions") return l.tier === "fac" ? "show" : l.tier === "main" ? "soft" : "hide";
     if (l.tier === "fac") return "hide";
