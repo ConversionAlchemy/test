@@ -309,7 +309,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.drawImage(world, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     if (detail) {
-      ctx.globalAlpha = style === "terrain" ? 0.7 : style === "map" ? 0 : 0.25;
+      ctx.globalAlpha = style === "terrain" ? 0.6 : style === "map" ? 0 : 0.25;
       ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
       ctx.globalAlpha = 1;
       ctx.drawImage(detail.body, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
@@ -790,7 +790,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
             .map(f => `<option value="${f.id}"${f.id === b.owner ? " selected" : ""}>${esc(f.name)}</option>`)
             .join(
               ""
-            )}</select></div><button data-a="fav" class="wide${fav ? " on" : ""}">${fav ? "In the key" : "Add to the key"}</button>`;
+            )}</select></div><div class="frm"><span class="fl">Colour</span><input type="color" id="cvCol" value="${edits.colors?.[b.key ?? ""] ?? "#c2643f"}"><button data-a="uncol">Clear</button></div><button data-a="fav" class="wide${fav ? " on" : ""}">${fav ? "In the key" : "Add to the key"}</button>`;
         }
       }
     } else if (tool === "faction") {
@@ -856,6 +856,19 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
       own.onchange = () => {
         edits.owners = edits.owners ?? {};
         edits.owners[selected?.key ?? ""] = +own.value;
+        commit();
+      };
+    const col = pane.querySelector("#cvCol") as HTMLInputElement | null;
+    if (col)
+      col.onchange = () => {
+        edits.colors = edits.colors ?? {};
+        edits.colors[selected?.key ?? ""] = col.value;
+        commit();
+      };
+    const unc = pane.querySelector("[data-a=uncol]") as HTMLButtonElement | null;
+    if (unc)
+      unc.onclick = () => {
+        if (edits.colors) delete edits.colors[selected?.key ?? ""];
         commit();
       };
     const fv = pane.querySelector("[data-a=fav]") as HTMLButtonElement | null;

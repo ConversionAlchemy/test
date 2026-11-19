@@ -99,6 +99,7 @@ export interface Edits {
   factionCells?: Record<number, number>;
   owners?: Record<string, number>;
   favs?: string[];
+  colors?: Record<string, string>;
 }
 export const TOWN_KINDS: Kind[] = ["centre", "wealthy", "old", "docks", "shanty", "square", "park", "pond"];
 
@@ -280,6 +281,38 @@ export function buildCity(
   const pts: P2[] = [];
   const kindOfSeed: number[] = []; // 0 old town, 1 grid, 2 field strip, 3 meadow
   const seedAng: number[] = [];
+  // the ways out, known before the cells: rows of seeds along each so its cells, blocks and houses line the road
+  const outDirs: number[] = [];
+  for (const r of region.routes.filter(r => r.pts.some(([x, y]) => Math.hypot(x - B.x, y - B.y) < 1.5))) {
+    const far = r.pts.map(toP).sort((a, b) => dist(b, C) - dist(a, C))[0];
+    outDirs.push(Math.atan2(far[1] - T[1], far[0] - T[0]));
+  }
+  for (const nb of region.burgs) {
+    if (nb.n === burgName || outDirs.length >= 3) continue;
+    const p = toP([nb.x, nb.y]);
+    if (dist(p, C) > 900) continue;
+    const dir = Math.atan2(p[1] - T[1], p[0] - T[0]);
+    if (outDirs.some(d => Math.abs(Math.atan2(Math.sin(d - dir), Math.cos(d - dir))) < 0.6)) continue;
+    if (waterAt(T[0] + Math.cos(dir) * TR * 1.4, T[1] + Math.sin(dir) * TR * 1.4)) continue;
+    outDirs.push(dir);
+  }
+  const roadSeeds: P2[] = [];
+  for (const dir of outDirs) {
+    const ux = Math.cos(dir);
+    const uy = Math.sin(dir);
+    for (let d = TR * 0.42; d < TR * 2.4; d += 21)
+      for (const side of [-1, 0, 1]) {
+        const x = T[0] + ux * d - uy * side * 19;
+        const y = T[1] + uy * d + ux * side * 19;
+        if (x < 2 || y < 2 || x > W - 2 || y > H - 2 || waterAt(x, y)) continue;
+        if (roadSeeds.some(p => dist(p, [x, y]) < 14)) continue;
+        roadSeeds.push([x, y]);
+        pts.push([x, y]);
+        kindOfSeed.push(1);
+        seedAng.push(dir);
+      }
+  }
+  const nearRoadSeed = (x: number, y: number) => roadSeeds.some(p => dist(p, [x, y]) < 15);
   // planned quarters: a loose grid, near exact in the centre so its cells are true rectangles
   for (let i = -40; i < 40; i++)
     for (let j = -40; j < 40; j++) {
@@ -290,7 +323,7 @@ export function buildCity(
       const gx = T[0] + ux + (R() - 0.5) * jit;
       const gy = T[1] + uy + (R() - 0.5) * jit;
       if (gx < 2 || gy < 2 || gx > W - 2 || gy > H - 2) continue;
-      if (!planned(gx, gy) || waterAt(gx, gy)) continue;
+      if (!planned(gx, gy) || waterAt(gx, gy) || nearRoadSeed(gx, gy)) continue;
       pts.push([gx, gy]);
       kindOfSeed.push(1);
       seedAng.push(axis);

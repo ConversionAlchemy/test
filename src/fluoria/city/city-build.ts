@@ -161,13 +161,16 @@ export function renderBuildings(
 
   const look = (b: Building): { pal: [C3, C3, C3]; flat: boolean } => {
     const ink = TYPE_INK[b.type];
+    const own = city.edits.colors?.[b.key ?? ""];
+    if (own && style !== "districts" && style !== "factions")
+      return { pal: [hex(own), hex(own), sh(hex(own), 0.45)], flat: true };
     if (style === "plan" || style === "map" || style === "terrain") {
       // one red, shaded by who lives there: deep in the rich quarters, faded in the shanty
       const k = city.kind[b.cell] ?? "";
       const c: C3 = b.landmark
         ? b.type === "Bank"
           ? [196, 150, 60]
-          : [62, 56, 52]
+          : [74, 50, 38]
         : ink && style === "map"
           ? sh(hex(ink), 0.92)
           : k === "shanty"
@@ -220,58 +223,6 @@ export function renderBuildings(
     };
   };
 
-  // the map's streets and squares edged in a thin ink line at the drawing's own scale, the paper left showing between
-  if (style === "map" || style === "terrain") {
-    const { vertices, cells } = city.pack;
-    const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
-    const strokeRoads = (extra: number) => {
-      for (const r of city.roads) {
-        const w = W2[r.type];
-        if (!w) continue;
-        g.lineWidth = w * 2 + 0.6 + extra;
-        g.beginPath();
-        if (r.edges)
-          for (const [a, b] of r.edges) {
-            g.moveTo(vertices.p[a][0], vertices.p[a][1]);
-            g.lineTo(vertices.p[b][0], vertices.p[b][1]);
-          }
-        else
-          for (const [k, p] of r.pts.entries()) {
-            if (k) g.lineTo(p[0], p[1]);
-            else g.moveTo(p[0], p[1]);
-          }
-        g.stroke();
-      }
-    };
-    const squares = cells.p.map((_: P2, i: number) => i).filter((i: number) => city.kind[i] === "square");
-    const sqPoly = (i: number) => cells.v[i].map((v: number) => vertices.p[v] as P2);
-    g.lineCap = g.lineJoin = "round";
-    g.strokeStyle = g.fillStyle = "rgb(92,80,68)";
-    strokeRoads(lw * 2);
-    g.lineWidth = lw * 2;
-    for (const i of squares) {
-      pathOf(g, sqPoly(i));
-      g.stroke();
-    }
-    g.globalCompositeOperation = "destination-out";
-    strokeRoads(0);
-    for (const i of squares) {
-      pathOf(g, sqPoly(i));
-      g.fill();
-    }
-    g.globalCompositeOperation = "source-over";
-  }
-  // shadows to the lower right; on the map a deeper cast, as the engraved plans shade their blocks
-  const off = style === "terrain" ? 1.5 : 0.9;
-  gs.fillStyle = "#000";
-  for (const [, poly] of shapes) {
-    if (poly.length < 3) continue;
-    pathOf(
-      gs,
-      poly.map(p => [p[0] + off, p[1] + off] as P2)
-    );
-    gs.fill();
-  }
   // outlines first; far out the bodies then cover the lines between neighbours, leaving one edge round a terrace
   for (const b of city.buildings) {
     const poly = shapes.get(b.id) as P2[];
@@ -373,7 +324,56 @@ export function renderBuildings(
       pathOf(g, inset(poly, lw * 0.6));
       g.stroke();
     }
+  // streets and squares cut clean through anything that strays onto them, then edged in thin ink
+  if (style === "map" || style === "terrain") {
+    const { vertices, cells } = city.pack;
+    const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
+    const strokeRoads = (extra: number) => {
+      for (const r of city.roads) {
+        const w = W2[r.type];
+        if (!w) continue;
+        g.lineWidth = w * 2 + 0.6 + extra;
+        g.beginPath();
+        if (r.edges)
+          for (const [a, b] of r.edges) {
+            g.moveTo(vertices.p[a][0], vertices.p[a][1]);
+            g.lineTo(vertices.p[b][0], vertices.p[b][1]);
+          }
+        else
+          for (const [k, p] of r.pts.entries()) {
+            if (k) g.lineTo(p[0], p[1]);
+            else g.moveTo(p[0], p[1]);
+          }
+        g.stroke();
+      }
+    };
+    const squares = cells.p.map((_: P2, i: number) => i).filter((i: number) => city.kind[i] === "square");
+    const sqPoly = (i: number) => cells.v[i].map((v: number) => vertices.p[v] as P2);
+    g.lineCap = g.lineJoin = "round";
+    g.strokeStyle = g.fillStyle = "rgb(92,80,68)";
+    strokeRoads(lw * 2);
+    g.lineWidth = lw * 2;
+    for (const i of squares) {
+      pathOf(g, sqPoly(i));
+      g.stroke();
+    }
+    g.globalCompositeOperation = "destination-out";
+    strokeRoads(0);
+    for (const i of squares) {
+      pathOf(g, sqPoly(i));
+      g.fill();
+    }
+    g.globalCompositeOperation = "source-over";
+  }
   hard(body);
+  // shadows to the lower right, cast by the buildings as finally drawn
+  const off = style === "terrain" ? 1 : 0.9;
+  gs.setTransform(1, 0, 0, 1, 0, 0);
+  gs.drawImage(body, off * s, off * s);
+  gs.globalCompositeOperation = "source-in";
+  gs.fillStyle = "#000";
+  gs.fillRect(0, 0, shadow.width, shadow.height);
+  gs.globalCompositeOperation = "source-over";
   hard(shadow);
   if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.3 : 0.5);
   return { body, shadow };

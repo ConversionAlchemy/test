@@ -28,23 +28,8 @@ const inPoly = (poly: P2[], x: number, y: number) => {
 };
 const dist = (a: P2, b: P2) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const N4 = [1, 0, -1, 0, 0, 1, 0, -1];
-// a lot drawn in toward its middle, for houses that stand apart
-const shrink = (pl: P2[], d: number): P2[] => {
-  const cx = pl.reduce((s, p) => s + p[0], 0) / pl.length;
-  const cy = pl.reduce((s, p) => s + p[1], 0) / pl.length;
-  const r = Math.max(...pl.map(p => Math.hypot(p[0] - cx, p[1] - cy))) || 1;
-  const f = Math.max(0.3, 1 - d / r);
-  return pl.map(p => [cx + (p[0] - cx) * f, cy + (p[1] - cy) * f] as P2);
-};
 
 // building tiers: frontage and depth ranges in pixels (about 1.3 m each)
-const TIER: Record<string, [number, number, number, number]> = {
-  hut: [4, 5, 4, 6],
-  house: [5, 7, 7, 9],
-  shop: [6, 8, 8, 10],
-  hall: [9, 12, 11, 14],
-  store: [10, 14, 12, 16]
-};
 const MIX: Record<string, [string, string, number][]> = {
   centre: [
     ["Counting house", "shop", 3],
@@ -191,7 +176,7 @@ export function rasterPlan(city: City) {
 
 export function furnish(city: City): void {
   const { W, H, pack, kind, use, district } = city;
-  const { cells, vertices } = pack;
+  const { cells } = pack;
   const n = cells.p.length;
   let s = 977;
   const R = () => {
@@ -326,301 +311,6 @@ export function furnish(city: City): void {
     );
   }
 
-  // ---- lots: each cell is cut back from its streets, a ring of building land runs along the fronts,
-  // and the ring is sliced into houses that share their walls, so nothing overlaps and the block is filled
-  type FP = { p: P2; f: boolean }; // a vertex and whether the edge leaving it faces a street
-  const pixelsOf = (pl: P2[]) => {
-    let a = Infinity;
-    let b = Infinity;
-    let e = -Infinity;
-    let f = -Infinity;
-    for (const [x, y] of pl) {
-      a = Math.min(a, x);
-      b = Math.min(b, y);
-      e = Math.max(e, x);
-      f = Math.max(f, y);
-    }
-    const out: number[] = [];
-    for (let y = Math.max(0, Math.floor(b)); y <= Math.min(H - 1, f); y++)
-      for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++)
-        if (inPoly(pl, x + 0.5, y + 0.5) && !OCC[y * W + x]) out.push(y * W + x);
-    return out;
-  };
-  const area2 = (pl: P2[]) => {
-    let A = 0;
-    for (let k = 0; k < pl.length; k++) {
-      const [a, b] = [pl[k], pl[(k + 1) % pl.length]];
-      A += a[0] * b[1] - b[0] * a[1];
-    }
-    return A;
-  };
-  // keep the side of the line a→b that holds `keep`, moved `off` toward it; the cut is a street front or not
-  const clip = (P: FP[], a: P2, b: P2, keep: P2, off: number, front: boolean): FP[] => {
-    const L = dist(a, b) || 1;
-    let nx = -(b[1] - a[1]) / L;
-    let ny = (b[0] - a[0]) / L;
-    if ((keep[0] - a[0]) * nx + (keep[1] - a[1]) * ny < 0) {
-      nx = -nx;
-      ny = -ny;
-    }
-    const sd = (p: P2) => (p[0] - a[0]) * nx + (p[1] - a[1]) * ny - off;
-    const out: FP[] = [];
-    for (let k = 0; k < P.length; k++) {
-      const S = P[k];
-      const E = P[(k + 1) % P.length];
-      const ds = sd(S.p);
-      const de = sd(E.p);
-      const I = (): P2 => {
-        const t = ds / (ds - de);
-        return [S.p[0] + (E.p[0] - S.p[0]) * t, S.p[1] + (E.p[1] - S.p[1]) * t];
-      };
-      if (ds >= 0 && de >= 0) out.push(S);
-      else if (ds >= 0) out.push(S, { p: I(), f: front });
-      else if (de >= 0) out.push({ p: I(), f: S.f });
-    }
-    return out.length >= 3 ? out : [];
-  };
-  // the shared edge's middle between two cells
-  const midOf = (a: number, b: number): P2 => {
-    const sh = cells.v[a].filter((v: number) => cells.v[b].includes(v));
-    if (sh.length >= 2) {
-      const [p, q] = [vertices.p[sh[0]], vertices.p[sh[1]]];
-      return [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
-    }
-    return [(cells.p[a][0] + cells.p[b][0]) / 2, (cells.p[a][1] + cells.p[b][1]) / 2];
-  };
-  const edgeRoad = new Map<string, number>();
-  for (const r of city.roads)
-    if (r.edges)
-      for (const [a, b] of r.edges) {
-        const k = a < b ? `${a}-${b}` : `${b}-${a}`;
-        edgeRoad.set(k, Math.max(edgeRoad.get(k) ?? 0, WIDTH[r.type] ?? 1));
-      }
-  const townish = (j: number) => use[j] === "town" || use[j] === "shanty";
-  // street depth and frontage by quarter
-  const LOT: Record<string, { depth: [number, number]; gap: number; skip: number; set: number }> = {
-    centre: { depth: [12, 16], gap: 0, skip: 0, set: 0 },
-    old: { depth: [9, 12], gap: 0, skip: 0.05, set: 0 },
-    docks: { depth: [12, 16], gap: 0, skip: 0.04, set: 0 },
-    wealthy: { depth: [9, 11], gap: 3, skip: 0.15, set: 2.5 },
-    shanty: { depth: [6, 8], gap: 0.6, skip: 0.15, set: 0.4 }
-  };
-  for (let i = 0; i < n; i++) {
-    const k = kind[i];
-    if (!k || !(k in LOT) || landCell[i] || !city.home[i]) continue;
-    const spec = LOT[k];
-    const vs: number[] = cells.v[i];
-    let P: FP[] = vs.map((v: number) => ({ p: vertices.p[v] as P2, f: false }));
-    if (area2(P.map(q => q.p)) < 0) P.reverse();
-    const c0 = cells.p[i] as P2;
-    // each side: pulled back from its street, the wall, the water, or the next block
-    const sides: { a: P2; b: P2; off: number; front: boolean }[] = [];
-    for (let e = 0; e < vs.length; e++) {
-      const va = vs[e];
-      const vb = vs[(e + 1) % vs.length];
-      const a = vertices.p[va] as P2;
-      const b = vertices.p[vb] as P2;
-      const j = cells.c[i].find((o: number) => cells.v[o]?.includes(va) && cells.v[o]?.includes(vb));
-      const rw = edgeRoad.get(va < vb ? `${va}-${vb}` : `${vb}-${va}`);
-      if (rw) sides.push({ a, b, off: rw + 0.7, front: true });
-      else if (j === undefined || j >= n || !townish(j)) {
-        const wet = j !== undefined && j < n && (use[j] === "water" || kind[j] === "pond");
-        sides.push({ a, b, off: wet ? 1.5 : 2.2, front: !wet || k === "docks" });
-      } else if (kind[j] === "square" || kind[j] === "park") sides.push({ a, b, off: 0.7, front: true });
-      else if (city.block[j] !== city.block[i]) sides.push({ a, b, off: 0.6, front: true });
-      else sides.push({ a, b, off: 0, front: false });
-    }
-    for (const sd of sides) if (sd.off > 0 || sd.front) P = clip(P, sd.a, sd.b, c0, sd.off, sd.front);
-    // a main road through the middle splits the plot in two, each half fronting it
-    let pieces: FP[][] = P.length ? [P] : [];
-    for (const r of city.roads) {
-      if (r.edges || r.type === "pier" || !r.cells) continue;
-      const at = r.cells.indexOf(i);
-      if (at < 0) continue;
-      const w = (WIDTH[r.type] ?? 1) + 0.8;
-      const pin = at > 0 ? midOf(r.cells[at - 1], i) : null;
-      const pout = at < r.cells.length - 1 ? midOf(i, r.cells[at + 1]) : null;
-      const next: FP[][] = [];
-      for (const pc of pieces) {
-        if (pin && pout) {
-          // the road bends at the centre: one side beyond the chord, the other beyond both legs
-          const chordSide: P2 = [c0[0] * 2 - (pin[0] + pout[0]) / 2, c0[1] * 2 - (pin[1] + pout[1]) / 2];
-          const away: P2 = [pin[0] + pout[0] - c0[0], pin[1] + pout[1] - c0[1]];
-          const A = clip(pc, pin, pout, away, w, true);
-          let Bp = clip(pc, pin, c0, chordSide, w, true);
-          if (Bp.length) Bp = clip(Bp, c0, pout, chordSide, w, true);
-          if (A.length) next.push(A);
-          if (Bp.length) next.push(Bp);
-        } else {
-          const q = pin ?? pout;
-          if (!q) {
-            next.push(pc);
-            continue;
-          }
-          const L = dist(q, c0) || 1;
-          const side: P2 = [c0[0] - (q[1] - c0[1]) / L, c0[1] + (q[0] - c0[0]) / L];
-          const other: P2 = [c0[0] + (q[1] - c0[1]) / L, c0[1] - (q[0] - c0[0]) / L];
-          const A = clip(pc, q, c0, side, w, true);
-          const Bp = clip(pc, q, c0, other, w, true);
-          if (A.length) next.push(A);
-          if (Bp.length) next.push(Bp);
-        }
-      }
-      pieces = next;
-    }
-    for (const pc of pieces) {
-      const pts = pc.map(q => q.p);
-      if (Math.abs(area2(pts)) < 30) continue;
-      if (area2(pts) < 0) {
-        pc.reverse();
-        // flags belong to the edge leaving each vertex; reversing moves them one along
-        const fl = pc.map(q => q.f);
-        for (let m = 0; m < pc.length; m++) pc[m] = { p: pc[m].p, f: fl[(m + 1) % pc.length] };
-      }
-      const Q = pc.map(q => q.p);
-      const m = Q.length;
-      if (!pc.some(q => q.f)) continue;
-      // the inner line: front edges pulled in by the depth, the rest stay put
-      // never deeper than leaves a yard in the middle; small plots are built over whole
-      const cx0 = Q.reduce((s2, p) => s2 + p[0], 0) / m;
-      const cy0 = Q.reduce((s2, p) => s2 + p[1], 0) / m;
-      let inr = Infinity;
-      for (let e = 0; e < m; e++) {
-        const [a, b] = [Q[e], Q[(e + 1) % m]];
-        const L = dist(a, b) || 1;
-        inr = Math.min(inr, Math.abs((b[0] - a[0]) * (a[1] - cy0) - (a[0] - cx0) * (b[1] - a[1])) / L);
-      }
-      const want = spec.depth[0] + R() * (spec.depth[1] - spec.depth[0]);
-      const depth = k === "centre" && inr < 14 ? 99 : Math.min(want, inr * 0.78);
-      const ringAt = (dd: number): P2[] | null => {
-        const lines = Q.map((a, e) => {
-          const b = Q[(e + 1) % m];
-          const L = dist(a, b) || 1;
-          const nx = -(b[1] - a[1]) / L;
-          const ny = (b[0] - a[0]) / L;
-          const o = pc[e].f ? dd : 0;
-          return { a: [a[0] + nx * o, a[1] + ny * o] as P2, dx: (b[0] - a[0]) / L, dy: (b[1] - a[1]) / L };
-        });
-        const inner = Q.map((_, e) => {
-          const l1 = lines[(e + m - 1) % m];
-          const l2 = lines[e];
-          const den = l1.dx * l2.dy - l1.dy * l2.dx;
-          if (Math.abs(den) < 1e-3) return l2.a;
-          const t = ((l2.a[0] - l1.a[0]) * l2.dy - (l2.a[1] - l1.a[1]) * l2.dx) / den;
-          return [l1.a[0] + l1.dx * t, l1.a[1] + l1.dy * t] as P2;
-        });
-        // valid while no inner edge has turned back on its outer one
-        // a short side that turned back collapses to a point; a long one that did means too deep
-        for (let e = 0; e < m; e++) {
-          const o = [Q[(e + 1) % m][0] - Q[e][0], Q[(e + 1) % m][1] - Q[e][1]];
-          const q = [inner[(e + 1) % m][0] - inner[e][0], inner[(e + 1) % m][1] - inner[e][1]];
-          if (o[0] * q[0] + o[1] * q[1] >= 0) continue;
-          if (Math.hypot(o[0], o[1]) > dd * 1.2) return null;
-          const mp: P2 = [(inner[e][0] + inner[(e + 1) % m][0]) / 2, (inner[e][1] + inner[(e + 1) % m][1]) / 2];
-          inner[e] = mp;
-          inner[(e + 1) % m] = mp;
-        }
-        const nudge = (p: P2): P2 => [p[0] + (cx0 - p[0]) * 0.05, p[1] + (cy0 - p[1]) * 0.05];
-        if (area2(inner) <= 0 || inner.some(p => !inPoly(Q, ...nudge(p)))) return null;
-        return inner;
-      };
-      const inner = ringAt(depth) ?? ringAt(depth * 0.75) ?? ringAt(depth * 0.55);
-      // too small for a yard: the plot is built over whole, split once across its length if long
-      if (!inner) {
-        let parts: P2[][] = [Q];
-        let lo = 0;
-        let bi = 0;
-        for (let e = 0; e < m; e++) {
-          const l = dist(Q[e], Q[(e + 1) % m]);
-          if (l > lo) {
-            lo = l;
-            bi = e;
-          }
-        }
-        if (lo > 16) {
-          const a = Q[bi];
-          const b = Q[(bi + 1) % m];
-          const mid: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-          const nrm: P2 = [mid[0] - (b[1] - a[1]), mid[1] + (b[0] - a[0])];
-          const asFP = Q.map(p => ({ p, f: false }));
-          parts = [clip(asFP, mid, nrm, a, 0, false), clip(asFP, mid, nrm, b, 0, false)]
-            .filter(x => x.length)
-            .map(x => x.map(q => q.p));
-        }
-        for (const lot of parts) {
-          const sl = spec.set ? shrink(lot, spec.set) : lot;
-          const cl = pixelsOf(sl);
-          if (!cl.length) continue;
-          const [tn] = weighted(MIX[k]);
-          place(
-            { cell: i, poly: sl, type: tn, roof: pick(ROOFS[k]), addr: addrOf(sl[0], dname(i)), district: district[i] },
-            cl
-          );
-        }
-        continue;
-      }
-      for (let e = 0; e < m; e++) {
-        if (!pc[e].f) continue;
-        const [o0, o1] = [Q[e], Q[(e + 1) % m]];
-        const [i0, i1] = [inner[e], inner[(e + 1) % m]];
-        const L = dist(o0, o1);
-        if (L < 2.5) continue;
-        const lerp = (p: P2, q: P2, t: number): P2 => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
-        let t = 0;
-        while (t < L - 0.5) {
-          const [tn, tt] = weighted(MIX[k]);
-          const tr = TIER[tt];
-          let f = tr[0] + R() * (tr[1] - tr[0]);
-          if (L - t - f < tr[0] * 0.6) f = L - t;
-          const t0 = t / L;
-          const t1 = Math.min(1, (t + f) / L);
-          t += f + spec.gap;
-          if (R() < spec.skip) continue;
-          let lot: P2[] = [lerp(o0, o1, t0), lerp(o0, o1, t1), lerp(i0, i1, t1), lerp(i0, i1, t0)];
-          if (k === "wealthy") {
-            const a = lot[0];
-            const b = lot[1];
-            const fl = dist(a, b);
-            const tx = (b[0] - a[0]) / fl;
-            const ty = (b[1] - a[1]) / fl;
-            const din = Math.min(dist(lot[0], lot[3]), dist(lot[1], lot[2]));
-            const w = Math.min(fl - 1, 6 + R() * 4);
-            const d = Math.min(din - spec.set - 0.5, 6 + R() * 3);
-            if (w < 4 || d < 4) continue;
-            const o: P2 = [a[0] + (tx * (fl - w)) / 2 - ty * spec.set, a[1] + (ty * (fl - w)) / 2 + tx * spec.set];
-            const nx = -ty;
-            const ny = tx;
-            const inward = inPoly(Q, o[0] + nx * 2, o[1] + ny * 2) ? 1 : -1;
-            lot = rect(o, tx, ty, nx * inward, ny * inward, w, d);
-            if (inward < 0)
-              lot = rect(
-                [a[0] + (tx * (fl - w)) / 2 + ty * spec.set, a[1] + (ty * (fl - w)) / 2 - tx * spec.set],
-                tx,
-                ty,
-                -nx,
-                -ny,
-                w,
-                d
-              );
-          } else if (spec.set) lot = shrink(lot, spec.set);
-          if (Math.abs(area2(lot)) < 12) continue;
-          const cl = pixelsOf(lot);
-          if (!cl.length) continue;
-          place(
-            {
-              cell: i,
-              poly: lot,
-              type: tn,
-              roof: pick(ROOFS[k]),
-              addr: addrOf(lerp(o0, o1, (t0 + t1) / 2), dname(i)),
-              district: district[i]
-            },
-            cl
-          );
-        }
-      }
-    }
-  }
   // farms: a farmhouse and barn at the end of each track, or a little hamlet round it
   for (const fm of city.farms) {
     const tr = city.roads.find(r => r.key === `t:${fm.cell}`);
@@ -655,23 +345,514 @@ export function furnish(city: City): void {
         );
     }
   }
-  // cottages along the main roads outside the walls
-  for (const r of city.roads) {
-    if (r.type !== "main") continue;
-    for (let t = 6; t < r.pts.length - 1; t += 3) {
-      const a = r.pts[t];
-      const b = r.pts[t + 1];
-      const c = CID[Math.round(a[1]) * W + Math.round(a[0])];
-      if (c < 0 || !city.home[c] || use[c] === "town" || use[c] === "water" || use[c] === "shanty" || R() < 0.82)
-        continue;
+  // ---- lots, after the Dublin plans: each block (its cells as one shape) is cut back from its streets,
+  // fronted by lots square to the street, each of its own depth; corners built whole, sharp points bevelled
+  const area2 = (pl: P2[]) => {
+    let A = 0;
+    for (let k = 0; k < pl.length; k++) {
+      const [a, b] = [pl[k], pl[(k + 1) % pl.length]];
+      A += a[0] * b[1] - b[0] * a[1];
+    }
+    return A;
+  };
+  // the part of P on the left of a→b (P counter-clockwise in screen terms when area2 > 0)
+  const half = (P: P2[], a: P2, b: P2): P2[] => {
+    const sd = (p: P2) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+    const out: P2[] = [];
+    for (let k = 0; k < P.length; k++) {
+      const S = P[k];
+      const E = P[(k + 1) % P.length];
+      const ds = sd(S);
+      const de = sd(E);
+      const I = (): P2 => {
+        const t = ds / (ds - de);
+        return [S[0] + (E[0] - S[0]) * t, S[1] + (E[1] - S[1]) * t];
+      };
+      if (ds >= 0 && de >= 0) out.push(S);
+      else if (ds >= 0) out.push(S, I());
+      else if (de >= 0) out.push(I());
+    }
+    return out.length >= 3 ? out : [];
+  };
+  // a convex window cut from any shape: each side of the window is a half-plane
+  const within = (P: P2[], win: P2[]) => {
+    let out = P;
+    const w = area2(win) > 0 ? win : win.slice().reverse();
+    for (let k = 0; k < w.length && out.length; k++) out = half(out, w[k], w[(k + 1) % w.length]);
+    return out;
+  };
+  // pixels a building would take; a little over a street is trimmed when drawn,
+  // but it must not land on a neighbour, another block, the water or open ground
+  const claim = (pl: P2[], ok: (j: number) => boolean, slack = 0.15) => {
+    let a = Infinity;
+    let b = Infinity;
+    let e = -Infinity;
+    let f = -Infinity;
+    for (const [x, y] of pl) {
+      a = Math.min(a, x);
+      b = Math.min(b, y);
+      e = Math.max(e, x);
+      f = Math.max(f, y);
+    }
+    const out: number[] = [];
+    let bad = 0;
+    let road = 0;
+    for (let y = Math.max(0, Math.floor(b)); y <= Math.min(H - 1, f); y++)
+      for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++) {
+        if (!inPoly(pl, x + 0.5, y + 0.5)) continue;
+        const j = y * W + x;
+        if (RD[j] && RD[j] !== 5) road++;
+        else if (OCC[j] || !ok(j)) bad++;
+        else out.push(j);
+      }
+    const all = out.length + bad + road;
+    return out.length >= 6 && bad <= all * slack && road <= all * 0.3 ? out : null;
+  };
+  const LOT: Record<string, { w: [number, number]; d: [number, number]; gap: number; ext: number; wide: number }> = {
+    centre: { w: [5, 9], d: [10, 16], gap: 0.03, ext: 0.25, wide: 0.1 },
+    old: { w: [3, 6], d: [6, 11], gap: 0.08, ext: 0.22, wide: 0.06 },
+    docks: { w: [8, 14], d: [10, 18], gap: 0.06, ext: 0.15, wide: 0.15 },
+    wealthy: { w: [8, 12], d: [7, 9], gap: 0.15, ext: 0.3, wide: 0 },
+    shanty: { w: [3, 4.5], d: [4, 6], gap: 0.2, ext: 0.1, wide: 0 }
+  };
+  // blocks are the patches of town between the actual streets, traced from the street plan itself
+  const lotKind = (j: number) => {
+    const ci = CID[j];
+    if (ci < 0 || !city.home[ci] || landCell[ci]) return null;
+    const kd = kind[ci];
+    return kd && kd in LOT ? kd : null;
+  };
+  const inBlock = (j: number) => !RD[j] && lotKind(j) !== null;
+  const comp = new Int32Array(W * H).fill(-1);
+  const comps: number[][] = [];
+  for (let j0 = 0; j0 < W * H; j0++) {
+    if (comp[j0] >= 0 || !inBlock(j0)) continue;
+    const id = comps.length;
+    const q = [j0];
+    comp[j0] = id;
+    for (let h = 0; h < q.length; h++) {
+      const j = q[h];
+      const x = j % W;
+      const y = (j / W) | 0;
+      for (let t = 0; t < 8; t += 2) {
+        const X = x + N4[t];
+        const Y = y + N4[t + 1];
+        if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+        const o = Y * W + X;
+        if (comp[o] < 0 && inBlock(o) && city.block[CID[o]] === city.block[CID[j]]) {
+          comp[o] = id;
+          q.push(o);
+        }
+      }
+    }
+    comps.push(q);
+  }
+  // how far each block pixel lies from its block's edge
+  const depthPx = new Uint16Array(W * H);
+  {
+    const q: number[] = [];
+    for (let j = 0; j < W * H; j++) {
+      if (comp[j] < 0) continue;
+      const x = j % W;
+      const y = (j / W) | 0;
+      let edge = x === 0 || y === 0 || x === W - 1 || y === H - 1;
+      for (let t = 0; t < 8 && !edge; t += 2) if (comp[(y + N4[t + 1]) * W + x + N4[t]] !== comp[j]) edge = true;
+      if (edge) {
+        depthPx[j] = 1;
+        q.push(j);
+      }
+    }
+    for (let h = 0; h < q.length; h++) {
+      const j = q[h];
+      const x = j % W;
+      const y = (j / W) | 0;
+      for (let t = 0; t < 8; t += 2) {
+        const X = x + N4[t];
+        const Y = y + N4[t + 1];
+        if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+        const o = Y * W + X;
+        if (comp[o] === comp[j] && !depthPx[o]) {
+          depthPx[o] = depthPx[j] + 1;
+          q.push(o);
+        }
+      }
+    }
+  }
+  // a patch's outline: its boundary walked corner to corner, then simplified
+  const outlineOf = (id: number, px: number[]): P2[] => {
+    const nextOf = new Map<number, number[]>();
+    const K = (x: number, y: number) => y * (W + 1) + x;
+    const add = (a: number, b: number) => {
+      const L = nextOf.get(a) ?? [];
+      L.push(b);
+      nextOf.set(a, L);
+    };
+    const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && comp[y * W + x] === id;
+    for (const j of px) {
+      const x = j % W;
+      const y = (j / W) | 0;
+      if (!inside(x, y - 1)) add(K(x, y), K(x + 1, y));
+      if (!inside(x + 1, y)) add(K(x + 1, y), K(x + 1, y + 1));
+      if (!inside(x, y + 1)) add(K(x + 1, y + 1), K(x, y + 1));
+      if (!inside(x - 1, y)) add(K(x, y + 1), K(x, y));
+    }
+    let best: number[] = [];
+    while (nextOf.size) {
+      const start = nextOf.keys().next().value as number;
+      const ring = [start];
+      let cur = start;
+      for (let guard = 0; guard < 200000; guard++) {
+        const L = nextOf.get(cur);
+        if (!L?.length) break;
+        const nx = L.pop() as number;
+        if (!L.length) nextOf.delete(cur);
+        cur = nx;
+        if (cur === start) break;
+        ring.push(cur);
+      }
+      if (ring.length > best.length) best = ring;
+    }
+    const pts: P2[] = best.map(k => [k % (W + 1), Math.floor(k / (W + 1))]);
+    const dp = (P: P2[], eps: number): P2[] => {
+      if (P.length < 3) return P;
+      let md = 0;
+      let mi = 0;
+      const [a, b] = [P[0], P[P.length - 1]];
       const L = dist(a, b) || 1;
-      const tx = (b[0] - a[0]) / L;
-      const ty = (b[1] - a[1]) / L;
-      const sg = R() < 0.5 ? 1 : -1;
-      const pl = rect([a[0] - ty * sg * 3.5, a[1] + tx * sg * 3.5], tx, ty, -ty * sg, tx * sg, 6, 8);
-      const cl = free(pl, c);
-      if (cl)
-        place({ cell: c, poly: pl, type: "Cottage", roof: pick(ROOFS.farm), addr: r.name ?? "", district: -1 }, cl);
+      for (let i = 1; i < P.length - 1; i++) {
+        const d = Math.abs((b[0] - a[0]) * (a[1] - P[i][1]) - (a[0] - P[i][0]) * (b[1] - a[1])) / L;
+        if (d > md) {
+          md = d;
+          mi = i;
+        }
+      }
+      if (md <= eps) return [a, b];
+      return [...dp(P.slice(0, mi + 1), eps).slice(0, -1), ...dp(P.slice(mi), eps)];
+    };
+    if (pts.length < 8) return pts;
+    let far = 0;
+    let fi = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const d = dist(pts[0], pts[i]);
+      if (d > far) {
+        far = d;
+        fi = i;
+      }
+    }
+    return [...dp(pts.slice(0, fi + 1), 1.1).slice(0, -1), ...dp([...pts.slice(fi), pts[0]], 1.1).slice(0, -1)];
+  };
+  const lerp = (p: P2, q: P2, t: number): P2 => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+  for (const [id, px] of comps.entries()) {
+    if (px.length < 30) continue;
+    const cnt = new Map<string, number>();
+    for (const j of px) {
+      const kd = lotKind(j) as string;
+      cnt.set(kd, (cnt.get(kd) ?? 0) + 1);
+    }
+    const k = [...cnt].sort((a, b) => b[1] - a[1])[0][0];
+    const spec = LOT[k];
+    let maxDepth = 0;
+    for (const j of px) maxDepth = Math.max(maxDepth, depthPx[j]);
+    let Q = outlineOf(id, px);
+    // merge short sides, straighten near-straight corners
+    for (let pass = 0; pass < 3 && Q.length > 3; pass++) {
+      const out: P2[] = [];
+      for (let m = 0; m < Q.length; m++) {
+        const p = Q[m];
+        const q = Q[(m + 1) % Q.length];
+        if (dist(p, q) < 3 && m < Q.length - 1) {
+          out.push(lerp(p, q, 0.5));
+          m++;
+        } else out.push(p);
+      }
+      Q = out.filter((p, m) => {
+        const a = out[(m + out.length - 1) % out.length];
+        const b = out[(m + 1) % out.length];
+        const u = [p[0] - a[0], p[1] - a[1]];
+        const v = [b[0] - p[0], b[1] - p[1]];
+        const c = (u[0] * v[0] + u[1] * v[1]) / ((Math.hypot(u[0], u[1]) || 1) * (Math.hypot(v[0], v[1]) || 1));
+        return c < Math.cos((15 * Math.PI) / 180);
+      });
+    }
+    if (Q.length < 3) continue;
+    if (area2(Q) < 0) Q.reverse();
+    const m = Q.length;
+    const back = Q.map(() => 0.2);
+    const lines = Q.map((a, e) => {
+      const b = Q[(e + 1) % m];
+      const L = dist(a, b) || 1;
+      const nx = -(b[1] - a[1]) / L;
+      const ny = (b[0] - a[0]) / L;
+      return { a: [a[0] + nx * back[e], a[1] + ny * back[e]] as P2, dx: (b[0] - a[0]) / L, dy: (b[1] - a[1]) / L };
+    });
+    const meet = (l1: (typeof lines)[number], l2: (typeof lines)[number], fallback: P2): P2 => {
+      const den = l1.dx * l2.dy - l1.dy * l2.dx;
+      if (Math.abs(den) < 1e-3) return fallback;
+      const t = ((l2.a[0] - l1.a[0]) * l2.dy - (l2.a[1] - l1.a[1]) * l2.dx) / den;
+      return [l1.a[0] + l1.dx * t, l1.a[1] + l1.dy * t];
+    };
+    let S: P2[] = [];
+    for (let e = 0; e < m; e++) {
+      const l1 = lines[(e + m - 1) % m];
+      const l2 = lines[e];
+      const p = meet(l1, l2, l2.a);
+      // a sharp point is bevelled, not left as a needle
+      const turn = Math.acos(Math.max(-1, Math.min(1, -(l1.dx * l2.dx + l1.dy * l2.dy))));
+      if (turn < (70 * Math.PI) / 180) {
+        const c = 2.5;
+        S.push([p[0] - l1.dx * c, p[1] - l1.dy * c], [p[0] + l2.dx * c, p[1] + l2.dy * c]);
+      } else S.push(p);
+    }
+    if (area2(S) <= 40) continue;
+    S = S.filter((p, j) => dist(p, S[(j + 1) % S.length]) > 0.3);
+    const ms = S.length;
+    const cx = S.reduce((q, p) => q + p[0], 0) / ms;
+    const cy = S.reduce((q, p) => q + p[1], 0) / ms;
+    let inr = Infinity;
+    for (let e = 0; e < ms; e++) {
+      const [a, b] = [S[e], S[(e + 1) % ms]];
+      const L = dist(a, b) || 1;
+      inr = Math.min(inr, Math.abs((b[0] - a[0]) * (a[1] - cy) - (a[0] - cx) * (b[1] - a[1])) / L);
+    }
+    const build = (pl: P2[], type: string, at: P2, slack = 0.15) => {
+      if (pl.length < 3 || Math.abs(area2(pl)) < 24) return false;
+      const cl = claim(pl, j => comp[j] === id, slack);
+      if (!cl) return false;
+      const ci = CID[cl[Math.floor(cl.length / 2)]];
+      place(
+        { cell: ci, poly: pl, type, roof: pick(ROOFS[k]), addr: addrOf(at, dname(ci)), district: district[ci] },
+        cl
+      );
+      return true;
+    };
+    const baseD = Math.min(spec.d[1], Math.max(spec.d[0], maxDepth * 0.55));
+    const convex = S.every((p, j) => {
+      const a = S[(j + ms - 1) % ms];
+      const b = S[(j + 1) % ms];
+      return (p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0]) >= -0.01;
+    });
+    void inr;
+    // thin blocks: strips straight across, square to the longest side
+    if (k !== "wealthy" && maxDepth < spec.d[1] * 1.15) {
+      let lo = 0;
+      let bi = 0;
+      for (let e = 0; e < ms; e++) {
+        const l = dist(S[e], S[(e + 1) % ms]);
+        if (l > lo) {
+          lo = l;
+          bi = e;
+        }
+      }
+      const a = S[bi];
+      const b = S[(bi + 1) % ms];
+      const tx = (b[0] - a[0]) / lo;
+      const ty = (b[1] - a[1]) / lo;
+      // project the block on its long side to find its run
+      let s0 = Infinity;
+      let s1 = -Infinity;
+      for (const p of S) {
+        const s = (p[0] - a[0]) * tx + (p[1] - a[1]) * ty;
+        s0 = Math.min(s0, s);
+        s1 = Math.max(s1, s);
+      }
+      for (let s = s0; s < s1 - 0.5; ) {
+        let w = (spec.w[0] + R() * (spec.w[1] - spec.w[0])) * (R() < spec.wide ? 2 : 1);
+        if (s1 - s - w < spec.w[0]) w = s1 - s;
+        const p0: P2 = [a[0] + tx * s, a[1] + ty * s];
+        const strip: P2[] = [
+          [p0[0] - ty * 200, p0[1] + tx * 200],
+          [p0[0] + tx * w - ty * 200, p0[1] + ty * w + tx * 200],
+          [p0[0] + tx * w + ty * 200, p0[1] + ty * w - tx * 200],
+          [p0[0] + ty * 200, p0[1] - tx * 200]
+        ];
+        s += w;
+        if (R() < spec.gap * 0.5) continue;
+        // a ragged block keeps the strip as drawn; the streets trim it
+        let span = 0;
+        for (const q of S) span = Math.max(span, Math.abs((q[0] - p0[0]) * -ty + (q[1] - p0[1]) * tx));
+        const pc = convex ? within(S, strip) : rect(p0, tx, ty, -ty, tx, w, Math.min(span, maxDepth * 2 + 1));
+        if (pc.length) {
+          const [tn] = weighted(MIX[k]);
+          build(pc, w > spec.w[1] ? (k === "docks" ? "Warehouse" : "Guild hall") : tn, p0, 0.3);
+        }
+      }
+      continue;
+    }
+    // corners under 150° are built whole; the lots of each side run between them
+    const startAt = new Array(ms).fill(0);
+    const endAt = S.map((a, e) => dist(a, S[(e + 1) % ms]));
+    for (let e = 0; e < ms; e++) {
+      const V = S[e];
+      const A = S[(e + ms - 1) % ms];
+      const Bn = S[(e + 1) % ms];
+      const la = dist(A, V) || 1;
+      const lb = dist(V, Bn) || 1;
+      const a: P2 = [(V[0] - A[0]) / la, (V[1] - A[1]) / la];
+      const b: P2 = [(Bn[0] - V[0]) / lb, (Bn[1] - V[1]) / lb];
+      const na: P2 = [-a[1], a[0]];
+      const nb: P2 = [-b[1], b[0]];
+      const cross = a[0] * b[1] - a[1] * b[0];
+      const interior = Math.PI - Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1])));
+      if (cross <= 0 || interior > (150 * Math.PI) / 180) continue;
+      const dc = baseD * (0.8 + R() * 0.4);
+      const X = meet(
+        { a: [V[0] + na[0] * dc, V[1] + na[1] * dc], dx: a[0], dy: a[1] },
+        { a: [V[0] + nb[0] * dc, V[1] + nb[1] * dc], dx: b[0], dy: b[1] },
+        V
+      );
+      const fa = Math.max(spec.w[0], (V[0] - X[0]) * a[0] + (V[1] - X[1]) * a[1] + 1);
+      const fb = Math.max(spec.w[0], (X[0] - V[0]) * b[0] + (X[1] - V[1]) * b[1] + 1);
+      if (fa > la * 0.6 || fb > lb * 0.6) continue;
+      const pa: P2 = [V[0] - a[0] * fa, V[1] - a[1] * fa];
+      const pb: P2 = [V[0] + b[0] * fb, V[1] + b[1] * fb];
+      const corner: P2[] = [
+        pa,
+        V,
+        pb,
+        [pb[0] + nb[0] * dc, pb[1] + nb[1] * dc],
+        X,
+        [pa[0] + na[0] * dc, pa[1] + na[1] * dc]
+      ];
+      if (
+        build(within(S, corner).length ? corner : [], k === "centre" && R() < 0.3 ? "Shop" : weighted(MIX[k])[0], V)
+      ) {
+        endAt[(e + ms - 1) % ms] = la - fa;
+        startAt[e] = fb;
+      }
+    }
+    // along each side: lots square to the street, each its own depth, with the odd gap, alley, hall and back wing
+    for (let e = 0; e < ms; e++) {
+      const o0 = S[e];
+      const o1 = S[(e + 1) % ms];
+      const L = dist(o0, o1);
+      const tx = (o1[0] - o0[0]) / L;
+      const ty = (o1[1] - o0[1]) / L;
+      const nx = -ty;
+      const ny = tx;
+      let s = startAt[e];
+      let lastD = 0;
+      while (s < endAt[e] - 1) {
+        let w = spec.w[0] + R() * (spec.w[1] - spec.w[0]);
+        let type = weighted(MIX[k])[0];
+        if (R() < spec.wide) {
+          w *= 2 + R();
+          type = k === "docks" ? "Warehouse" : k === "centre" ? "Guild hall" : "Tavern";
+        }
+        if (endAt[e] - s - w < spec.w[0]) w = endAt[e] - s;
+        let d = baseD * (0.6 + R() * 0.8);
+        if (Math.abs(d - lastD) < baseD * 0.15) d += baseD * 0.2 * (R() < 0.5 ? -1 : 1);
+        d = Math.min(d, w * (k === "docks" ? 6 : 4), maxDepth * 1.1);
+        const p0: P2 = [o0[0] + tx * s, o0[1] + ty * s];
+        s += w;
+        if (R() < spec.gap) {
+          lastD = 0;
+          continue;
+        }
+        if (R() < 0.03) {
+          s -= w - 1.2; // an alley through to the yard
+          continue;
+        }
+        if (w < 2.5) continue;
+        lastD = d;
+        let pl: P2[];
+        if (k === "wealthy") {
+          // a house standing back in its garden
+          const hw = Math.min(w - 2, 5 + R() * 4);
+          const hd = Math.min(d, 5 + R() * 3);
+          const q0: P2 = [p0[0] + (tx * (w - hw)) / 2 + nx * 2.5, p0[1] + (ty * (w - hw)) / 2 + ny * 2.5];
+          pl = rect(q0, tx, ty, nx, ny, hw, hd);
+          if (R() < spec.ext)
+            pl = [
+              ...pl.slice(0, 3),
+              [pl[2][0] + nx * 3 - tx * hw * 0.4, pl[2][1] + ny * 3 - ty * hw * 0.4],
+              [pl[3][0] + nx * 3 + tx * hw * 0.2, pl[3][1] + ny * 3 + ty * hw * 0.2],
+              pl[3]
+            ] as P2[];
+        } else {
+          const r = rect(p0, tx, ty, nx, ny, w, d);
+          pl = r;
+          if (R() < spec.ext && w > 3.5) {
+            // a back wing into the yard
+            const u0 = 0.15 + R() * 0.3;
+            const u1 = Math.min(0.9, u0 + 0.35 + R() * 0.2);
+            const ed = d * (0.35 + R() * 0.35);
+            const bk = (u: number): P2 => lerp(r[3], r[2], u);
+            const b0 = bk(u0);
+            const b1 = bk(u1);
+            pl = [
+              r[0],
+              r[1],
+              r[2],
+              b1,
+              [b1[0] + nx * ed, b1[1] + ny * ed],
+              [b0[0] + nx * ed, b0[1] + ny * ed],
+              b0,
+              r[3]
+            ];
+          }
+        }
+        // a lot is cut back to the block, and shortened if it runs into another
+        let done = build(pl, type, p0);
+        for (const f of [0.75, 0.55]) {
+          if (done || k === "wealthy") break;
+          done = build(rect(p0, tx, ty, nx, ny, w, d * f), type, p0);
+        }
+      }
+    }
+    // the shanty fills its yards with huts every which way
+    if (k === "shanty")
+      for (let y = 0; y < H; y += 3)
+        for (let x = 0; x < W; x += 3) {
+          const j = y * W + x;
+          if (comp[j] !== id || OCC[j] || RD[j] || R() < 0.55) continue;
+          const a = R() * Math.PI;
+          const f = 3 + R() * 2;
+          const d = 3 + R() * 2;
+          build(rect([x, y], Math.cos(a), Math.sin(a), -Math.sin(a), Math.cos(a), f, d), "Hut", [x, y], 0);
+        }
+  }
+  // houses strung out along the main roads beyond the town, thinning with distance
+  {
+    const townPx = (j: number) => CID[j] >= 0 && (use[CID[j]] === "town" || use[CID[j]] === "shanty");
+    for (const r of city.roads) {
+      if (r.type !== "main") continue;
+      let out = 0;
+      for (let t = 0; t < r.pts.length - 1; t++) {
+        const a = r.pts[t];
+        const b = r.pts[t + 1];
+        const L = dist(a, b);
+        if (L < 0.5) continue;
+        const j = Math.round(a[1]) * W + Math.round(a[0]);
+        if (townPx(j)) {
+          out = 0;
+          continue;
+        }
+        out += L;
+        const tx = (b[0] - a[0]) / L;
+        const ty = (b[1] - a[1]) / L;
+        for (const sg of [1, -1]) {
+          if (R() > Math.exp(-out / 120) * 0.55) continue;
+          const nx = -ty * sg;
+          const ny = tx * sg;
+          const w = 4 + R() * 3;
+          const d = 6 + R() * 3;
+          const o: P2 = [a[0] + nx * 3.2, a[1] + ny * 3.2];
+          const pl =
+            sg > 0 ? rect(o, tx, ty, nx, ny, w, d) : rect([o[0] + tx * w, o[1] + ty * w], -tx, -ty, nx, ny, w, d);
+          const cl = claim(
+            pl,
+            j => CID[j] >= 0 && city.home[CID[j]] === 1 && use[CID[j]] !== "water" && use[CID[j]] !== "town",
+            0
+          );
+          if (cl) {
+            const ci = CID[cl[0]];
+            place(
+              { cell: ci, poly: pl, type: "Cottage", roof: pick(ROOFS.farm), addr: r.name ?? "", district: -1 },
+              cl
+            );
+          }
+        }
+      }
     }
   }
   // notables
