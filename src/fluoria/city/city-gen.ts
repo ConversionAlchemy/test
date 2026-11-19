@@ -28,10 +28,12 @@ export interface District {
   cells: number[];
 }
 export interface Road {
-  type: "main" | "street" | "lane" | "pier" | "path";
+  type: "main" | "street" | "lane" | "pier" | "path" | "track";
+  key: string;
   name?: string;
   cells?: number[]; // a route through cell centres
   edges?: [number, number][]; // vertex pairs along cell edges
+  ekeys?: string[];
   pts: P2[]; // drawn line
 }
 export interface Building {
@@ -44,8 +46,42 @@ export interface Building {
   addr: string;
   district?: number;
   landmark?: boolean;
+  cells?: number[]; // a landmark's cells: it stands on all of them
+  key?: string;
   enter?: string;
 }
+
+export interface Landmark {
+  id: number;
+  cells: number[];
+  name: string;
+  type: string;
+  roof: string;
+  enter?: string;
+}
+export interface Gate {
+  p: P2;
+  a: P2; // the wall edge's ends, where its towers stand
+  b: P2;
+  name: string;
+  road: string;
+}
+export interface Farm {
+  cell: number;
+  houses: number;
+}
+/** Everything a DM changed, kept apart from the generated city and laid over it on every rebuild */
+export interface Edits {
+  seed?: number;
+  cells?: Record<number, string>;
+  districts?: Record<number, number>;
+  newDistricts?: { id: number; name: string; kind: Kind }[];
+  landmarks?: Landmark[];
+  roads?: { type: Road["type"]; cells: number[]; name?: string }[];
+  erase?: string[];
+  names?: Record<string, string>;
+}
+export const TOWN_KINDS: Kind[] = ["centre", "wealthy", "old", "docks", "shanty", "square", "park", "pond"];
 
 export interface City {
   W: number;
@@ -59,7 +95,10 @@ export interface City {
   roads: Road[];
   walls: P2[][];
   towers: P2[];
-  gates: P2[];
+  gates: Gate[];
+  landmarks: Landmark[];
+  farms: Farm[];
+  edits: Edits;
   buildings: Building[];
   trees: [number, number, number][];
   squareCell: number;
@@ -122,7 +161,14 @@ const STREETS = [
   "Net Row"
 ];
 
-export function buildCity(region: Region, burgName: string, opts: { scale?: number; margin?: number } = {}): City {
+export function buildCity(
+  region: Region,
+  burgName: string,
+  opts: { scale?: number; margin?: number; edits?: Edits } = {}
+): City {
+  const ed: Edits = opts.edits ?? {};
+  const erased = new Set(ed.erase ?? []);
+  const named = (key: string, name?: string) => ed.names?.[key] ?? name;
   const U = opts.scale ?? 14;
   const M = opts.margin ?? 6;
   const B = region.burgs.find(b => b.n === burgName);
@@ -143,7 +189,7 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
   const W = Math.ceil((x1 - x0 + 2 * M) * U);
   const H = Math.ceil((y1 - y0 + 2 * M) * U);
   const toP = ([rx, ry]: P2): P2 => [(rx - ox) * U, (ry - oy) * U];
-  const R = rngOf(Math.round(B.x * 31 + B.y * 977));
+  const R = rngOf(ed.seed ?? Math.round(B.x * 31 + B.y * 977));
   const RC = region.cells
     .filter(c => c.p.some(([x, y]) => x > ox - 4 && x < ox + W / U + 4 && y > oy - 4 && y < oy + H / U + 4))
     .map(c => ({ rc: c, poly: c.p.map(toP), water: c.h < 20, home: c === homeR }));
@@ -270,6 +316,23 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
 
   // uses: the town disc in the home cell, farmland and woods round it
   const dT = (i: number) => dist(pts[i], T);
+  const coastDist = (i: number) => {
+    const d = 9;
+    const seen = new Set([i]);
+    let front = [i];
+    for (let k = 0; k < 8 && front.length; k++) {
+      if (front.some(j => isWater[j])) return k;
+      const nx: number[] = [];
+      for (const j of front)
+        for (const q of cells.c[j])
+          if (q < n && !seen.has(q)) {
+            seen.add(q);
+            nx.push(q);
+          }
+      front = nx;
+    }
+    return d;
+  };
   for (let i = 0; i < n; i++) {
     if (isWater[i]) {
       use[i] = "water";
@@ -287,7 +350,7 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
       const wn = cells.c[i].filter(j => use[j] === "woods").length;
       if (wn >= 3 && R() < 0.4) use[i] = "woods";
     }
-  const town = [...Array(n).keys()].filter(i => use[i] === "town");
+  let town = [...Array(n).keys()].filter(i => use[i] === "town");
 
   // districts, by place: the centre round the square, the planned hill, the waterfront, two old quarters
   const kind: (Kind | null)[] = new Array(n).fill(null);
@@ -351,12 +414,70 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
       district[i] = 5;
     }
   }
-  for (let i = 0; i < n; i++) if (district[i] >= 0) DIST[district[i]].cells.push(i);
+  for (const d of ed.newDistricts ?? []) DIST.push({ id: d.id, name: d.name, kind: d.kind, cells: [] });
+  for (const D of DIST) D.name = named(`d:${D.id}`, D.name) as string;
+  // the DM's painted cells and districts, over the generated ones
+  const DEF: Record<string, number> = {
+    centre: 0,
+    square: 0,
+    wealthy: 1,
+    docks: 2,
+    old: 3,
+    park: 1,
+    pond: 1,
+    shanty: 5
+  };
+  for (const [k, v] of Object.entries(ed.cells ?? {})) {
+    const i = +k;
+    if (i < 0 || i >= n) continue;
+    if ((TOWN_KINDS as string[]).includes(v)) {
+      use[i] = v === "shanty" ? "shanty" : "town";
+      kind[i] = v as Kind;
+      if (district[i] < 0) {
+        const nb = cells.c[i].find(j => district[j] >= 0);
+        district[i] = nb !== undefined ? district[nb] : (DEF[v] ?? 3);
+      }
+    } else {
+      use[i] = v as Use;
+      kind[i] = null;
+      district[i] = -1;
+    }
+    isWater[i] = v === "water" ? 1 : 0;
+    h[i] = isWater[i] ? 10 : 30;
+    f[i] = isWater[i] ? 2 : 1;
+  }
+  for (const [k, v] of Object.entries(ed.districts ?? {}))
+    if (district[+k] >= 0 || use[+k] === "town") district[+k] = v;
+  town = [...Array(n).keys()].filter(i => use[i] === "town");
+  for (let i = 0; i < n; i++)
+    if (district[i] >= 0 && DIST.find(d => d.id === district[i])) DIST.find(d => d.id === district[i])?.cells.push(i);
+
+  // landmarks: a set of cells standing as one building; the Aurum is one grid cell on the square, nearest the water
+  let landmarks: Landmark[] = ed.landmarks ?? [];
+  if (!ed.landmarks) {
+    const c = cells.c[squareCell].filter(j => kind[j] === "centre").sort((a, b) => coastDist(a) - coastDist(b))[0];
+    if (c !== undefined)
+      landmarks = [
+        {
+          id: 1,
+          cells: [c],
+          name: "The Aurum",
+          type: "Bank",
+          roof: "gold",
+          enter: "Aurum halls · counting house · vault"
+        }
+      ];
+  }
+  landmarks = landmarks
+    .map(l => ({ ...l, cells: l.cells.filter(i => i >= 0 && i < n && use[i] === "town") }))
+    .filter(l => l.cells.length);
+  const isLandmark = new Uint8Array(n);
+  for (const l of landmarks) for (const i of l.cells) isLandmark[i] = 1;
 
   // ---- roads
   const roads: Road[] = [];
   const onMain = new Uint8Array(n);
-  const blocked = (i: number) => kind[i] === "pond" || kind[i] === "park" || i === undefined;
+  const blocked = (i: number) => kind[i] === "pond" || kind[i] === "park" || isLandmark[i] === 1 || i === undefined;
   const mid = (a: number, b: number): P2 => {
     const sh = cells.v[a].filter(v => cells.v[b].includes(v));
     if (sh.length >= 2) {
@@ -460,22 +581,67 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
     exits.push({ cell: edgeCell(dir), name: `${nb.n} Road`, out: p });
   }
   for (const e of exits) {
-    if (e.cell < 0) continue;
+    if (e.cell < 0 || erased.has(`m:${e.name}`)) continue;
     const route = mainRoute(squareCell, e.cell);
     if (!route) continue;
     for (const c of route) onMain[c] = 1;
-    roads.push({ type: "main", name: e.name, cells: route, pts: lineOf(route) });
+    roads.push({
+      type: "main",
+      key: `m:${e.name}`,
+      name: named(`m:${e.name}`, e.name),
+      cells: route,
+      pts: lineOf(route)
+    });
   }
   // the dock road: from the square to the waterfront
   {
     const docks = town.filter(i => kind[i] === "docks");
     const far = docks.sort((a, b) => dT(b) - dT(a))[0];
     if (far !== undefined) {
-      const route = mainRoute(squareCell, far);
+      const route = erased.has("m:Bankside") ? null : mainRoute(squareCell, far);
       if (route) {
         for (const c of route) onMain[c] = 1;
-        roads.push({ type: "main", name: "Bankside", cells: route, pts: lineOf(route) });
+        roads.push({
+          type: "main",
+          key: "m:Bankside",
+          name: named("m:Bankside", "Bankside"),
+          cells: route,
+          pts: lineOf(route)
+        });
       }
+    }
+  }
+  // roads the DM drew, cell to cell
+  for (const [k, r] of (ed.roads ?? []).entries()) {
+    const route = r.cells.filter(i => i >= 0 && i < n);
+    if (route.length < 2) continue;
+    if (r.type === "main") for (const c of route) onMain[c] = 1;
+    roads.push({ type: r.type, key: `u:${k}`, name: named(`u:${k}`, r.name), cells: route, pts: lineOf(route) });
+  }
+  // farms and hamlets: a few field cells off the main roads, each reached by a track branching off the nearest road
+  const farms: Farm[] = [];
+  {
+    const onTrack = new Uint8Array(n);
+    const fieldy = (i: number) => use[i] === "wheat" || use[i] === "tilled" || use[i] === "pasture";
+    const cand = [...Array(n).keys()].filter(
+      i => fieldy(i) && !onMain[i] && !cells.c[i].some(j => use[j] === "town" || onMain[j]) && R() < 0.14
+    );
+    for (const i of cand) {
+      if (farms.some(f => dist(pts[f.cell], pts[i]) < 60) || erased.has(`f:${i}`)) continue;
+      const path = findPath(
+        i,
+        id => onMain[id] === 1 || onTrack[id] === 1,
+        (_cur, next) =>
+          isWater[next] || use[next] === "town" || use[next] === "shanty" ? Infinity : use[next] === "woods" ? 3 : 1,
+        pack
+      );
+      if (!path || path.length > 9) continue;
+      const route = [i, ...path];
+      farms.push({ cell: i, houses: R() < 0.25 ? 3 + Math.floor(R() * 3) : 1 });
+      for (const c of route) onTrack[c] = 1;
+      onTrack[route[route.length - 1]] = 0;
+      if (!erased.has(`t:${i}`))
+        roads.push({ type: "track", key: `t:${i}`, cells: route.reverse(), pts: lineOf(route) });
     }
   }
 
@@ -495,7 +661,7 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
       const k = edgeKey(sh[0], sh[1]);
       if (edgeSeen.has(k)) continue;
       edgeSeen.add(k);
-      if (blocked(i) && blocked(j)) continue;
+      if ((blocked(i) && blocked(j)) || erased.has(`e:${k}`)) continue;
       const ki = kind[i];
       const kj = kind[j];
       const ks = [ki, kj];
@@ -559,16 +725,32 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
       grow(streetEdges[k].b, false);
       grow(streetEdges[k].a, true);
       const edges = chain.map(x => [streetEdges[x].a, streetEdges[x].b] as [number, number]);
-      const linePts: P2[] = [];
-      for (const [a, b] of edges) linePts.push(vertices.p[a] as P2, vertices.p[b] as P2);
+      // the chain as one line, end to end
+      const order: number[] = [];
+      if (edges.length === 1) order.push(edges[0][0], edges[0][1]);
+      else {
+        const [a0, b0] = edges[0];
+        const first = edges[1].includes(b0) ? a0 : b0;
+        order.push(first);
+        let cur = first;
+        for (const [a, b] of edges) {
+          cur = a === cur ? b : a;
+          order.push(cur);
+        }
+      }
+      const linePts: P2[] = order.map(v => vertices.p[v] as P2);
+      const ekeys = edges.map(([a, b]) => edgeKey(a, b));
+      const skey = `s:${ekeys.slice().sort()[0]}`;
       let len = 0;
       for (const [a, b] of edges) len += dist(vertices.p[a] as P2, vertices.p[b] as P2);
       const type = streetEdges[k].type;
       roads.push({
         type,
+        key: skey,
         edges,
+        ekeys,
         pts: linePts,
-        name: type === "street" && len > 45 ? STREETS[sn++ % STREETS.length] : undefined
+        name: named(skey, type === "street" && len > 45 ? STREETS[sn++ % STREETS.length] : undefined)
       });
     }
   }
@@ -581,7 +763,9 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
       if (sh.length < 2) continue;
       const a = vertices.p[sh[0]] as P2;
       const b = vertices.p[sh[1]] as P2;
-      roads.push({ type: "pier", edges: [[sh[0], sh[1]]], pts: [a, b] });
+      const pk = `p:${edgeKey(sh[0], sh[1])}`;
+      if (erased.has(pk)) continue;
+      roads.push({ type: "pier", key: pk, edges: [[sh[0], sh[1]]], pts: [a, b] });
       const L = dist(a, b);
       const nx = -(b[1] - a[1]) / L;
       const ny = (b[0] - a[0]) / L;
@@ -590,7 +774,7 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
         const s: P2 = [a[0] + ((b[0] - a[0]) * t) / L, a[1] + ((b[1] - a[1]) * t) / L];
         const len = 8 + R() * 16;
         const e: P2 = [s[0] + nx * sgn * len, s[1] + ny * sgn * len];
-        roads.push({ type: "pier", pts: [s, e] });
+        roads.push({ type: "pier", key: pk, pts: [s, e] });
         const r = R();
         if (r < 0.35) {
           const w = 4 + R() * 5;
@@ -599,6 +783,7 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
           const lSide = r < 0.2 ? -1 : 0;
           roads.push({
             type: "pier",
+            key: pk,
             pts: [
               [e[0] + tx * w * lSide, e[1] + ty * w * lSide],
               [e[0] + tx * w, e[1] + ty * w]
@@ -637,20 +822,34 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
     }
     if (run.length > 1) walls.push(run);
   }
-  const gates: P2[] = [];
+  // gates: where a main road crosses the wall; the crossed edge's two ends carry its towers
+  const gates: Gate[] = [];
   for (const r of roads)
-    if (r.type === "main" && r.cells)
-      for (let k = 1; k < r.cells.length; k++)
-        if (townSet.has(r.cells[k - 1]) !== townSet.has(r.cells[k])) gates.push(mid(r.cells[k - 1], r.cells[k]));
-  // towers at the wall's turns, kept apart
+    if ((r.type === "main" || r.type === "street") && r.cells)
+      for (let k = 1; k < r.cells.length; k++) {
+        const [p, q] = [r.cells[k - 1], r.cells[k]];
+        if (townSet.has(p) === townSet.has(q) || isWater[p] || isWater[q]) continue;
+        const shv = cells.v[p].filter(v => cells.v[q].includes(v));
+        if (shv.length < 2) continue;
+        const base = (r.name ?? "Town").replace(/ (Road|Street|Lane|Way)$/, "");
+        const gk = `g:${r.key}`;
+        gates.push({
+          p: mid(p, q),
+          a: vertices.p[shv[0]],
+          b: vertices.p[shv[1]],
+          road: r.key,
+          name: named(gk, `${base} Gate`) as string
+        });
+      }
+  // towers at the gates and at the wall's turns, kept apart
   const towers: P2[] = [];
+  for (const g of gates) towers.push(g.a, g.b);
   for (const w of walls)
     for (let k = 0; k < w.length - 1; k++) {
       const p = w[k];
-      if (gates.some(g => dist(g, p) < 10) || towers.some(t => dist(t, p) < 22)) continue;
+      if (towers.some(t => dist(t, p) < 22)) continue;
       towers.push(p);
     }
-  for (const g of gates) towers.push(g);
 
   return {
     W,
@@ -665,6 +864,9 @@ export function buildCity(region: Region, burgName: string, opts: { scale?: numb
     walls,
     towers,
     gates,
+    landmarks,
+    farms,
+    edits: ed,
     buildings: [],
     trees: [],
     squareCell,

@@ -1,11 +1,16 @@
-// Fills a city's blocks with terraced buildings and paints it twice: the pixel terrain view in the region map's grounds
-// and palette, and a flat map view of pale streets, plain blocks and buildings coloured by what they are
+// Fills a city's blocks with terraced buildings and paints it twice: the pixel terrain view from the shared city tiles,
+// and a flat map view for finding the way. Nothing here is tuned to one town: every cell paints by its kind
 import { COAST, ditherAt, groundPixel } from "../ground-tiles";
-import { Palette as P, type RGB } from "../palette";
+import { Palette as P } from "../palette";
 import type { Building, City, P2 } from "./city-gen";
 
 type C3 = readonly [number, number, number];
 const sh = (c: C3, f: number): C3 => [Math.min(255, c[0] * f), Math.min(255, c[1] * f), Math.min(255, c[2] * f)];
+const mix = (a: C3, b: C3, t: number): C3 => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t
+];
 const hex = (h: string): C3 => [
   Number.parseInt(h.slice(1, 3), 16),
   Number.parseInt(h.slice(3, 5), 16),
@@ -22,6 +27,7 @@ const inPoly = (poly: P2[], x: number, y: number) => {
   return c;
 };
 const dist = (a: P2, b: P2) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const N4 = [1, 0, -1, 0, 0, 1, 0, -1];
 
 // building tiers: frontage and depth ranges in pixels (about 1.3 m each)
 const TIER: Record<string, [number, number, number, number]> = {
@@ -29,8 +35,7 @@ const TIER: Record<string, [number, number, number, number]> = {
   house: [5, 7, 7, 9],
   shop: [6, 8, 8, 10],
   hall: [9, 12, 11, 14],
-  store: [10, 14, 12, 16],
-  mark: [15, 15, 21, 21]
+  store: [10, 14, 12, 16]
 };
 const MIX: Record<string, [string, string, number][]> = {
   centre: [
@@ -60,19 +65,21 @@ const MIX: Record<string, [string, string, number][]> = {
 const ROOFS: Record<string, string[]> = {
   centre: ["slate", "slate", "stone", "clay"],
   wealthy: ["slate", "slate", "clay"],
-  old: ["clay", "clay", "clay", "slate", "thatch"],
-  docks: ["timber", "timber", "slate", "thatch"],
-  shanty: ["thatch", "timber", "thatch", "clay"]
+  old: ["clay", "clay", "clay", "slate", "slate"],
+  docks: ["timber", "timber", "slate", "clay"],
+  shanty: ["thatch", "timber", "thatch", "clay"],
+  farm: ["thatch", "thatch", "clay"]
 };
 export const TYPE_INK: Record<string, string> = {
   Bank: "#d6ac3c",
   Guardhouse: "#b8423a",
   Chapel: "#5f9a62",
+  Temple: "#5f9a62",
   "Guild hall": "#4f7fb4",
   Tavern: "#d07a3a",
-  Warehouse: "#8a6a4a",
   Office: "#7b6aa8",
-  Market: "#c9a04a"
+  Market: "#c9a04a",
+  Landmark: "#8a6aa8"
 };
 
 export interface Painted {
@@ -82,11 +89,94 @@ export interface Painted {
   BID: Int32Array;
 }
 
+/** The road plan as pixel grids: 1 track/path, 2 lane, 3 street, 4 main, 5 wall, 6 pier, 7 square, 8 bridge, 9 gate */
+const WIDTH: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8, pier: 1.4 };
+const CODE: Record<string, number> = { path: 1, track: 1, lane: 2, street: 3, main: 4, pier: 6 };
+export function rasterPlan(city: City) {
+  const { W, H, pack, kind } = city;
+  const { cells, vertices } = pack;
+  const N = W * H;
+  const CID = new Int32Array(N).fill(-1);
+  const RD = new Uint8Array(N);
+  for (let i = 0; i < cells.p.length; i++) {
+    const q: P2[] = cells.v[i].map((v: number) => vertices.p[v]);
+    let a = Infinity;
+    let b = Infinity;
+    let e = -Infinity;
+    let f = -Infinity;
+    for (const [x, y] of q) {
+      a = Math.min(a, x);
+      b = Math.min(b, y);
+      e = Math.max(e, x);
+      f = Math.max(f, y);
+    }
+    for (let y = Math.max(0, Math.floor(b)); y <= Math.min(H - 1, f); y++)
+      for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++)
+        if (inPoly(q, x + 0.5, y + 0.5)) CID[y * W + x] = i;
+  }
+  const isWater = (j: number) => CID[j] < 0 || city.use[CID[j]] === "water" || kind[CID[j]] === "pond";
+  for (let j = 0; j < N; j++) if (CID[j] >= 0 && kind[CID[j]] === "square") RD[j] = 7;
+  const line = (pts: P2[], w: number, fn: (x: number, y: number) => void) => {
+    for (let k = 0; k < pts.length - 1; k++) {
+      const [a, b] = [pts[k], pts[k + 1]];
+      const steps = Math.ceil(dist(a, b) * 2) + 1;
+      for (let s = 0; s <= steps; s++) {
+        const x = a[0] + ((b[0] - a[0]) * s) / steps;
+        const y = a[1] + ((b[1] - a[1]) * s) / steps;
+        const r = Math.ceil(w);
+        for (let v = -r; v <= r; v++)
+          for (let u = -r; u <= r; u++)
+            if (u * u + v * v <= w * w + 0.3) {
+              const X = Math.round(x + u);
+              const Y = Math.round(y + v);
+              if (X >= 0 && Y >= 0 && X < W && Y < H) fn(X, Y);
+            }
+      }
+    }
+  };
+  for (const r of city.roads) {
+    if (r.type === "pier") continue;
+    const code = CODE[r.type];
+    const w = WIDTH[r.type];
+    if (r.edges)
+      for (const [a, b] of r.edges)
+        line([vertices.p[a], vertices.p[b]], w, (x, y) => {
+          const j = y * W + x;
+          if (!isWater(j) && RD[j] < code) RD[j] = code;
+        });
+    else
+      line(r.pts, w, (x, y) => {
+        const j = y * W + x;
+        if (RD[j] === 7) return;
+        if (isWater(j)) RD[j] = code >= 3 ? 8 : RD[j];
+        else if (RD[j] < code) RD[j] = code;
+      });
+  }
+  for (const r of city.roads)
+    if (r.type === "pier")
+      line(r.pts, WIDTH.pier, (x, y) => {
+        const j = y * W + x;
+        if (!RD[j] || isWater(j)) RD[j] = 6;
+      });
+  for (const w of city.walls)
+    line(w, 1.5, (x, y) => {
+      const j = y * W + x;
+      if (city.gates.some(g => Math.hypot(g.p[0] - x, g.p[1] - y) < 4.5)) return;
+      if (!isWater(j)) RD[j] = 5;
+    });
+  // the road through each gate takes the gate's paving
+  for (const g of city.gates)
+    line([g.a, g.b], 2.2, (x, y) => {
+      const j = y * W + x;
+      if (RD[j] >= 2 && RD[j] <= 4 && Math.hypot(g.p[0] - x, g.p[1] - y) < 4.6) RD[j] = 9;
+    });
+  return { CID, RD };
+}
+
 export function furnish(city: City): void {
   const { W, H, pack, kind, use, district } = city;
   const { cells, vertices } = pack;
-  const pts: P2[] = cells.p;
-  const n = pts.length;
+  const n = cells.p.length;
   let s = 977;
   const R = () => {
     s = (s * 16807) % 2147483647;
@@ -105,6 +195,7 @@ export function furnish(city: City): void {
   const { CID, RD } = rasterPlan(city);
   const OCC = new Int32Array(W * H);
   const B: Building[] = [];
+  const names = city.edits.names ?? {};
   const free = (poly: P2[], cid: number, strict = true) => {
     let a = Infinity;
     let b = Infinity;
@@ -132,7 +223,12 @@ export function furnish(city: City): void {
   };
   const place = (b: Omit<Building, "id">, cl: number[]) => {
     const id = B.length + 1;
-    B.push({ ...b, id });
+    const c = b.poly.length
+      ? b.poly.reduce((q, p) => [q[0] + p[0] / b.poly.length, q[1] + p[1] / b.poly.length], [0, 0])
+      : [0, 0];
+    const key = b.key ?? `b:${b.cell}:${Math.round(c[0])}:${Math.round(c[1])}`;
+    const nm = names[key];
+    B.push({ ...b, id, key, name: nm ?? b.name });
     for (const j of cl) OCC[j] = id;
   };
   const rect = (o: P2, tx: number, ty: number, nx: number, ny: number, f: number, d: number): P2[] => [
@@ -156,8 +252,8 @@ export function furnish(city: City): void {
     let bd = 12;
     for (const r of city.roads)
       if (r.name)
-        for (let k = 0; k < r.pts.length; k += 2) {
-          const d = dist(p, r.pts[k]);
+        for (const q of r.pts) {
+          const d = dist(p, q);
           if (d < bd) {
             bd = d;
             best = r.name;
@@ -173,69 +269,61 @@ export function furnish(city: City): void {
     numbers.set(st, k);
     return `${k} ${st}`;
   };
-  const dname = (i: number) => (district[i] >= 0 ? city.districts[district[i]].name : "");
+  const dname = (i: number) => city.districts.find(d => d.id === district[i])?.name ?? "";
 
-  // the Aurum: a landmark on the square's edge, gold roof
-  {
-    const sq = city.squareCell;
-    const cand = cells.c[sq].filter((j: number) => kind[j] === "centre");
-    for (const j of cand) {
-      const shv = cells.v[sq].filter((v: number) => cells.v[j].includes(v));
-      if (shv.length < 2) continue;
-      const a = vertices.p[shv[0]] as P2;
-      const b = vertices.p[shv[1]] as P2;
-      const L = dist(a, b);
-      if (L < 12) continue;
-      const tx = (b[0] - a[0]) / L;
-      const ty = (b[1] - a[1]) / L;
-      let nx = -ty;
-      let ny = tx;
-      const m: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      if (!inPoly(poly(j), m[0] + nx * 4, m[1] + ny * 4)) {
-        nx = -nx;
-        ny = -ny;
-      }
-      let done = false;
-      for (const st of [2, 3, 4])
-        for (const [f, d] of [
-          [15, 21],
-          [14, 19],
-          [13, 17]
-        ]) {
-          if (done) break;
-          const pl = rect([m[0] - (tx * f) / 2 + nx * st, m[1] - (ty * f) / 2 + ny * st], tx, ty, nx, ny, f, d);
-          const cl = free(pl, j);
-          if (cl) {
-            place(
-              {
-                cell: j,
-                poly: pl,
-                type: "Bank",
-                roof: "gold",
-                name: "The Aurum",
-                addr: "Coin Square",
-                district: district[j],
-                landmark: true,
-                enter: "Aurum halls · counting house · vault"
-              },
-              cl
-            );
-            done = true;
+  // landmarks: their cells less the streets round them, pulled in two pixels; they stand as one building
+  const landCell = new Uint8Array(n);
+  for (const l of city.landmarks) {
+    const set = new Set(l.cells);
+    for (const i of l.cells) landCell[i] = 1;
+    const M = new Uint8Array(W * H);
+    for (let j = 0; j < W * H; j++) if (set.has(CID[j]) && !RD[j]) M[j] = 1;
+    for (let k = 0; k < 2; k++) {
+      const drop: number[] = [];
+      for (let j = 0; j < W * H; j++) {
+        if (!M[j]) continue;
+        const x = j % W;
+        const y = (j / W) | 0;
+        for (let q = 0; q < 8; q += 2) {
+          const X = x + N4[q];
+          const Y = y + N4[q + 1];
+          if (X < 0 || Y < 0 || X >= W || Y >= H || !M[Y * W + X]) {
+            drop.push(j);
+            break;
           }
         }
-      if (done) break;
+      }
+      for (const j of drop) M[j] = 0;
     }
+    const px: number[] = [];
+    for (let j = 0; j < W * H; j++) if (M[j]) px.push(j);
+    if (px.length < 6) continue;
+    const c0 = l.cells[0];
+    place(
+      {
+        cell: c0,
+        cells: l.cells,
+        poly: [],
+        type: l.type,
+        roof: l.roof,
+        name: l.name,
+        addr: addrOf(cells.p[c0], dname(c0)),
+        district: district[c0],
+        landmark: true,
+        key: `l:${l.id}`,
+        enter: l.enter
+      },
+      px
+    );
   }
 
   // street fronts: terraces along every edge of a block that has a road, both sides of a main road through it
   for (let i = 0; i < n; i++) {
     const k = kind[i];
-    if (!k || k === "square" || k === "park" || k === "pond") continue;
+    if (!k || k === "square" || k === "park" || k === "pond" || k === "shanty" || landCell[i]) continue;
     const q = poly(i);
-    const mix = MIX[k];
+    const mix0 = MIX[k];
     const wealthy = k === "wealthy";
-    const shanty = k === "shanty";
-    if (shanty) continue;
     const fronts: { a: P2; b: P2; set: number }[] = [];
     for (let e = 0; e < q.length; e++) {
       const a = q[e];
@@ -245,13 +333,14 @@ export function furnish(city: City): void {
       if (roadNear(m, 2) || k === "old" || k === "centre" || k === "docks") fronts.push({ a, b, set: 0 });
     }
     for (const r of city.roads)
-      if (r.type === "main" && r.cells?.includes(i))
+      if ((r.type === "main" || !r.edges) && r.cells?.includes(i))
         for (let t = 0; t < r.pts.length - 1; t++) {
           const a = r.pts[t];
           const b = r.pts[t + 1];
           const m: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
           if (!inPoly(q, m[0], m[1])) continue;
-          fronts.push({ a, b, set: 2.6 }, { a: b, b: a, set: 2.6 });
+          const st = (WIDTH[r.type] ?? 1) + 0.6;
+          fronts.push({ a, b, set: st }, { a: b, b: a, set: st });
         }
     for (const fr of fronts) {
       const { a, b } = fr;
@@ -266,7 +355,7 @@ export function furnish(city: City): void {
       const set = fr.set + (wealthy ? 4 : 1.5);
       let t = 0.5;
       while (t < L - 2) {
-        const [tn, tt] = weighted(mix);
+        const [tn, tt] = weighted(mix0);
         const tr = TIER[tt];
         const f = tr[0] + R() * (tr[1] - tr[0]);
         const d = tr[2] + R() * (tr[3] - tr[2]);
@@ -347,11 +436,45 @@ export function furnish(city: City): void {
           const cl = free(pl, i);
           if (cl)
             place(
-              { cell: i, poly: pl, type: "Hut", roof: pick(ROOFS.shanty), addr: "The Rookery", district: district[i] },
+              { cell: i, poly: pl, type: "Hut", roof: pick(ROOFS.shanty), addr: dname(i), district: district[i] },
               cl
             );
         }
-  // farms on the roads outside
+  // farms: a farmhouse and barn at the end of each track, or a little hamlet round it
+  for (const fm of city.farms) {
+    const tr = city.roads.find(r => r.key === `t:${fm.cell}`);
+    const c = cells.p[fm.cell] as P2;
+    let a = city.ang[fm.cell];
+    if (tr && tr.pts.length > 2) {
+      const p = tr.pts[tr.pts.length - 3];
+      a = Math.atan2(c[1] - p[1], c[0] - p[0]);
+    }
+    const tx = Math.cos(a);
+    const ty = Math.sin(a);
+    const spots: [number, number, number, number, string][] = [
+      [3, -6, 6, 8, "Farmhouse"],
+      [3, 4, 8, 5, "Barn"]
+    ];
+    for (let k = 1; k < fm.houses; k++) spots.push([-6 - k * 3, (k % 2 ? 1 : -1) * (5 + k), 5, 6, "Cottage"]);
+    for (const [u, v, f, d, t] of spots) {
+      const o: P2 = [c[0] + tx * u - ty * v, c[1] + ty * u + tx * v];
+      const pl = rect(o, tx, ty, -ty, tx, f, d);
+      const cl = free(pl, fm.cell);
+      if (cl)
+        place(
+          {
+            cell: fm.cell,
+            poly: pl,
+            type: t,
+            roof: pick(ROOFS.farm),
+            addr: fm.houses > 2 ? "Hamlet" : "Farmstead",
+            district: -1
+          },
+          cl
+        );
+    }
+  }
+  // cottages along the main roads outside the walls
   for (const r of city.roads) {
     if (r.type !== "main") continue;
     for (let t = 6; t < r.pts.length - 1; t += 3) {
@@ -363,20 +486,21 @@ export function furnish(city: City): void {
       const tx = (b[0] - a[0]) / L;
       const ty = (b[1] - a[1]) / L;
       const sg = R() < 0.5 ? 1 : -1;
-      const pl = rect([a[0] - ty * sg * 3, a[1] + tx * sg * 3], tx, ty, -ty * sg, tx * sg, 6, 8);
+      const pl = rect([a[0] - ty * sg * 3.5, a[1] + tx * sg * 3.5], tx, ty, -ty * sg, tx * sg, 6, 8);
       const cl = free(pl, c);
-      if (cl) place({ cell: c, poly: pl, type: "Farmhouse", roof: "thatch", addr: r.name ?? "", district: -1 }, cl);
+      if (cl)
+        place({ cell: c, poly: pl, type: "Cottage", roof: pick(ROOFS.farm), addr: r.name ?? "", district: -1 }, cl);
     }
   }
   // notables
   const nb = (type: string, name: string, f: (b: Building) => boolean) => {
-    const L = B.filter(b => !b.name && f(b));
+    const L = B.filter(b => !b.name && !b.landmark && f(b));
     if (!L.length) return;
     const b = L[Math.floor(R() * L.length)];
     b.type = type;
-    b.name = name;
+    b.name = names[b.key ?? ""] ?? name;
   };
-  const gate0 = city.gates[0];
+  const gate0 = city.gates[0]?.p;
   nb("Guardhouse", "The Watch House", b => !!gate0 && dist(b.poly[0], gate0) < 40 && b.type !== "Hut");
   nb("Guardhouse", "Harbour Watch", b => kind[b.cell] === "docks");
   nb("Chapel", "Chapel of the Ledger", b => kind[b.cell] === "wealthy");
@@ -387,35 +511,33 @@ export function furnish(city: City): void {
   nb("Office", "Harbourmaster", b => b.type === "Warehouse");
   city.buildings = B;
 
-  // trees: woods and parks thick, gardens light, along hedges
+  // single trees: gardens, the park and along hedges; woods are ground, not trees
   const T: [number, number, number][] = [];
   for (let i = 0; i < n; i++) {
-    const k = kind[i] ?? use[i];
-    const dens = use[i] === "woods" ? 0.95 : k === "park" ? 0.8 : k === "wealthy" ? 0.25 : k === "old" ? 0.04 : 0;
+    const k = kind[i];
+    const dens = k === "park" ? 0.75 : k === "wealthy" ? 0.22 : k === "old" ? 0.03 : 0;
     if (!dens) continue;
-    const sp = use[i] === "woods" || k === "park" ? 5 : 6;
-    for (let y = 0; y < H; y += sp)
-      for (let x = 0; x < W; x += sp) {
-        const jx = Math.round(x + (R() - 0.5) * sp);
-        const jy = Math.round(y + (R() - 0.5) * sp);
+    for (let y = 0; y < H; y += 5)
+      for (let x = 0; x < W; x += 5) {
+        const jx = Math.round(x + (R() - 0.5) * 4);
+        const jy = Math.round(y + (R() - 0.5) * 4);
         if (jx < 0 || jy < 0 || jx >= W || jy >= H) continue;
         const j = jy * W + jx;
         if (CID[j] !== i || OCC[j] || RD[j] || R() > dens) continue;
-        T.push([jx, jy, use[i] === "woods" ? (R() < 0.4 ? 4 : 3) : 3]);
+        T.push([jx, jy, 2]);
       }
   }
-  const hedge = hedgeEdges(city);
-  for (const [a, b] of hedge) {
+  for (const [a, b] of hedgeEdges(city)) {
     const L = dist(a, b);
-    for (let t = 3; t < L - 2; t += 5 + R() * 6)
-      if (R() < 0.65)
+    for (let t = 3; t < L - 2; t += 5 + R() * 7)
+      if (R() < 0.55)
         T.push([Math.round(a[0] + ((b[0] - a[0]) * t) / L), Math.round(a[1] + ((b[1] - a[1]) * t) / L), 2]);
   }
   city.trees = T;
 }
 
 /** Edges between two farm cells of different crops */
-function hedgeEdges(city: City): [P2, P2][] {
+export function hedgeEdges(city: City): [P2, P2][] {
   const { pack, use } = city;
   const { cells, vertices } = pack;
   const out: [P2, P2][] = [];
@@ -429,88 +551,111 @@ function hedgeEdges(city: City): [P2, P2][] {
   return out;
 }
 
-const WIDTH = { main: 2, street: 1.4, lane: 0.9, path: 0.7, pier: 1.4 } as const;
-const CODE = { path: 1, lane: 2, street: 3, main: 4, pier: 6 } as const;
-
-/** Cell ids and the road plan (1 path, 2 lane, 3 street, 4 main, 5 wall, 6 pier, 7 square) as pixel grids */
-export function rasterPlan(city: City) {
-  const { W, H, pack, kind } = city;
-  const { cells, vertices } = pack;
-  const N = W * H;
-  const CID = new Int32Array(N).fill(-1);
-  const RD = new Uint8Array(N);
-  for (let i = 0; i < cells.p.length; i++) {
-    const q: P2[] = cells.v[i].map((v: number) => vertices.p[v]);
-    let a = Infinity;
-    let b = Infinity;
-    let e = -Infinity;
-    let f = -Infinity;
-    for (const [x, y] of q) {
-      a = Math.min(a, x);
-      b = Math.min(b, y);
-      e = Math.max(e, x);
-      f = Math.max(f, y);
-    }
-    for (let y = Math.max(0, Math.floor(b)); y <= Math.min(H - 1, f); y++)
-      for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++)
-        if (inPoly(q, x + 0.5, y + 0.5)) CID[y * W + x] = i;
+// ---- the shared city tiles: every cell kind paints from these, in either view
+const slab = (x: number, y: number): C3 => {
+  const row = Math.floor(y / 5);
+  const xo = x + (row & 1) * 3;
+  if (y % 5 === 0 || xo % 6 === 0) return sh(P.stone3, 0.93);
+  return ditherAt(x, y) < 0.2 ? sh(P.stone3, 1.04) : P.stone3;
+};
+const paving = (x: number, y: number): C3 => (ditherAt(x, y) < 0.3 ? sh(P.cob3, 1.12) : sh(P.cob3, 1.2));
+const plank = (x: number, y: number): C3 => {
+  const bd = Math.floor(y / 3);
+  if (y % 3 === 0) return P.wood2;
+  if ((x + bd * 7) % 11 === 0) return P.wood2;
+  return bd & 1 ? P.wood : sh(P.wood, 1.12);
+};
+const stripe = (x: number, y: number, a: number, every = 4) =>
+  (((x * Math.cos(a) + y * Math.sin(a)) % every) + every) % every;
+const calm = (c: C3, t = 0.3): C3 => {
+  const l = (c[0] + c[1] + c[2]) / 3;
+  return sh(mix(c, [l, l, l], t), 1.05);
+};
+export function terrainTile(kind: string, x: number, y: number, a: number): C3 {
+  switch (kind) {
+    case "wheat":
+      return calm(stripe(x, y, a) < 2 ? P.field1 : P.field2);
+    case "tilled":
+      return calm(stripe(x, y, a) < 2 ? P.dirt3 : sh(P.dirt3, 0.9));
+    case "pasture":
+      return calm(stripe(x, y, a, 6) < 1 ? P.field3 : groundPixel("plains", x, y));
+    case "woods":
+      return calm(groundPixel("woods", x, y), 0.15);
+    case "centre":
+    case "square":
+      return slab(x, y);
+    case "docks":
+      return plank(x, y);
+    case "shanty":
+      return ditherAt(x, y) < 0.5 ? P.dirt3 : P.dirt;
+    case "wealthy":
+    case "park":
+      return groundPixel("plains", x, y);
+    case "old":
+      return ditherAt(x, y) < 0.35 ? sh(P.dirt3, 1.08) : groundPixel("plains", x, y);
+    default:
+      return calm(groundPixel("plains", x, y));
   }
-  const isWater = (j: number) => CID[j] < 0 || city.use[CID[j]] === "water";
-  for (let j = 0; j < N; j++) if (CID[j] >= 0 && kind[CID[j]] === "square") RD[j] = 7;
-  const line = (pts: P2[], w: number, fn: (x: number, y: number) => void) => {
-    for (let k = 0; k < pts.length - 1; k++) {
-      const [a, b] = [pts[k], pts[k + 1]];
-      const steps = Math.ceil(dist(a, b) * 2) + 1;
-      for (let s = 0; s <= steps; s++) {
-        const x = a[0] + ((b[0] - a[0]) * s) / steps;
-        const y = a[1] + ((b[1] - a[1]) * s) / steps;
-        const r = Math.ceil(w);
-        for (let v = -r; v <= r; v++)
-          for (let u = -r; u <= r; u++)
-            if (u * u + v * v <= w * w + 0.3) {
-              const X = Math.round(x + u);
-              const Y = Math.round(y + v);
-              if (X >= 0 && Y >= 0 && X < W && Y < H) fn(X, Y);
-            }
-      }
-    }
-  };
-  for (const r of city.roads) {
-    const code = CODE[r.type];
-    if (r.edges && r.type !== "pier")
-      for (const [a, b] of r.edges)
-        line([vertices.p[a], vertices.p[b]], WIDTH[r.type], (x, y) => {
-          const j = y * W + x;
-          if (!isWater(j) && RD[j] < code) RD[j] = code;
-        });
+}
+const MAPC = {
+  paper: hex("#efe7d2"),
+  block: hex("#e6dcc5"),
+  green: hex("#d3dbb0"),
+  wheat: hex("#ece0b4"),
+  tilled: hex("#e0d1b0"),
+  pasture: hex("#e3e6c7"),
+  woods: hex("#bcc794"),
+  woodsEdge: hex("#a2b07a"),
+  hedge: hex("#a9b783"),
+  road: hex("#fffaf0"),
+  roadEdge: hex("#a39678"),
+  laneEdge: hex("#cabd9f"),
+  track: hex("#f3ead4"),
+  water: hex("#a9cdd6"),
+  shore: hex("#7aa5b0"),
+  house: hex("#c27a54"),
+  houseLine: hex("#a2603f"),
+  houseEdge: hex("#7c4630"),
+  wall: hex("#5a5046"),
+  gate: hex("#c9a46a"),
+  pier: hex("#b89670")
+};
+export function mapTile(kind: string): C3 {
+  switch (kind) {
+    case "wheat":
+      return MAPC.wheat;
+    case "tilled":
+      return MAPC.tilled;
+    case "pasture":
+      return MAPC.pasture;
+    case "woods":
+      return MAPC.woods;
+    case "wealthy":
+    case "park":
+      return MAPC.green;
+    case "square":
+      return MAPC.road;
+    case "centre":
+    case "old":
+    case "docks":
+    case "shanty":
+      return MAPC.block;
+    default:
+      return MAPC.paper;
   }
-  for (const r of city.roads)
-    if (r.type === "main")
-      line(r.pts, WIDTH.main, (x, y) => {
-        const j = y * W + x;
-        if (RD[j] !== 7) RD[j] = isWater(j) ? 8 : 4; // 8: a bridge
-      });
-  for (const r of city.roads)
-    if (r.type === "pier")
-      line(r.pts, WIDTH.pier, (x, y) => {
-        const j = y * W + x;
-        if (!RD[j] || isWater(j)) RD[j] = 6;
-      });
-  for (const w of city.walls)
-    line(w, 1.5, (x, y) => {
-      const j = y * W + x;
-      if (city.gates.some(g => Math.hypot(g[0] - x, g[1] - y) < 4.5)) return;
-      if (!isWater(j)) RD[j] = 5;
-    });
-  return { CID, RD };
 }
 
 export function paint(city: City): Painted {
-  const { W, H, pack, kind, use, home } = city;
+  const { W, H, kind, use, home } = city;
   const N = W * H;
   const { CID, RD } = rasterPlan(city);
   const BID = new Int32Array(N);
+  const landPx = new Map<number, number[]>();
   for (const b of city.buildings) {
+    if (b.landmark) {
+      // a landmark's pixels are kept by furnish in OCC order; rebuild them the same way
+      continue;
+    }
     let a = Infinity;
     let bb = Infinity;
     let e = -Infinity;
@@ -522,68 +667,69 @@ export function paint(city: City): Painted {
       f = Math.max(f, y);
     }
     for (let y = Math.max(0, Math.floor(bb)); y <= Math.min(H - 1, f); y++)
-      for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++)
-        if (inPoly(b.poly, x + 0.5, y + 0.5) && CID[y * W + x] === b.cell && !RD[y * W + x]) BID[y * W + x] = b.id;
+      for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++) {
+        const j = y * W + x;
+        if (inPoly(b.poly, x + 0.5, y + 0.5) && CID[j] === b.cell && !RD[j] && !BID[j]) BID[j] = b.id;
+      }
   }
+  for (const b of city.buildings)
+    if (b.landmark && b.cells) {
+      const set = new Set(b.cells);
+      const M = new Uint8Array(N);
+      for (let j = 0; j < N; j++) if (set.has(CID[j]) && !RD[j]) M[j] = 1;
+      for (let k = 0; k < 2; k++) {
+        const drop: number[] = [];
+        for (let j = 0; j < N; j++) {
+          if (!M[j]) continue;
+          const x = j % W;
+          const y = (j / W) | 0;
+          for (let q = 0; q < 8; q += 2) {
+            const X = x + N4[q];
+            const Y = y + N4[q + 1];
+            if (X < 0 || Y < 0 || X >= W || Y >= H || !M[Y * W + X]) {
+              drop.push(j);
+              break;
+            }
+          }
+        }
+        for (const j of drop) M[j] = 0;
+      }
+      const px: number[] = [];
+      for (let j = 0; j < N; j++)
+        if (M[j]) {
+          BID[j] = b.id;
+          px.push(j);
+        }
+      landPx.set(b.id, px);
+    }
   const water = (j: number) => CID[j] < 0 || use[CID[j]] === "water" || kind[CID[j]] === "pond";
-  const WD = new Uint16Array(N).fill(999);
-  {
+  const bfs = (seed: (j: number) => boolean) => {
+    const D = new Uint16Array(N).fill(999);
     const q: number[] = [];
     for (let j = 0; j < N; j++)
-      if (!water(j)) {
-        WD[j] = 0;
+      if (seed(j)) {
+        D[j] = 0;
         q.push(j);
       }
     for (let i = 0; i < q.length; i++) {
       const j = q[i];
       const x = j % W;
       const y = (j / W) | 0;
-      for (const [u, v] of [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1]
-      ]) {
-        const X = x + u;
-        const Y = y + v;
+      for (let k = 0; k < 8; k += 2) {
+        const X = x + N4[k];
+        const Y = y + N4[k + 1];
         if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
-        const k = Y * W + X;
-        if (WD[k] > WD[j] + 1) {
-          WD[k] = WD[j] + 1;
-          q.push(k);
+        const o = Y * W + X;
+        if (D[o] > D[j] + 1) {
+          D[o] = D[j] + 1;
+          q.push(o);
         }
       }
     }
-  }
-  const HD = new Uint16Array(N).fill(999); // distance from the home cell, for the fade
-  {
-    const q: number[] = [];
-    for (let j = 0; j < N; j++)
-      if (CID[j] >= 0 && home[CID[j]]) {
-        HD[j] = 0;
-        q.push(j);
-      }
-    for (let i = 0; i < q.length; i++) {
-      const j = q[i];
-      const x = j % W;
-      const y = (j / W) | 0;
-      for (const [u, v] of [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1]
-      ]) {
-        const X = x + u;
-        const Y = y + v;
-        if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
-        const k = Y * W + X;
-        if (HD[k] > HD[j] + 1) {
-          HD[k] = HD[j] + 1;
-          q.push(k);
-        }
-      }
-    }
-  }
+    return D;
+  };
+  const WD = bfs(j => !water(j));
+  const HD = bfs(j => CID[j] >= 0 && home[CID[j]] === 1);
   const terrain = new ImageData(W, H);
   const map = new ImageData(W, H);
   const T = terrain.data;
@@ -594,45 +740,15 @@ export function paint(city: City): Painted {
     D[j * 4 + 2] = c[2];
     D[j * 4 + 3] = 255;
   };
-  const dq = ditherAt;
-  const slab = (x: number, y: number): C3 => {
-    // smooth stone: large slabs with faint joints
-    const row = Math.floor(y / 5);
-    const xo = x + (row & 1) * 3;
-    if (y % 5 === 0 || xo % 6 === 0) return sh(P.stone3, 0.93);
-    return dq(x, y) < 0.2 ? sh(P.stone3, 1.04) : P.stone3;
-  };
-  const street = (x: number, y: number): C3 => (dq(x, y) < 0.3 ? sh(P.cob3, 1.12) : sh(P.cob3, 1.18));
-  const lane = (x: number, y: number): C3 => (dq(x, y) < 0.5 ? sh(P.dirt3, 1.25) : sh(P.dirt3, 1.18));
-  const plank = (x: number, y: number): C3 => {
-    const bd = Math.floor(y / 3);
-    if (y % 3 === 0) return P.wood2;
-    if ((x + bd * 7) % 11 === 0) return P.wood2;
-    return bd & 1 ? P.wood : sh(P.wood, 1.12);
-  };
-  const MAPC = {
-    paper: hex("#ece3cb"),
-    block: hex("#ddd0b2"),
-    street: hex("#f8f2e2"),
-    kerb: hex("#a69676"),
-    water: hex("#9fc4cc"),
-    shore: hex("#6f97a1"),
-    hatch: hex("#cdbf98"),
-    wood: hex("#bfc694"),
-    house: hex("#a99d8a"),
-    edge: hex("#4a4036"),
-    wall: hex("#4b433a"),
-    pier: hex("#a98a62"),
-    green: hex("#c7cf9f")
-  };
+  const kindAt = (j: number) => (CID[j] >= 0 ? (kind[CID[j]] ?? use[CID[j]]) : "water");
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const j = y * W + x;
       const ci = CID[j];
-      const k = ci >= 0 ? (kind[ci] ?? use[ci]) : "water";
+      const k = kindAt(j);
       let t: C3;
       let m: C3;
-      if (water(j) || k === "pond") {
+      if (water(j)) {
         const d = WD[j];
         t =
           d <= 1
@@ -644,76 +760,62 @@ export function paint(city: City): Painted {
                 : groundPixel("sea", x, y);
         m = d <= 1 ? MAPC.shore : MAPC.water;
       } else {
-        const a = city.ang[ci];
-        const st = (((x * Math.cos(a) + y * Math.sin(a)) % 4) + 4) % 4;
-        switch (k) {
-          case "wheat":
-            t = st < 2 ? P.field1 : P.field2;
-            m = st < 1 ? MAPC.hatch : MAPC.paper;
-            break;
-          case "tilled":
-            t = st < 2 ? P.dirt3 : P.dirt;
-            m = st < 1 ? MAPC.hatch : MAPC.paper;
-            break;
-          case "pasture":
-            t = st < 1 ? P.field3 : groundPixel("plains", x, y);
-            m = MAPC.paper;
-            break;
-          case "woods":
-            t = sh(WOODS[0], 1.1);
-            m = MAPC.wood;
-            break;
-          case "centre":
-          case "square":
-            t = slab(x, y);
-            m = k === "square" ? MAPC.street : MAPC.block;
-            break;
-          case "docks":
-            t = plank(x, y);
-            m = MAPC.block;
-            break;
-          case "shanty":
-            t = dq(x, y) < 0.5 ? P.dirt3 : P.dirt;
-            m = MAPC.block;
-            break;
-          case "wealthy":
-          case "park":
-            t = groundPixel("plains", x, y);
-            m = MAPC.green;
-            break;
-          default:
-            t = dq(x, y) < 0.35 ? sh(P.dirt3, 1.05) : groundPixel("plains", x, y);
-            m = MAPC.block;
-        }
+        t = terrainTile(k, x, y, city.ang[ci]);
+        m = mapTile(k);
+        // woods meet other ground with an edge in the map view and a shadow on the terrain
+        if (k === "woods") {
+          for (let q = 0; q < 8; q += 2) {
+            const o = j + N4[q] + N4[q + 1] * W;
+            if (o >= 0 && o < N && kindAt(o) !== "woods") {
+              m = MAPC.woodsEdge;
+              break;
+            }
+          }
+        } else if (x > 1 && y > 1 && kindAt(j - W - 1) === "woods" && !water(j)) t = sh(t, 0.72);
+        else if (x > 2 && y > 2 && kindAt(j - 2 * W - 2) === "woods" && !water(j)) t = sh(t, 0.85);
       }
       const r = RD[j];
       if (r) {
-        const kerb = [1, -1, W, -W].some(o => {
-          const q = j + o;
-          return q >= 0 && q < N && !RD[q] && !water(q);
-        });
-        if (r === 4 || r === 3 || r === 7) {
-          t = r === 7 ? slab(x, y) : street(x, y);
-          m = MAPC.street;
-        } else if (r === 2 || r === 1) {
-          t = lane(x, y);
-          m = MAPC.street;
+        const edge = (o: number) => o >= 0 && o < N && !RD[o] && !water(o);
+        const kerb = edge(j + 1) || edge(j - 1) || edge(j + W) || edge(j - W);
+        const inTown = ci >= 0 && (use[ci] === "town" || use[ci] === "shanty");
+        if (r === 4 || r === 3 || r === 2) {
+          t = inTown ? paving(x, y) : r >= 3 ? sh(P.cob3, 1.1) : sh(P.dirt3, 1.22);
+          m = MAPC.road;
+          if (kerb) {
+            t = sh(t, 0.76);
+            m = r >= 3 ? MAPC.roadEdge : MAPC.laneEdge;
+          }
+        } else if (r === 7) {
+          t = slab(x, y);
+          m = MAPC.road;
+        } else if (r === 1) {
+          t = ditherAt(x, y) < 0.5 ? sh(P.dirt3, 1.25) : sh(P.dirt3, 1.15);
+          m = kerb ? MAPC.laneEdge : MAPC.track;
         } else if (r === 6 || r === 8) {
           t = plank(x, y);
           m = MAPC.pier;
         } else if (r === 5) {
           t = P.stone;
           m = MAPC.wall;
-        }
-        if (kerb && r !== 5 && r !== 6 && r !== 8 && r !== 7) {
-          t = sh(t, 0.78);
-          m = MAPC.kerb;
+        } else if (r === 9) {
+          t = (x + y) % 3 === 0 ? P.stone2 : P.stone;
+          m = MAPC.gate;
         }
       }
       put(T, j, t);
       put(Mp, j, m);
     }
-  // shadows to the lower right, roofs lit from the upper left
+  // hedges in the map view
+  for (const [a, b] of hedgeEdges(city)) {
+    const L = dist(a, b);
+    for (let s = 0; s <= L; s += 0.5) {
+      const X = Math.round(a[0] + ((b[0] - a[0]) * s) / L);
+      const Y = Math.round(a[1] + ((b[1] - a[1]) * s) / L);
+      if (X >= 0 && Y >= 0 && X < W && Y < H && !RD[Y * W + X]) put(Mp, Y * W + X, MAPC.hedge);
+    }
+  }
+  // shadows to the lower right
   const castsShadow = (j: number) => BID[j] > 0 || RD[j] === 5;
   for (let y = H - 1; y >= 0; y--)
     for (let x = W - 1; x >= 0; x--) {
@@ -731,7 +833,8 @@ export function paint(city: City): Painted {
         }
       }
     }
-  const ROOF: Record<string, [RGB | C3, RGB | C3, RGB | C3]> = {
+  // roofs lit from the upper left: a ridge along a block's length, a hip on a landmark of any shape
+  const ROOF: Record<string, [C3, C3, C3]> = {
     slate: [P.slate3, P.slate, P.slate2],
     clay: [P.clay3, P.clay, P.clay2],
     thatch: [P.thatch3, P.thatch, P.thatch2],
@@ -741,6 +844,54 @@ export function paint(city: City): Painted {
   };
   for (const b of city.buildings) {
     const pal = ROOF[b.roof] ?? ROOF.clay;
+    const ink = TYPE_INK[b.type];
+    const mapFill = ink ? hex(ink) : MAPC.house;
+    const mapEdge = ink ? sh(hex(ink), 0.6) : MAPC.houseEdge;
+    const paintPx = (j: number, c: C3) => {
+      const x = j % W;
+      const y = (j / W) | 0;
+      let outer = false;
+      let inner = false;
+      for (let q = 0; q < 8; q += 2) {
+        const X = x + N4[q];
+        const Y = y + N4[q + 1];
+        const o = X < 0 || Y < 0 || X >= W || Y >= H ? 0 : BID[Y * W + X];
+        if (!o) outer = true;
+        else if (o !== b.id) inner = true;
+      }
+      put(T, j, outer || inner ? pal[2] : c);
+      // the map view joins a terrace into one block: a thin line between houses, a dark edge only round the block
+      put(Mp, j, outer ? mapEdge : inner && !ink ? MAPC.houseLine : mapFill);
+    };
+    if (b.landmark) {
+      const px = landPx.get(b.id) ?? [];
+      const set = new Set(px);
+      const D = new Map<number, number>();
+      for (const j of px) {
+        let d = 0;
+        for (let r = 1; r < 12; r++) {
+          const x = j % W;
+          const y = (j / W) | 0;
+          let hit = false;
+          for (let v = -r; v <= r && !hit; v++)
+            for (let u = -r; u <= r && !hit; u++)
+              if (Math.max(Math.abs(u), Math.abs(v)) === r && !set.has((y + v) * W + x + u)) hit = true;
+          if (hit) break;
+          d = r;
+        }
+        D.set(j, d);
+      }
+      for (const j of px) {
+        const d = D.get(j) ?? 0;
+        const up = Math.min(D.get(j - W) ?? -1, D.get(j - 1) ?? -1);
+        const dn = Math.min(D.get(j + W) ?? -1, D.get(j + 1) ?? -1);
+        // a hip roof: the slopes facing up and left catch the light, the ridge runs where both sides meet
+        let c = up < dn ? pal[0] : up > dn ? pal[1] : d > 0 ? sh(pal[0], 1.06) : pal[1];
+        if (b.roof === "gold" && ditherAt(j % W, (j / W) | 0) > 0.88) c = pal[0];
+        paintPx(j, c);
+      }
+      continue;
+    }
     const p = b.poly;
     const ux = p[1][0] - p[0][0];
     const uy = p[1][1] - p[0][1];
@@ -748,7 +899,6 @@ export function paint(city: City): Painted {
     const vy = p[3][1] - p[0][1];
     const lu = Math.hypot(ux, uy);
     const lv = Math.hypot(vx, vy);
-    const ink = TYPE_INK[b.type];
     let a = Infinity;
     let bb = Infinity;
     let e = -Infinity;
@@ -769,17 +919,14 @@ export function paint(city: City): Painted {
         const v = (px * vx + py * vy) / lv;
         const along = lu >= lv;
         const tt = along ? v / lv : u / lu;
-        const edge = [1, -1, W, -W].some(o => BID[j + o] !== b.id);
         const nX = along ? vx : ux;
         const nY = along ? vy : uy;
         const lit = tt < 0.5 === nX + nY > 0;
         let c = lit ? pal[0] : pal[1];
-        if (!lit && dq(x, y) > 0.8) c = pal[2];
+        if (!lit && ditherAt(x, y) > 0.8) c = pal[2];
         if (b.roof === "timber" && Math.floor(along ? u : v) % 3 === 0) c = pal[2];
-        if (Math.abs(tt - 0.5) < 0.5 / (along ? lv : lu) + 0.04) c = sh(pal[0] as C3, 1.06);
-        if (edge) c = pal[2];
-        put(T, j, c as C3);
-        put(Mp, j, edge ? MAPC.edge : ink ? hex(ink) : MAPC.house);
+        if (Math.abs(tt - 0.5) < 0.5 / (along ? lv : lu) + 0.04) c = sh(pal[0], 1.06);
+        paintPx(j, c);
       }
   }
   // towers
@@ -792,21 +939,21 @@ export function paint(city: City): Painted {
         const Y = Math.round(ty + v);
         if (X < 0 || Y < 0 || X >= W || Y >= H || water(Y * W + X)) continue;
         put(T, Y * W + X, r > 6 ? P.stone2 : u + v < -1 ? P.stone3 : P.stone);
-        put(Mp, Y * W + X, r > 6 ? MAPC.edge : MAPC.wall);
+        put(Mp, Y * W + X, r > 6 ? sh(MAPC.wall, 0.7) : MAPC.wall);
       }
-  // trees: round crowns lit from the upper left with a dark rim and a shadow
+  // single trees: small crowns with a shadow, terrain only
   const trees = city.trees.slice().sort((a, b) => a[1] - b[1]);
   for (const [tx, ty, r] of trees) {
     for (let v = -r; v <= r; v++)
       for (let u = -r; u <= r; u++) {
         if (u * u + v * v > r * r + r * 0.6) continue;
-        const X = tx + u + 2;
-        const Y = ty + v + 2;
+        const X = tx + u + 1;
+        const Y = ty + v + 1;
         if (X >= 0 && Y >= 0 && X < W && Y < H) {
           const k = (Y * W + X) * 4;
-          T[k] *= 0.7;
-          T[k + 1] *= 0.7;
-          T[k + 2] *= 0.7;
+          T[k] *= 0.72;
+          T[k + 1] *= 0.72;
+          T[k + 2] *= 0.72;
         }
       }
     for (let v = -r; v <= r; v++)
@@ -817,25 +964,23 @@ export function paint(city: City): Painted {
         const Y = ty + v;
         if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
         const rim = d2 > (r - 1) * (r - 1) + r * 0.6;
-        let c = u + v < -r * 0.6 ? WOODS[4] : u + v < 0 ? WOODS[3] : u + v < r * 0.7 ? WOODS[2] : WOODS[1];
-        if (rim && u + v >= 0) c = WOODS[0];
+        let c = u + v < -r * 0.5 ? WOODS[4] : u + v < 0.5 ? WOODS[3] : WOODS[2];
+        if (rim && u + v > 0) c = WOODS[1];
         put(T, Y * W + X, c);
-        if (rim) put(Mp, Y * W + X, hex("#7d8a5a"));
-        else put(Mp, Y * W + X, hex("#a9b67e"));
       }
   }
-  // outside the home cell: land darker than water, deepening toward the view's edge
+  // outside the home cell: terrain darkens, the map pales, both deepening toward the view's edge
+  const fadeTo = hex("#d6cdb6");
   for (let j = 0; j < N; j++) {
     if (!HD[j]) continue;
     const x = j % W;
     const y = (j / W) | 0;
     const ed = Math.min(x, y, W - 1 - x, H - 1 - y);
-    const t = Math.min(0.78, 0.3 + HD[j] / 260 + Math.max(0, (24 - ed) / 24) * 0.35) * (water(j) ? 0.45 : 1);
-    for (const D of [T, Mp]) {
-      const k = j * 4;
-      for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - t) + 20 * t;
-    }
+    const t = Math.min(0.78, 0.3 + HD[j] / 260 + Math.max(0, (24 - ed) / 24) * 0.35);
+    const k = j * 4;
+    const tw = t * (water(j) ? 0.45 : 1);
+    for (let i = 0; i < 3; i++) T[k + i] = T[k + i] * (1 - tw) + 20 * tw;
+    for (let i = 0; i < 3; i++) Mp[k + i] = Mp[k + i] * (1 - t * 0.7) + fadeTo[i] * t * 0.7;
   }
-  void pack;
   return { terrain, map, CID, BID };
 }
