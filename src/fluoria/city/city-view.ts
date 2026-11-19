@@ -467,6 +467,8 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     }
     return [b.poly.reduce((a, p) => a + p[0], 0) / b.poly.length, b.poly.reduce((a, p) => a + p[1], 0) / b.poly.length];
   };
+  // the people of Fluoria are counted in Sols: 30,908 reads 30.9K
+  const sols = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace(/\.0$/, "")}K` : `${v}`);
   // the key folds under the city's name, as the region map's own menu does
   let keyOpen = false;
   const renderKey = () => {
@@ -486,7 +488,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       .sort((p, q) => at(p.b) - at(q.b) || p.k - q.k)
       .slice(0, 12)
       .map(({ b }, k) => ({ n: k + 1, b, c: centreOf(b) }));
-    keyEl.innerHTML = `<button class="kh" type="button"><b>${keyOpen ? "▼" : "▶"}</b><h3>${esc(burg)}</h3></button><div class="kb"${keyOpen ? "" : " hidden"}><p class="pop">${city.population.toLocaleString()} souls</p><ol>${keyed.map(e => `<li data-n="${e.n}"><i>${e.n}</i><span>${esc(e.b.name ?? e.b.type)}</span></li>`).join("")}</ol></div>`;
+    keyEl.innerHTML = `<button class="kh" type="button"><b>${keyOpen ? "▼" : "▶"}</b><h3>${esc(burg)} <small>(${sols(city.population)})</small></h3></button><div class="kb"${keyOpen ? "" : " hidden"}><ol>${keyed.map(e => `<li data-n="${e.n}"><i>${e.n}</i><span>${esc(e.b.name ?? e.b.type)}</span></li>`).join("")}</ol></div>`;
     (keyEl.querySelector(".kh") as HTMLButtonElement).onclick = () => {
       keyOpen = !keyOpen;
       renderKey();
@@ -607,7 +609,17 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
         key: b.key ?? "",
         label: b.name ?? b.type,
         d: b.landmark ? outline(new Set(b.cells)) : `M${b.poly.map(q => q.join(",")).join("L")}Z`,
-        html: `<b>${b.name ?? b.type}</b><i>${b.name ? `${b.type} · ` : ""}${b.addr}</i>${D ? `<i>${D}</i>` : ""}<i>${(b.cap ?? 0).toLocaleString()} ${b.cap === 1 ? "person" : "people"}</i>${b.enter ? "<s>Enter</s>" : ""}`
+        html: (() => {
+          // set out like an address: name and its Sols, street, quarter, then who holds it in their colour
+          const F = b.owner !== undefined ? city.factions[b.owner] : undefined;
+          const lines = [
+            `<b>${esc(b.name ?? b.type)} (${(b.cap ?? 0).toLocaleString()})</b>`,
+            /^\d+ /.test(b.addr ?? "") ? esc(b.addr) : "",
+            esc(D),
+            F ? `<span style="color:${F.col}">${esc(F.name)}</span>` : ""
+          ].filter(Boolean);
+          return `<div class="addr">${lines.join(",<br>")}</div>${b.enter ? "<s>Enter</s>" : ""}`;
+        })()
       };
     }
     const r = roadNear(p.x + 0.5, p.y + 0.5);

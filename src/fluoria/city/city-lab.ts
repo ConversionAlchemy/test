@@ -204,7 +204,10 @@ const drawMini = () => {
 };
 const fillBurgs = () => {
   burgSel.innerHTML = burgsOf(WORLDS[wi])
-    .map((b, k) => `<option value="${k}">${b.n} · ${sizeOf(b)} · ${Math.round(b.pop * 1000).toLocaleString()}</option>`)
+    .map(
+      (b, k) =>
+        `<option value="${k}">${b.n} · ${sizeOf(b)} · ${Math.round(b.pop * 1000).toLocaleString()} Sols</option>`
+    )
     .join("");
 };
 mini.addEventListener("click", e => {
