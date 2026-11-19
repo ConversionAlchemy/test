@@ -45,6 +45,7 @@ function landmarkShape(city: City, b: Building): P2[] {
     const c = poly[(k + 1) % poly.length];
     return Math.abs((p[0] - a[0]) * (c[1] - p[1]) - (p[1] - a[1]) * (c[0] - p[0])) > 0.5;
   });
+  if (b.type === "Fort") return squareIn(inset(poly, 8), city.ang[b.cell]);
   poly = inset(poly, 2);
   return b.type === "Bank" && poly.length !== 4 ? squareIn(poly, city.ang[b.cell]) : poly;
 }
@@ -184,7 +185,9 @@ export function renderBuildings(
       const c: C3 = b.landmark
         ? b.type === "Bank"
           ? [196, 150, 60]
-          : [74, 50, 38]
+          : b.type === "Fort"
+            ? [118, 112, 104]
+            : [74, 50, 38]
         : ink && style === "map"
           ? sh(hex(ink), 0.92)
           : b.trade

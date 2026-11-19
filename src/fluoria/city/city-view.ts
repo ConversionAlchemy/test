@@ -5,7 +5,7 @@ import { snap, type View, zoomAround } from "../camera";
 import { type MapLabel, placeLabels } from "../labels";
 import { renderBuildings, renderGround, type Style } from "./city-build";
 import { DIST_COL, furnish, mapTile, type Painted, paint, terrainTile } from "./city-draw";
-import { buildCity, type City, type Edits, type Kind, type P2, type Region, type Road } from "./city-gen";
+import { buildCity, type City, type Edits, type Kind, type P2, type Region, type Road, type Spec } from "./city-gen";
 
 const KIND_NAME: Record<string, string> = {
   centre: "City centre",
@@ -64,7 +64,7 @@ const PANEL = `
 <div class="zone"><div class="g3"><button data-a="reroll">Reroll</button><button data-a="reset">Reset</button><button data-a="export">Export for AI</button></div>
 <textarea class="tbox" data-out hidden readonly></textarea></div>`;
 
-export function mountCity(root: HTMLElement, region: Region, burg: string): void {
+export function mountCity(root: HTMLElement, region: Region, burg: string, spec?: Spec): void {
   const STORE = `fl-city-${burg}`;
   let edits: Edits = {};
   try {
@@ -144,7 +144,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
   const els = new Map<string, SVGTextElement>();
 
   const build = () => {
-    city = buildCity(region, burg, { edits });
+    city = buildCity(region, burg, { edits, spec });
     furnish(city);
     painted = paint(city);
     world.width = city.W;

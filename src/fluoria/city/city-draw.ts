@@ -1088,6 +1088,9 @@ export function paint(city: City): Painted {
     const k = kindAt(j);
     if (r === 9) return [150, 136, 120];
     if (r && r !== 5) return wash(x, y, PAPER);
+    // the richest quarters, and villages, keep their gardens green
+    if (k === "old" && (city.districts.find(d => d.id === city.district[ci])?.wealth ?? 0) >= 5)
+      return washOf("wealthy", ci, x, y, 0.2) as C3;
     switch (k) {
       case "centre":
       case "square":
