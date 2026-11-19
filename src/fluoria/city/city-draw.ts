@@ -1015,7 +1015,7 @@ export function paint(city: City): Painted {
     if (r === 5) return [120, 108, 96];
     if (r === 9) return [150, 136, 120];
     if (r === 6 || r === 8) return [170, 146, 112];
-    if (r) return PAPER;
+    if (r) return wash(x, y, PAPER);
     switch (k) {
       case "centre":
       case "square":
@@ -1044,7 +1044,6 @@ export function paint(city: City): Painted {
       for (let q = 0; q < 8; q += 2) {
         const o = j + N4[q] + N4[q + 1] * W;
         if (!wt && water(o)) ink = true;
-        if (!r && RD[o] && RD[o] !== 5 && !wt) ink = true;
         if (!r && !RD[o] && CID[o] !== CID[j] && !water(o)) pool = true;
       }
       if (ink) for (let i = 0; i < 3; i++) Pl[k + i] = Pl[k + i] * 0.3 + INK[i] * 0.7;

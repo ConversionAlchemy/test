@@ -120,7 +120,7 @@ const hard = (cv: HTMLCanvasElement) => {
 };
 
 // a faint grain on the roofs, a few world pixels apart whatever the zoom
-const speckle = (cv: HTMLCanvasElement, s: number) => {
+const speckle = (cv: HTMLCanvasElement, s: number, amt = 1) => {
   const g = cv.getContext("2d") as CanvasRenderingContext2D;
   const im = g.getImageData(0, 0, cv.width, cv.height);
   const d = im.data;
@@ -134,7 +134,7 @@ const speckle = (cv: HTMLCanvasElement, s: number) => {
       let h = (wx * 374761393 + wy * 668265263) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177);
       const r = ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-      const f = r < 0.07 ? 1.07 : r > 0.94 ? 0.95 : 0;
+      const f = r < 0.07 ? 1 + 0.07 * amt : r > 0.94 ? 1 - 0.05 * amt : 0;
       if (!f) continue;
       for (let i = 0; i < 3; i++) d[k + i] = Math.min(255, d[k + i] * f);
     }
@@ -224,13 +224,55 @@ export function renderBuildings(
     };
   };
 
-  // shadows to the lower right
+  // the map's streets and squares edged in a thin ink line at the drawing's own scale, the paper left showing between
+  if (style === "map") {
+    const { vertices, cells } = city.pack;
+    const W2: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8 };
+    const strokeRoads = (extra: number) => {
+      for (const r of city.roads) {
+        const w = W2[r.type];
+        if (!w) continue;
+        g.lineWidth = w * 2 + 0.6 + extra;
+        g.beginPath();
+        if (r.edges)
+          for (const [a, b] of r.edges) {
+            g.moveTo(vertices.p[a][0], vertices.p[a][1]);
+            g.lineTo(vertices.p[b][0], vertices.p[b][1]);
+          }
+        else
+          for (const [k, p] of r.pts.entries()) {
+            if (k) g.lineTo(p[0], p[1]);
+            else g.moveTo(p[0], p[1]);
+          }
+        g.stroke();
+      }
+    };
+    const squares = cells.p.map((_: P2, i: number) => i).filter((i: number) => city.kind[i] === "square");
+    const sqPoly = (i: number) => cells.v[i].map((v: number) => vertices.p[v] as P2);
+    g.lineCap = g.lineJoin = "round";
+    g.strokeStyle = g.fillStyle = "rgb(92,80,68)";
+    strokeRoads(lw * 2);
+    g.lineWidth = lw * 2;
+    for (const i of squares) {
+      pathOf(g, sqPoly(i));
+      g.stroke();
+    }
+    g.globalCompositeOperation = "destination-out";
+    strokeRoads(0);
+    for (const i of squares) {
+      pathOf(g, sqPoly(i));
+      g.fill();
+    }
+    g.globalCompositeOperation = "source-over";
+  }
+  // shadows to the lower right; on the map a deeper cast, as the engraved plans shade their blocks
+  const off = style === "map" ? 1.5 : 0.9;
   gs.fillStyle = "#000";
   for (const [, poly] of shapes) {
     if (poly.length < 3) continue;
     pathOf(
       gs,
-      poly.map(p => [p[0] + 0.9, p[1] + 0.9] as P2)
+      poly.map(p => [p[0] + off, p[1] + off] as P2)
     );
     gs.fill();
   }
@@ -326,8 +368,17 @@ export function renderBuildings(
       g.stroke();
     }
   }
+  if (joined && s >= 3 && style === "map")
+    for (const b of city.buildings) {
+      const poly = shapes.get(b.id) as P2[];
+      if (b.landmark || poly.length < 3) continue;
+      g.strokeStyle = css(sh(look(b).pal[0], 1.14));
+      g.lineWidth = lw * 0.7;
+      pathOf(g, inset(poly, lw * 0.6));
+      g.stroke();
+    }
   hard(body);
   hard(shadow);
-  if (style === "terrain") speckle(body, s);
+  if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.5 : 1);
   return { body, shadow };
 }

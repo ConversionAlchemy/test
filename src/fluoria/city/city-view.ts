@@ -217,7 +217,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
         const c: P2 = b.landmark
           ? mean(b.cells ?? [b.cell])
           : [b.poly.reduce((s, p) => s + p[0], 0) / 4, b.poly.reduce((s, p) => s + p[1], 0) / 4];
-        add(`b${b.id}`, b.name, [c[0], c[1] + (b.landmark ? 0 : 8)], b.landmark ? "land" : "bld");
+        add(`b${b.id}`, b.name, [c[0], c[1]], b.landmark ? "land" : "bld");
       }
     for (const g of city.gates) add(`g${g.road}`, g.name, [g.p[0], g.p[1] - 7], "gate");
     city.roads.forEach((r, k) => {
@@ -306,7 +306,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.drawImage(world, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     if (detail) {
-      ctx.globalAlpha = style === "terrain" ? 0.55 : style === "map" ? 0 : 0.25;
+      ctx.globalAlpha = style === "terrain" ? 0.55 : style === "map" ? 0.7 : 0.25;
       ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
       ctx.globalAlpha = 1;
       ctx.drawImage(detail.body, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
