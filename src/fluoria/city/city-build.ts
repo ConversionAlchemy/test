@@ -18,10 +18,10 @@ const mix = (a: C3, b: C3, t: number): C3 => [
   a[2] + (b[2] - a[2]) * t
 ];
 const css = (c: C3) => `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`;
-export type Style = "terrain" | "map" | "districts" | "factions" | "plan";
+export type Style = "terrain" | "map" | "districts" | "factions";
 
 /** A landmark's footprint: the outline of its cells, pulled in off the streets */
-export function landmarkShape(city: City, b: Building): P2[] {
+function landmarkShape(city: City, b: Building): P2[] {
   const { cells, vertices } = city.pack;
   const set = new Set(b.cells ?? [b.cell]);
   const i = [...set].find(c => cells.c[c].some((j: number) => !set.has(j)));
@@ -161,7 +161,7 @@ export function renderBuildings(
   gs.scale(s, s);
   const px = 1 / s;
   const lw = Math.max(1, s * 0.45) * px;
-  const joined = s < 4 || style === "plan" || style === "map" || style === "terrain";
+  const joined = s < 4 || style === "map" || style === "terrain";
   const shapes = new Map<number, P2[]>();
   for (const b of city.buildings) shapes.set(b.id, b.landmark ? landmarkShape(city, b) : b.poly);
 
@@ -170,7 +170,7 @@ export function renderBuildings(
     const own = city.edits.colors?.[b.key ?? ""];
     if (own && style !== "districts" && style !== "factions")
       return { pal: [hex(own), hex(own), sh(hex(own), 0.45)], flat: true };
-    if (style === "plan" || style === "map" || style === "terrain") {
+    if (style === "map" || style === "terrain") {
       // one red, shaded by who lives there: deep in the rich quarters, faded in the shanty
       const k = city.kind[b.cell] ?? "";
       const c: C3 = b.landmark

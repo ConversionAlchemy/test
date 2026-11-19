@@ -111,9 +111,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
         ? painted.map
         : style === "districts"
           ? painted.districts
-          : style === "plan"
-            ? painted.plan
-            : painted.factions;
+          : painted.factions;
   const scaleFor = () => Math.max(1, Math.min(5, Math.ceil(view.zoom - 0.15)));
   const ensureDetail = (now = false) => {
     const s = scaleFor();
@@ -448,7 +446,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string): void
   marks.setAttribute("class", "marks");
   lab.appendChild(marks);
   const placeMarks = () => {
-    marks.style.display = style === "map" || style === "plan" ? "" : "none";
+    marks.style.display = style === "map" ? "" : "none";
     for (const g of marks.querySelectorAll<SVGGElement>("g")) {
       const e = keyed[+(g.dataset.n as string) - 1];
       if (!e) continue;

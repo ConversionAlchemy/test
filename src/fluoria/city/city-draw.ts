@@ -86,7 +86,6 @@ export interface Painted {
   map: ImageData;
   districts: ImageData;
   factions: ImageData;
-  plan: ImageData;
   CID: Int32Array;
   BID: Int32Array;
 }
@@ -94,7 +93,7 @@ export interface Painted {
 /** The road plan as pixel grids: 1 track/path, 2 lane, 3 street, 4 main, 5 wall, 6 pier, 7 square, 8 bridge, 9 gate */
 const WIDTH: Record<string, number> = { main: 2, street: 1.4, lane: 1, path: 0.7, track: 0.8, pier: 1.4 };
 const CODE: Record<string, number> = { path: 1, track: 1, lane: 2, street: 3, main: 4, pier: 6 };
-export function rasterPlan(city: City) {
+function rasterPlan(city: City) {
   const { W, H, pack, kind } = city;
   const { cells, vertices } = pack;
   const N = W * H;
@@ -725,7 +724,7 @@ export function furnish(city: City): void {
 }
 
 /** Edges between two farm cells of different crops */
-export function hedgeEdges(city: City): [P2, P2][] {
+function hedgeEdges(city: City): [P2, P2][] {
   const { pack, use } = city;
   const { cells, vertices } = pack;
   const out: [P2, P2][] = [];
@@ -1158,5 +1157,5 @@ export function paint(city: City): Painted {
     for (const D of [districts.data, factions.data, Pl, faded.data])
       for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - tt) + cm[i] * tt;
   }
-  return { terrain: plan, map: faded, districts, factions, plan, CID, BID };
+  return { terrain: plan, map: faded, districts, factions, CID, BID };
 }

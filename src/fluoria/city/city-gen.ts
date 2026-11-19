@@ -706,7 +706,7 @@ export function buildCity(
   // the walled town: the shanty grows outside it
   const townish0 = (c: number) => use[c] === "town";
   const mainEdges = new Set<string>();
-  const edgePath = (route: number[], maxTurn = 80, wide = false): number[] | null => {
+  const edgePath = (route: number[], maxTurn = 80, wide = false, global = false): number[] | null => {
     const corridor = new Set<number>();
     for (const c of route) {
       for (const v of cells.v[c]) corridor.add(v);
@@ -736,15 +736,19 @@ export function buildCity(
         break;
       }
       for (const nv of vertices.v[cur.v] ?? []) {
-        if (!corridor.has(nv) || nv === cur.pv) continue;
-        if (vertices.c[nv].every((c: number) => c >= n || isWater[c])) continue;
-        // never along the town's rim: that edge is the wall; a road only crosses it, at a corner
+        if ((!global && !corridor.has(nv)) || nv === cur.pv) continue;
+        if (!vertices.c[nv] || vertices.c[nv].every((c: number) => c >= n || isWater[c])) continue;
+        // a rim edge is the wall: a road may take one, and that edge becomes its gate; it costs, so roads take few
         const cs = vertices.c[cur.v].filter((c: number) => vertices.c[nv].includes(c));
-        if (
+        if (cs.some((c: number) => c < n && isWater[c])) continue;
+        const rim =
           cs.some((c: number) => c < n && townish0(c)) &&
-          cs.some((c: number) => c >= n || (!townish0(c) && !isWater[c]))
-        )
-          continue;
+          cs.some((c: number) => c >= n || (!townish0(c) && !isWater[c]));
+        // a road only takes a wall edge on its way out from inside, never to skirt the town
+        if (rim && cur.pv >= 0) {
+          const ps = vertices.c[cur.pv].filter((c: number) => vertices.c[cur.v].includes(c));
+          if (!ps.every((c: number) => c < n && townish0(c))) continue;
+        }
         let turn = 0;
         if (cur.pv >= 0) {
           const d = ang(cur.v, nv) - ang(cur.pv, cur.v);
@@ -752,8 +756,8 @@ export function buildCity(
           if (turn > maxTurn) continue;
         }
         // a road already laid is cheap to share, so main roads merge rather than run side by side
-        const shared = mainEdges.has(cur.v < nv ? `${cur.v}|${nv}` : `${nv}|${cur.v}`) ? 0.3 : 1;
-        const c = cur.c + dist(vertices.p[cur.v], vertices.p[nv]) * (1 + 3 * (turn / 90) ** 2) * shared;
+        const shared = mainEdges.has(cur.v < nv ? `${cur.v}|${nv}` : `${nv}|${cur.v}`) ? 0.65 : 1;
+        const c = cur.c + dist(vertices.p[cur.v], vertices.p[nv]) * (1 + 3 * (turn / 90) ** 2) * shared * (rim ? 6 : 1);
         const k = `${nv}|${cur.v}`;
         if (c < (best.get(k) ?? Infinity)) {
           best.set(k, c);
@@ -769,7 +773,7 @@ export function buildCity(
   };
   const onEdges = (type: Road["type"], key: string, name: string | undefined, route: number[]): Road => {
     // never through a cell's middle: widen the corridor and allow sharper turns before giving up
-    const vs = edgePath(route) ?? edgePath(route, 80, true) ?? edgePath(route, 125, true);
+    const vs = edgePath(route) ?? edgePath(route, 80, false, true) ?? edgePath(route, 125, false, true);
     const ek = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
     if (!vs) return { type, key, name, cells: route, pts: lineOf(route) };
     const edges = vs.slice(1).map((v, i) => [vs[i], v] as [number, number]);
@@ -1185,8 +1189,14 @@ export function buildCity(
     });
     if (chain.length < 4) continue;
     // the seafront stays open: break the wall wherever it touches water
+    // and wherever a main road passes along it: that edge is the gate
     let run: P2[] = [];
-    for (const v of chain) {
+    for (const [k, v] of chain.entries()) {
+      const pv = chain[k - 1];
+      if (pv !== undefined && mainEdges.has(pv < v ? `${pv}|${v}` : `${v}|${pv}`)) {
+        if (run.length > 1) walls.push(run);
+        run = [];
+      }
       if (vertices.c[v].some(c => isWater[c])) {
         if (run.length > 1) walls.push(run);
         run = [];
@@ -1199,31 +1209,23 @@ export function buildCity(
   const onWall = (v: number) =>
     vertices.c[v].some((c: number) => townSet.has(c)) &&
     vertices.c[v].some((c: number) => c < n && !townSet.has(c) && !isWater[c]);
+  const wallEdge = (a: number, b: number) => {
+    const cs = vertices.c[a].filter((c: number) => vertices.c[b].includes(c));
+    return cs.some((c: number) => townSet.has(c)) && cs.some((c: number) => c >= n || (!townSet.has(c) && !isWater[c]));
+  };
   for (const r of roads) {
     if (r.type !== "main") continue;
     const base = (r.name ?? "Town").replace(/ (Road|Street|Lane|Way)$/, "");
     const gk = `g:${r.key}`;
-    if (r.edges) {
-      // the road crosses the wall at a corner it shares with it
-      const vs = [r.edges[0][0], ...r.edges.map(e => e[1])];
-      const k = vs.findIndex((v, i) => i > 0 && onWall(v));
-      if (k < 0) continue;
-      const p = vertices.p[vs[k]] as P2;
-      const q = vertices.p[vs[Math.min(vs.length - 1, k + 1)]] as P2;
-      const o = vertices.p[vs[k - 1]] as P2;
-      const L = dist(o, q) || 1;
-      const nx = -(q[1] - o[1]) / L;
-      const ny = (q[0] - o[0]) / L;
-      // the gate towers stand at the wall's ends, flush with the road's sides
-      gates.push({
-        p,
-        a: [p[0] + nx * 4.1, p[1] + ny * 4.1],
-        b: [p[0] - nx * 4.1, p[1] - ny * 4.1],
-        road: r.key,
-        name: named(gk, `${base} Gate`) as string
-      });
-      continue;
+    // every wall edge a main road takes is a gate
+    const rims = (r.edges ?? []).filter(([a, b]) => onWall(a) && onWall(b) && wallEdge(a, b));
+    for (const [k, e] of rims.entries()) {
+      const [a, b] = e.map(v => vertices.p[v] as P2);
+      const p: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if (gates.some(g => dist(g.p, p) < 1)) continue;
+      gates.push({ p, a, b, road: r.key, name: named(`${gk}${k ? `:${k}` : ""}`, `${base} Gate`) as string });
     }
+    if (rims.length) continue;
     if (!r.cells) continue;
     for (let k = 1; k < r.cells.length; k++) {
       const [p, q] = [r.cells[k - 1], r.cells[k]];
