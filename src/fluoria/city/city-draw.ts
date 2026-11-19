@@ -517,8 +517,8 @@ export function furnish(city: City): void {
         const L = dist(a, b) || 1;
         const u: P2 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
         const nv: P2 = [-u[1], u[0]];
-        const w = L * 0.62;
-        const d = Math.min(L * 0.8, spec.d * 0.6);
+        const w = Math.min(L * 0.7, 8);
+        const d = Math.min(6, spec.d * 0.6);
         const o: P2 = [a[0] + u[0] * (L - w) * 0.5 + nv[0] * spec.set, a[1] + u[1] * (L - w) * 0.5 + nv[1] * spec.set];
         h = rect(o, u[0], u[1], nv[0], nv[1], w, d);
       }
@@ -551,13 +551,13 @@ export function furnish(city: City): void {
     }
     let I: P2[] | null = null;
     for (const f of [0.62, 0.5, 0.4]) {
-      const d = Math.min(spec.d * (docks ? 1.25 : 1), inr * f);
+      const d = Math.min(spec.d * (docks ? 1.25 : 1), spec.w * 2.2, inr * f);
       if (d < 3.2) break;
       const J = offsetBy(
         Q,
         Q.map(() => d)
       );
-      if (sameWay(Q, J) && area2(J) > 8) {
+      if (sameWay(Q, J) && area2(J) / 2 > spec.w * spec.w * 2) {
         I = J;
         break;
       }
@@ -582,12 +582,16 @@ export function furnish(city: City): void {
         s0 = Math.min(s0, s);
         s1 = Math.max(s1, s);
       }
+      // back to back: rows from each long side meet at a shared wall down the middle
+      const nv: P2 = [-u[1], u[0]];
+      const mid: P2 = [Q.reduce((q, p) => q + p[0], 0) / m, Q.reduce((q, p) => q + p[1], 0) / m];
       const count = Math.max(1, Math.round((s1 - s0) / spec.w));
       const w = (s1 - s0) / count;
       for (let c = 0; c < count; c++) {
         let pc = keepSide(Q, [a[0] + u[0] * (s0 + c * w), a[1] + u[1] * (s0 + c * w)], u);
         pc = keepSide(pc, [a[0] + u[0] * (s0 + (c + 1) * w), a[1] + u[1] * (s0 + (c + 1) * w)], [-u[0], -u[1]]);
-        if (shapeOk(pc, 6, 35, 150)) build(pc, sides[bi].face);
+        for (const half of [keepSide(pc, mid, nv), keepSide(pc, mid, [-nv[0], -nv[1]])])
+          if (half.length && shapeOk(half, 6, 35, 150)) build(half, sides[bi].face);
       }
       continue;
     }
@@ -623,7 +627,10 @@ export function furnish(city: City): void {
       ring.push(inner[end]);
       for (let q = end; q !== e; q = (q + m - 1) % m) ring.push(inner[q]);
       const face = sides[p].face === "main" || sides[e].face === "main" ? "main" : sides[e].face;
-      if (shapeOk(ring, 6, 35, 150)) build(ring, face);
+      let span = 0;
+      for (const a of ring) for (const b of ring) span = Math.max(span, dist(a, b));
+      const dd = dist(Q[e], inner[e]);
+      if (!spec.set && shapeOk(ring, 6, 35, 150) && span <= Math.max(dd * 2.2, spec.w * 2.5)) build(ring, face);
     }
     for (let e = 0; e < m; e++) {
       if (short[e]) continue;

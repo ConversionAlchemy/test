@@ -1095,23 +1095,34 @@ export function buildCity(
       const P = chain.map(v => vertices.p[v] as P2);
       let A = 0;
       for (let k = 0; k < m; k++) A += P[k][0] * P[(k + 1) % m][1] - P[(k + 1) % m][0] * P[k][1];
-      // each side pushed outward by the offset; corners where the pushed sides meet
+      // each corner pushed straight outward, along the bisector of its two sides' outward normals, far enough that
+      // the wall clears every side of the edge (never folding back over the street at a notch)
       const sgn = A > 0 ? -1 : 1;
-      const line = P.map((a, k) => {
-        const b = P[(k + 1) % m];
+      const nrm = (a: P2, b: P2): P2 => {
         const L = dist(a, b) || 1;
-        const nx = (-(b[1] - a[1]) / L) * sgn;
-        const ny = ((b[0] - a[0]) / L) * sgn;
-        return { a: [a[0] + nx * WALL_OFF, a[1] + ny * WALL_OFF] as P2, dx: (b[0] - a[0]) / L, dy: (b[1] - a[1]) / L };
-      });
+        return [(-(b[1] - a[1]) / L) * sgn, ((b[0] - a[0]) / L) * sgn];
+      };
+      const segD = (p: P2, a: P2, b: P2) => {
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+        return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+      };
       const O = P.map((p, k) => {
-        const l1 = line[(k + m - 1) % m];
-        const l2 = line[k];
-        const den = l1.dx * l2.dy - l1.dy * l2.dx;
-        if (Math.abs(den) < 1e-3) return l2.a;
-        const t = ((l2.a[0] - l1.a[0]) * l2.dy - (l2.a[1] - l1.a[1]) * l2.dx) / den;
-        const q: P2 = [l1.a[0] + l1.dx * t, l1.a[1] + l1.dy * t];
-        return dist(q, p) > WALL_OFF * 3 ? l2.a : q;
+        const n1 = nrm(P[(k + m - 1) % m], p);
+        const n2 = nrm(p, P[(k + 1) % m]);
+        let bx = n1[0] + n2[0];
+        let by = n1[1] + n2[1];
+        const L = Math.hypot(bx, by) || 1;
+        bx /= L;
+        by /= L;
+        for (let d = WALL_OFF; d <= WALL_OFF * 3; d += 0.4) {
+          const q: P2 = [p[0] + bx * d, p[1] + by * d];
+          let clear = true;
+          for (let s2 = 0; s2 < m && clear; s2++) if (segD(q, P[s2], P[(s2 + 1) % m]) < WALL_OFF * 0.92) clear = false;
+          if (clear) return q;
+        }
+        return [p[0] + bx * WALL_OFF * 3, p[1] + by * WALL_OFF * 3] as P2;
       });
       // a side is walled where the town (not the shanty) meets dry land
       const walled = chain.map((v, k) => {
@@ -1148,7 +1159,7 @@ export function buildCity(
       for (const w of walls)
         for (let k = 0; k < w.length - 1; k++) {
           const p = cross(vertices.p[a] as P2, vertices.p[b] as P2, w[k], w[k + 1]);
-          if (!p || gates.some(g => dist(g.p, p) < 3)) continue;
+          if (!p || gates.some(g => dist(g.p, p) < 9)) continue;
           const [ux, uy] = [w[k + 1][0] - w[k][0], w[k + 1][1] - w[k][1]];
           const L = Math.hypot(ux, uy) || 1;
           const base = (r.name ?? "Postern").replace(/^The /, "").replace(/ (Road|Street|Lane|Way)$/, "");
