@@ -2,11 +2,11 @@
 // dithered tones with lit tufts; everything else a soft mottle of one colour, dots, and hatching in the hollows.
 // Trees are single pixel crowns at their true size (a world pixel is about 1.2 m, a crown 4-9 px).
 
+import { groundPixel } from "../ground-tiles";
 import type { City, P2 } from "./city-gen";
 
 type C3 = [number, number, number];
 const N = 128;
-const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 const wr = (v: number, p: number) => ((v % p) + p) % p;
 const th = (a: number, b: number, s: number) => {
   const v = Math.sin(a * 127.1 + b * 311.7 + s * 17.3) * 43758.5453;
@@ -30,8 +30,6 @@ const fb = (x: number, y: number, s: number, sc: number) =>
   pv((x * 2) / sc, (y * 2) / sc, s + 1, (N * 2) / sc, (N * 2) / sc) * 0.3 +
   pv(x / 2, y / 2, s + 2, N / 2, N / 2) * 0.1;
 const hex = (h: string): C3 => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)) as C3;
-const dq = (x: number, y: number, v: number, n: number) =>
-  Math.max(0, Math.min(n - 1, Math.floor(v * n + (B4[(y & 3) * 4 + (x & 3)] / 16 - 0.5) * 0.9)));
 
 interface Soft {
   amp?: number;
@@ -88,43 +86,21 @@ function soft(base: string, o: Soft, s: number) {
     return c.map(q => Math.max(0, Math.min(255, q))) as C3;
   };
 }
-// grass: the region's plains, a few tones dithered, with lit blades over their own shadow
-function grass(pal: string[], s: number, den: number, flowers = 0) {
-  const P = pal.map(hex);
-  const n = P.length;
+// the region map's own ground tiles, softened: half their contrast, then washed a little toward a paler tone,
+// halfway between the region's pixel art and the old town plans' flat fields
+type GroundKey = Parameters<typeof groundPixel>[0];
+function region(key: GroundKey, wash: C3, w: number, contrast = 0.5) {
+  const seen: C3[] = [];
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) seen.push([...groundPixel(key, x, y)] as C3);
+  const mean = [0, 1, 2].map(i => seen.reduce((a, c) => a + c[i], 0) / seen.length);
   return (x: number, y: number): C3 => {
-    let k = dq(x, y, fb(x, y, s, 16) * 1.1 - 0.05, flowers ? n - 1 : n);
-    for (const [dx, dy, d] of [
-      [0, 0, 1],
-      [0, 1, 1],
-      [0, -1, -1]
-    ]) {
-      const X = x - dx;
-      const Y = y - dy;
-      if (th(wr(X, N), wr(Y, N), s + 50) < den * pv(X / 8, Y / 8, s + 51, N / 8, N / 8) * 2) {
-        k = Math.max(0, Math.min(n - 1, k + (d > 0 ? 2 : -2)));
-        break;
-      }
-    }
-    if (flowers && th(wr(x, N), wr(y, N), s + 52) > 1 - flowers) k = n - 1;
-    return P[k];
+    const c = groundPixel(key, x, y);
+    return [0, 1, 2].map(i => {
+      const v = mean[i] + (c[i] - mean[i]) * contrast;
+      return v + (wash[i] - v) * w;
+    }) as C3;
   };
 }
-// sea: the region's blues and short pale ripples
-function sea(s: number) {
-  const P = ["#7f9ea8", "#86a5ae", "#8eacb4", "#b6ccd0"].map(hex);
-  return (x: number, y: number): C3 => {
-    let k = dq(x, y, fb(x, y, s, 16) * 0.9 + 0.05, 3);
-    const row = Math.floor(y / 6);
-    if (wr(y, 6) === (row & 1) * 3) {
-      const x0 = Math.floor(th(wr(row, N / 6 + 1), Math.floor(wr(x, N) / 16), s + 3) * 12);
-      const d = wr(x, 16) - x0;
-      if (d >= 0 && d < 4) k = 3;
-    }
-    return P[k];
-  };
-}
-
 export type Tex =
   | "meadow"
   | "pasture"
@@ -142,13 +118,13 @@ export type Tex =
   | "wood"
   | "sea";
 const MAKERS: Record<Tex, () => (x: number, y: number) => C3> = {
-  meadow: () => grass(["#98a466", "#9ea96b", "#a4ae70", "#aab375", "#b0b87b"], 61, 0.035),
-  pasture: () => grass(["#a8b47a", "#adb87e", "#b2bc83", "#b7c088", "#cdd0a2"], 62, 0.015, 0.005),
-  garden: () => grass(["#9aa968", "#a0ae6d", "#a6b372", "#acb877", "#b2bd7c"], 66, 0.035),
-  wheat: () => soft("#c4a95e", { amp: 0.09, dots: 0.04, hatch: 0.05 }, 3),
+  meadow: () => region("plains", [176, 186, 128], 0.3),
+  pasture: () => region("plains", [196, 202, 150], 0.42),
+  garden: () => region("plains", [170, 190, 118], 0.36),
+  wheat: () => region("dry", [212, 184, 104], 0.45),
   tilled: () => soft("#866e4b", { amp: 0.11, dots: 0.05, hatch: 0.07, speck: 0.008 }, 5),
   yard: () => soft("#b4a789", { amp: 0.06, dots: 0.03 }, 7),
-  under: () => soft("#6f7c3f", { amp: 0.12, dots: 0.04 }, 12),
+  under: () => region("woods", [96, 110, 60], 0.3),
   main: () => soft("#ddd4c1", { amp: 0.03, dots: 0.004, stone: true }, 41),
   street: () => soft("#d6ccb6", { amp: 0.03, dots: 0.004, stone: true }, 43),
   lane: () => soft("#ccbe9e", { amp: 0.04, dots: 0.008, stone: true }, 45),
@@ -156,7 +132,7 @@ const MAKERS: Record<Tex, () => (x: number, y: number) => C3> = {
   stone: () => soft("#948d82", { amp: 0.05, dots: 0.004, hatch2: true, stone: true }, 51),
   quay: () => soft("#857e73", { speck: 0.015, crack: true, amp: 0.1, stone: true }, 53),
   wood: () => soft("#8a623e", { grain: 0.1, amp: 0.08, dots: 0.025, sc: 8 }, 55),
-  sea: () => sea(11)
+  sea: () => region("sea", [150, 190, 200], 0.2, 0.7)
 };
 const tiles = new Map<Tex, HTMLCanvasElement>();
 /** A repeating 128 px tile of one texture, at one texel per world pixel */

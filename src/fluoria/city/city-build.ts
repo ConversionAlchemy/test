@@ -337,6 +337,48 @@ export function renderBuildings(
       pathOf(g, inset(poly, lw * 0.6));
       g.stroke();
     }
+  // no cast shadows: each roof is shaded on its own lower-right side, inside its outline, as a thin hatched band
+  if (style === "terrain" || style === "map") {
+    const d = s >= 3 ? 1.1 : 0.7;
+    const ink = style === "terrain" ? "rgba(40,20,10,0.42)" : "rgba(40,20,10,0.26)";
+    for (const b of city.buildings) {
+      const poly = shapes.get(b.id) as P2[];
+      if (poly.length < 3) continue;
+      g.save();
+      pathOf(g, poly);
+      g.clip();
+      // the band: the roof less itself moved up and left
+      g.beginPath();
+      for (const P of [poly, poly.map(p => [p[0] - d, p[1] - d] as P2)])
+        for (const [k, p] of P.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
+      g.clip("evenodd");
+      g.strokeStyle = ink;
+      if (s >= 3) {
+        // hatching on the diagonal, the engraver's way
+        let x0 = Infinity;
+        let x1 = -Infinity;
+        let y0 = Infinity;
+        let y1 = -Infinity;
+        for (const [x, y] of poly) {
+          x0 = Math.min(x0, x);
+          x1 = Math.max(x1, x);
+          y0 = Math.min(y0, y);
+          y1 = Math.max(y1, y);
+        }
+        g.lineWidth = Math.max(px, 0.18);
+        g.beginPath();
+        for (let t = x0 + y0 - 2; t < x1 + y1 + 2; t += 0.75) {
+          g.moveTo(t - y0 + 2, y0 - 2);
+          g.lineTo(t - y1 - 2, y1 + 2);
+        }
+        g.stroke();
+      } else {
+        g.fillStyle = ink;
+        g.fillRect(0, 0, city.W, city.H);
+      }
+      g.restore();
+    }
+  }
   // streets, squares and walls in vector: what strays onto a street is cut away, the walls and buildings cast
   // their shadow, then the streets are laid on top, filled and edged in thin ink
   const { vertices, cells } = city.pack;
@@ -506,15 +548,7 @@ export function renderBuildings(
     }
   };
   hard(body);
-  // shadows to the lower right, cast by the buildings before the streets go down
-  const off = style === "terrain" ? 1 : 0.9;
-  gs.setTransform(1, 0, 0, 1, 0, 0);
-  gs.drawImage(body, off * s, off * s);
-  gs.globalCompositeOperation = "source-in";
-  gs.fillStyle = "#000";
-  gs.fillRect(0, 0, shadow.width, shadow.height);
-  gs.globalCompositeOperation = "source-over";
-  hard(shadow);
+  void gs;
   // field hedges: thin, crisp, in the drawing's own scale, under the buildings
   if (style !== "districts" && style !== "factions") {
     g.strokeStyle = style !== "terrain" ? "rgb(150,156,112)" : "rgb(112,122,72)";

@@ -334,9 +334,6 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     ctx.drawImage(world, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     if (detail) {
       ctx.drawImage(detail.ground, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
-      ctx.globalAlpha = style === "terrain" ? 0.6 : style === "map" ? 0 : 0.25;
-      ctx.drawImage(detail.shadow, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
-      ctx.globalAlpha = 1;
       ctx.drawImage(detail.body, view.x, view.y, city.W * view.zoom, city.H * view.zoom);
     }
     placeMarks();
