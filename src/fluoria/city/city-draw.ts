@@ -1,6 +1,7 @@
-// Fills a city's blocks with terraced buildings and paints it twice: the pixel terrain view from the shared city tiles,
-// and a flat map view for finding the way. Nothing here is tuned to one town: every cell paints by its kind
-import { COAST, groundPixel } from "../ground-tiles";
+// Fills a city's blocks with lots and paints its ground: the plan washes the Terrain and Map views draw on,
+// and the district and faction washes over it. Nothing here is tuned to one town: every cell paints by its kind
+import PC from "polygon-clipping";
+import { groundPixel } from "../ground-tiles";
 import { Palette as P } from "../palette";
 import type { Building, City, P2 } from "./city-gen";
 
@@ -16,7 +17,6 @@ const hex = (h: string): C3 => [
   Number.parseInt(h.slice(3, 5), 16),
   Number.parseInt(h.slice(5, 7), 16)
 ];
-const WOODS = ["#3c4524", "#566131", "#68733a", "#7a8644", "#8d984f"].map(hex);
 const inPoly = (poly: P2[], x: number, y: number) => {
   let c = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -358,7 +358,7 @@ export function furnish(city: City): void {
   };
   // pixels a building would take; a little over a street is trimmed when drawn,
   // but it must not land on a neighbour, another block, the water or open ground
-  const claim = (pl: P2[], ok: (j: number) => boolean, slack = 0.15) => {
+  const claim = (pl: P2[], ok: (j: number) => boolean, slack = 0.15, roadMax = 0.3) => {
     let a = Infinity;
     let b = Infinity;
     let e = -Infinity;
@@ -381,13 +381,13 @@ export function furnish(city: City): void {
         else out.push(j);
       }
     const all = out.length + bad + road;
-    return out.length >= 6 && bad <= all * slack && road <= all * 0.3 ? out : null;
+    return out.length >= 6 && bad <= all * slack && road <= all * roadMax ? out : null;
   };
   // plots are cells: every side is pulled in by what lies beyond it, so fronts sit flush along the street
   // and neighbours of one block share a party wall
   const LOT_KINDS = new Set(["centre", "old", "docks", "wealthy", "shanty"]);
   const lotCell = (i: number) => i < n && city.home[i] === 1 && !landCell[i] && LOT_KINDS.has(kind[i] as string);
-  const HALF: Record<string, number> = { main: 2.3, street: 1.6, lane: 1.1, path: 1, track: 1.1 };
+  const HALF: Record<string, number> = { main: 2.3, street: 1.6, lane: 1.1, path: 1, track: 1.1, pier: 1.5 };
   const ek = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
   const edgeHalf = new Map<string, number>();
   for (const r of city.roads)
@@ -419,9 +419,11 @@ export function furnish(city: City): void {
     2: { w: [4, 6], d: 9, gap: 0, set: 0, open: 0.05 },
     3: { w: [5, 8], d: 11, gap: 0, set: 0, open: 0.05 },
     4: { w: [6, 9], d: 14, gap: 0, set: 0, open: 0 },
-    5: { w: [9, 13], d: 11, gap: 3, set: 2, open: 0.25 }
+    5: { w: [12, 17], d: 15, gap: 3, set: 2, open: 0.08 }
   };
   // what each side gives up: a road its half-width, the wall a clear strip, the water a quay edge
+  const otherCell = (i: number, va: number, vb: number) =>
+    vertices.c[va].find((c: number) => c !== i && vertices.c[vb].includes(c)) ?? -1;
   const sideOff = (i: number, va: number, vb: number) => {
     const rh = edgeHalf.get(ek(va, vb));
     if (rh) return rh + 0.35;
@@ -434,129 +436,177 @@ export function furnish(city: City): void {
     if (kind[o] === "square" || kind[o] === "park" || landCell[o]) return 0.6;
     return 0.3;
   };
-  // every town cell is a plot, pulled in from each side by what lies beyond it. A ring one house deep runs round
-  // its inside, the yard in the middle; the ring is sliced square to each side into lots sharing their walls,
-  // and each corner is one building. The lots tile the ring exactly, so nothing overlaps and nothing gaps
-  const ringOk = (Q: P2[], I: P2[]) =>
-    area2(I) > 0 &&
-    Q.every((a, e) => {
-      const b = Q[(e + 1) % Q.length];
-      const c = I[e];
-      const d = I[(e + 1) % I.length];
-      return (b[0] - a[0]) * (d[0] - c[0]) + (b[1] - a[1]) * (d[1] - c[1]) > 0;
-    });
-  for (let i = 0; i < n; i++) {
-    if (!lotCell(i)) continue;
-    // corners that coincide (Voronoi leaves zero-length edges) are one corner
-    const vs: number[] = (cells.v[i] as number[]).filter(
-      (v, e, a) => dist(vertices.p[v], vertices.p[a[(e + 1) % a.length]]) > 0.3
-    );
-    if (vs.length < 3) continue;
-    let P = vs.map(v => vertices.p[v] as P2);
-    if (area2(P) < 0) {
-      P = P.reverse();
-      vs.reverse();
-    }
-    let off = vs.map((v, e) => sideOff(i, v, vs[(e + 1) % vs.length]));
-    // a short side that the pull-in turns inside out is dropped, so the plot keeps its clean shape
-    for (let guard = 0; guard < 4 && !ringOk(P, offsetBy(P, off)) && P.length > 3; guard++) {
-      const Qt = offsetBy(P, off);
-      const bad = P.findIndex((a, e) => {
-        const b = P[(e + 1) % P.length];
-        const c = Qt[e];
-        const d = Qt[(e + 1) % Qt.length];
-        return (b[0] - a[0]) * (d[0] - c[0]) + (b[1] - a[1]) * (d[1] - c[1]) <= 0;
+  // ---- blocks and lots. A block is its cells, each pulled in from its streets, joined into one shape. Lots run
+  // along every street frontage, square to it, each its own width and depth; each lot is the block less what is
+  // already built, so lots fit the block exactly and never overlap. Behind them is the yard
+  const asRing = (P: P2[]): PC.Ring => P.map(p => [p[0], p[1]] as PC.Pair);
+  // the clipping library can trip on near-coincident edges: snap coarser and try again, else skip that step
+  const snapG = (g: unknown, q: number): unknown =>
+    Array.isArray(g) && typeof g[0] === "number"
+      ? [Math.round((g[0] as number) * q) / q, Math.round((g[1] as number) * q) / q]
+      : (g as unknown[]).map(x => snapG(x, q));
+  const clip =
+    (op: (a: PC.Geom, ...b: PC.Geom[]) => PC.MultiPolygon) =>
+    (a: PC.Geom, ...b: PC.Geom[]): PC.MultiPolygon => {
+      for (const q of [256, 32, 4])
+        try {
+          return op(snapG(a, q) as PC.Geom, ...b.map(x => snapG(x, q) as PC.Geom));
+        } catch {}
+      return [];
+    };
+  const pcUnion = clip(PC.union);
+  const pcDiff = clip(PC.difference);
+  const pcInter = clip(PC.intersection);
+  const ringArea = (P: P2[]) => Math.abs(area2(P)) / 2;
+  const cleanRing = (P: P2[]): P2[] => {
+    let R0 = P.filter((p, k) => dist(p, P[(k + 1) % P.length]) > 0.25);
+    for (let pass = 0; pass < 2 && R0.length > 3; pass++)
+      R0 = R0.filter((p, k) => {
+        const a = R0[(k + R0.length - 1) % R0.length];
+        const b = R0[(k + 1) % R0.length];
+        return Math.abs((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) > 0.08 * dist(a, b);
       });
-      if (bad < 0) break;
-      P = P.filter((_, e) => e !== (bad + 1) % P.length);
-      vs.splice((bad + 1) % vs.length, 1);
-      off = vs.map((v, e) => sideOff(i, v, vs[(e + 1) % vs.length]));
+    return R0;
+  };
+  const outerRings = (mp: PC.MultiPolygon): P2[][] =>
+    mp.map(poly => cleanRing(poly[0].slice(0, -1).map(p => [p[0], p[1]] as P2))).filter(r => r.length >= 3);
+  const blockCells = new Map<number, number[]>();
+  for (let i = 0; i < n; i++)
+    if (lotCell(i)) {
+      const b = city.block[i] >= 0 ? city.block[i] : -1 - i;
+      blockCells.set(b, [...(blockCells.get(b) ?? []), i]);
     }
-    const Q = offsetBy(P, off);
-    if (area2(Q) < 30 || !ringOk(P, Q)) continue;
-    const m = Q.length;
-    const k = kind[i] as string;
-    const D = city.districts.find(d => d.id === district[i]);
-    const wealth = D?.wealth ?? 2;
+  const frontAt = (p: P2) => {
+    const X = Math.round(p[0]);
+    const Y = Math.round(p[1]);
+    if (X < 0 || Y < 0 || X >= W || Y >= H) return true;
+    const j = Y * W + X;
+    return RD[j] !== 0 || CID[j] < 0 || use[CID[j]] === "water";
+  };
+  for (const [, ids] of blockCells) {
+    // the block shape
+    const parts: PC.Polygon[] = [];
+    for (const i of ids) {
+      const vs: number[] = (cells.v[i] as number[]).filter(
+        (v, e, a) => dist(vertices.p[v], vertices.p[a[(e + 1) % a.length]]) > 0.3
+      );
+      if (vs.length < 3) continue;
+      let P = vs.map(v => vertices.p[v] as P2);
+      if (area2(P) < 0) {
+        P = P.reverse();
+        vs.reverse();
+      }
+      const off = vs.map((v, e) =>
+        ids.includes(otherCell(i, v, vs[(e + 1) % vs.length])) && !edgeHalf.has(ek(v, vs[(e + 1) % vs.length]))
+          ? -0.3
+          : sideOff(i, v, vs[(e + 1) % vs.length])
+      );
+      const Q = offsetBy(P, off);
+      if (area2(Q) > 4) parts.push([asRing(Q)]);
+    }
+    if (!parts.length) continue;
+    // if the shapes will not join cleanly, each cell builds as its own block
+    const joined = pcUnion(parts[0], ...parts.slice(1));
+    const blockMP = joined.length ? joined : parts;
+    const i0 = ids[0];
+    const k = kind[i0] as string;
+    const wealth = city.districts.find(d => d.id === district[i0])?.wealth ?? 2;
     const spec = WEALTH[wealth];
     const docks = k === "docks";
-    const build = (h: P2[], at: P2, wide: boolean) => {
-      let pl = h;
-      if (spec.gap || spec.set) {
-        // a detached house stands back in its lot
-        const cx = h.reduce((q, p) => q + p[0], 0) / h.length;
-        const cy = h.reduce((q, p) => q + p[1], 0) / h.length;
-        pl = h.map(p => [cx + (p[0] - cx) * 0.68, cy + (p[1] - cy) * 0.68] as P2);
-      }
-      if (Math.abs(area2(pl)) / 2 < 6) return;
-      const cl = claim(pl, j => CID[j] === i, 0.5);
+    const baseD = spec.d * (docks ? 1.3 : 1);
+    let built: PC.MultiPolygon = [];
+    const build = (pl: P2[], at: P2, wide: boolean) => {
+      const ci = CID[Math.round(at[1]) * W + Math.round(at[0])];
+      const cell = ids.includes(ci) ? ci : i0;
+      const cl = claim(pl, () => true, 1);
       if (!cl) return;
       const [tn] = weighted(MIX[k]);
       place(
         {
-          cell: i,
+          cell,
           poly: pl,
-          type: wide ? (docks ? "Warehouse" : k === "centre" ? "Guild hall" : tn) : tn,
+          type: wide ? (docks ? "Warehouse" : k === "centre" ? "Guild hall" : "Tavern") : tn,
           roof: pick(ROOFS[k]),
-          addr: addrOf(at, dname(i)),
-          district: district[i]
+          addr: addrOf(at, dname(cell)),
+          district: district[cell]
         },
         cl
       );
     };
-    // the ring's depth: the district's, but never so deep the yard turns inside out
-    let I: P2[] | null = null;
-    for (const f of [1, 0.8, 0.62, 0.48]) {
-      const d = spec.d * (docks ? 1.3 : 1) * f;
-      const J = offsetBy(
-        Q,
-        Q.map(() => d)
-      );
-      if (ringOk(Q, J) && area2(J) > 8) {
-        I = J;
-        break;
+    for (const ring0 of outerRings(blockMP)) {
+      const ring = area2(ring0) < 0 ? ring0.slice().reverse() : ring0;
+      const blockPoly: PC.Polygon = [asRing(ring)];
+      const m = ring.length;
+      // frontages: sides with a street, the quay or the wall beyond them, longest first
+      const sides = ring
+        .map((a, e) => {
+          const b = ring[(e + 1) % m];
+          const L = dist(a, b);
+          const u: P2 = [(b[0] - a[0]) / (L || 1), (b[1] - a[1]) / (L || 1)];
+          const mid: P2 = [(a[0] + b[0]) / 2 + u[1] * 1.3, (a[1] + b[1]) / 2 - u[0] * 1.3];
+          return { a, b, L, u, front: L > 2 && frontAt(mid) };
+        })
+        .filter(sd => sd.front)
+        .sort((x, y) => y.L - x.L);
+      for (const sd of sides) {
+        const n0: P2 = [-sd.u[1], sd.u[0]];
+        let t = 0;
+        while (t < sd.L - 1.5) {
+          const wide = R() < (wealth >= 3 ? 0.07 : 0.03);
+          let w = (spec.w[0] + R() * (spec.w[1] - spec.w[0])) * (wide ? 2.2 : 1);
+          if (sd.L - t - w < spec.w[0] * 0.7) w = sd.L - t;
+          // depths vary lot to lot, so the backs of a terrace step in and out
+          const d = baseD * (0.7 + R() * 0.6);
+          const p0: P2 = [sd.a[0] + sd.u[0] * t, sd.a[1] + sd.u[1] * t];
+          const p1: P2 = [sd.a[0] + sd.u[0] * (t + w), sd.a[1] + sd.u[1] * (t + w)];
+          const quad: P2[] = [p0, p1, [p1[0] + n0[0] * d, p1[1] + n0[1] * d], [p0[0] + n0[0] * d, p0[1] + n0[1] * d]];
+          const lot = pcDiff(pcInter([asRing(quad)], blockPoly), built);
+          const pieces = outerRings(lot).sort((x, y) => ringArea(y) - ringArea(x));
+          const piece = pieces[0];
+          // a lot that has lost most of itself to the corner or a neighbour is not a house: move on a step
+          if (!piece || ringArea(piece) < w * d * 0.45 || piece.length > 7) {
+            t += 1;
+            continue;
+          }
+          t += w;
+          {
+            const next = pcUnion(built, [asRing(piece)]);
+            if (next.length) built = next;
+          }
+          if (R() < spec.open) continue;
+          let house = piece;
+          if (spec.set) {
+            // a house standing back in its garden
+            const cx = piece.reduce((q, p) => q + p[0], 0) / piece.length;
+            const cy = piece.reduce((q, p) => q + p[1], 0) / piece.length;
+            house = piece.map(p => [cx + (p[0] - cx) * 0.8, cy + (p[1] - cy) * 0.8] as P2);
+          } else if (R() < 0.06) {
+            // the odd passage through to the yard
+            const cut = pcDiff(
+              [asRing(piece)],
+              [
+                asRing([
+                  [p1[0] - sd.u[0] * 1.1, p1[1] - sd.u[1] * 1.1],
+                  [p1[0] + sd.u[0] * 0.1, p1[1] + sd.u[1] * 0.1],
+                  [p1[0] + sd.u[0] * 0.1 + n0[0] * 99, p1[1] + sd.u[1] * 0.1 + n0[1] * 99],
+                  [p1[0] - sd.u[0] * 1.1 + n0[0] * 99, p1[1] - sd.u[1] * 1.1 + n0[1] * 99]
+                ])
+              ]
+            );
+            house = outerRings(cut).sort((x, y) => ringArea(y) - ringArea(x))[0] ?? piece;
+          }
+          if (ringArea(house) >= 6) build(house, [(p0[0] + p1[0]) / 2 + n0[0], (p0[1] + p1[1]) / 2 + n0[1]], wide);
+        }
       }
-    }
-    // too small for a yard: the ring closes to a light-well in the middle, and is sliced all the same
-    if (!I) {
-      const cx = Q.reduce((q, p) => q + p[0], 0) / m;
-      const cy = Q.reduce((q, p) => q + p[1], 0) / m;
-      I = Q.map(p => [cx + (p[0] - cx) * 0.1, cy + (p[1] - cy) * 0.1] as P2);
-    }
-    const ins = I;
-    // along each side the lots run between the feet of the inner corners; the corners themselves are single buildings
-    const feet = Q.map((a, e) => {
-      const b = Q[(e + 1) % m];
-      const L = dist(a, b) || 1;
-      const u: P2 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
-      const proj = (p: P2) => (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1];
-      return { a, u, L, s0: proj(ins[e]), s1: proj(ins[(e + 1) % m]) };
-    });
-    const at = (e: number, s: number): P2 => [feet[e].a[0] + feet[e].u[0] * s, feet[e].a[1] + feet[e].u[1] * s];
-    for (let e = 0; e < m; e++) {
-      const f = feet[e];
-      const prev = feet[(e + m - 1) % m];
-      // the corner building: from the last foot of the side before, round the corner, to this side's first foot
-      if (R() >= spec.open) build([at((e + m - 1) % m, prev.s1), Q[e], at(e, f.s0), ins[e]], Q[e], false);
-      // the side's lots, as even as its length allows
-      const run = f.s1 - f.s0;
-      if (run < 1.5) continue;
-      const w0 = (spec.w[0] + spec.w[1]) / 2;
-      const count = Math.max(1, Math.round(run / w0));
-      const cuts = [0];
-      for (let c = 1; c < count; c++) cuts.push((c + (R() - 0.5) * 0.5) / count);
-      cuts.push(1);
-      const ip = (s: number): P2 => {
-        const t = (s - f.s0) / (run || 1);
-        return [ins[e][0] + (ins[(e + 1) % m][0] - ins[e][0]) * t, ins[e][1] + (ins[(e + 1) % m][1] - ins[e][1]) * t];
-      };
-      for (let c = 0; c < count; c++) {
-        // the odd double lot makes a hall or warehouse
-        const wide = c < count - 1 && R() < 0.08;
-        const s0 = f.s0 + run * cuts[c];
-        const s1 = f.s0 + run * cuts[wide ? c + 2 : c + 1];
-        if (R() >= spec.open) build([at(e, s0), at(e, s1), ip(s1), ip(s0)], at(e, (s0 + s1) / 2), wide);
-        if (wide) c++;
+      // the densest quarters build their yards too, a second row behind the first
+      if (wealth === 1 || wealth === 4) {
+        const yard = outerRings(pcDiff(blockPoly, built)).filter(r => ringArea(r) > spec.w[0] * baseD * 0.8);
+        for (const y of yard) {
+          const cx = y.reduce((q, p) => q + p[0], 0) / y.length;
+          const cy = y.reduce((q, p) => q + p[1], 0) / y.length;
+          const inner = y.map(p => [cx + (p[0] - cx) * 0.8, cy + (p[1] - cy) * 0.8] as P2);
+          if (ringArea(inner) >= 8 && R() < 0.8) build(inner, [cx, cy], false);
+        }
       }
     }
   }
@@ -585,7 +635,7 @@ export function furnish(city: City): void {
           const ny = tx * sg;
           const w = 4 + R() * 3;
           const d = 6 + R() * 3;
-          const o: P2 = [a[0] + nx * 3.2, a[1] + ny * 3.2];
+          const o: P2 = [a[0] + nx * 3.4, a[1] + ny * 3.4];
           const pl =
             sg > 0 ? rect(o, tx, ty, nx, ny, w, d) : rect([o[0] + tx * w, o[1] + ty * w], -tx, -ty, nx, ny, w, d);
           // clear of the town wall
@@ -593,6 +643,7 @@ export function furnish(city: City): void {
           const cl = claim(
             pl,
             j => CID[j] >= 0 && city.home[CID[j]] === 1 && use[CID[j]] !== "water" && use[CID[j]] !== "town",
+            0,
             0
           );
           if (cl) {
@@ -917,10 +968,6 @@ export function paint(city: City): Painted {
   };
   const WD = bfs(j => !water(j));
   const HD = bfs(j => CID[j] >= 0 && home[CID[j]] === 1);
-  const terrain = new ImageData(W, H);
-  const map = new ImageData(W, H);
-  const T = terrain.data;
-  const Mp = map.data;
   const put = (D: Uint8ClampedArray, j: number, c: C3) => {
     D[j * 4] = c[0];
     D[j * 4 + 1] = c[1];
@@ -928,7 +975,6 @@ export function paint(city: City): Painted {
     D[j * 4 + 3] = 255;
   };
   const kindAt = (j: number) => (CID[j] >= 0 ? (kind[CID[j]] ?? use[CID[j]]) : "water");
-  const WOD = bfs(j => kindAt(j) !== "woods");
   // each field its own flat wash, a shade apart from the same ground next door, as on a hand-coloured plan
   const nC = city.pack.cells.p.length;
   const shade = new Int8Array(nC);
@@ -958,157 +1004,6 @@ export function paint(city: City): Painted {
     const base = sh(mix(c, OLIVE, olive), 1 + shade[ci] * 0.03);
     return sh(base, grain(x, y));
   };
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const j = y * W + x;
-      const ci = CID[j];
-      const k = kindAt(j);
-      let t: C3;
-      let m: C3;
-      if (water(j)) {
-        const d = WD[j];
-        t =
-          d <= 1
-            ? COAST.foam
-            : d <= 3
-              ? COAST.band
-              : d < 12 || k === "pond"
-                ? groundPixel("shallow", x, y)
-                : groundPixel("sea", x, y);
-        m = d <= 1 ? MAPC.shore : MAPC.water;
-      } else {
-        t = terrainTile(k, x, y, city.ang[ci]);
-        const wsh = k !== "woods" && k !== "park" && k !== "wealthy" ? washOf(k, ci, x, y, 0.55) : null;
-        if (wsh) {
-          const tex = (groundPixel("plains", x, y)[1] - 136) / 136;
-          t = sh(wsh, 1 + tex * 0.35);
-          if (k === "wheat" || k === "tilled") t = sh(t, stripe(x, y, city.ang[ci], 4) < 2 ? 1.025 : 0.985);
-        }
-        m = mapTile(k, x, y);
-        // woods meet other ground with an edge in the map view and a shadow on the terrain
-        if (k === "woods") {
-          for (let q = 0; q < 8; q += 2) {
-            const o = j + N4[q] + N4[q + 1] * W;
-            if (o >= 0 && o < N && kindAt(o) !== "woods") {
-              m = MAPC.woodsEdge;
-              break;
-            }
-          }
-          if (!WOD[j + 1] || !WOD[j + W]) t = WOODS[1];
-        }
-      }
-      const r = RD[j];
-      if (r) {
-        const edge = (o: number) => o >= 0 && o < N && !RD[o] && !water(o);
-        const kerb = edge(j + 1) || edge(j - 1) || edge(j + W) || edge(j - W);
-        const inTown = ci >= 0 && (use[ci] === "town" || use[ci] === "shanty");
-        if (r === 4 || r === 3 || r === 2) {
-          t = inTown || r >= 3 ? mix(stone(x, y), [226, 220, 204], 0.4) : mix(dirt(x, y), [214, 196, 160], 0.5);
-          m = MAPC.road;
-          if (kerb) {
-            t = mix(t, sh(terrainTile(k, x, y, city.ang[ci] ?? 0), 0.9), 0.5);
-            m = r >= 4 ? MAPC.roadEdge : MAPC.laneEdge;
-          }
-        } else if (r === 7) {
-          t = stone(x, y);
-          m = MAPC.road;
-        } else if (r === 1) {
-          t = mix(dirt(x, y), [214, 196, 160], kerb ? 0.25 : 0.55);
-          m = kerb ? MAPC.laneEdge : MAPC.track;
-        } else if (r === 6 || r === 8) {
-          t = kerb || (x + y) % 4 === 0 ? P.wood2 : P.wood;
-          m = MAPC.pier;
-        } else if (r === 5) {
-          t = P.stone;
-          m = MAPC.wall;
-        } else if (r === 9) {
-          t = (x + y) % 3 === 0 ? P.stone2 : P.stone;
-          m = MAPC.gate;
-        }
-      }
-      put(T, j, t);
-      put(Mp, j, m);
-    }
-  // hedges in the map view
-  for (const [a, b] of hedgeEdges(city)) {
-    const L = dist(a, b);
-    for (let s = 0; s <= L; s += 0.5) {
-      const X = Math.round(a[0] + ((b[0] - a[0]) * s) / L);
-      const Y = Math.round(a[1] + ((b[1] - a[1]) * s) / L);
-      if (X >= 0 && Y >= 0 && X < W && Y < H && !RD[Y * W + X]) {
-        const q = (Y * W + X) * 4;
-        for (let i = 0; i < 3; i++) Mp[q + i] = Mp[q + i] * 0.5 + MAPC.hedge[i] * 0.5;
-      }
-    }
-  }
-  for (const [a, b] of hedgeEdges(city)) {
-    const L = dist(a, b);
-    for (let s = 0; s <= L; s += 0.7) {
-      const X = Math.round(a[0] + ((b[0] - a[0]) * s) / L);
-      const Y = Math.round(a[1] + ((b[1] - a[1]) * s) / L);
-      if (X < 0 || Y < 0 || X >= W || Y >= H || RD[Y * W + X]) continue;
-      const q = (Y * W + X) * 4;
-      for (let i = 0; i < 3; i++) T[q + i] = T[q + i] * 0.55 + WOODS[2][i] * 0.45;
-    }
-  }
-  // shadows to the lower right
-  const castsShadow = (j: number) => RD[j] === 5;
-  for (let y = H - 1; y >= 0; y--)
-    for (let x = W - 1; x >= 0; x--) {
-      const j = y * W + x;
-      if (castsShadow(j)) continue;
-      for (let k2 = 1; k2 <= 2; k2++) {
-        const X = x - k2;
-        const Y = y - k2;
-        if (X < 0 || Y < 0) break;
-        if (castsShadow(Y * W + X)) {
-          T[j * 4] *= 0.72;
-          T[j * 4 + 1] *= 0.72;
-          T[j * 4 + 2] *= 0.76;
-          break;
-        }
-      }
-    }
-  // towers
-  for (const [tx, ty] of city.towers)
-    for (let v = -3; v <= 3; v++)
-      for (let u = -3; u <= 3; u++) {
-        const r = u * u + v * v;
-        if (r > 10) continue;
-        const X = Math.round(tx + u);
-        const Y = Math.round(ty + v);
-        if (X < 0 || Y < 0 || X >= W || Y >= H || water(Y * W + X)) continue;
-        put(T, Y * W + X, r > 6 ? P.stone2 : u + v < -1 ? P.stone3 : P.stone);
-        put(Mp, Y * W + X, r > 6 ? sh(MAPC.wall, 0.7) : MAPC.wall);
-      }
-  // single trees: small crowns with a shadow, terrain only
-  const trees = city.trees.slice().sort((a, b) => a[1] - b[1]);
-  for (const [tx, ty, r] of trees) {
-    for (let v = -r; v <= r; v++)
-      for (let u = -r; u <= r; u++) {
-        if (u * u + v * v > r * r + r * 0.6) continue;
-        const X = tx + u + 1;
-        const Y = ty + v + 1;
-        if (X >= 0 && Y >= 0 && X < W && Y < H) {
-          const k = (Y * W + X) * 4;
-          T[k] *= 0.72;
-          T[k + 1] *= 0.72;
-          T[k + 2] *= 0.72;
-        }
-      }
-    for (let v = -r; v <= r; v++)
-      for (let u = -r; u <= r; u++) {
-        const d2 = u * u + v * v;
-        if (d2 > r * r + r * 0.6) continue;
-        const X = tx + u;
-        const Y = ty + v;
-        if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
-        const rim = d2 > (r - 1) * (r - 1) + r * 0.6;
-        let c = u + v < -r * 0.5 ? WOODS[4] : u + v < 0.5 ? WOODS[3] : WOODS[2];
-        if (rim && u + v > 0) c = WOODS[1];
-        put(T, Y * W + X, c);
-      }
-  }
   // the plan: a hand-drawn town plan in ink and watercolour, after the 1830 plan of Dublin
   const plan = new ImageData(W, H);
   const Pl = plan.data;
@@ -1244,9 +1139,7 @@ export function paint(city: City): Painted {
     const ed = Math.min(x, y, W - 1 - x, H - 1 - y);
     const t = Math.min(0.78, 0.3 + HD[j] / 260 + Math.max(0, (24 - ed) / 24) * 0.35);
     const k = j * 4;
-    const tw = t * (water(j) ? 0.45 : 1);
-    for (let i = 0; i < 3; i++) T[k + i] = (T[k + i] * (1 - tw) + 20 * tw) * 0.8;
-    for (const D of [Mp, districts.data, factions.data, Pl, faded.data])
+    for (const D of [districts.data, factions.data, Pl, faded.data])
       for (let i = 0; i < 3; i++) D[k + i] = (D[k + i] * (1 - t * 0.7) + fadeTo[i] * t * 0.7) * 0.8;
   }
   // the city's own edge: a soft band inside, a thin line on it
@@ -1256,12 +1149,9 @@ export function paint(city: City): Painted {
     if (!d || d > 9) continue;
     const k = j * 4;
     const tt = d <= 2 ? 0.88 : 0.28 * (1 - (d - 3) / 7);
-    const ct: C3 = d <= 2 ? [14, 12, 10] : [60, 40, 30];
     const cm: C3 = d <= 2 ? [26, 22, 18] : [170, 110, 90];
-    for (let i = 0; i < 3; i++) T[k + i] = T[k + i] * (1 - tt) + ct[i] * tt;
-    for (const D of [Mp, districts.data, factions.data, Pl, faded.data])
+    for (const D of [districts.data, factions.data, Pl, faded.data])
       for (let i = 0; i < 3; i++) D[k + i] = D[k + i] * (1 - tt) + cm[i] * tt;
   }
-  void terrain;
   return { terrain: plan, map: faded, districts, factions, plan, CID, BID };
 }

@@ -881,11 +881,11 @@ export function buildCity(
   const block = new Int32Array(n).fill(-1);
   {
     const SIZE: Record<string, [number, number]> = {
-      centre: [2, 4],
-      wealthy: [2, 4],
-      docks: [2, 3],
-      old: [3, 5],
-      shanty: [3, 6]
+      centre: [1, 2],
+      wealthy: [1, 2],
+      docks: [1, 2],
+      old: [1, 3],
+      shanty: [2, 4]
     };
     const joinable = (i: number) => {
       const k = kind[i];
@@ -935,9 +935,9 @@ export function buildCity(
       const ks = [ki, kj];
       const shanty = ks.includes("shanty");
       const plannedE = ks.every(x => x === "centre" || x === "docks" || x === "square" || x === "wealthy");
-      // every edge between town cells is a road, so every cell has a street on each side to build along;
-      // only stubs too short to read are left out
+      // a road between every two blocks; none inside a block, whose cells build as one
       const same = district[i] === district[j] && !plannedE;
+      if (block[i] >= 0 && block[i] === block[j]) continue;
       const sq = ks.includes("square");
       const open = (x: Kind | null) => x === "pond" || x === "park";
       if (dist(vertices.p[sh[0]], vertices.p[sh[1]]) >= 3.5 && !open(ki) && !open(kj)) {
@@ -965,7 +965,7 @@ export function buildCity(
     }
   }
   // no stubs: a street that ends nowhere runs on along the straightest cell edge until it meets another road,
-  // the wall or the water; if it cannot within four edges it is taken back, end by end
+  // the wall or the water
   {
     const deg = new Map<number, number>();
     const bump = (v: number, d: number) => deg.set(v, (deg.get(v) ?? 0) + d);
@@ -1016,19 +1016,6 @@ export function buildCity(
           v = best;
         }
         streetEdges.push(...added);
-      }
-    }
-    for (let changed = true; changed; ) {
-      changed = false;
-      for (let k = streetEdges.length - 1; k >= 0; k--) {
-        const e = streetEdges[k];
-        const loose = (v: number) => (deg.get(v) ?? 0) <= 1 && !anchored(v);
-        if (loose(e.a) || loose(e.b)) {
-          bump(e.a, -1);
-          bump(e.b, -1);
-          streetEdges.splice(k, 1);
-          changed = true;
-        }
       }
     }
   }
