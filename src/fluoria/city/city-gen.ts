@@ -705,6 +705,7 @@ export function buildCity(
   // paying for every turn so it keeps its line
   // the walled town: the shanty grows outside it
   const townish0 = (c: number) => use[c] === "town";
+  const mainEdges = new Set<string>();
   const edgePath = (route: number[], maxTurn = 80, wide = false): number[] | null => {
     const corridor = new Set<number>();
     for (const c of route) {
@@ -750,7 +751,9 @@ export function buildCity(
           turn = Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * (180 / Math.PI);
           if (turn > maxTurn) continue;
         }
-        const c = cur.c + dist(vertices.p[cur.v], vertices.p[nv]) * (1 + 3 * (turn / 90) ** 2);
+        // a road already laid is cheap to share, so main roads merge rather than run side by side
+        const shared = mainEdges.has(cur.v < nv ? `${cur.v}|${nv}` : `${nv}|${cur.v}`) ? 0.3 : 1;
+        const c = cur.c + dist(vertices.p[cur.v], vertices.p[nv]) * (1 + 3 * (turn / 90) ** 2) * shared;
         const k = `${nv}|${cur.v}`;
         if (c < (best.get(k) ?? Infinity)) {
           best.set(k, c);
@@ -770,6 +773,7 @@ export function buildCity(
     const ek = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
     if (!vs) return { type, key, name, cells: route, pts: lineOf(route) };
     const edges = vs.slice(1).map((v, i) => [vs[i], v] as [number, number]);
+    for (const [a, b] of edges) mainEdges.add(a < b ? `${a}|${b}` : `${b}|${a}`);
     return {
       type,
       key,

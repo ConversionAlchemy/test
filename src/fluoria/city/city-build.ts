@@ -332,6 +332,35 @@ export function renderBuildings(
     city.walls.length > 0 &&
     vertices.c[v].some(townish) &&
     vertices.c[v].some((c: number) => c < city.use.length && !townish(c) && city.use[c] !== "water");
+  // a road's edges as unbroken lines, so bends are mitred, not a row of separate strokes
+  const chainsOf = (edges: [number, number][]): number[][] => {
+    const adj = new Map<number, number[]>();
+    for (const [a, b] of edges) {
+      adj.set(a, [...(adj.get(a) ?? []), b]);
+      adj.set(b, [...(adj.get(b) ?? []), a]);
+    }
+    const used = new Set<string>();
+    const key = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+    const out: number[][] = [];
+    const starts = [...adj.keys()].sort(
+      (a, b) => ((adj.get(a)?.length ?? 0) === 2 ? 1 : 0) - ((adj.get(b)?.length ?? 0) === 2 ? 1 : 0)
+    );
+    for (const s0 of starts)
+      for (const n0 of adj.get(s0) ?? []) {
+        if (used.has(key(s0, n0))) continue;
+        const ch = [s0, n0];
+        used.add(key(s0, n0));
+        for (let cur = n0; adj.get(cur)?.length === 2; ) {
+          const nx = (adj.get(cur) as number[]).find(x => !used.has(key(cur, x)));
+          if (nx === undefined) break;
+          used.add(key(cur, nx));
+          ch.push(nx);
+          cur = nx;
+        }
+        out.push(ch);
+      }
+    return out;
+  };
   const strokeRoads = (extra: number) => {
     for (const r of city.roads) {
       const w = W2[r.type];
@@ -339,16 +368,18 @@ export function renderBuildings(
       g.lineWidth = w * 2 + 0.6 + extra;
       g.beginPath();
       if (r.edges)
-        for (const [a, b] of r.edges) {
+        for (const ch of chainsOf(r.edges)) {
+          const P = ch.map(v => vertices.p[v] as P2);
           // a street that runs up to the wall stops short of it; only main roads pass, at their gates
-          let p = vertices.p[a] as P2;
-          let q = vertices.p[b] as P2;
-          const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
-          const cut = Math.min(2.6, L * 0.45);
-          if (r.type !== "main" && atWall(a)) p = [p[0] + ((q[0] - p[0]) / L) * cut, p[1] + ((q[1] - p[1]) / L) * cut];
-          if (r.type !== "main" && atWall(b)) q = [q[0] + ((p[0] - q[0]) / L) * cut, q[1] + ((p[1] - q[1]) / L) * cut];
-          g.moveTo(p[0], p[1]);
-          g.lineTo(q[0], q[1]);
+          const pull = (k: number, toward: number) => {
+            const [p, q] = [P[k], P[toward]];
+            const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+            const cut = Math.min(2.6, L * 0.45);
+            P[k] = [p[0] + ((q[0] - p[0]) / L) * cut, p[1] + ((q[1] - p[1]) / L) * cut];
+          };
+          if (r.type !== "main" && atWall(ch[0])) pull(0, 1);
+          if (r.type !== "main" && atWall(ch[ch.length - 1])) pull(P.length - 1, P.length - 2);
+          for (const [k, p] of P.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
         }
       else
         for (const [k, p] of r.pts.entries()) {
@@ -361,7 +392,10 @@ export function renderBuildings(
   const squares = cells.p.map((_: P2, i: number) => i).filter((i: number) => city.kind[i] === "square");
   const sqPoly = (i: number) => cells.v[i].map((v: number) => vertices.p[v] as P2);
   const faded = style !== "terrain";
-  g.lineCap = g.lineJoin = "round";
+  // straight edges, square ends, mitred bends
+  g.lineCap = "square";
+  g.lineJoin = "miter";
+  g.miterLimit = 3;
   g.globalCompositeOperation = "destination-out";
   strokeRoads(lw * 2);
   for (const i of squares) {
@@ -369,6 +403,17 @@ export function renderBuildings(
     g.fill();
   }
   g.globalCompositeOperation = "source-over";
+  // ponds: a clean watercolour shape on their cell, edged in ink like everything else
+  for (let i = 0; i < cells.p.length; i++) {
+    if (city.kind[i] !== "pond") continue;
+    const P = sqPoly(i);
+    g.fillStyle = css(faded ? [176, 206, 216] : [150, 194, 210]);
+    pathOf(g, P);
+    g.fill();
+    g.strokeStyle = "rgb(84,72,60)";
+    g.lineWidth = Math.max(lw * 2, 0.7);
+    g.stroke();
+  }
   // the town wall: a stone band with round towers, open at each gate
   const stone: C3 = faded ? [196, 190, 180] : [160, 152, 142];
   const drawWalls = () => {
@@ -390,6 +435,8 @@ export function renderBuildings(
       }
       if (run.length > 1) runs.push(run);
     }
+    g.lineCap = "butt";
+    g.lineJoin = "miter";
     for (const [lwid, col] of [
       [3.2, sh(stone, 0.7)],
       [2.2, stone]
@@ -404,11 +451,26 @@ export function renderBuildings(
     }
     // turrets: small squares at the turns; gate towers: large and dark, either side of each gate
     const dark: C3 = faded ? [150, 140, 128] : [96, 86, 76];
+    // a turret is set square to the bisector of the two walls it joins
+    const wallDir = (p: P2) => {
+      for (const w of city.walls)
+        for (let k = 1; k < w.length - 1; k++)
+          if (Math.hypot(w[k][0] - p[0], w[k][1] - p[1]) < 0.01) {
+            const a1 = Math.atan2(w[k][1] - w[k - 1][1], w[k][0] - w[k - 1][0]);
+            const a2 = Math.atan2(w[k + 1][1] - w[k][1], w[k + 1][0] - w[k][0]);
+            return Math.atan2(Math.sin(a1) + Math.sin(a2), Math.cos(a1) + Math.cos(a2));
+          }
+      return 0;
+    };
     for (const [tx, ty] of city.towers) {
+      g.save();
+      g.translate(tx, ty);
+      g.rotate(wallDir([tx, ty]));
       g.fillStyle = css(sh(stone, 0.72));
-      g.fillRect(tx - 1.9, ty - 1.9, 3.8, 3.8);
+      g.fillRect(-1.9, -1.9, 3.8, 3.8);
       g.fillStyle = css(sh(stone, 1.06));
-      g.fillRect(tx - 1.3, ty - 1.3, 2.6, 2.6);
+      g.fillRect(-1.3, -1.3, 2.6, 2.6);
+      g.restore();
     }
     for (const gt of city.gates) {
       const ang = Math.atan2(gt.b[1] - gt.a[1], gt.b[0] - gt.a[0]);
@@ -464,8 +526,8 @@ export function renderBuildings(
   const wood: C3 = faded ? [196, 172, 136] : [168, 132, 90];
   deck(2.4 + lw * 2, sh(wood, 0.55));
   deck(2.4, wood);
-  g.lineCap = "round";
-  g.lineJoin = "round";
+  g.lineCap = "square";
+  g.lineJoin = "miter";
   drawWalls();
   hard(body);
   if (style === "terrain" || style === "map") speckle(body, s, style === "map" ? 0.3 : 0.5);

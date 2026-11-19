@@ -481,7 +481,8 @@ export function furnish(city: City): void {
     const Y = Math.round(p[1]);
     if (X < 0 || Y < 0 || X >= W || Y >= H) return true;
     const j = Y * W + X;
-    return RD[j] !== 0 || CID[j] < 0 || use[CID[j]] === "water";
+    // streets, the quay and the water front a lot; the town wall does not
+    return (RD[j] !== 0 && RD[j] !== 5) || CID[j] < 0 || use[CID[j]] === "water";
   };
   for (const [, ids] of blockCells) {
     // the block shape
@@ -514,7 +515,8 @@ export function furnish(city: City): void {
     const spec = WEALTH[wealth];
     const docks = k === "docks";
     const baseD = spec.d * (docks ? 1.3 : 1);
-    let built: PC.MultiPolygon = [];
+    // every lot laid so far, kept apart: each new lot is cut against all of them
+    const built: PC.Polygon[] = [];
     const build = (pl: P2[], at: P2, wide: boolean) => {
       const ci = CID[Math.round(at[1]) * W + Math.round(at[0])];
       const cell = ids.includes(ci) ? ci : i0;
@@ -560,19 +562,20 @@ export function furnish(city: City): void {
           const p0: P2 = [sd.a[0] + sd.u[0] * t, sd.a[1] + sd.u[1] * t];
           const p1: P2 = [sd.a[0] + sd.u[0] * (t + w), sd.a[1] + sd.u[1] * (t + w)];
           const quad: P2[] = [p0, p1, [p1[0] + n0[0] * d, p1[1] + n0[1] * d], [p0[0] + n0[0] * d, p0[1] + n0[1] * d]];
-          const lot = pcDiff(pcInter([asRing(quad)], blockPoly), built);
+          const inBlock = pcInter([asRing(quad)], blockPoly);
+          const lot = built.length ? pcDiff(inBlock, ...built) : inBlock;
           const pieces = outerRings(lot).sort((x, y) => ringArea(y) - ringArea(x));
           const piece = pieces[0];
           // a lot that has lost most of itself to the corner or a neighbour is not a house: move on a step
-          if (!piece || ringArea(piece) < w * d * 0.45 || piece.length > 7) {
+          // nor is a sliver: its mean width (twice the area over the perimeter) must reach a house's
+          let per = 0;
+          if (piece) for (let q = 0; q < piece.length; q++) per += dist(piece[q], piece[(q + 1) % piece.length]);
+          if (!piece || ringArea(piece) < w * d * 0.45 || piece.length > 7 || (2 * ringArea(piece)) / per < 1.5) {
             t += 1;
             continue;
           }
           t += w;
-          {
-            const next = pcUnion(built, [asRing(piece)]);
-            if (next.length) built = next;
-          }
+          built.push([asRing(piece)]);
           if (R() < spec.open) continue;
           let house = piece;
           if (spec.set) {
@@ -600,7 +603,9 @@ export function furnish(city: City): void {
       }
       // the densest quarters build their yards too, a second row behind the first
       if (wealth === 1 || wealth === 4) {
-        const yard = outerRings(pcDiff(blockPoly, built)).filter(r => ringArea(r) > spec.w[0] * baseD * 0.8);
+        const yard = outerRings(built.length ? pcDiff(blockPoly, ...built) : [blockPoly]).filter(
+          r => ringArea(r) > spec.w[0] * baseD * 0.8
+        );
         for (const y of yard) {
           const cx = y.reduce((q, p) => q + p[0], 0) / y.length;
           const cy = y.reduce((q, p) => q + p[1], 0) / y.length;
