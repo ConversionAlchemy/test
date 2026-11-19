@@ -958,6 +958,71 @@ export function buildCity(
       hasRoad[i] = 1;
     }
   }
+  // no stubs: a street that ends nowhere runs on along the straightest cell edge until it meets another road,
+  // the wall or the water; if it cannot within four edges it is taken back, end by end
+  {
+    const deg = new Map<number, number>();
+    const bump = (v: number, d: number) => deg.set(v, (deg.get(v) ?? 0) + d);
+    for (const r of roads) if (r.type === "main" && r.edges) for (const [a, b] of r.edges) bump(a, 2), bump(b, 2);
+    for (const e of streetEdges) {
+      bump(e.a, 1);
+      bump(e.b, 1);
+    }
+    const anchored = (v: number) =>
+      vertices.c[v].some((c: number) => c >= n || isWater[c] || !isTownish(c) || kind[c] === "square");
+    const has = new Set(streetEdges.map(e => edgeKey(e.a, e.b)));
+    for (const r of roads) if (r.type === "main" && r.edges) for (const [a, b] of r.edges) has.add(edgeKey(a, b));
+    const loose0 = (v: number) => deg.get(v) === 1 && !anchored(v);
+    for (const e0 of streetEdges.slice()) {
+      for (const [from, start] of [
+        [e0.a, e0.b],
+        [e0.b, e0.a]
+      ]) {
+        let prev = from;
+        let v = start;
+        const added: typeof streetEdges = [];
+        for (let step = 0; step < 4 && loose0(v); step++) {
+          const dIn = Math.atan2(vertices.p[v][1] - vertices.p[prev][1], vertices.p[v][0] - vertices.p[prev][0]);
+          let best = -1;
+          let bt = 1.3;
+          for (const nv of vertices.v[v] ?? []) {
+            if (nv === prev || has.has(edgeKey(v, nv))) continue;
+            const cs = vertices.c[v].filter((c: number) => vertices.c[nv].includes(c));
+            if (cs.length < 2 || !cs.every((c: number) => c < n && isTownish(c) && !blocked(c))) continue;
+            const dOut = Math.atan2(vertices.p[nv][1] - vertices.p[v][1], vertices.p[nv][0] - vertices.p[v][0]);
+            const t = Math.abs(Math.atan2(Math.sin(dOut - dIn), Math.cos(dOut - dIn)));
+            if (t < bt) {
+              bt = t;
+              best = nv;
+            }
+          }
+          if (best < 0) break;
+          const cs = vertices.c[v].filter((c: number) => vertices.c[best].includes(c));
+          const e = { a: v, b: best, c1: cs[0], c2: cs[1], type: "lane" as Road["type"] };
+          added.push(e);
+          has.add(edgeKey(v, best));
+          bump(v, 1);
+          bump(best, 1);
+          prev = v;
+          v = best;
+        }
+        streetEdges.push(...added);
+      }
+    }
+    for (let changed = true; changed; ) {
+      changed = false;
+      for (let k = streetEdges.length - 1; k >= 0; k--) {
+        const e = streetEdges[k];
+        const loose = (v: number) => (deg.get(v) ?? 0) <= 1 && !anchored(v);
+        if (loose(e.a) || loose(e.b)) {
+          bump(e.a, -1);
+          bump(e.b, -1);
+          streetEdges.splice(k, 1);
+          changed = true;
+        }
+      }
+    }
+  }
   // chains of street edges become named streets
   {
     const adj = new Map<number, number[]>();

@@ -634,7 +634,8 @@ export function furnish(city: City): void {
     const wealth = D?.wealth ?? 2;
     const base = WEALTH[wealth];
     const spec = { ...base, area: base.area * (k === "docks" ? 1.6 : 1) };
-    const front = Q.map((_, e) => off[e] >= 0.35 && off[e] < 2.9);
+    // fronts: streets, plazas, the quay and the wall; never the blind side against the next block
+    const front = Q.map((_, e) => off[e] >= 0.55);
     // a lot's street front: its longest side lying on a front of the block
     const frontOf = (P: P2[]): [P2, P2] | null => {
       let best: [P2, P2] | null = null;
@@ -1348,12 +1349,13 @@ export function paint(city: City): Painted {
   const INK: C3 = [92, 80, 68];
   const wash = (x: number, y: number, c: C3): C3 => sh(c, grain(x, y));
   const planOf = (j: number, x: number, y: number): C3 => {
+    const r = RD[j];
+    // piers and bridges stand over the water in every view
+    if (r === 6 || r === 8) return [170, 146, 112];
     if (water(j)) return wash(x, y, WD[j] <= 2 ? [128, 176, 196] : [150, 194, 210]);
     const ci = CID[j];
     const k = kindAt(j);
-    const r = RD[j];
     if (r === 9) return [150, 136, 120];
-    if (r === 6 || r === 8) return [170, 146, 112];
     if (r && r !== 5) return wash(x, y, PAPER);
     switch (k) {
       case "centre":
@@ -1463,8 +1465,8 @@ export function paint(city: City): Painted {
   area(
     factions.data,
     ci => city.faction[ci],
-    v => (v >= 0 ? hex(city.factions[v]?.col ?? "#888888") : null),
-    0.16
+    v => (v >= 0 ? mix(hex(city.factions[v]?.col ?? "#888888"), PAPER, 0.35) : null),
+    0.3
   );
   // outside the home cell: terrain darkens, the map pales, both deepening toward the view's edge
   const fadeTo = hex("#d6cdb6");

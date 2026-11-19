@@ -198,8 +198,12 @@ export function renderBuildings(
     if (style === "factions") {
       const f = b.owner !== undefined ? city.factions[b.owner] : undefined;
       if (!f) return { pal: [pale, pale, sh(pale, 0.72)], flat: true };
+      // the zone's houses soft; what a faction holds outright, deep
       const c = hex(f.col);
-      return { pal: [c, c, sh(c, 0.55)], flat: true };
+      const held =
+        !!b.name || b.landmark || city.edits.owners?.[b.key ?? ""] !== undefined || b.owner !== city.faction[b.cell];
+      const cc = held ? sh(c, 0.82) : mix(c, PAPER, 0.5);
+      return { pal: [cc, cc, sh(cc, held ? 0.5 : 0.72)], flat: true };
     }
     if (style === "districts") {
       const D = b.district ?? -1;
