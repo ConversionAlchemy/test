@@ -1,7 +1,7 @@
 // Buildings drawn as shapes, then snapped back to hard pixels at the zoom they are seen at: neat edges at every distance,
 // still the pixel look. Far out a terrace reads as one block; close in every house has its own outline
 import { connectVertices } from "@/utils/pathUtils";
-import { DIST_COL, TYPE_INK } from "./city-draw";
+import { DIST_COL, hedgeEdges, TYPE_INK } from "./city-draw";
 import type { Building, City, P2 } from "./city-gen";
 
 type C3 = readonly [number, number, number];
@@ -331,11 +331,6 @@ export function renderBuildings(
   // their shadow, then the streets are laid on top, filled and edged in thin ink
   const { vertices, cells } = city.pack;
   const W2: Record<string, number> = { main: 2, street: 1.3, lane: 0.8, path: 0.7, track: 0.8 };
-  const townish = (c: number) => c < city.use.length && city.use[c] === "town";
-  const atWall = (v: number) =>
-    city.walls.length > 0 &&
-    vertices.c[v].some(townish) &&
-    vertices.c[v].some((c: number) => c < city.use.length && !townish(c) && city.use[c] !== "water");
   // a road's edges as unbroken lines, so bends are mitred, not a row of separate strokes
   const chainsOf = (edges: [number, number][]): number[][] => {
     const adj = new Map<number, number[]>();
@@ -374,15 +369,6 @@ export function renderBuildings(
       if (r.edges)
         for (const ch of chainsOf(r.edges)) {
           const P = ch.map(v => vertices.p[v] as P2);
-          // a street that runs up to the wall stops short of it; only main roads pass, at their gates
-          const pull = (k: number, toward: number) => {
-            const [p, q] = [P[k], P[toward]];
-            const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
-            const cut = Math.min(2.6, L * 0.45);
-            P[k] = [p[0] + ((q[0] - p[0]) / L) * cut, p[1] + ((q[1] - p[1]) / L) * cut];
-          };
-          if (r.type !== "main" && atWall(ch[0])) pull(0, 1);
-          if (r.type !== "main" && atWall(ch[ch.length - 1])) pull(P.length - 1, P.length - 2);
           for (const [k, p] of P.entries()) k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
         }
       else
@@ -508,6 +494,18 @@ export function renderBuildings(
   gs.fillRect(0, 0, shadow.width, shadow.height);
   gs.globalCompositeOperation = "source-over";
   hard(shadow);
+  // field hedges: thin, crisp, in the drawing's own scale, under the buildings
+  if (style !== "districts" && style !== "factions") {
+    g.strokeStyle = style !== "terrain" ? "rgb(150,156,112)" : "rgb(112,122,72)";
+    g.lineWidth = Math.max(lw * 1.4, 0.45);
+    g.beginPath();
+    for (const [a, b] of hedgeEdges(city)) {
+      g.moveTo(a[0], a[1]);
+      g.lineTo(b[0], b[1]);
+    }
+    g.stroke();
+  }
+
   g.strokeStyle = g.fillStyle = "rgb(84,72,60)";
   strokeRoads(Math.max(lw * 2, 0.7));
   g.lineWidth = lw * 2;

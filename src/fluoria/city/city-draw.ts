@@ -1,6 +1,5 @@
 // Fills a city's blocks with lots and paints its ground: the plan washes the Terrain and Map views draw on,
 // and the district and faction washes over it. Nothing here is tuned to one town: every cell paints by its kind
-import PC from "polygon-clipping";
 import { groundPixel } from "../ground-tiles";
 import { Palette as P } from "../palette";
 import type { Building, City, P2 } from "./city-gen";
@@ -115,7 +114,7 @@ function rasterPlan(city: City) {
       for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++)
         if (inPoly(q, x + 0.5, y + 0.5)) CID[y * W + x] = i;
   }
-  const isWater = (j: number) => CID[j] < 0 || city.use[CID[j]] === "water" || kind[CID[j]] === "pond";
+  const isWater = (j: number) => CID[j] < 0 || city.use[CID[j]] === "water";
   for (let j = 0; j < N; j++) if (CID[j] >= 0 && kind[CID[j]] === "square") RD[j] = 7;
   const line = (pts: P2[], w: number, fn: (x: number, y: number) => void) => {
     for (let k = 0; k < pts.length - 1; k++) {
@@ -345,8 +344,9 @@ export function furnish(city: City): void {
         );
     }
   }
-  // ---- lots, after the Dublin plans: each block (its cells as one shape) is cut back from its streets,
-  // fronted by lots square to the street, each of its own depth; corners built whole, sharp points bevelled
+  // ---- lots. Each urban cell, pulled in from the road on every side, holds one ring of lots round a yard:
+  // side lots are true rectangles square to their side, the corners one building each (4-6 corners), and the
+  // only gap is the middle lot of a long side, the way into the yard. Too small for a yard: built across in strips
   const area2 = (pl: P2[]) => {
     let A = 0;
     for (let k = 0; k < pl.length; k++) {
@@ -355,9 +355,8 @@ export function furnish(city: City): void {
     }
     return A;
   };
-  // pixels a building would take; a little over a street is trimmed when drawn,
-  // but it must not land on a neighbour, another block, the water or open ground
-  const claim = (pl: P2[], ok: (j: number) => boolean, slack = 0.15, roadMax = 0.3) => {
+  // the pixels a building covers, for hover and painting
+  const pixelsOf = (pl: P2[]) => {
     let a = Infinity;
     let b = Infinity;
     let e = -Infinity;
@@ -369,29 +368,23 @@ export function furnish(city: City): void {
       f = Math.max(f, y);
     }
     const out: number[] = [];
-    let bad = 0;
-    let road = 0;
     for (let y = Math.max(0, Math.floor(b)); y <= Math.min(H - 1, f); y++)
-      for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++) {
-        if (!inPoly(pl, x + 0.5, y + 0.5)) continue;
-        const j = y * W + x;
-        if (RD[j] && RD[j] !== 5) road++;
-        else if (OCC[j] || !ok(j)) bad++;
-        else out.push(j);
-      }
-    const all = out.length + bad + road;
-    return out.length >= 6 && bad <= all * slack && road <= all * roadMax ? out : null;
+      for (let x = Math.max(0, Math.floor(a)); x <= Math.min(W - 1, e); x++)
+        if (inPoly(pl, x + 0.5, y + 0.5) && !OCC[y * W + x]) out.push(y * W + x);
+    return out;
   };
-  // plots are cells: every side is pulled in by what lies beyond it, so fronts sit flush along the street
-  // and neighbours of one block share a party wall
   const LOT_KINDS = new Set(["centre", "old", "docks", "wealthy", "shanty"]);
   const lotCell = (i: number) => i < n && city.home[i] === 1 && !landCell[i] && LOT_KINDS.has(kind[i] as string);
-  const HALF: Record<string, number> = { main: 2.3, street: 1.6, lane: 1.1, path: 1, track: 1.1, pier: 1.5 };
+  const HALF: Record<string, number> = { main: 2.3, street: 1.6, lane: 1.1, path: 1, track: 1.1 };
   const ek = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
-  const edgeHalf = new Map<string, number>();
+  const edgeType = new Map<string, string>();
+  const RANK: Record<string, number> = { main: 4, street: 3, lane: 2, track: 1, path: 1 };
   for (const r of city.roads)
-    if (r.edges && HALF[r.type])
-      for (const [a, b] of r.edges) edgeHalf.set(ek(a, b), Math.max(edgeHalf.get(ek(a, b)) ?? 0, HALF[r.type]));
+    for (const [a, b] of r.edges ?? []) {
+      const k = ek(a, b);
+      if ((RANK[r.type] ?? 0) > (RANK[edgeType.get(k) ?? ""] ?? 0)) edgeType.set(k, r.type);
+    }
+  // a polygon pulled in by its own amount on each side (positive inward for area2 > 0)
   const offsetBy = (P: P2[], off: number[]): P2[] => {
     const m = P.length;
     const lines = P.map((a, e) => {
@@ -401,304 +394,275 @@ export function furnish(city: City): void {
       const ny = (b[0] - a[0]) / L;
       return { a: [a[0] + nx * off[e], a[1] + ny * off[e]] as P2, dx: (b[0] - a[0]) / L, dy: (b[1] - a[1]) / L };
     });
-    return P.map((p, e) => {
+    return P.map((_, e) => {
       const l1 = lines[(e + m - 1) % m];
       const l2 = lines[e];
       const den = l1.dx * l2.dy - l1.dy * l2.dx;
       if (Math.abs(den) < 1e-3) return l2.a;
       const t = ((l2.a[0] - l1.a[0]) * l2.dy - (l2.a[1] - l1.a[1]) * l2.dx) / den;
-      const q: P2 = [l1.a[0] + l1.dx * t, l1.a[1] + l1.dy * t];
-      return dist(q, p) > Math.max(off[e], off[(e + m - 1) % m]) * 3 ? l2.a : q;
+      return [l1.a[0] + l1.dx * t, l1.a[1] + l1.dy * t] as P2;
     });
   };
-  // wealth sets the lots: frontage width, depth from the street, the gap between houses, the set-back,
-  // and how often a lot is left open
-  const WEALTH: Record<number, { w: [number, number]; d: number; gap: number; set: number; open: number }> = {
-    1: { w: [3, 4.2], d: 6, gap: 0, set: 0, open: 0.08 },
-    2: { w: [4, 6], d: 9, gap: 0, set: 0, open: 0.05 },
-    3: { w: [5, 8], d: 11, gap: 0, set: 0, open: 0.05 },
-    4: { w: [6, 9], d: 14, gap: 0, set: 0, open: 0 },
-    5: { w: [12, 17], d: 15, gap: 3, set: 2, open: 0.08 }
-  };
-  // what each side gives up: a road its half-width, the wall a clear strip, the water a quay edge
-  const otherCell = (i: number, va: number, vb: number) =>
-    vertices.c[va].find((c: number) => c !== i && vertices.c[vb].includes(c)) ?? -1;
-  const sideOff = (i: number, va: number, vb: number) => {
-    const rh = edgeHalf.get(ek(va, vb));
-    if (rh) return rh + 0.35;
-    const o = vertices.c[va].find((c: number) => c !== i && vertices.c[vb].includes(c));
-    if (o === undefined || o >= n) return 1;
-    if (use[o] === "water" || kind[o] === "pond") return 1;
-    // the wall between the town and anything outside it, the shanty included
-    if ((use[o] === "town") !== (use[i] === "town")) return city.walls.length ? 3 : 1;
-    if (!(use[o] === "town" || use[o] === "shanty")) return 1;
-    if (kind[o] === "square" || kind[o] === "park" || landCell[o]) return 0.6;
-    return 0.3;
-  };
-  // ---- blocks and lots. A block is its cells, each pulled in from its streets, joined into one shape. Lots run
-  // along every street frontage, square to it, each its own width and depth; each lot is the block less what is
-  // already built, so lots fit the block exactly and never overlap. Behind them is the yard
-  const asRing = (P: P2[]): PC.Ring => P.map(p => [p[0], p[1]] as PC.Pair);
-  // the clipping library can trip on near-coincident edges: snap coarser and try again, else skip that step
-  const snapG = (g: unknown, q: number): unknown =>
-    Array.isArray(g) && typeof g[0] === "number"
-      ? [Math.round((g[0] as number) * q) / q, Math.round((g[1] as number) * q) / q]
-      : (g as unknown[]).map(x => snapG(x, q));
-  const clip =
-    (op: (a: PC.Geom, ...b: PC.Geom[]) => PC.MultiPolygon) =>
-    (a: PC.Geom, ...b: PC.Geom[]): PC.MultiPolygon => {
-      for (const q of [256, 32, 4])
-        try {
-          return op(snapG(a, q) as PC.Geom, ...b.map(x => snapG(x, q) as PC.Geom));
-        } catch {}
-      return [];
-    };
-  const pcUnion = clip(PC.union);
-  const pcDiff = clip(PC.difference);
-  const pcInter = clip(PC.intersection);
-  const ringArea = (P: P2[]) => Math.abs(area2(P)) / 2;
-  const cleanRing = (P: P2[]): P2[] => {
-    let R0 = P.filter((p, k) => dist(p, P[(k + 1) % P.length]) > 0.25);
-    for (let pass = 0; pass < 2 && R0.length > 3; pass++)
-      R0 = R0.filter((p, k) => {
-        const a = R0[(k + R0.length - 1) % R0.length];
-        const b = R0[(k + 1) % R0.length];
-        return Math.abs((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) > 0.08 * dist(a, b);
-      });
-    return R0;
-  };
-  const outerRings = (mp: PC.MultiPolygon): P2[][] =>
-    mp.map(poly => cleanRing(poly[0].slice(0, -1).map(p => [p[0], p[1]] as P2))).filter(r => r.length >= 3);
-  const crossings: { poly: P2[]; cells: number[] }[] = [];
-  for (const r of city.roads)
-    for (const [a, b] of r.edges ?? []) {
-      if ((vertices.c[a] ?? []).filter((c: number) => (vertices.c[b] ?? []).includes(c)).length >= 2) continue;
-      const [p, q] = [vertices.p[a] as P2, vertices.p[b] as P2];
-      const L = dist(p, q) || 1;
-      const h = (HALF[r.type] ?? 1) + 0.35;
-      const nx = (-(q[1] - p[1]) / L) * h;
-      const ny = ((q[0] - p[0]) / L) * h;
-      const cs = [...new Set([...(vertices.c[a] ?? []), ...(vertices.c[b] ?? [])])] as number[];
-      crossings.push({
-        poly: [
-          [p[0] + nx, p[1] + ny],
-          [q[0] + nx, q[1] + ny],
-          [q[0] - nx, q[1] - ny],
-          [p[0] - nx, p[1] - ny]
-        ],
-        cells: cs
-      });
+  // an offset is good while every side keeps its direction and the shape keeps its area
+  const sameWay = (P: P2[], Q: P2[]) =>
+    area2(Q) > 0 &&
+    P.every((a, e) => {
+      const b = P[(e + 1) % P.length];
+      const c = Q[e];
+      const d = Q[(e + 1) % Q.length];
+      return (b[0] - a[0]) * (d[0] - c[0]) + (b[1] - a[1]) * (d[1] - c[1]) > 0;
+    });
+  // the part of a convex polygon on the inner side of a line through o with normal nv
+  const keepSide = (P: P2[], o: P2, nv: P2): P2[] => {
+    const sd = (p: P2) => (p[0] - o[0]) * nv[0] + (p[1] - o[1]) * nv[1];
+    const out: P2[] = [];
+    for (let k = 0; k < P.length; k++) {
+      const S = P[k];
+      const E = P[(k + 1) % P.length];
+      const ds = sd(S);
+      const de = sd(E);
+      if (ds >= 0) out.push(S);
+      if (ds >= 0 !== de >= 0) {
+        const t = ds / (ds - de);
+        out.push([S[0] + (E[0] - S[0]) * t, S[1] + (E[1] - S[1]) * t]);
+      }
     }
-  const blockCells = new Map<number, number[]>();
-  for (let i = 0; i < n; i++)
-    if (lotCell(i)) {
-      const b = city.block[i] >= 0 ? city.block[i] : -1 - i;
-      blockCells.set(b, [...(blockCells.get(b) ?? []), i]);
-    }
-  const frontAt = (p: P2) => {
-    const X = Math.round(p[0]);
-    const Y = Math.round(p[1]);
-    if (X < 0 || Y < 0 || X >= W || Y >= H) return true;
-    const j = Y * W + X;
-    // streets, the quay and the water front a lot; the town wall does not
-    return (RD[j] !== 0 && RD[j] !== 5) || CID[j] < 0 || use[CID[j]] === "water";
+    return out.length >= 3 ? out : [];
   };
-  // what a lot fronts decides what it is: shops on the main roads and squares, stores on the quay, homes elsewhere
-  const FACE_RANK: Record<string, number> = { main: 4, square: 3, quay: 2, street: 1, lane: 0 };
-  const faceOf = (p: P2): string => {
-    const X = Math.round(p[0]);
-    const Y = Math.round(p[1]);
-    if (X < 0 || Y < 0 || X >= W || Y >= H) return "lane";
-    const r = RD[Y * W + X];
-    const c = CID[Y * W + X];
-    if (r === 4 || r === 9) return "main";
-    if (r === 7 || (c >= 0 && kind[c] === "square")) return "square";
-    if (r === 6 || r === 8 || (c >= 0 && use[c] === "water")) return "quay";
-    return r === 3 ? "street" : "lane";
+  // a lot's shape: 4 corners for side lots, up to 6 for corner lots, none sharper than 50 or wider than 140 degrees
+  const shapeOk = (P: P2[], maxCorners: number, lo = 50, hi = 140) => {
+    const Q = P.filter((p, k) => dist(p, P[(k + 1) % P.length]) > 0.2);
+    if (Q.length < 4 || Q.length > maxCorners || area2(Q) <= 0) return false;
+    return Q.every((b, k) => {
+      const a = Q[(k + Q.length - 1) % Q.length];
+      const c = Q[(k + 1) % Q.length];
+      const u = [a[0] - b[0], a[1] - b[1]];
+      const v = [c[0] - b[0], c[1] - b[1]];
+      const deg =
+        (Math.acos(
+          Math.max(
+            -1,
+            Math.min(1, (u[0] * v[0] + u[1] * v[1]) / ((Math.hypot(u[0], u[1]) || 1) * (Math.hypot(v[0], v[1]) || 1)))
+          )
+        ) *
+          180) /
+        Math.PI;
+      return deg >= lo && deg <= hi;
+    });
+  };
+  // wealth sets the lots: frontage width, depth, how often a long side opens into its yard, and the set-back
+  const WEALTH: Record<number, { w: number; d: number; gapP: number; set: number }> = {
+    1: { w: 3.4, d: 5.5, gapP: 0.5, set: 0 },
+    2: { w: 5, d: 9, gapP: 0.35, set: 0 },
+    3: { w: 6.5, d: 11, gapP: 0.3, set: 0 },
+    4: { w: 7, d: 14, gapP: 0.1, set: 0 },
+    5: { w: 10, d: 12, gapP: 0, set: 1 }
   };
   const COMMERCE = ["Shop", "Shop", "Inn", "Tavern", "Workshop", "Shop"];
-  for (const [, ids] of blockCells) {
-    // the block shape
-    const parts: PC.Polygon[] = [];
-    for (const i of ids) {
-      const vs: number[] = (cells.v[i] as number[]).filter(
-        (v, e, a) => dist(vertices.p[v], vertices.p[a[(e + 1) % a.length]]) > 0.3
-      );
-      if (vs.length < 3) continue;
-      let P = vs.map(v => vertices.p[v] as P2);
-      if (area2(P) < 0) {
-        P = P.reverse();
-        vs.reverse();
-      }
-      const off = vs.map((v, e) =>
-        ids.includes(otherCell(i, v, vs[(e + 1) % vs.length])) && !edgeHalf.has(ek(v, vs[(e + 1) % vs.length]))
-          ? -0.3
-          : sideOff(i, v, vs[(e + 1) % vs.length])
-      );
-      const Q = offsetBy(P, off);
-      if (area2(Q) > 4) parts.push([asRing(Q)]);
+  // what lies beyond a side: its road, or what the cell meets there
+  const beyond = (i: number, va: number, vb: number) => {
+    const t = edgeType.get(ek(va, vb));
+    const o = vertices.c[va].find((c: number) => c !== i && vertices.c[vb].includes(c));
+    const ok = o !== undefined && o < n;
+    if (ok && kind[o] === "square") return { off: (t ? HALF[t] : 0) + 0.35, face: "square" };
+    if (t) return { off: HALF[t] + 0.35, face: t };
+    if (!ok || use[o] === "water") return { off: 1, face: "quay" };
+    return { off: 0.6, face: "lane" };
+  };
+  for (let i = 0; i < n; i++) {
+    if (!lotCell(i)) continue;
+    let vs: number[] = (cells.v[i] as number[]).filter(
+      (v, e, a) => dist(vertices.p[v], vertices.p[a[(e + 1) % a.length]]) > 0.4
+    );
+    if (vs.length < 3) continue;
+    let P = vs.map(v => vertices.p[v] as P2);
+    if (area2(P) < 0) {
+      P = P.reverse();
+      vs = vs.reverse();
     }
-    if (!parts.length) continue;
-    // if the shapes will not join cleanly, each cell builds as its own block
-    const joined0 = pcUnion(parts[0], ...parts.slice(1));
-    // a road crossing the cell rather than running round it cuts the block
-    const cuts = crossings.filter(q => ids.some(i => q.cells.includes(i))).map(q => [asRing(q.poly)] as PC.Polygon);
-    const joined = cuts.length && joined0.length ? pcDiff(joined0, ...cuts) : joined0;
-    const blockMP = joined.length ? joined : parts;
-    const i0 = ids[0];
-    const k = kind[i0] as string;
-    const wealth = city.districts.find(d => d.id === district[i0])?.wealth ?? 2;
+    // a corner within 30 degrees of straight is no corner: its two sides become one (the road beyond is the same)
+    for (let pass = 0; pass < 3 && vs.length > 3; pass++) {
+      const k = P.findIndex((b, q) => {
+        const a = P[(q + P.length - 1) % P.length];
+        const c = P[(q + 1) % P.length];
+        const t1 = Math.atan2(b[1] - a[1], b[0] - a[0]);
+        const t2 = Math.atan2(c[1] - b[1], c[0] - b[0]);
+        return Math.abs(Math.atan2(Math.sin(t2 - t1), Math.cos(t2 - t1))) < (30 * Math.PI) / 180;
+      });
+      if (k < 0) break;
+      P.splice(k, 1);
+      vs.splice(k, 1);
+    }
+    const sides = vs.map((v, e) => beyond(i, v, vs[(e + 1) % vs.length]));
+    const Q = offsetBy(
+      P,
+      sides.map(sd => sd.off)
+    );
+    if (!sameWay(P, Q) || area2(Q) < 20) continue;
+    const m = Q.length;
+    const k = kind[i] as string;
+    const wealth = city.districts.find(d => d.id === district[i])?.wealth ?? 2;
     const spec = WEALTH[wealth];
     const docks = k === "docks";
-    const baseD = spec.d * (docks ? 1.3 : 1);
-    // every lot laid so far, kept apart: each new lot is cut against all of them
-    const built: PC.Polygon[] = [];
-    const build = (pl: P2[], at: P2, wide: boolean, as?: string) => {
-      const ci = CID[Math.round(at[1]) * W + Math.round(at[0])];
-      const cell = ids.includes(ci) ? ci : i0;
-      const cl = claim(pl, () => true, 1);
-      if (!cl) return;
-      const [tn] = weighted(MIX[k]);
+    const build = (pl: P2[], face: string, front?: [P2, P2]) => {
+      let h = pl;
+      if (spec.set && !front) {
+        // a corner house stands in the middle of its garden
+        const cx = pl.reduce((q, p) => q + p[0], 0) / pl.length;
+        const cy = pl.reduce((q, p) => q + p[1], 0) / pl.length;
+        h = pl.map(p => [cx + (p[0] - cx) * 0.55, cy + (p[1] - cy) * 0.55] as P2);
+      } else if (spec.set && front) {
+        // a house standing back in its garden, square to its road
+        const [a, b] = front;
+        const L = dist(a, b) || 1;
+        const u: P2 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+        const nv: P2 = [-u[1], u[0]];
+        const w = L * 0.62;
+        const d = Math.min(L * 0.8, spec.d * 0.6);
+        const o: P2 = [a[0] + u[0] * (L - w) * 0.5 + nv[0] * spec.set, a[1] + u[1] * (L - w) * 0.5 + nv[1] * spec.set];
+        h = rect(o, u[0], u[1], nv[0], nv[1], w, d);
+      }
+      const cl = pixelsOf(h);
+      if (!cl.length) return;
+      const shop = (face === "main" || face === "square") && wealth >= 2;
+      const type = shop ? pick(COMMERCE) : face === "quay" && docks ? "Warehouse" : weighted(MIX[k])[0];
+      const at: P2 = [h.reduce((q, p) => q + p[0], 0) / h.length, h.reduce((q, p) => q + p[1], 0) / h.length];
       place(
         {
-          cell,
-          poly: pl,
-          type: wide ? (docks ? "Warehouse" : k === "centre" ? "Guild hall" : "Tavern") : (as ?? tn),
-          trade: !!as && COMMERCE.includes(as),
+          cell: i,
+          poly: h,
+          type,
+          trade: shop,
           roof: pick(ROOFS[k]),
-          addr: addrOf(at, dname(cell)),
-          district: district[cell]
+          addr: addrOf(at, dname(i)),
+          district: district[i]
         },
         cl
       );
     };
-    for (const ring0 of outerRings(blockMP)) {
-      const ring = area2(ring0) < 0 ? ring0.slice().reverse() : ring0;
-      const blockPoly: PC.Polygon = [asRing(ring)];
-      const m = ring.length;
-      // frontages: sides with a street, the quay or the wall beyond them, longest first
-      const sides = ring
-        .map((a, e) => {
-          const b = ring[(e + 1) % m];
-          const L = dist(a, b);
-          const u: P2 = [(b[0] - a[0]) / (L || 1), (b[1] - a[1]) / (L || 1)];
-          const mid: P2 = [(a[0] + b[0]) / 2 + u[1] * 1.3, (a[1] + b[1]) / 2 - u[0] * 1.3];
-          return { a, b, L, u, front: L > 2 && frontAt(mid), face: faceOf(mid) };
-        })
-        .filter(sd => sd.front)
-        // the most important street first, so corners face it
-        .sort((x, y) => FACE_RANK[y.face] - FACE_RANK[x.face] || y.L - x.L);
-      for (const sd of sides) {
-        const n0: P2 = [-sd.u[1], sd.u[0]];
-        const sideD = baseD * (0.85 + R() * 0.3);
-        const shopFront = sd.face === "main" || sd.face === "square";
-        let t = 0;
-        while (t < sd.L - 1.5) {
-          const wide = R() < (wealth >= 3 ? 0.07 : 0.03);
-          let w = (spec.w[0] + R() * (spec.w[1] - spec.w[0])) * (wide ? 2.2 : 1);
-          if (sd.L - t - w < spec.w[0] * 0.7) w = sd.L - t;
-          // depths vary lot to lot, so the backs of a terrace step in and out
-          // an even depth along the street, so the front is one wall and the yard sits behind it
-          const d = sideD * (0.88 + R() * 0.24);
-          // a lot that runs into a corner or a neighbour is narrowed to fit, not dropped: the street stays built
-          let piece: P2[] | undefined;
-          let p0: P2 = sd.a;
-          let p1: P2 = sd.a;
-          for (const wf of [1, 0.75, 0.55]) {
-            const ww = wf === 1 ? w : Math.max(spec.w[0] * 0.6, w * wf);
-            p0 = [sd.a[0] + sd.u[0] * t, sd.a[1] + sd.u[1] * t];
-            p1 = [sd.a[0] + sd.u[0] * (t + ww), sd.a[1] + sd.u[1] * (t + ww)];
-            const quad: P2[] = [p0, p1, [p1[0] + n0[0] * d, p1[1] + n0[1] * d], [p0[0] + n0[0] * d, p0[1] + n0[1] * d]];
-            const inBlock = pcInter([asRing(quad)], blockPoly);
-            const lot = built.length ? pcDiff(inBlock, ...built) : inBlock;
-            const pc = outerRings(lot).sort((x, y) => ringArea(y) - ringArea(x))[0];
-            let per = 0;
-            if (pc) for (let q = 0; q < pc.length; q++) per += dist(pc[q], pc[(q + 1) % pc.length]);
-            // no slivers: the mean width (twice the area over the perimeter) must reach a house's
-            if (
-              pc &&
-              ringArea(pc) >= ww * d * 0.5 &&
-              pc.length >= 4 &&
-              pc.length <= 8 &&
-              (2 * ringArea(pc)) / per >= 1.5
-            ) {
-              piece = pc;
-              w = ww;
-              break;
-            }
-          }
-          if (!piece) {
-            t += 0.6;
-            continue;
-          }
-          t += w;
-          built.push([asRing(piece)]);
-          if (R() < spec.open) continue;
-          let house = piece;
-          if (spec.set) {
-            // a house standing back in its garden
-            const cx = piece.reduce((q, p) => q + p[0], 0) / piece.length;
-            const cy = piece.reduce((q, p) => q + p[1], 0) / piece.length;
-            house = piece.map(p => [cx + (p[0] - cx) * 0.8, cy + (p[1] - cy) * 0.8] as P2);
-          } else if (R() < 0.06) {
-            // the odd passage through to the yard
-            const cut = pcDiff(
-              [asRing(piece)],
-              [
-                asRing([
-                  [p1[0] - sd.u[0] * 1.1, p1[1] - sd.u[1] * 1.1],
-                  [p1[0] + sd.u[0] * 0.1, p1[1] + sd.u[1] * 0.1],
-                  [p1[0] + sd.u[0] * 0.1 + n0[0] * 99, p1[1] + sd.u[1] * 0.1 + n0[1] * 99],
-                  [p1[0] - sd.u[0] * 1.1 + n0[0] * 99, p1[1] - sd.u[1] * 1.1 + n0[1] * 99]
-                ])
-              ]
-            );
-            house = outerRings(cut).sort((x, y) => ringArea(y) - ringArea(x))[0] ?? piece;
-          }
-          const at: P2 = [(p0[0] + p1[0]) / 2 + n0[0], (p0[1] + p1[1]) / 2 + n0[1]];
-          const use0 =
-            wealth <= 1
-              ? undefined
-              : shopFront
-                ? pick(COMMERCE)
-                : sd.face === "quay" && docks
-                  ? "Warehouse"
-                  : undefined;
-          if (ringArea(house) >= 6) build(house, at, wide, use0);
+    // the inner line: the plot pulled in by the house depth, shallower if the cell is small
+    // the house depth, never more than the cell can hold with a yard behind
+    const cx = Q.reduce((q, p) => q + p[0], 0) / m;
+    const cy = Q.reduce((q, p) => q + p[1], 0) / m;
+    let inr = Infinity;
+    for (let e = 0; e < m; e++) {
+      const [a, b] = [Q[e], Q[(e + 1) % m]];
+      inr = Math.min(inr, Math.abs((b[0] - a[0]) * (a[1] - cy) - (a[0] - cx) * (b[1] - a[1])) / (dist(a, b) || 1));
+    }
+    let I: P2[] | null = null;
+    for (const f of [0.62, 0.5, 0.4]) {
+      const d = Math.min(spec.d * (docks ? 1.25 : 1), inr * f);
+      if (d < 3.2) break;
+      const J = offsetBy(
+        Q,
+        Q.map(() => d)
+      );
+      if (sameWay(Q, J) && area2(J) > 8) {
+        I = J;
+        break;
+      }
+    }
+    if (!I) {
+      // no yard: strips straight across, square to the plot's longest side
+      let lo = 0;
+      let bi = 0;
+      for (let e = 0; e < m; e++) {
+        const L = dist(Q[e], Q[(e + 1) % m]);
+        if (L > lo) {
+          lo = L;
+          bi = e;
         }
       }
-      // the densest quarters fill their yards too: a grid of small buildings, square to the block's main street
-      if (wealth === 1 || wealth === 4) {
-        const yard = outerRings(built.length ? pcDiff(blockPoly, ...built) : [blockPoly]);
-        const ax = sides[0]?.u ?? [1, 0];
-        const ay: P2 = [-ax[1], ax[0]];
-        const [cw, cd, gap] = wealth === 1 ? [3.4, 3.6, 0.7] : [6, 7, 0.5];
-        for (const y of yard) {
-          if (ringArea(y) < cw * cd) continue;
-          let u0 = Infinity;
-          let u1 = -Infinity;
-          let v0 = Infinity;
-          let v1 = -Infinity;
-          for (const p of y) {
-            const u = p[0] * ax[0] + p[1] * ax[1];
-            const v = p[0] * ay[0] + p[1] * ay[1];
-            u0 = Math.min(u0, u);
-            u1 = Math.max(u1, u);
-            v0 = Math.min(v0, v);
-            v1 = Math.max(v1, v);
-          }
-          const yp: PC.Polygon = [asRing(y)];
-          for (let v = v0 + gap; v < v1 - cd * 0.6; v += cd + gap)
-            for (let u = u0 + gap + (R() - 0.5); u < u1 - cw * 0.6; u += cw + gap) {
-              if (R() < 0.22) continue;
-              const at = (uu: number, vv: number): P2 => [ax[0] * uu + ay[0] * vv, ax[1] * uu + ay[1] * vv];
-              const q = [at(u, v), at(u + cw, v), at(u + cw, v + cd), at(u, v + cd)];
-              const h = outerRings(pcInter([asRing(q)], yp))[0];
-              if (h && ringArea(h) > cw * cd * 0.7)
-                build(h, at(u + cw / 2, v + cd / 2), false, wealth === 1 ? "Shack" : undefined);
-            }
-        }
+      const a = Q[bi];
+      const u: P2 = [(Q[(bi + 1) % m][0] - a[0]) / lo, (Q[(bi + 1) % m][1] - a[1]) / lo];
+      let s0 = Infinity;
+      let s1 = -Infinity;
+      for (const p of Q) {
+        const s = (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1];
+        s0 = Math.min(s0, s);
+        s1 = Math.max(s1, s);
       }
+      const count = Math.max(1, Math.round((s1 - s0) / spec.w));
+      const w = (s1 - s0) / count;
+      for (let c = 0; c < count; c++) {
+        let pc = keepSide(Q, [a[0] + u[0] * (s0 + c * w), a[1] + u[1] * (s0 + c * w)], u);
+        pc = keepSide(pc, [a[0] + u[0] * (s0 + (c + 1) * w), a[1] + u[1] * (s0 + (c + 1) * w)], [-u[0], -u[1]]);
+        if (shapeOk(pc, 6, 35, 150)) build(pc, sides[bi].face);
+      }
+      continue;
+    }
+    const inner = I;
+    // each side: where the inner corners fall on it
+    const sideAt = Q.map((a, e) => {
+      const b = Q[(e + 1) % m];
+      const L = dist(a, b) || 1;
+      const u: P2 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+      const proj = (p: P2) => (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1];
+      return { a, u, s0: proj(inner[e]), s1: proj(inner[(e + 1) % m]) };
+    });
+    const on = (e: number, s: number): P2 => [sideAt[e].a[0] + sideAt[e].u[0] * s, sideAt[e].a[1] + sideAt[e].u[1] * s];
+    const onIn = (e: number, s: number): P2 => [
+      inner[e][0] + sideAt[e].u[0] * (s - sideAt[e].s0),
+      inner[e][1] + sideAt[e].u[1] * (s - sideAt[e].s0)
+    ];
+    // a side too short for one lot joins the corner lot before it
+    const short = sideAt.map(sa => sa.s1 - sa.s0 < spec.w * 0.75);
+    for (let e = 0; e < m; e++) {
+      const p = (e + m - 1) % m;
+      if (short[p] && p !== e) continue; // this corner was taken by the corner before
+      // corner lot at Q[e]: from the last foot on the side before, round the corner, to this side's first foot
+      const ring: P2[] = [on(p, sideAt[p].s1), Q[e]];
+      let end = e;
+      ring.push(on(e, sideAt[e].s0));
+      while (short[end] && ring.length < 6) {
+        ring.push(Q[(end + 1) % m]);
+        end = (end + 1) % m;
+        ring.push(on(end, sideAt[end].s0));
+        if (end === p) break;
+      }
+      ring.push(inner[end]);
+      for (let q = end; q !== e; q = (q + m - 1) % m) ring.push(inner[q]);
+      const face = sides[p].face === "main" || sides[e].face === "main" ? "main" : sides[e].face;
+      if (shapeOk(ring, 6, 35, 150)) build(ring, face);
+    }
+    for (let e = 0; e < m; e++) {
+      if (short[e]) continue;
+      const { s0, s1 } = sideAt[e];
+      const count = Math.max(1, Math.round((s1 - s0) / spec.w));
+      const w = (s1 - s0) / count;
+      // the way into the yard, always the middle lot
+      const gap = count >= 3 && R() < spec.gapP ? Math.floor(count / 2) : -1;
+      for (let c = 0; c < count; c++) {
+        if (c === gap) continue;
+        const t0 = s0 + c * w;
+        const t1 = t0 + w;
+        const lot: P2[] = [on(e, t0), on(e, t1), onIn(e, t1), onIn(e, t0)];
+        build(lot, sides[e].face, [lot[0], lot[1]]);
+      }
+    }
+    // the poorest pack their yards with shacks in rows, square to the cell's first side
+    if (wealth === 1) {
+      const u = sideAt[0].u;
+      const nv: P2 = [-u[1], u[0]];
+      let u0 = Infinity;
+      let u1 = -Infinity;
+      let v0 = Infinity;
+      let v1 = -Infinity;
+      for (const q of inner) {
+        const a = q[0] * u[0] + q[1] * u[1];
+        const b = q[0] * nv[0] + q[1] * nv[1];
+        u0 = Math.min(u0, a);
+        u1 = Math.max(u1, a);
+        v0 = Math.min(v0, b);
+        v1 = Math.max(v1, b);
+      }
+      const at = (a: number, b: number): P2 => [u[0] * a + nv[0] * b, u[1] * a + nv[1] * b];
+      for (let b = v0 + 0.8; b < v1 - 3; b += 4.4)
+        for (let a = u0 + 0.8; a < u1 - 3; a += 4) {
+          if (R() < 0.2) continue;
+          const sq = [at(a, b), at(a + 3.2, b), at(a + 3.2, b + 3.6), at(a, b + 3.6)];
+          if (sq.every(q => inPoly(inner, q[0], q[1]))) build(sq, "lane");
+        }
     }
   }
   // houses strung out along the main roads beyond the town, thinning with distance
@@ -731,13 +695,15 @@ export function furnish(city: City): void {
             sg > 0 ? rect(o, tx, ty, nx, ny, w, d) : rect([o[0] + tx * w, o[1] + ty * w], -tx, -ty, nx, ny, w, d);
           // clear of the town wall
           if (city.walls.some(wl => wl.some(q => pl.some(p => dist(p, q) < 7)))) continue;
-          const cl = claim(
-            pl,
-            j => CID[j] >= 0 && city.home[CID[j]] === 1 && use[CID[j]] !== "water" && use[CID[j]] !== "town",
-            0,
-            0
-          );
-          if (cl) {
+          const cl = pixelsOf(pl);
+          const fine = (j: number) =>
+            !RD[j] &&
+            CID[j] >= 0 &&
+            city.home[CID[j]] === 1 &&
+            use[CID[j]] !== "water" &&
+            use[CID[j]] !== "town" &&
+            use[CID[j]] !== "shanty";
+          if (cl.length > 4 && cl.every(fine)) {
             const ci = CID[cl[0]];
             place(
               { cell: ci, poly: pl, type: "Cottage", roof: pick(ROOFS.farm), addr: r.name ?? "", district: -1 },
@@ -811,7 +777,7 @@ export function furnish(city: City): void {
 }
 
 /** Edges between two farm cells of different crops */
-function hedgeEdges(city: City): [P2, P2][] {
+export function hedgeEdges(city: City): [P2, P2][] {
   const { pack, use } = city;
   const { cells, vertices } = pack;
   const out: [P2, P2][] = [];
@@ -1031,7 +997,7 @@ export function paint(city: City): Painted {
         }
       landPx.set(b.id, px);
     }
-  const water = (j: number) => CID[j] < 0 || use[CID[j]] === "water" || kind[CID[j]] === "pond";
+  const water = (j: number) => CID[j] < 0 || use[CID[j]] === "water";
   const bfs = (seed: (j: number) => boolean) => {
     const D = new Uint16Array(N).fill(999);
     const q: number[] = [];
@@ -1127,36 +1093,19 @@ export function paint(city: City): Painted {
       const j = y * W + x;
       put(Pl, j, planOf(j, x, y));
     }
-  // ink: the shore, street edges, field hedges; watercolour pooling a little darker along each wash's edge
+  // ink along the shore; every other edge is drawn as a line over the plan
   for (let y = 1; y < H - 1; y++)
     for (let x = 1; x < W - 1; x++) {
       const j = y * W + x;
       const k = j * 4;
-      const r = RD[j];
       const wt = water(j);
       let ink = false;
-      let pool = false;
       for (let q = 0; q < 8; q += 2) {
         const o = j + N4[q] + N4[q + 1] * W;
         if (!wt && water(o)) ink = true;
-        if (!r && !RD[o] && CID[o] !== CID[j] && !water(o)) pool = true;
       }
       if (ink) for (let i = 0; i < 3; i++) Pl[k + i] = Pl[k + i] * 0.3 + INK[i] * 0.7;
-      else if (pool) {
-        const o = j + (CID[j + 1] !== CID[j] ? 1 : CID[j - 1] !== CID[j] ? -1 : CID[j + W] !== CID[j] ? W : -W);
-        for (let i = 0; i < 3; i++) Pl[k + i] = Pl[k + i] * 0.6 + Pl[o * 4 + i] * 0.4;
-      }
     }
-  for (const [a, b] of hedgeEdges(city)) {
-    const L = dist(a, b);
-    for (let t = 0; t <= L; t += 0.5) {
-      const X = Math.round(a[0] + ((b[0] - a[0]) * t) / L);
-      const Y = Math.round(a[1] + ((b[1] - a[1]) * t) / L);
-      if (X < 0 || Y < 0 || X >= W || Y >= H || RD[Y * W + X]) continue;
-      const q = (Y * W + X) * 4;
-      for (let i = 0; i < 3; i++) Pl[q + i] = Pl[q + i] * 0.62 + INK[i] * 0.38;
-    }
-  }
   // trees as small inked dots, woods dotted all over
   const dot = (x: number, y: number) => {
     for (const [u, v] of [
