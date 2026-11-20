@@ -877,15 +877,41 @@ export function furnish(city: City): void {
         .slice(0, wantStores - stores.length))
         b.type = R() < 0.75 ? "Warehouse" : "Granary";
   }
-  // house numbers run up each street from the end nearest the square, odd on the left and even on the right,
-  // so the oldest houses by the centre are the first numbers
+  // house numbers: low by the square, where the town began
   {
     const sq = cells.p[city.squareCell] as P2;
     const byStreet = new Map<string, { b: Building; s: number; left: boolean }[]>();
+    // the street a lot fronts: the named way nearest any of its walls, not its middle
+    const segs: { st: string; a: P2; b: P2 }[] = [];
+    for (const r of city.roads)
+      if (r.name && r.type !== "pier")
+        for (let k = 1; k < r.pts.length; k++) segs.push({ st: r.name, a: r.pts[k - 1], b: r.pts[k] });
+    const segDist = (p: P2, s0: P2, s1: P2) => {
+      const dx = s1[0] - s0[0];
+      const dy = s1[1] - s0[1];
+      const t = Math.max(0, Math.min(1, ((p[0] - s0[0]) * dx + (p[1] - s0[1]) * dy) / (dx * dx + dy * dy || 1)));
+      return Math.hypot(p[0] - s0[0] - dx * t, p[1] - s0[1] - dy * t);
+    };
+    const fronts = (b: Building) => {
+      const P = b.poly;
+      let best: string | undefined;
+      let bd = Infinity;
+      for (let k = 0; k < P.length; k++) {
+        const m: P2 = [(P[k][0] + P[(k + 1) % P.length][0]) / 2, (P[k][1] + P[(k + 1) % P.length][1]) / 2];
+        for (const sg of segs) {
+          const d = segDist(m, sg.a, sg.b);
+          if (d < bd) {
+            bd = d;
+            best = sg.st;
+          }
+        }
+      }
+      return best;
+    };
     for (const b of B) {
       const m = /^\d+ (.+)$/.exec(b.addr ?? "");
       if (!m) continue;
-      const st = m[1];
+      const st = (b.poly.length > 2 && fronts(b)) || m[1];
       const c: P2 = [
         b.poly.reduce((q, p) => q + p[0], 0) / (b.poly.length || 1),
         b.poly.reduce((q, p) => q + p[1], 0) / (b.poly.length || 1)
@@ -915,17 +941,12 @@ export function furnish(city: City): void {
       if (!byStreet.has(st)) byStreet.set(st, []);
       byStreet.get(st)?.push({ b, s: best.s, left: best.left });
     }
-    for (const [st, L] of byStreet) {
-      L.sort((p, q) => p.s - q.s);
-      let odd = 1;
-      let even = 2;
-      for (const e of L) {
-        const k = e.left ? odd : even;
-        if (e.left) odd += 2;
-        else even += 2;
-        e.b.addr = `${k} ${st}`;
-      }
-    }
+    // one count for the whole town, as the old conscription numbers ran: the streets nearest the square first,
+    // each street's lots in order along it, so no two houses anywhere share a number
+    let k = 0;
+    const streets = [...byStreet.entries()].map(([st, L]) => ({ st, L: L.sort((p, q) => p.s - q.s) }));
+    streets.sort((p, q) => p.L[0].s - q.L[0].s);
+    for (const { st, L } of streets) for (const e of L) e.b.addr = `${++k} ${st}`;
   }
   // notables
   const nb = (type: string, name: string, f: (b: Building) => boolean) => {
