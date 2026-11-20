@@ -820,6 +820,32 @@ export function buildCity(
         const sc = (i: number) => score.get(i) ?? -9;
         const first = cand.sort((a, b) => sc(b) - sc(a))[0];
         const edgeFort = first !== undefined && !inner(first);
+        // a fort is one compact block: each cell joins on a full side, and the whole stays close to its hull
+        const ring = (i: number) => (cells.v[i] as number[]).map(v => vertices.p[v] as P2);
+        const area = (P: P2[]) =>
+          Math.abs(P.reduce((q, p, k) => q + p[0] * P[(k + 1) % P.length][1] - P[(k + 1) % P.length][0] * p[1], 0)) / 2;
+        const hull = (pts: P2[]) => {
+          const S2 = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+          const cr = (o: P2, a: P2, b: P2) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+          const lo: P2[] = [];
+          const up: P2[] = [];
+          for (const p of S2) {
+            while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop();
+            lo.push(p);
+          }
+          for (const p of S2.reverse()) {
+            while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop();
+            up.push(p);
+          }
+          return lo.slice(0, -1).concat(up.slice(0, -1));
+        };
+        const solid = (L: number[]) => L.reduce((q, i) => q + area(ring(i)), 0) / area(hull(L.flatMap(ring))) >= 0.85;
+        const meanSide = (i: number) => {
+          const P = ring(i);
+          return P.reduce((q, p, k) => q + dist(p, P[(k + 1) % P.length]), 0) / P.length;
+        };
+        const neck = (L: number[], j: number) =>
+          L.some(i => cells.c[j].includes(i) && sideLen(i, j) >= 0.6 * Math.min(meanSide(i), meanSide(j)));
         if (first !== undefined) {
           const fc = [first];
           const more = S.size === "city" ? 2 : S.size === "town" ? 1 : 0;
@@ -827,7 +853,7 @@ export function buildCity(
             // a fort's cells join side to side, never at a corner
             const nx = fc
               .flatMap(i => cells.c[i].filter(j => sideLen(i, j) >= 8))
-              .filter(j => ok(j) && !fc.includes(j) && (edgeFort || inner(j)))
+              .filter(j => ok(j) && !fc.includes(j) && (edgeFort || inner(j)) && solid([...fc, j]) && neck(fc, j))
               .sort((a, b) => sc(b) - sc(a))[0];
             if (nx !== undefined) fc.push(nx);
           }

@@ -798,14 +798,10 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
         }
         ga.stroke();
       }
-      // one wall: set in from the street on the town side, none where the town wall already stands
-      const K = CUR + CW / 2 + INK + 2.6;
-      sides(K + INK, "#3b2a1e");
-      sides(K, pat(ga, "yard"));
+      // one wall, flush to the street on the town side, none where the town wall already stands
+      // the wall runs from the street's edge inward; what lies under the street is cut away later
       sides(CUR + CW / 2 + INK, "#3b2a1e");
       sides(CUR + CW / 2, pat(ga, "wall"));
-      sides(CUR - CW / 2, "#3b2a1e");
-      sides(CUR - CW / 2 - INK, pat(ga, "yard"));
       // towers at the curtain's corners
       const cx = P.reduce((q, p) => q + p[0], 0) / P.length;
       const cy = P.reduce((q, p) => q + p[1], 0) / P.length;
