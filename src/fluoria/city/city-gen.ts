@@ -805,15 +805,21 @@ export function buildCity(
           landmarks.push({ id: 4, cells: [tc], name: NM?.temple() ?? "The Temple", type: "Temple", roof: "slate" });
       }
       if (S.fort) {
-        // the fort holds the town's edge on the high side, away from the water
+        // a citadel most often stands well inside the walls, toward the high ground; now and then it holds the edge
         const along = (i: number) => (pts[i][0] - T[0]) * Math.cos(hillDir) + (pts[i][1] - T[1]) * Math.sin(hillDir);
         const taken = new Set(landmarks.flatMap(l => l.cells));
         const ok = (i: number) =>
           use[i] === "town" && kind[i] !== "square" && kind[i] !== "park" && kind[i] !== "pond" && !taken.has(i);
-        // a citadel stands within the walls, a street between it and them
         const inner = (i: number) => cells.c[i].every(j => j < n && (use[j] === "town" || use[j] === "shanty"));
-        const pool = town.filter(i => ok(i) && inner(i));
-        const first = (pool.length ? pool : town.filter(ok)).sort((a, b) => along(b) - along(a))[0];
+        const cand = town.filter(ok);
+        const far = Math.max(1, ...cand.map(i => dist(pts[i], T)));
+        const reach = Math.max(1, ...cand.map(i => Math.abs(along(i))));
+        const score = new Map(
+          cand.map(i => [i, 1 - dist(pts[i], T) / far + 0.5 * (along(i) / reach) + (inner(i) ? 0.4 : 0) + R() * 0.9])
+        );
+        const sc = (i: number) => score.get(i) ?? -9;
+        const first = cand.sort((a, b) => sc(b) - sc(a))[0];
+        const edgeFort = first !== undefined && !inner(first);
         if (first !== undefined) {
           const fc = [first];
           const more = S.size === "city" ? 2 : S.size === "town" ? 1 : 0;
@@ -821,8 +827,8 @@ export function buildCity(
             // a fort's cells join side to side, never at a corner
             const nx = fc
               .flatMap(i => cells.c[i].filter(j => sideLen(i, j) >= 8))
-              .filter(j => ok(j) && !fc.includes(j) && (!pool.length || inner(j)))
-              .sort((a, b) => along(b) - along(a))[0];
+              .filter(j => ok(j) && !fc.includes(j) && (edgeFort || inner(j)))
+              .sort((a, b) => sc(b) - sc(a))[0];
             if (nx !== undefined) fc.push(nx);
           }
           landmarks.push({
@@ -873,6 +879,7 @@ export function buildCity(
     .filter(l => l.cells.length);
   const isLandmark = new Uint8Array(n);
   for (const l of landmarks) for (const i of l.cells) isLandmark[i] = 1;
+  const lmOf = (i: number) => landmarks.findIndex(l => l.cells.includes(i));
 
   // a run of the same crop is one field: it shares its furrows
   const done = new Uint8Array(n);
@@ -969,6 +976,14 @@ export function buildCity(
       }
       for (const nv of vertices.v[cur.v] ?? []) {
         if (nv === cur.pv || !vertices.c[nv] || !landEdge(cur.v, nv, bridge)) continue;
+        // never through a landmark: an edge with the same landmark on both sides is closed
+        const sides = vertices.c[cur.v].filter((c: number) => vertices.c[nv].includes(c));
+        if (
+          sides.length === 2 &&
+          sides.every((c: number) => c < n && isLandmark[c]) &&
+          lmOf(sides[0]) === lmOf(sides[1])
+        )
+          continue;
         let turn = 0;
         if (cur.pv >= 0) {
           const d = ang(cur.v, nv) - ang(cur.pv, cur.v);

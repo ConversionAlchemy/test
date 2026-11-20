@@ -280,20 +280,55 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
     // the country: each meadow, field and wood by name, the water by its own
     for (const f of city.fields) {
       if (f.kind === "water" && f.cells.length < 4) continue;
-      add(`c${f.key.slice(2)}`, f.name, mean(f.cells), f.kind === "water" ? "sea" : "field");
+      // on the field itself: the cell of the run nearest its middle, not a middle that may fall in the town
+      const m = mean(f.cells);
+      const c = f.cells.reduce((a, i) =>
+        Math.hypot(cells.p[i][0] - m[0], cells.p[i][1] - m[1]) < Math.hypot(cells.p[a][0] - m[0], cells.p[a][1] - m[1])
+          ? i
+          : a
+      );
+      add(`c${f.key.slice(2)}`, f.name, [cells.p[c][0], cells.p[c][1]], f.kind === "water" ? "sea" : "field");
     }
+    // a street's name only where it runs between houses: where it meets a square it becomes the square
+    const nearCell = (x: number, y: number) => {
+      let best = 0;
+      let bd = Infinity;
+      for (let i = 0; i < cells.p.length; i++) {
+        const d = (cells.p[i][0] - x) ** 2 + (cells.p[i][1] - y) ** 2;
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      }
+      return best;
+    };
+    const open = (i: number) => city.kind[i] === "square" || city.kind[i] === "park" || city.kind[i] === "pond";
     city.roads.forEach((r, k) => {
       if (!r.name || r.pts.length < 2) return;
       const tier = r.type === "main" ? "main" : "street";
-      const every = r.type === "main" ? 90 : 9999;
-      let acc = every * 0.55;
+      const runs: P2[][] = [];
+      let cur: P2[] = [];
       for (let i = 1; i < r.pts.length; i++) {
-        acc += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-        const midStreet = r.type !== "main" && i === Math.floor(r.pts.length / 2);
-        if (acc < every && !midStreet) continue;
-        acc = 0;
-        add(`r${k}_${i}`, r.name, r.pts[i], tier, r.pts);
+        const [a, b] = [r.pts[i - 1], r.pts[i]];
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        const nx = (-(b[1] - a[1]) / L) * 3;
+        const ny = ((b[0] - a[0]) / L) * 3;
+        const mx = (a[0] + b[0]) / 2;
+        const my = (a[1] + b[1]) / 2;
+        if (open(nearCell(mx + nx, my + ny)) || open(nearCell(mx - nx, my - ny))) {
+          if (cur.length > 1) runs.push(cur);
+          cur = [];
+          continue;
+        }
+        if (!cur.length) cur.push(a);
+        cur.push(b);
       }
+      if (cur.length > 1) runs.push(cur);
+      const len = (P: P2[]) => P.slice(1).reduce((q, p, i) => q + Math.hypot(p[0] - P[i][0], p[1] - P[i][1]), 0);
+      const fit = runs.filter(P => len(P) > 16).sort((p, q) => len(q) - len(p));
+      // a main road is named on each long stretch, a street on its longest
+      for (const [n, P] of (r.type === "main" ? fit.slice(0, 3) : fit.slice(0, 1)).entries())
+        add(`r${k}_${n}`, r.name, P[Math.floor(P.length / 2)], tier, P);
     });
     for (const l of labels) {
       const t = document.createElementNS(NS, "text");

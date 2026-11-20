@@ -194,6 +194,7 @@ const ROOFS: Record<string, Tex> = {
   shop: hatchRoof("#ead9b8", "#c9b28a", "#f3e7cf"),
   work: hatchRoof("#d6d4cf", "#aeaaa2", "#e3e1dc"),
   wall: hatchRoof("#a99c88", "#7d7266", "#b5a994"),
+  yard: softHatch("#e7ddc3", 71, 7, 11),
   ware: hatchRoof("#c9c3b8", "#9f978a", "#d9d4cb"),
   lm: hatchRoof("#6b4128", "#3a2214", "#52311f"),
   lmg: hatchRoof("#5c6066", "#34373b", "#484b50")
@@ -653,9 +654,56 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
     x.lineJoin = "miter";
     x.lineCap = "square";
     x.strokeStyle = "#000";
+    // a road between two of a fort's own cells runs under its gates: the fort is not cut there
+    const fortCell = new Map<number, number>();
+    city.buildings.forEach((b, k) => {
+      if (b.landmark && /fort|castle|citadel|keep/i.test(`${b.type} ${b.name ?? ""}`))
+        for (const c of b.cells ?? [b.cell]) fortCell.set(c, k);
+    });
+    const near = (px0: number, py0: number) => {
+      let best = -1;
+      let bd = Infinity;
+      for (const c of fortCell.keys()) {
+        const d = (cells.p[c][0] - px0) ** 2 + (cells.p[c][1] - py0) ** 2;
+        if (d < bd) {
+          bd = d;
+          best = c;
+        }
+      }
+      return best;
+    };
+    const through = (a: P2, b: P2) => {
+      if (!fortCell.size) return false;
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const nx = (-(b[1] - a[1]) / L) * 2.5;
+      const ny = ((b[0] - a[0]) / L) * 2.5;
+      const mx = (a[0] + b[0]) / 2;
+      const my = (a[1] + b[1]) / 2;
+      const own = (qx: number, qy: number) => {
+        let best = 0;
+        let bd = Infinity;
+        for (let i = 0; i < n; i++) {
+          const d = (cells.p[i][0] - qx) ** 2 + (cells.p[i][1] - qy) ** 2;
+          if (d < bd) {
+            bd = d;
+            best = i;
+          }
+        }
+        return best;
+      };
+      if (near(mx, my) < 0) return false;
+      const c1 = fortCell.get(own(mx + nx, my + ny));
+      const c2 = fortCell.get(own(mx - nx, my - ny));
+      return c1 !== undefined && c1 === c2;
+    };
     for (const r of roads) {
-      pathOf(x, r.pts, false);
       x.lineWidth = RW[r.type] * 2 + 2.1 * px;
+      x.beginPath();
+      for (let k = 1; k < r.pts.length; k++) {
+        if (through(r.pts[k - 1], r.pts[k])) continue;
+        x.moveTo(r.pts[k - 1][0], r.pts[k - 1][1]);
+        x.lineTo(r.pts[k][0], r.pts[k][1]);
+      }
       x.stroke();
     }
     for (let i = 0; i < n; i++)
@@ -672,19 +720,131 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
     ga.fill();
     shadeIn(ga, P, 1.2 * px);
   }
+  // a fort: the keep in the middle of a bailey, ringed by its own curtain wall set in from the streets round it
+  const FORT = /fort|castle|citadel|keep/i;
+  const CUR = 3.4; // the curtain's middle, in from the cell's edge (the street's middle)
+  const CW = 1.9;
+  const INK = 1.3 * px;
   for (const { b, P } of shapes)
-    if (b.landmark && /fort|castle|citadel|keep/i.test(`${b.type} ${b.name ?? ""}`)) {
+    if (b.landmark && FORT.test(`${b.type} ${b.name ?? ""}`)) {
       ga.save();
       pathOf(ga, P);
       ga.clip();
       ga.lineJoin = "miter";
-      ga.strokeStyle = "#3b2a1e";
-      // the street round it takes the outer part; what shows is a stone curtain inside it
-      ga.lineWidth = 2 * 5;
-      ga.stroke();
-      ga.strokeStyle = pat(ga, "wall");
-      ga.lineWidth = 2 * 5 - 2 * 1.3 * px;
-      ga.stroke();
+      ga.miterLimit = 4;
+      // which sides face the town and which back onto the town wall: there the town wall is the fort's own
+      const open = P.map((p, i) => {
+        const q = P[(i + 1) % P.length];
+        const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+        const mx = (p[0] + q[0]) / 2;
+        const my = (p[1] + q[1]) / 2;
+        const ox = ((q[1] - p[1]) / L) * 4;
+        const oy = (-(q[0] - p[0]) / L) * 4;
+        const cx0 = P.reduce((a, r) => a + r[0], 0) / P.length;
+        const cy0 = P.reduce((a, r) => a + r[1], 0) / P.length;
+        const sg = (mx + ox - cx0) ** 2 + (my + oy - cy0) ** 2 > (mx - ox - cx0) ** 2 + (my - oy - cy0) ** 2 ? 1 : -1;
+        let best = 0;
+        let bd = Infinity;
+        for (let c = 0; c < n; c++) {
+          const d = (cells.p[c][0] - mx - ox * sg) ** 2 + (cells.p[c][1] - my - oy * sg) ** 2;
+          if (d < bd) {
+            bd = d;
+            best = c;
+          }
+        }
+        return town(best);
+      });
+      const sides = (w: number, st: string | CanvasPattern) => {
+        ga.strokeStyle = st;
+        ga.lineWidth = 2 * w;
+        ga.lineCap = "square";
+        ga.lineJoin = "miter";
+        ga.beginPath();
+        if (open.every(Boolean)) pathOf(ga, P);
+        else {
+          // each unbroken run of town-facing sides as one line, so its corners join
+          const z = open.indexOf(false);
+          let on = false;
+          for (let k = 1; k <= P.length; k++) {
+            const i = (z + k) % P.length;
+            const p = P[i];
+            if (!open[i]) {
+              if (on) ga.lineTo(p[0], p[1]);
+              on = false;
+              continue;
+            }
+            if (!on) ga.moveTo(p[0], p[1]);
+            else ga.lineTo(p[0], p[1]);
+            on = true;
+          }
+          if (on) ga.lineTo(P[z][0], P[z][1]);
+        }
+        ga.stroke();
+      };
+      // where it backs onto the town wall, that wall is the fort's: its inner half laid back over the floor
+      ga.lineCap = "square";
+      for (const [w, st] of [
+        [1.9 + 2.1 * px, "#3b2a1e"],
+        [1.9, pat(ga, "wall")]
+      ] as [number, string | CanvasPattern][]) {
+        ga.strokeStyle = st;
+        ga.lineWidth = w;
+        ga.beginPath();
+        for (let i = 0; i < P.length; i++) {
+          if (open[i]) continue;
+          const q = P[(i + 1) % P.length];
+          ga.moveTo(P[i][0], P[i][1]);
+          ga.lineTo(q[0], q[1]);
+        }
+        ga.stroke();
+      }
+      // one wall: set in from the street on the town side, none where the town wall already stands
+      const K = CUR + CW / 2 + INK + 2.6;
+      sides(K + INK, "#3b2a1e");
+      sides(K, pat(ga, "yard"));
+      sides(CUR + CW / 2 + INK, "#3b2a1e");
+      sides(CUR + CW / 2, pat(ga, "wall"));
+      sides(CUR - CW / 2, "#3b2a1e");
+      sides(CUR - CW / 2 - INK, pat(ga, "yard"));
+      // towers at the curtain's corners
+      const cx = P.reduce((q, p) => q + p[0], 0) / P.length;
+      const cy = P.reduce((q, p) => q + p[1], 0) / P.length;
+      for (let i = 0; i < P.length; i++) {
+        const a = P[(i + P.length - 1) % P.length];
+        const p = P[i];
+        const c = P[(i + 1) % P.length];
+        const u1 = Math.hypot(p[0] - a[0], p[1] - a[1]) || 1;
+        const u2 = Math.hypot(c[0] - p[0], c[1] - p[1]) || 1;
+        const turn = Math.abs(
+          Math.atan2(
+            ((p[0] - a[0]) * (c[1] - p[1]) - (p[1] - a[1]) * (c[0] - p[0])) / (u1 * u2),
+            ((p[0] - a[0]) * (c[0] - p[0]) + (p[1] - a[1]) * (c[1] - p[1])) / (u1 * u2)
+          )
+        );
+        if (turn < 0.5 || (!open[i] && !open[(i + P.length - 1) % P.length])) continue;
+        const bx = (a[0] - p[0]) / u1 + (c[0] - p[0]) / u2;
+        const by = (a[1] - p[1]) / u1 + (c[1] - p[1]) / u2;
+        const bl = Math.hypot(bx, by) || 1;
+        // along the bisector, far enough in to sit on the curtain
+        const k =
+          CUR /
+          Math.max(
+            0.35,
+            Math.sin(
+              Math.acos(Math.max(-1, Math.min(1, (bx * (c[0] - p[0])) / u2 / bl + (by * (c[1] - p[1])) / u2 / bl)))
+            )
+          );
+        let tx = p[0] + (bx / bl) * k;
+        let ty = p[1] + (by / bl) * k;
+        if (Math.hypot(tx - cx, ty - cy) > Math.hypot(p[0] - cx, p[1] - cy)) {
+          tx = p[0] - (bx / bl) * k;
+          ty = p[1] - (by / bl) * k;
+        }
+        ga.fillStyle = "#3b2a1e";
+        ga.fillRect(tx - 1.9, ty - 1.9, 3.8, 3.8);
+        ga.fillStyle = "#7d7266";
+        ga.fillRect(tx - 1.9 + INK, ty - 1.9 + INK, 3.8 - 2 * INK, 3.8 - 2 * INK);
+      }
       ga.restore();
     }
   cut(ga);
@@ -702,15 +862,18 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
   // landmarks: an ink edge just inside their footprint
   {
     const [Lk, gl] = layer();
-    gl.fillStyle = "#000";
+    let li = 0;
     for (const { b, P } of shapes)
       if (b.landmark) {
+        li++;
         pathOf(gl, P);
+        gl.fillStyle = `rgb(${((li * 37) % 251) + 4},${((li * 91) % 251) + 4},${((li * 53) % 251) + 4})`;
         gl.fill();
       }
     cut(gl);
     hard(Lk);
     const la = gl.getImageData(0, 0, W, H).data;
+    const same = (j: number, q: number) => la[j] === la[q] && la[j + 1] === la[q + 1] && la[j + 2] === la[q + 2];
     const bi = gb.getImageData(0, 0, W, H);
     const bd = bi.data;
     const R = Math.max(1, Math.round(s * 0.45));
@@ -724,7 +887,8 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
             if (dx * dx + dy * dy > R * R) continue;
             const X = x + dx;
             const Y = y + dy;
-            if (X < 0 || Y < 0 || X >= W || Y >= H || !la[(Y * W + X) * 4 + 3]) {
+            const q = (Y * W + X) * 4;
+            if (X < 0 || Y < 0 || X >= W || Y >= H || !la[q + 3] || !same(j, q)) {
               edge = true;
               break;
             }
