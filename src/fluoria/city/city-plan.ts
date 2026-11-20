@@ -191,8 +191,8 @@ const ROOFS: Record<string, Tex> = {
   roof: hatchRoof("#e2aab8", "#bf7f91", "#efc7d1"),
   r3: hatchRoof("#d996aa", "#b0677f", "#e8b5c4"),
   r4: hatchRoof("#cc7f98", "#9c4e69", "#de9fb3"),
-  shop: hatchRoof("#ddd4c2", "#b3a88f", "#e9e2d4"),
-  ware: hatchRoof("#cdbfb0", "#a49482", "#ddd2c6"),
+  shop: hatchRoof("#ead9b8", "#c9b28a", "#f3e7cf"),
+  ware: hatchRoof("#c9c3b8", "#9f978a", "#d9d4cb"),
   lm: hatchRoof("#6b4128", "#3a2214", "#52311f"),
   lmg: hatchRoof("#5c6066", "#34373b", "#484b50")
 };
@@ -206,7 +206,7 @@ const TIER: Record<string, string> = {
   Mansion: "r4",
   "Counting house": "shop",
   Office: "shop",
-  Workshop: "shop",
+  Workshop: "ware",
   Inn: "shop",
   Tavern: "shop",
   Chandlery: "shop",

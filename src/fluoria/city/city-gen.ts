@@ -1257,6 +1257,7 @@ export function buildCity(
     for (const [k, e] of lane) streetEdges.push({ ...e, type: streetKeys.has(k) ? "street" : "lane" });
   }
   // chains of street edges become named streets
+  const LANE_END = ["Lane", "Alley", "Row", "Court", "Passage", "Yard", "Walk", "Close"];
   {
     const adj = new Map<number, number[]>();
     streetEdges.forEach((e, k) => {
@@ -1326,7 +1327,14 @@ export function buildCity(
         pts: linePts,
         name: named(
           skey,
-          type === "street" && len > 45 ? (NM ? uniqueStreet() : STREETS[sn++ % STREETS.length]) : undefined
+          // every street and lane has a name, so every house has an address on its own way
+          type === "street" && len > 45
+            ? NM
+              ? uniqueStreet()
+              : STREETS[sn++ % STREETS.length]
+            : len > 10
+              ? `${(NM ? uniqueStreet() : STREETS[sn++ % STREETS.length]).replace(/ \S+$/, "")} ${LANE_END[sn++ % LANE_END.length]}`
+              : undefined
         )
       });
     }

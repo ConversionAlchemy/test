@@ -860,6 +860,56 @@ export function furnish(city: City): void {
         .slice(0, wantStores - stores.length))
         b.type = R() < 0.75 ? "Warehouse" : "Granary";
   }
+  // house numbers run up each street from the end nearest the square, odd on the left and even on the right,
+  // so the oldest houses by the centre are the first numbers
+  {
+    const sq = cells.p[city.squareCell] as P2;
+    const byStreet = new Map<string, { b: Building; s: number; left: boolean }[]>();
+    for (const b of B) {
+      const m = /^\d+ (.+)$/.exec(b.addr ?? "");
+      if (!m) continue;
+      const st = m[1];
+      const c: P2 = [
+        b.poly.reduce((q, p) => q + p[0], 0) / (b.poly.length || 1),
+        b.poly.reduce((q, p) => q + p[1], 0) / (b.poly.length || 1)
+      ];
+      if (!b.poly.length) {
+        const cp = cells.p[b.cell] as P2;
+        c[0] = cp[0];
+        c[1] = cp[1];
+      }
+      let best = { d: Infinity, s: 0, left: true };
+      for (const r of city.roads) {
+        if (r.name !== st) continue;
+        // walk the road from its end nearer the square
+        const pts = dist(r.pts[0], sq) <= dist(r.pts[r.pts.length - 1], sq) ? r.pts : [...r.pts].reverse();
+        let run = Math.min(dist(pts[0], sq), dist(pts[pts.length - 1], sq));
+        for (let k = 1; k < pts.length; k++) {
+          const [a0, a1] = [pts[k - 1], pts[k]];
+          const dx = a1[0] - a0[0];
+          const dy = a1[1] - a0[1];
+          const L = Math.hypot(dx, dy) || 1;
+          const t = Math.max(0, Math.min(1, ((c[0] - a0[0]) * dx + (c[1] - a0[1]) * dy) / (L * L)));
+          const d = Math.hypot(c[0] - a0[0] - dx * t, c[1] - a0[1] - dy * t);
+          if (d < best.d) best = { d, s: run + t * L, left: dx * (c[1] - a0[1]) - dy * (c[0] - a0[0]) < 0 };
+          run += L;
+        }
+      }
+      if (!byStreet.has(st)) byStreet.set(st, []);
+      byStreet.get(st)?.push({ b, s: best.s, left: best.left });
+    }
+    for (const [st, L] of byStreet) {
+      L.sort((p, q) => p.s - q.s);
+      let odd = 1;
+      let even = 2;
+      for (const e of L) {
+        const k = e.left ? odd : even;
+        if (e.left) odd += 2;
+        else even += 2;
+        e.b.addr = `${k} ${st}`;
+      }
+    }
+  }
   // notables
   const nb = (type: string, name: string, f: (b: Building) => boolean) => {
     const L = B.filter(b => !b.name && !b.landmark && f(b));
