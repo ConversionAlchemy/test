@@ -810,7 +810,10 @@ export function buildCity(
         const taken = new Set(landmarks.flatMap(l => l.cells));
         const ok = (i: number) =>
           use[i] === "town" && kind[i] !== "square" && kind[i] !== "park" && kind[i] !== "pond" && !taken.has(i);
-        const first = town.filter(ok).sort((a, b) => along(b) - along(a))[0];
+        // a citadel stands within the walls, a street between it and them
+        const inner = (i: number) => cells.c[i].every(j => j < n && (use[j] === "town" || use[j] === "shanty"));
+        const pool = town.filter(i => ok(i) && inner(i));
+        const first = (pool.length ? pool : town.filter(ok)).sort((a, b) => along(b) - along(a))[0];
         if (first !== undefined) {
           const fc = [first];
           const more = S.size === "city" ? 2 : S.size === "town" ? 1 : 0;
@@ -818,7 +821,7 @@ export function buildCity(
             // a fort's cells join side to side, never at a corner
             const nx = fc
               .flatMap(i => cells.c[i].filter(j => sideLen(i, j) >= 8))
-              .filter(j => ok(j) && !fc.includes(j))
+              .filter(j => ok(j) && !fc.includes(j) && (!pool.length || inner(j)))
               .sort((a, b) => along(b) - along(a))[0];
             if (nx !== undefined) fc.push(nx);
           }

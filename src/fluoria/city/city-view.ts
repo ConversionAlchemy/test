@@ -8,6 +8,23 @@ import { DIST_COL, furnish, mapTile, type Painted, paint, terrainTile } from "./
 import { buildCity, type City, type Edits, type Kind, type P2, type Region, type Road, type Spec } from "./city-gen";
 import { renderPlan } from "./city-plan";
 
+// a sign under the house number, for what the lot is when it is not a home
+const SIGN: Record<string, string> = {
+  Chapel: "✝",
+  Shop: "⚖",
+  Inn: "☾",
+  Tavern: "⚱",
+  "Counting house": "¤",
+  Office: "¤",
+  "Guild hall": "⚜",
+  Chandlery: "⚓",
+  Warehouse: "▣",
+  Granary: "⁂",
+  Workshop: "⚒",
+  Factory: "⚙",
+  Guardhouse: "⚔",
+  Mansion: "♔"
+};
 const KIND_NAME: Record<string, string> = {
   centre: "City centre",
   wealthy: "Wealthy quarter",
@@ -253,7 +270,10 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
       .map(b => {
         const x = b.poly.reduce((a, p) => a + p[0], 0) / b.poly.length;
         const y = b.poly.reduce((a, p) => a + p[1], 0) / b.poly.length;
-        return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}">${b.addr.split(" ")[0]}</text>`;
+        const g = SIGN[b.type];
+        return g
+          ? `<text x="${x.toFixed(1)}" y="${(y - 1).toFixed(1)}">${b.addr.split(" ")[0]}<tspan class="sg" x="${x.toFixed(1)}" dy="2.4">${g}\uFE0E</tspan></text>`
+          : `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}">${b.addr.split(" ")[0]}</text>`;
       })
       .join("");
     for (const g of city.gates) add(`g${g.road}`, g.name, [g.p[0], g.p[1] - 7], "gate");

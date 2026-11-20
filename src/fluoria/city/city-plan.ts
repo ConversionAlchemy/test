@@ -192,6 +192,8 @@ const ROOFS: Record<string, Tex> = {
   r3: hatchRoof("#d996aa", "#b0677f", "#e8b5c4"),
   r4: hatchRoof("#cc7f98", "#9c4e69", "#de9fb3"),
   shop: hatchRoof("#ead9b8", "#c9b28a", "#f3e7cf"),
+  work: hatchRoof("#d6d4cf", "#aeaaa2", "#e3e1dc"),
+  wall: hatchRoof("#a99c88", "#7d7266", "#b5a994"),
   ware: hatchRoof("#c9c3b8", "#9f978a", "#d9d4cb"),
   lm: hatchRoof("#6b4128", "#3a2214", "#52311f"),
   lmg: hatchRoof("#5c6066", "#34373b", "#484b50")
@@ -206,7 +208,8 @@ const TIER: Record<string, string> = {
   Mansion: "r4",
   "Counting house": "shop",
   Office: "shop",
-  Workshop: "ware",
+  Workshop: "work",
+  Factory: "work",
   Inn: "shop",
   Tavern: "shop",
   Chandlery: "shop",
@@ -423,6 +426,15 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
       g.lineWidth = pass ? 1.9 : 1.9 + 2.1 * px;
       g.stroke();
     }
+  const piers = city.roads.filter(r => r.type === "pier");
+  for (const pass of [0, 1])
+    for (const r of piers) {
+      pathOf(g, r.pts, false);
+      g.strokeStyle = KC(pass ? "pier" : "ink");
+      g.lineWidth = pass ? 2.4 : 2.4 + 2.1 * px;
+      g.stroke();
+    }
+  // the roads and bridges run over the piers
   const roads = city.roads.filter(r => RW[r.type]);
   for (const pass of [0, 1])
     for (const r of roads) {
@@ -436,14 +448,6 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
     if (city.kind[i] === "square") {
       pathOf(g, poly(i));
       g.fill();
-    }
-  const piers = city.roads.filter(r => r.type === "pier");
-  for (const pass of [0, 1])
-    for (const r of piers) {
-      pathOf(g, r.pts, false);
-      g.strokeStyle = KC(pass ? "pier" : "ink");
-      g.lineWidth = pass ? 2.4 : 2.4 + 2.1 * px;
-      g.stroke();
     }
   // trees: whole crowns only, each with its hatched shadow
   const crown = (x: number, y: number, r: number) => {
@@ -668,6 +672,21 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
     ga.fill();
     shadeIn(ga, P, 1.2 * px);
   }
+  for (const { b, P } of shapes)
+    if (b.landmark && /fort|castle|citadel|keep/i.test(`${b.type} ${b.name ?? ""}`)) {
+      ga.save();
+      pathOf(ga, P);
+      ga.clip();
+      ga.lineJoin = "miter";
+      ga.strokeStyle = "#3b2a1e";
+      // the street round it takes the outer part; what shows is a stone curtain inside it
+      ga.lineWidth = 2 * 5;
+      ga.stroke();
+      ga.strokeStyle = pat(ga, "wall");
+      ga.lineWidth = 2 * 5 - 2 * 1.3 * px;
+      ga.stroke();
+      ga.restore();
+    }
   cut(ga);
   hard(A);
   const [Bk, gb] = layer();

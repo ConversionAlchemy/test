@@ -42,21 +42,20 @@ const MIX: Record<string, [string, string, number][]> = {
   ],
   old: [
     ["House", "house", 8],
-    ["Workshop", "shop", 2],
     ["Shop", "shop", 2],
     ["House", "house", 4]
   ],
   docks: [
-    ["Warehouse", "store", 4],
-    ["Shed", "shop", 3],
-    ["Chandlery", "shop", 1],
-    ["House", "house", 2]
+    ["Warehouse", "store", 5],
+    ["Workshop", "shop", 3],
+    ["Shed", "shop", 1],
+    ["Chandlery", "shop", 1]
   ],
   stores: [
-    ["Warehouse", "store", 6],
+    ["Warehouse", "store", 5],
+    ["Workshop", "shop", 3],
     ["Granary", "store", 2],
-    ["Shed", "shop", 2],
-    ["House", "house", 1]
+    ["Shed", "shop", 1]
   ],
   shanty: [
     ["Hut", "hut", 3],
@@ -236,6 +235,16 @@ export function furnish(city: City): void {
   };
   const place = (b: Omit<Building, "id">, cl: number[]) => {
     if (!city.home[b.cell]) return;
+    // the plan draws each outline whole, so one that would lie over a building already standing is not built
+    if (b.poly.length > 2) {
+      let hit = 0;
+      const xs = b.poly.map(q => q[0]);
+      const ys = b.poly.map(q => q[1]);
+      for (let y = Math.max(0, Math.floor(Math.min(...ys))); y <= Math.min(H - 1, Math.max(...ys)); y++)
+        for (let x = Math.max(0, Math.floor(Math.min(...xs))); x <= Math.min(W - 1, Math.max(...xs)); x++)
+          if (OCC[y * W + x] && inPoly(b.poly, x + 0.5, y + 0.5)) hit++;
+      if (hit > 1) return;
+    }
     const id = B.length + 1;
     const c = b.poly.length
       ? b.poly.reduce((q, p) => [q[0] + p[0] / b.poly.length, q[1] + p[1] / b.poly.length], [0, 0])
@@ -476,7 +485,7 @@ export function furnish(city: City): void {
     4: { w: 7, d: 14, gapP: 0.1, set: 0 },
     5: { w: 10, d: 12, gapP: 0, set: 1 }
   };
-  const COMMERCE = ["Shop", "Shop", "Inn", "Tavern", "Workshop", "Shop"];
+  const COMMERCE = ["Shop", "Shop", "Inn", "Tavern", "Shop"];
   // what lies beyond a side: its road, or what the cell meets there
   const beyond = (i: number, va: number, vb: number) => {
     const t = edgeType.get(ek(va, vb));
@@ -543,7 +552,8 @@ export function furnish(city: City): void {
         h = rect(o, u[0], u[1], nv[0], nv[1], w, d);
       }
       const cl = pixelsOf(h);
-      if (!cl.length) return;
+      // the plan draws the outline itself, so a house that would overlap one already standing is not built
+      if (!cl.length || cl.length < (Math.abs(area2(h)) / 2) * 0.8) return;
       const shop = (face === "main" || face === "square") && wealth >= 2;
       const type =
         as && as !== "lot"
@@ -720,10 +730,17 @@ export function furnish(city: City): void {
       if (gap >= 0) open = true;
       for (let c = 0; c < count; c++) {
         if (c === gap) continue;
+        // in the stores quarter, two to four lots in a row are now and then one factory
+        let span = 1;
+        if (docks && R() < 0.3) {
+          span = 2 + Math.floor(R() * 3);
+          while (span > 1 && (c + span > count || (gap >= c && gap < c + span))) span--;
+        }
         const t0 = s0 + c * w;
-        const t1 = t0 + w;
+        const t1 = t0 + w * span;
         const lot: P2[] = [on(e, t0), on(e, t1), onIn(e, t1), onIn(e, t0)];
-        build(lot, sides[e].face, [lot[0], lot[1]]);
+        build(lot, sides[e].face, [lot[0], lot[1]], span > 1 ? "Factory" : undefined);
+        c += span - 1;
       }
     }
     if (!open) city.yards.push(inner);
@@ -821,8 +838,8 @@ export function furnish(city: City): void {
   // the town's trade in proportion to its size: a hamlet keeps a shop or two, a city a high street and its stores;
   // shops gather toward the square, stores toward their quarter, and the rest are homes
   {
-    const SHOP = new Set(["Shop", "Workshop", "Inn", "Tavern", "Counting house", "Office", "Chandlery"]);
-    const STORE = new Set(["Warehouse", "Granary", "Shed"]);
+    const SHOP = new Set(["Shop", "Inn", "Tavern", "Counting house", "Office", "Chandlery"]);
+    const STORE = new Set(["Warehouse", "Granary", "Shed", "Workshop", "Factory"]);
     const pop = city.population;
     const [shopT, storeT] =
       pop && pop < 300 ? [0.06, 0] : pop && pop < 2000 ? [0.12, 0.03] : pop && pop < 6000 ? [0.18, 0.05] : [0.24, 0.07];
@@ -846,7 +863,7 @@ export function furnish(city: City): void {
         .filter(b => kind[b.cell] !== "wealthy")
         .sort((a, c) => near(a) - near(c))
         .slice(0, wantShops - shops.length)) {
-        b.type = R() < 0.6 ? "Shop" : R() < 0.6 ? "Workshop" : "Inn";
+        b.type = R() < 0.7 ? "Shop" : R() < 0.6 ? "Tavern" : "Inn";
         b.trade = true;
       }
     const stores = L.filter(b => STORE.has(b.type));
@@ -855,7 +872,7 @@ export function furnish(city: City): void {
     const toQuarter = (b: Building) => (quarter.length ? Math.min(...quarter.map(q => dist(q, at(b)))) : -near(b));
     if (stores.length < wantStores)
       for (const b of homes()
-        .filter(b => kind[b.cell] !== "wealthy")
+        .filter(b => kind[b.cell] === "docks")
         .sort((a, c) => toQuarter(a) - toQuarter(c))
         .slice(0, wantStores - stores.length))
         b.type = R() < 0.75 ? "Warehouse" : "Granary";
