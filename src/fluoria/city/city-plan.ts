@@ -1010,8 +1010,7 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
     if (terrain) hipRoof(ga, P, px);
     else shadeIn(ga, P, 1.2 * px);
   }
-  // a fort: the keep in the middle of a bailey, ringed by its own curtain wall set in from the streets round it
-  const CUR = 3.4; // the curtain's middle, in from the cell's edge (the street's middle)
+  // a fort: the great tower in its court, walled on every side at the town wall's width
   for (const { b, P } of shapes)
     if (isFort(b)) {
       ga.save();
@@ -1041,99 +1040,92 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
         }
         return town(best);
       });
-      const sides = (w: number, st: string | CanvasPattern, cap: CanvasLineCap = "square") => {
-        ga.strokeStyle = st;
-        ga.lineWidth = 2 * w;
-        ga.lineCap = cap;
-        ga.lineJoin = "miter";
-        ga.beginPath();
-        if (open.every(Boolean)) pathOf(ga, P);
-        else {
-          // each unbroken run of town-facing sides as one line, so its corners join
-          const z = open.indexOf(false);
-          let on = false;
-          for (let k = 1; k <= P.length; k++) {
-            const i = (z + k) % P.length;
-            const p = P[i];
-            if (!open[i]) {
-              if (on) ga.lineTo(p[0], p[1]);
-              on = false;
-              continue;
-            }
-            if (!on) ga.moveTo(p[0], p[1]);
-            else ga.lineTo(p[0], p[1]);
-            on = true;
-          }
-          if (on) ga.lineTo(P[z][0], P[z][1]);
-        }
-        ga.stroke();
+      // each side's wall stands flush to what lies beyond it: the street's edge, or the cell border; where the
+      // town wall runs, that wall is the fort's own, in its place and width
+      const ccw = P.reduce((q, p, k) => q + p[0] * P[(k + 1) % P.length][1] - P[(k + 1) % P.length][0] * p[1], 0) > 0;
+      const segD = (x: number, y: number, a: P2, b2: P2) => {
+        const ex = b2[0] - a[0];
+        const ey = b2[1] - a[1];
+        const t = Math.max(0, Math.min(1, ((x - a[0]) * ex + (y - a[1]) * ey) / (ex * ex + ey * ey || 1)));
+        return Math.hypot(x - a[0] - t * ex, y - a[1] - t * ey);
       };
-      // where it backs onto the town wall, that wall is the fort's: its inner half laid back over the floor
-      ga.lineCap = "square";
-      for (const [w, st] of [
-        [1.9 + 2.1 * px, "#3b2a1e"],
-        [1.9, pat(ga, "wall")]
-      ] as [number, string | CanvasPattern][]) {
-        ga.strokeStyle = st;
-        ga.lineWidth = w;
-        ga.beginPath();
-        for (let i = 0; i < P.length; i++) {
-          if (open[i]) continue;
-          const q = P[(i + 1) % P.length];
-          ga.moveTo(P[i][0], P[i][1]);
-          ga.lineTo(q[0], q[1]);
-        }
-        ga.stroke();
-      }
-      // one wall, flush to the street on the town side, none where the town wall already stands
-      // the wall runs from the street's edge inward; what lies under the street is cut away later
-      sides(CUR + CW / 2 + INK, "#3b2a1e");
-      sides(CUR + CW / 2, pat(ga, "wall"));
-      // crenels along the wall's outer face, just inside the street
-      const face = RW.street + 1.6 * px;
-      ga.setLineDash([0.7, 0.7]);
-      sides(face + 0.55, "#3b2a1e", "butt");
-      ga.setLineDash([]);
-      sides(face, pat(ga, "wall"));
-      // towers at the curtain's corners
-      const cx = P.reduce((q, p) => q + p[0], 0) / P.length;
-      const cy = P.reduce((q, p) => q + p[1], 0) / P.length;
-      for (let i = 0; i < P.length; i++) {
-        const a = P[(i + P.length - 1) % P.length];
-        const p = P[i];
-        const c = P[(i + 1) % P.length];
-        const u1 = Math.hypot(p[0] - a[0], p[1] - a[1]) || 1;
-        const u2 = Math.hypot(c[0] - p[0], c[1] - p[1]) || 1;
-        const turn = Math.abs(
-          Math.atan2(
-            ((p[0] - a[0]) * (c[1] - p[1]) - (p[1] - a[1]) * (c[0] - p[0])) / (u1 * u2),
-            ((p[0] - a[0]) * (c[0] - p[0]) + (p[1] - a[1]) * (c[1] - p[1])) / (u1 * u2)
-          )
-        );
-        if (turn < 0.5 || (!open[i] && !open[(i + P.length - 1) % P.length])) continue;
-        const bx = (a[0] - p[0]) / u1 + (c[0] - p[0]) / u2;
-        const by = (a[1] - p[1]) / u1 + (c[1] - p[1]) / u2;
-        const bl = Math.hypot(bx, by) || 1;
-        // along the bisector, far enough in to sit on the curtain
-        const k =
-          CUR /
-          Math.max(
-            0.35,
-            Math.sin(
-              Math.acos(Math.max(-1, Math.min(1, (bx * (c[0] - p[0])) / u2 / bl + (by * (c[1] - p[1])) / u2 / bl)))
+      const face = P.map((p, i) => {
+        if (!open[i]) return -CW / 2;
+        const q = P[(i + 1) % P.length];
+        const mx = (p[0] + q[0]) / 2;
+        const my = (p[1] + q[1]) / 2;
+        let f = 0;
+        for (const r of roads)
+          for (let k = 1; k < r.pts.length; k++)
+            if (
+              segD(mx, my, r.pts[k - 1], r.pts[k]) < 1 &&
+              Math.abs(
+                ((r.pts[k][0] - r.pts[k - 1][0]) * (q[0] - p[0]) + (r.pts[k][1] - r.pts[k - 1][1]) * (q[1] - p[1])) /
+                  ((Math.hypot(r.pts[k][0] - r.pts[k - 1][0], r.pts[k][1] - r.pts[k - 1][1]) || 1) *
+                    (Math.hypot(q[0] - p[0], q[1] - p[1]) || 1))
+              ) > 0.9
             )
-          );
-        let tx = p[0] + (bx / bl) * k;
-        let ty = p[1] + (by / bl) * k;
-        if (Math.hypot(tx - cx, ty - cy) > Math.hypot(p[0] - cx, p[1] - cy)) {
-          tx = p[0] - (bx / bl) * k;
-          ty = p[1] - (by / bl) * k;
-        }
+              f = Math.max(f, RW[r.type] + 1.05 * px);
+        return f;
+      });
+      // the outline moved in by each side's own distance plus d
+      const ring = (d: number): P2[] => {
+        const L = P.map((p, i) => {
+          const q = P[(i + 1) % P.length];
+          const len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+          const ux = (q[0] - p[0]) / len;
+          const uy = (q[1] - p[1]) / len;
+          const nx = ccw ? -uy : uy;
+          const ny = ccw ? ux : -ux;
+          const o = face[i] + d;
+          return { x: p[0] + nx * o, y: p[1] + ny * o, ux, uy };
+        });
+        return L.map((b2, i) => {
+          const a = L[(i + L.length - 1) % L.length];
+          const den = a.ux * b2.uy - a.uy * b2.ux;
+          if (Math.abs(den) < 1e-6) return [b2.x, b2.y] as P2;
+          const t = ((b2.x - a.x) * b2.uy - (b2.y - a.y) * b2.ux) / den;
+          return [a.x + a.ux * t, a.y + a.uy * t] as P2;
+        });
+      };
+      const band = (d0: number, d1: number, st: string | CanvasPattern) => {
+        ga.beginPath();
+        addPoly(ga, ring(d0));
+        addPoly(ga, ring(d1));
+        ga.fillStyle = st;
+        ga.fill("evenodd");
+      };
+      ga.restore();
+      band(-INK, CW + INK, "#3b2a1e");
+      band(0, CW, pat(ga, "wall"));
+      // crenels: a fine broken line along the parapet, inside the wall
+      ga.save();
+      ga.setLineDash([0.7, 0.7]);
+      ga.strokeStyle = "#3b2a1e";
+      ga.lineWidth = 0.5;
+      ga.lineJoin = "miter";
+      pathOf(ga, ring(0.55));
+      ga.stroke();
+      ga.restore();
+      // towers on the wall's line, the town wall's size, turned to the fort
+      const mid = ring(CW / 2);
+      for (let i = 0; i < mid.length; i++) {
+        const a = mid[(i + mid.length - 1) % mid.length];
+        const p = mid[i];
+        const c = mid[(i + 1) % mid.length];
+        const t1 = Math.atan2(p[1] - a[1], p[0] - a[0]);
+        const t2 = Math.atan2(c[1] - p[1], c[0] - p[0]);
+        if (Math.abs(Math.atan2(Math.sin(t2 - t1), Math.cos(t2 - t1))) < 0.5) continue;
+        ga.save();
+        ga.translate(p[0], p[1]);
+        ga.rotate(t2);
         ga.fillStyle = "#3b2a1e";
-        ga.fillRect(tx - 1.9, ty - 1.9, 3.8, 3.8);
+        ga.fillRect(-1.9, -1.9, 3.8, 3.8);
         ga.fillStyle = "#7d7266";
-        ga.fillRect(tx - 1.9 + INK, ty - 1.9 + INK, 3.8 - 2 * INK, 3.8 - 2 * INK);
+        ga.fillRect(-1.9 + INK, -1.9 + INK, 3.8 - 2 * INK, 3.8 - 2 * INK);
+        ga.restore();
       }
+      ga.save();
       ga.restore();
     }
   cut(ga);
@@ -1153,7 +1145,7 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
     const [Lk, gl] = layer();
     let li = 0;
     for (const { b, P } of shapes)
-      if (b.landmark) {
+      if (b.landmark && !isFort(b)) {
         li++;
         gl.fillStyle = `rgb(${((li * 37) % 251) + 4},${((li * 91) % 251) + 4},${((li * 53) % 251) + 4})`;
         gl.beginPath();
