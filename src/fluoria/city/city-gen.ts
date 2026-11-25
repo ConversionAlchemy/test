@@ -53,6 +53,7 @@ export interface Building {
   landmark?: boolean;
   trade?: boolean; // fronts a main road or square: a shop, inn or workshop
   cells?: number[]; // a landmark's cells: it stands on all of them
+  keep?: P2[]; // a fort's walled square, inside its cells
   owner?: number;
   cap?: number; // how many live or work here
   key?: string;

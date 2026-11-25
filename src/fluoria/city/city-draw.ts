@@ -3,6 +3,7 @@
 import { groundPixel } from "../ground-tiles";
 import { Palette as P } from "../palette";
 import type { Building, City, P2 } from "./city-gen";
+import { keepOf } from "./city-keep";
 
 type C3 = readonly [number, number, number];
 const sh = (c: C3, f: number): C3 => [Math.min(255, c[0] * f), Math.min(255, c[1] * f), Math.min(255, c[2] * f)];
@@ -330,7 +331,8 @@ export function furnish(city: City): void {
         district: district[c0],
         landmark: true,
         key: `l:${l.id}`,
-        enter: l.enter
+        enter: l.enter,
+        keep: l.type === "Fort" ? (keepOf(city, l.cells) ?? keepOf(city, l.cells, 3)) : undefined
       },
       px
     );
