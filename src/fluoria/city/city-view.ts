@@ -595,7 +595,7 @@ export function mountCity(root: HTMLElement, region: Region, burg: string, spec?
   marks.setAttribute("class", "marks");
   lab.appendChild(marks);
   const placeMarks = () => {
-    nums.style.display = view.zoom >= 3.5 && (style === "terrain" || style === "map") ? "" : "none";
+    nums.style.display = view.zoom >= 3.5 && style === "map" ? "" : "none";
     nums.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.zoom})`);
     marks.style.display = style === "map" ? "" : "none";
     for (const g of marks.querySelectorAll<SVGGElement>("g")) {

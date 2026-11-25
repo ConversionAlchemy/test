@@ -158,25 +158,43 @@ const KEYCOL: C3[] = KEYS.map(k => hx(KEYHEX[k]));
 const css = (c: C3) => `rgb(${c[0]},${c[1]},${c[2]})`;
 const KC = (k: Key) => css(KEYCOL[KEYS.indexOf(k)]);
 
-// the region's own ground, one texel to the world pixel, as the Terrain view always had it
-const regionTex = (t: Ground, s: number): Tex => {
+// the region's own ground, one texel to the screen pixel, as fine as the walls; slow mottling hides its repeat
+const regionTex = (t: Ground, amp: number): Tex => {
   const c = tile(t);
   const N = c.width;
   const D = (c.getContext("2d") as CanvasRenderingContext2D).getImageData(0, 0, N, N).data;
+  const mean = [0, 1, 2].map(k => {
+    let a = 0;
+    for (let j = k; j < D.length; j += 4) a += D[j];
+    return a / (N * N);
+  });
+  // the tile's marks brought back up to the region map's own contrast
   return (x, y) => {
-    const j = ((Math.floor(y / s) % N) * N + (Math.floor(x / s) % N)) * 4;
-    return [D[j], D[j + 1], D[j + 2]];
+    const j = ((y % N) * N + (x % N)) * 4;
+    const f = 1 + (smooth(x / 46, y / 46, 21) - 0.5) * amp + (smooth(x / 11, y / 11, 22) - 0.5) * amp * 0.5;
+    return [0, 1, 2].map(k => Math.max(0, Math.min(255, (mean[k] + (D[j + k] - mean[k]) * 1.9) * f))) as unknown as C3;
   };
 };
-const texFor = (style: PlanStyle, s: number): Record<Key, Tex> => {
+// a road's packed earth and setts: pale, with a soft grain and the odd stone
+const roadTex = (base: string): Tex => {
+  const B = hx(base);
+  return (x, y) => {
+    let f = 1 + (smooth(x / 7, y / 7, 31) - 0.5) * 0.07 + (smooth(x / 2.5, y / 2.5, 32) - 0.5) * 0.04;
+    const t = th(x, y, 33);
+    if (t < 0.035) f *= 0.93;
+    else if (t > 0.985) f *= 1.03;
+    return [Math.min(255, B[0] * f), Math.min(255, B[1] * f), Math.min(255, B[2] * f)];
+  };
+};
+const texFor = (style: PlanStyle): Record<Key, Tex> => {
   const map = style === "map";
   return {
     paper: flat("#f3ecd9"),
-    country: map ? dots("#f3ecd9", 16) : regionTex("meadow", s),
-    park: map ? dots("#e6ebcf", 16) : regionTex("garden", s),
-    wheat: map ? scatter("#f3e5bc", 7, 6, TRI, 18, 5) : regionTex("wheat", s),
-    tilled: map ? scatter("#ebdcc6", 9, 8, CAPS, 14) : regionTex("tilled", s),
-    under: map ? dots("#f3ecd9", 16) : regionTex("under", s),
+    country: map ? dots("#f3ecd9", 16) : regionTex("meadow", 0.14),
+    park: map ? dots("#e6ebcf", 16) : regionTex("garden", 0.14),
+    wheat: map ? scatter("#f3e5bc", 7, 6, TRI, 18, 5) : regionTex("wheat", 0.1),
+    tilled: map ? scatter("#ebdcc6", 9, 8, CAPS, 14) : regionTex("tilled", 0.1),
+    under: map ? dots("#f3ecd9", 16) : regionTex("under", 0.14),
     water: seaDots("#a3c3c9"),
     wline: flat("#98babe"),
     wb0: seaDots("#dcebea"),
@@ -188,7 +206,7 @@ const texFor = (style: PlanStyle, s: number): Record<Key, Tex> => {
     shore: flat("#5d6236"),
     hline: flat("#87a39b"),
     yard: softHatch("#e7ddc3", 71, 7, 11),
-    road: flat("#f3ecd9"),
+    road: map ? flat("#f3ecd9") : roadTex("#ebe1ca"),
     ink: flat("#3b2a1e"),
     wall: (x, y) => hx((x + y) % 3 === 0 ? "#7d7266" : "#a99c88"),
     tower: flat("#7d7266"),
@@ -234,6 +252,56 @@ const TIER: Record<string, string> = {
 };
 // church and garrison in slate grey; trade, guild and civic in brown
 const GREY = /chapel|church|temple|shrine|abbey|priory|fort|castle|citadel|keep|guard|watch|barracks|garrison|tower/i;
+// terrain roofs: plain clay and slate, a soft grain and no hatching; the courses are drawn with the roof's faces
+const pn = (x: number, y: number, c: number, per: number, sd: number) => {
+  const X = x / c;
+  const Y = y / c;
+  const xi = Math.floor(X);
+  const yi = Math.floor(Y);
+  const u = (X - xi) * (X - xi) * (3 - 2 * (X - xi));
+  const v = (Y - yi) * (Y - yi) * (3 - 2 * (Y - yi));
+  const w = (i: number) => ((i % per) + per) % per;
+  const a = th(w(xi), w(yi), sd);
+  const b = th(w(xi + 1), w(yi), sd);
+  const cc = th(w(xi), w(yi + 1), sd);
+  const d = th(w(xi + 1), w(yi + 1), sd);
+  return a + (b - a) * u + (cc - a) * v + (a - b - cc + d) * u * v;
+};
+const clay = (rgb: C3, amp = 0.09): Tex => {
+  return (x, y) => {
+    let f = 1 + (pn(x, y, 6, 8, 3) - 0.5) * amp * 2 + (pn(x, y, 2, 24, 4) - 0.5) * amp;
+    const t = th(x % 48, y % 48, 9);
+    if (t < 0.05) f *= 0.9;
+    else if (t > 0.965) f *= 1.07;
+    return [Math.min(255, rgb[0] * f), Math.min(255, rgb[1] * f), Math.min(255, rgb[2] * f)];
+  };
+};
+const TROOF: Record<string, C3> = {
+  "t-trade": [204, 112, 70],
+  "t-shanty": [204, 146, 120],
+  "t-rich": [176, 82, 58],
+  "t-docks": [174, 110, 78],
+  "t-farm": [200, 124, 88],
+  "t-house": [194, 100, 68],
+  "t-ware": [150, 132, 116],
+  "t-work": [170, 142, 120],
+  "t-gold": [196, 150, 60],
+  "t-slate": [118, 112, 104],
+  "t-brown": [110, 72, 52],
+  "t-stone": [140, 133, 122]
+};
+for (const [k, c] of Object.entries(TROOF)) ROOFS[k] = clay(c, k === "t-stone" ? 0.06 : 0.09);
+const roofT = (city: City, b: Building): string => {
+  if (b.landmark) return b.type === "Bank" ? "t-gold" : GREY.test(b.type) ? "t-slate" : "t-brown";
+  if (b.type === "Warehouse" || b.type === "Shed" || b.type === "Granary") return "t-ware";
+  if (b.type === "Workshop" || b.type === "Factory") return "t-work";
+  if (b.trade || b.type === "Shop") return "t-trade";
+  const k = city.kind[b.cell] ?? "";
+  if (k === "shanty") return "t-shanty";
+  if (k === "wealthy" || k === "centre") return "t-rich";
+  if (k === "docks") return "t-docks";
+  return (b.district ?? -1) < 0 ? "t-farm" : "t-house";
+};
 const roofOf = (b: Building): string =>
   b.landmark
     ? GREY.test(b.type)
@@ -255,9 +323,19 @@ function footprint(city: City, b: Building): P2[] {
   if (i === undefined) return [];
   const start = cells.v[i].find((v: number) => vertices.c[v].some((c: number) => !set.has(c)));
   if (start === undefined) return [];
-  return connectVertices({ vertices, startingVertex: start, ofSameType: c => set.has(c), closeRing: false }).map(
+  const R = connectVertices({ vertices, startingVertex: start, ofSameType: c => set.has(c), closeRing: false }).map(
     v => vertices.p[v] as P2
   );
+  // a citadel's grid leaves hair-thin steps at its corners and seams: drop them, so it reads as the square it is
+  const Q: P2[] = [];
+  for (const p of R) if (!Q.length || Math.hypot(p[0] - Q[Q.length - 1][0], p[1] - Q[Q.length - 1][1]) > 1.2) Q.push(p);
+  if (Q.length > 3 && Math.hypot(Q[0][0] - Q[Q.length - 1][0], Q[0][1] - Q[Q.length - 1][1]) <= 1.2) Q.pop();
+  return Q.filter((p, i) => {
+    const a = Q[(i + Q.length - 1) % Q.length];
+    const c = Q[(i + 1) % Q.length];
+    const t = Math.atan2(c[1] - p[1], c[0] - p[0]) - Math.atan2(p[1] - a[1], p[0] - a[0]);
+    return Math.abs(Math.atan2(Math.sin(t), Math.cos(t))) > 0.12;
+  });
 }
 
 const pathOf = (g: CanvasRenderingContext2D, P: P2[], close = true) => {
@@ -367,6 +445,26 @@ const hipRoof = (g: CanvasRenderingContext2D, P: P2[], px: number) => {
     pathOf(g, F);
     g.fillStyle = lit > 0 ? `rgba(255,248,236,${(0.16 * lit).toFixed(3)})` : `rgba(40,18,10,${(-0.26 * lit).toFixed(3)})`;
     g.fill();
+    // the courses of tiles, along the eave
+    g.save();
+    pathOf(g, F);
+    g.clip();
+    const e: P2 = [-nrm[1], nrm[0]];
+    const [x0, y0, x1, y1] = bbox(F);
+    const R = Math.hypot(x1 - x0, y1 - y0);
+    const mx = (x0 + x1) / 2;
+    const my = (y0 + y1) / 2;
+    g.strokeStyle = "rgba(60,26,14,0.16)";
+    g.lineWidth = 0.9 * px;
+    g.beginPath();
+    for (let t = -R; t <= R; t += 1.1) {
+      const cx = mx + nrm[0] * t;
+      const cy = my + nrm[1] * t;
+      g.moveTo(cx - e[0] * R, cy - e[1] * R);
+      g.lineTo(cx + e[0] * R, cy + e[1] * R);
+    }
+    g.stroke();
+    g.restore();
   }
   g.strokeStyle = "rgba(59,42,30,0.75)";
   g.lineWidth = 1.1 * px;
@@ -488,14 +586,6 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
       g.fillStyle = KC(city.kind[i] === "wealthy" ? "park" : "yard");
       g.fill();
     }
-  // round a citadel's square, open grass: the glacis
-  const forts = city.buildings.filter(b => b.keep && b.landmark);
-  g.fillStyle = KC("country");
-  for (const b of forts) {
-    g.beginPath();
-    for (const c of b.cells ?? [b.cell]) addPoly(g, poly(c));
-    g.fill();
-  }
   g.fillStyle = KC("park");
   for (const y of city.yards) {
     pathOf(g, y);
@@ -711,16 +801,20 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
         Math.max(0.86, Math.min(1.12, 1 + (gx + gy) * 2.2)) * (0.97 + (((i * 2654435761) % 1000) / 1000) * 0.06);
       const v = Math.round(128 + (f - 1) * 500);
       pathOf(q, poly(i));
-      q.fillStyle = q.strokeStyle = `rgb(${v},${v},${v})`;
+      // green: the field's furrow direction; blue: its own tone
+      const a = Math.round(((((city.ang[i] % Math.PI) + Math.PI) % Math.PI) / Math.PI) * 255);
+      q.fillStyle = q.strokeStyle = `rgb(${v},${a},${(i * 97) % 256})`;
       q.lineWidth = 0.6;
       q.fill();
       q.stroke();
     }
     SL = q.getImageData(0, 0, W, H).data;
   }
+  const ID_WHEAT = ID("wheat");
+  const ID_TILLED = ID("tilled");
   const TINT = new Set([ID("country"), ID("park"), ID("wheat"), ID("tilled"), ID("under"), ID("yard")]);
 
-  const T = texFor(style, s);
+  const T = texFor(style);
   const TL = KEYS.map(k => T[k]);
   const im = o.createImageData(W, H);
   const d = im.data;
@@ -731,6 +825,19 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
     if (SL && TINT.has(MAT[p])) {
       const f = 1 + (SL[p * 4] - 128) / 500;
       c = f < 1 ? [c[0] * f, c[1] * f, c[2] * f] : c.map(v => v + (255 - v) * (f - 1) * 0.8) as unknown as C3;
+      // ploughland in furrows, wheat in drilled rows, each field its own way and its own shade
+      const m = MAT[p];
+      if (m === ID_WHEAT || m === ID_TILLED) {
+        const a = (SL[p * 4 + 1] / 255) * Math.PI;
+        const t = x * Math.cos(a) + y * Math.sin(a);
+        const per = m === ID_TILLED ? 4.5 : 3.2;
+        const ph = ((t % per) + per) % per / per;
+        const wob = smooth(x / 9, y / 9, 41) * 0.25;
+        const k = (ph + wob) % 1;
+        const g0 = 1 + ((SL[p * 4 + 2] / 255) - 0.5) * 0.1;
+        const g = m === ID_TILLED ? (k < 0.35 ? 0.84 : k < 0.5 ? 1.06 : 1) : k < 0.28 ? 0.9 : k > 0.8 ? 1.05 : 1;
+        c = [c[0] * g * g0, c[1] * g * (m === ID_WHEAT ? 2 - g0 : g0), c[2] * g * g0];
+      }
     }
     if (SHM[p * 4 + 3] > 100 && SHADE_ON.has(MAT[p]) && ((x + y) % 2 === 0 || (x - y + 9999) % 3 === 0))
       c = [c[0] * 0.8, c[1] * 0.8, c[2] * 0.8];
@@ -790,7 +897,7 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
     return pats.get(kind) as CanvasPattern;
   };
   const shapes = city.buildings
-    .map(b => ({ b, P: b.keep ?? (b.landmark ? footprint(city, b) : b.poly), kind: roofOf(b) }))
+    .map(b => ({ b, P: b.landmark ? footprint(city, b) : b.poly, kind: terrain ? roofT(city, b) : roofOf(b) }))
     .filter(q => q.P.length >= 3);
   // what strays onto a road is cut away, so the buildings stand flush to the road's ink
   const cut = (x: CanvasRenderingContext2D) => {
@@ -859,86 +966,54 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
     x.restore();
   };
   const [A, ga] = layer();
-  for (const { b, P, kind } of shapes) {
-    if (b.keep) continue;
-    pathOf(ga, P);
-    ga.fillStyle = pat(ga, kind);
-    ga.fill();
-    if (style === "terrain") hipRoof(ga, P, px);
-    else shadeIn(ga, P, 1.2 * px);
-  }
-  // a citadel: a walled square on its open ground, a tower at each corner and the great tower in the middle
-  const towersOf = (K: P2[], r: number): P2[][] => {
-    const a = Math.atan2(K[1][1] - K[0][1], K[1][0] - K[0][0]);
-    const u: P2 = [Math.cos(a) * r, Math.sin(a) * r];
-    const v: P2 = [-u[1], u[0]];
-    return K.map(([x, y]) => [
-      [x - u[0] - v[0], y - u[1] - v[1]],
-      [x + u[0] - v[0], y + u[1] - v[1]],
-      [x + u[0] + v[0], y + u[1] + v[1]],
-      [x - u[0] + v[0], y - u[1] + v[1]]
-    ]);
-  };
-  const TR = 2.3;
+  const FORT = /fort|castle|citadel|keep/i;
+  const isFort = (b: Building) => !!b.landmark && FORT.test(`${b.type} ${b.name ?? ""}`);
   const CW = 1.9;
   const INK = 1.3 * px;
+  // crenels: a dashed band inside an outline
   const battle = (P: P2[], w: number) => {
     ga.save();
     pathOf(ga, P);
     ga.clip();
-    ga.setLineDash([0.9, 0.9]);
+    ga.setLineDash([0.7, 0.7]);
     ga.strokeStyle = "#3b2a1e";
     ga.lineWidth = 2 * w;
     pathOf(ga, P);
     ga.stroke();
     ga.restore();
   };
-  for (const { b, P: K } of shapes) {
-    if (!b.keep) continue;
-    const cx = K.reduce((q, p) => q + p[0], 0) / 4;
-    const cy = K.reduce((q, p) => q + p[1], 0) / 4;
-    pathOf(ga, K);
-    ga.fillStyle = pat(ga, "yard");
-    ga.fill();
-    ga.save();
-    pathOf(ga, K);
-    ga.clip();
-    ga.lineJoin = "miter";
-    pathOf(ga, K);
-    ga.strokeStyle = "#3b2a1e";
-    ga.lineWidth = 2 * (CW + INK);
-    ga.stroke();
-    ga.strokeStyle = pat(ga, "wall");
-    ga.lineWidth = 2 * CW;
-    ga.stroke();
-    ga.restore();
-    battle(K, 0.55);
-    // the great tower, a little toward the back of the court
-    const D = K.map(p => [cx + (p[0] - cx) * 0.4, cy + (p[1] - cy) * 0.4] as P2);
-    pathOf(ga, D);
-    ga.fillStyle = pat(ga, "lmg");
-    ga.fill();
-    ga.strokeStyle = "#3b2a1e";
-    ga.lineWidth = 2 * INK;
-    ga.save();
-    pathOf(ga, D);
-    ga.clip();
-    pathOf(ga, D);
-    ga.stroke();
-    ga.restore();
-    battle(D, 0.5 + INK);
-    for (const Q of towersOf(K, TR)) {
-      pathOf(ga, Q);
-      ga.fillStyle = pat(ga, "wall");
+  for (const { b, P, kind } of shapes) {
+    pathOf(ga, P);
+    if (isFort(b)) {
+      // the court, and the great tower in its middle
+      ga.fillStyle = pat(ga, "yard");
       ga.fill();
-      battle(Q, 0.5 + INK);
+      const cx = P.reduce((q, p) => q + p[0], 0) / P.length;
+      const cy = P.reduce((q, p) => q + p[1], 0) / P.length;
+      const D = P.map(p => [cx + (p[0] - cx) * 0.36, cy + (p[1] - cy) * 0.36] as P2);
+      pathOf(ga, D);
+      ga.fillStyle = pat(ga, terrain ? "t-stone" : "lmg");
+      ga.fill();
+      ga.save();
+      pathOf(ga, D);
+      ga.clip();
+      pathOf(ga, D);
+      ga.strokeStyle = "#3b2a1e";
+      ga.lineWidth = 2 * INK;
+      ga.stroke();
+      ga.restore();
+      battle(D, 0.5 + INK);
+      continue;
     }
+    ga.fillStyle = pat(ga, kind);
+    ga.fill();
+    if (terrain) hipRoof(ga, P, px);
+    else shadeIn(ga, P, 1.2 * px);
   }
   // a fort: the keep in the middle of a bailey, ringed by its own curtain wall set in from the streets round it
-  const FORT = /fort|castle|citadel|keep/i;
   const CUR = 3.4; // the curtain's middle, in from the cell's edge (the street's middle)
   for (const { b, P } of shapes)
-    if (b.landmark && !b.keep && FORT.test(`${b.type} ${b.name ?? ""}`)) {
+    if (isFort(b)) {
       ga.save();
       pathOf(ga, P);
       ga.clip();
@@ -966,10 +1041,10 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
         }
         return town(best);
       });
-      const sides = (w: number, st: string | CanvasPattern) => {
+      const sides = (w: number, st: string | CanvasPattern, cap: CanvasLineCap = "square") => {
         ga.strokeStyle = st;
         ga.lineWidth = 2 * w;
-        ga.lineCap = "square";
+        ga.lineCap = cap;
         ga.lineJoin = "miter";
         ga.beginPath();
         if (open.every(Boolean)) pathOf(ga, P);
@@ -1014,6 +1089,12 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
       // the wall runs from the street's edge inward; what lies under the street is cut away later
       sides(CUR + CW / 2 + INK, "#3b2a1e");
       sides(CUR + CW / 2, pat(ga, "wall"));
+      // crenels along the wall's outer face, just inside the street
+      const face = RW.street + 1.6 * px;
+      ga.setLineDash([0.7, 0.7]);
+      sides(face + 0.55, "#3b2a1e", "butt");
+      ga.setLineDash([]);
+      sides(face, pat(ga, "wall"));
       // towers at the curtain's corners
       const cx = P.reduce((q, p) => q + p[0], 0) / P.length;
       const cy = P.reduce((q, p) => q + p[1], 0) / P.length;
@@ -1077,7 +1158,6 @@ export function renderPlan(city: City, style: PlanStyle, s: number): HTMLCanvasE
         gl.fillStyle = `rgb(${((li * 37) % 251) + 4},${((li * 91) % 251) + 4},${((li * 53) % 251) + 4})`;
         gl.beginPath();
         addPoly(gl, P);
-        if (b.keep) for (const Q of towersOf(P, TR)) addPoly(gl, Q);
         gl.fill("nonzero");
       }
     cut(gl);

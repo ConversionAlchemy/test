@@ -53,7 +53,6 @@ export interface Building {
   landmark?: boolean;
   trade?: boolean; // fronts a main road or square: a shop, inn or workshop
   cells?: number[]; // a landmark's cells: it stands on all of them
-  keep?: P2[]; // a fort's walled square, inside its cells
   owner?: number;
   cap?: number; // how many live or work here
   key?: string;
@@ -216,11 +215,25 @@ const STREETS = [
   "Net Row"
 ];
 
-export function buildCity(
-  region: Region,
-  burgName: string,
-  opts: { scale?: number; margin?: number; edits?: Edits; spec?: Spec } = {}
-): City {
+type FortSite = { c: P2; d: number };
+type BuildOpts = { scale?: number; margin?: number; edits?: Edits; spec?: Spec; fort?: FortSite };
+
+/** A citadel stands on square cells: the town is planned once to find its place, then again with its seeds on an exact grid there */
+export function buildCity(region: Region, burgName: string, opts: BuildOpts = {}): City {
+  if (!opts.spec?.fort) return build(region, burgName, opts);
+  const seed = opts.edits?.seed;
+  const first = build(region, burgName, { ...opts, edits: seed === undefined ? {} : { seed } });
+  const lm = first.landmarks.find(l => l.type === "Fort");
+  if (!lm) return build(region, burgName, opts);
+  const P = first.pack.cells.p as P2[];
+  const c: P2 = [
+    lm.cells.reduce((q, i) => q + P[i][0], 0) / lm.cells.length,
+    lm.cells.reduce((q, i) => q + P[i][1], 0) / lm.cells.length
+  ];
+  return build(region, burgName, { ...opts, fort: { c, d: 22 } });
+}
+
+function build(region: Region, burgName: string, opts: BuildOpts = {}): City {
   const ed: Edits = opts.edits ?? {};
   const S = opts.spec;
   const big = !S || S.size === "town" || S.size === "city";
@@ -469,6 +482,47 @@ export function buildCity(
     const cx = vs.reduce((q, p) => q + p[0], 0) / vs.length;
     const cy = vs.reduce((q, p) => q + p[1], 0) / vs.length;
     if (cx > 0 && cy > 0 && cx < W && cy < H) pts[i] = [cx, cy];
+  }
+  // the citadel's seeds: an exact grid turned to the town's, each cell of it a square; a ring round it holds the sides
+  const fortSeeds: number[] = [];
+  if (opts.fort && S) {
+    const { c, d } = opts.fort;
+    const [gw, gh] = S.size === "city" ? [2, 2] : S.size === "town" ? [2, 1] : [1, 1];
+    const toL = (p: P2) => {
+      const dx = p[0] - c[0];
+      const dy = p[1] - c[1];
+      return [(dx * ca + dy * sa) / d + (gw - 1) / 2, (-dx * sa + dy * ca) / d + (gh - 1) / 2];
+    };
+    const toW = (u: number, v: number): P2 => {
+      const a = u - (gw - 1) / 2;
+      const b = v - (gh - 1) / 2;
+      return [c[0] + (a * ca - b * sa) * d, c[1] + (a * sa + b * ca) * d];
+    };
+    const keep: number[] = [];
+    for (let i = 0; i < pts.length; i++) {
+      const [u, v] = toL(pts[i]);
+      if (u > -1.9 && u < gw + 0.9 && v > -1.9 && v < gh + 0.9) continue;
+      keep.push(i);
+    }
+    const P2s = keep.map(i => pts[i]);
+    const K2 = keep.map(i => kindOfSeed[i]);
+    const A2 = keep.map(i => seedAng[i]);
+    pts.length = kindOfSeed.length = seedAng.length = 0;
+    pts.push(...P2s);
+    kindOfSeed.push(...K2);
+    seedAng.push(...A2);
+    for (let v = -1; v <= gh; v++)
+      for (let u = -1; u <= gw; u++) {
+        const inside = u >= 0 && u < gw && v >= 0 && v < gh;
+        // the ring stands a hair further out, so no four seeds share a circle
+        const nu = u < 0 ? -1 : u >= gw ? 1 : 0;
+        const nv = v < 0 ? -1 : v >= gh ? 1 : 0;
+        const L = Math.hypot(nu, nv) || 1;
+        if (inside) fortSeeds.push(pts.length);
+        pts.push(toW(u + (0.04 * nu) / L, v + (0.04 * nv) / L));
+        kindOfSeed.push(1);
+        seedAng.push(axis);
+      }
   }
   vor = calculateVoronoi(pts, boundary);
   const { cells, vertices } = vor;
@@ -847,7 +901,19 @@ export function buildCity(
         };
         const neck = (L: number[], j: number) =>
           L.some(i => cells.c[j].includes(i) && sideLen(i, j) >= 0.6 * Math.min(meanSide(i), meanSide(j)));
-        if (first !== undefined) {
+        // a grid cell just past the town's edge is taken in: the citadel holds that ground
+        const spare = fortSeeds.find(i => use[i] === "town" && ok(i));
+        if (spare !== undefined)
+          for (const i of fortSeeds)
+            if (!ok(i) && homeMask[i] && !isWater[i] && !taken.has(i) && use[i] !== "town") {
+              use[i] = "town";
+              kind[i] = kind[spare];
+              district[i] = district[spare];
+            }
+        const grid = fortSeeds.length && fortSeeds.every(ok) ? fortSeeds : null;
+        if (grid) {
+          landmarks.push({ id: 3, cells: grid, name: NM?.keep(grid.length) ?? "The Keep", type: "Fort", roof: "slate" });
+        } else if (first !== undefined) {
           const fc = [first];
           const more = S.size === "city" ? 2 : S.size === "town" ? 1 : 0;
           for (let k = 0; k < more; k++) {
